@@ -204,3 +204,21 @@ persisted shape. For output and settings normalization, assert that these
 six additions are the only second-pass changes and that the third pass
 matches the second. Other normalizers retain the first-pass idempotence check
 where applicable.
+
+## 2026-11-09 — 014 — Match JavaScript lyric text operations in Rust
+
+Lyrics use UTF-16 code units where Electron exposes offsets or measures line
+length. Rust strings preserve paired surrogates as Unicode scalars. RTF and
+cursor-splitting operations work in UTF-16 first so they can handle offsets
+inside a surrogate pair.
+
+The translation helpers implement the repeated-character backreference with
+an ASCII scan after key normalization. The glued section label lookahead
+checks the following character explicitly. Neither pattern needs
+`fancy-regex`.
+
+Keep the source test cases that exercise service behavior with the code they
+test. Prompt 024 owns `workspace-song-file.test.ts`, prompt 040 owns
+`lyrics-usr-title.test.ts` and its file-import path, and prompts 040/041
+own the canonicalization and online-ranking assertions in
+`lyrics-multilingual-search.test.ts`.
