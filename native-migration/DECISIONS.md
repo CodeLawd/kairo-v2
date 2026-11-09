@@ -230,3 +230,36 @@ that a missing-API-key warning stays hidden while translation options are
 loading. Prompt 078 owns the corresponding native scripture view test.
 The other scripture offline-state tests exercise domain behavior and are
 covered in prompt 015.
+
+## 2026-11-09 — 016 — Domain boundaries for the remaining shared exports
+
+- The coverage checker inventories declarations and re-exports using the
+  reference checkout's TypeScript compiler. Native counterparts are indexed
+  by source module. Explicit mappings cover names that differ, including
+  constants represented by `Default` implementations. An unmapped export
+  or a stale exception fails the check. The generated table records the
+  owner and reason for each excluded Electron channel, DOM or rendering
+  operation, async UI coordinator, and service archive runtime operation.
+- Time and timezone come from the caller. Timers use epoch milliseconds and
+  `chrono::TimeZone` for wall-clock deadlines, with chrono's OS clock feature
+  disabled. The deadline picks the earlier instant in a DST overlap and
+  advances through a gap. Capture naming uses local calendar components.
+  Service text exports and locale-aware title ordering receive formatters
+  or a comparator from their caller.
+- Validation retains canonical Rust field types. Invalid non-boolean
+  document slideshow flags fall back to defaults, and library or named
+  setlist records without numeric timestamps are dropped as malformed.
+  UTF-16 text limits stop at a scalar boundary if the JavaScript slice
+  would split a surrogate pair. The wall-clock implementation accepts
+  the date range representable by chrono.
+- The transfer parser distinguishes unreadable JSON, foreign files, future
+  versions, unsupported kinds, empty song lists and missing playlist bodies.
+  It reuses song-file coercion, keeps the first duplicate song ID, drops
+  unknown setlist references, and preserves unavailable scripture rows.
+  The transfer service owns file I/O, the byte limit, picker cancellation,
+  and committing or discarding previews.
+- The library and usage ports preserve stale assignment handling, report
+  totals rather than deltas, and keep today's usage after acknowledgment.
+  The audience parser rejects invalid command shapes, limits request IDs
+  and message size, and keeps the vote command's optional request ID.
+  The web and account helpers validate URLs before returning them.

@@ -183,3 +183,85 @@ pub struct DocumentPrepared {
     pub name: String,
     pub format: DocumentFormat,
 }
+
+pub const SLIDESHOW_MIN_SEC: f64 = 2.0;
+pub const SLIDESHOW_MAX_SEC: f64 = 3600.0;
+pub const SIMPLIFIED_IMPORT_WARNING: &str = "Imported with Kairo’s simplified renderer, so some pictures, fonts and effects may be missing. Download the slide converter in Settings → Documents, then import this file again for an exact copy.";
+pub const POWERPOINT_NEEDS_CONVERTER: &str = "This older .ppt file needs PowerPoint, WPS, Keynote, or LibreOffice. Save it as .pptx or export a PDF and import that instead.";
+pub const POWERPOINT_NEEDS_LIBREOFFICE: &str = POWERPOINT_NEEDS_CONVERTER;
+
+pub fn normalize_documents_settings(raw: &serde_json::Value) -> DocumentsSettings {
+    let default = DocumentsSettings::default();
+    let seconds = crate::js::value_to_number(raw.get("slideshowSec"));
+    DocumentsSettings {
+        slideshow_sec: if seconds.is_finite() {
+            crate::js::math_round(seconds).clamp(SLIDESHOW_MIN_SEC, SLIDESHOW_MAX_SEC)
+        } else {
+            default.slideshow_sec
+        },
+        slideshow_loop: raw["slideshowLoop"]
+            .as_bool()
+            .unwrap_or(default.slideshow_loop),
+        slideshow_auto_start: raw["slideshowAutoStart"]
+            .as_bool()
+            .unwrap_or(default.slideshow_auto_start),
+        extra: Extra::new(),
+    }
+}
+
+pub fn format_document_size(bytes: f64) -> String {
+    let mb = bytes / (1024.0 * 1024.0);
+    if !mb.is_finite() || mb.abs() >= 1e21 {
+        return format!("{} MB", crate::js::number_to_string(mb));
+    }
+    if mb == 0.0 {
+        return "0.0 MB".into();
+    }
+    // toFixed rounds exact halfway cases away from zero. At one decimal
+    // place, only odd multiples of a quarter can be exact binary halfway values.
+    let quarters = mb.abs() * 4.0;
+    if quarters % 2.0 == 1.0 {
+        let tenths = (quarters * 2.5).round() as u64;
+        let sign = if mb < 0.0 { "-" } else { "" };
+        return format!("{sign}{}.{} MB", tenths / 10, tenths % 10);
+    }
+    format!("{mb:.1} MB")
+}
+
+pub fn valid_document_page(page: f64, count: f64) -> bool {
+    page.fract() == 0.0 && page >= 0.0 && page < count
+}
+
+pub fn normalize_document_name(name: &str) -> Result<String, &'static str> {
+    let clean: String = name.chars().filter(|&c| c >= ' ').collect();
+    let name = clean
+        .split(crate::js::is_whitespace)
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if name.is_empty() {
+        return Err("Enter a name for this document.");
+    }
+    if name.encode_utf16().count() > 120 {
+        return Err("Document names can be up to 120 characters.");
+    }
+    if name.contains(['/', '\\']) {
+        return Err("Document names cannot include slashes.");
+    }
+    Ok(name)
+}
+
+pub fn can_convert_power_point(capabilities: Option<&DocumentsCapabilities>) -> bool {
+    capabilities.is_some_and(|value| {
+        value.can_convert_power_point || !value.converters.is_empty() || value.libre_office
+    })
+}
+
+pub fn documents_error_message(raw: &str) -> &str {
+    static WRAPPER: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?i)^Error invoking remote method '[^']+':\s*(?:Error:\s*)?").unwrap()
+    });
+    WRAPPER
+        .find(raw)
+        .map_or(raw, |wrapper| &raw[wrapper.end()..])
+}

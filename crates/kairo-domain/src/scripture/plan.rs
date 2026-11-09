@@ -431,3 +431,201 @@ where
     }
     out
 }
+
+pub fn append_scripture_result_to_plan(
+    plan: SermonPlan,
+    result: ScriptureResult,
+    item_id: String,
+    added_at: f64,
+) -> SermonPlan {
+    insert_scripture_result_in_plan(
+        plan,
+        result,
+        item_id,
+        None,
+        crate::media_order::DropPosition::After,
+        added_at,
+    )
+}
+
+pub fn insert_scripture_result_in_plan(
+    mut plan: SermonPlan,
+    result: ScriptureResult,
+    item_id: String,
+    relative: Option<&str>,
+    position: crate::media_order::DropPosition,
+    added_at: f64,
+) -> SermonPlan {
+    let at = relative
+        .filter(|id| !id.is_empty())
+        .and_then(|id| plan.items.iter().position(|item| item.id == id))
+        .map_or(plan.items.len(), |index| {
+            index + usize::from(position == crate::media_order::DropPosition::After)
+        });
+    plan.items.insert(
+        at,
+        SermonScriptureItem {
+            id: item_id,
+            reference: result.reference,
+            translation: result.translation,
+            verses: result.verses,
+            available: true,
+            error: None,
+            extra: Default::default(),
+        },
+    );
+    plan.updated_at = added_at;
+    plan
+}
+
+pub fn append_scripture_results_to_plan(
+    mut plan: SermonPlan,
+    results: Vec<ScriptureResult>,
+    batch_id: &str,
+    added_at: f64,
+) -> SermonPlan {
+    for (index, result) in results.into_iter().enumerate() {
+        if !result.verses.is_empty() {
+            plan = append_scripture_result_to_plan(
+                plan,
+                result,
+                format!("{batch_id}-{index}"),
+                added_at,
+            );
+        }
+    }
+    plan
+}
+
+fn verse_reference(verse: &ScriptureVerse) -> String {
+    format!(
+        "{} {}:{}",
+        verse.book,
+        crate::js::number_to_string(verse.chapter),
+        crate::js::number_to_string(verse.verse)
+    )
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AdjacentDirection {
+    Previous,
+    Next,
+}
+
+pub fn extend_sermon_plan_item_with_adjacent(
+    mut plan: SermonPlan,
+    item_id: &str,
+    adjacent: ScriptureResult,
+    direction: AdjacentDirection,
+    updated_at: f64,
+) -> SermonPlan {
+    let Some(item) = plan.items.iter_mut().find(|item| item.id == item_id) else {
+        return plan;
+    };
+    let key = |verse: &ScriptureVerse| {
+        format!(
+            "{}:{}:{}",
+            verse.book,
+            crate::js::number_to_string(verse.chapter),
+            crate::js::number_to_string(verse.verse)
+        )
+    };
+    let seen: HashSet<_> = item.verses.iter().map(key).collect();
+    let mut incoming: Vec<_> = adjacent
+        .verses
+        .into_iter()
+        .filter(|verse| !seen.contains(&key(verse)))
+        .collect();
+    if incoming.is_empty() {
+        return plan;
+    }
+    match direction {
+        AdjacentDirection::Next => item.verses.append(&mut incoming),
+        AdjacentDirection::Previous => {
+            incoming.append(&mut item.verses);
+            item.verses = incoming;
+        }
+    }
+    let first = &item.verses[0];
+    let last = item.verses.last().expect("a nonempty adjacent passage");
+    let start = verse_reference(first);
+    item.reference = if first.book != last.book {
+        format!("{start}, {}", verse_reference(last))
+    } else if first.chapter != last.chapter {
+        format!(
+            "{start}–{}:{}",
+            crate::js::number_to_string(last.chapter),
+            crate::js::number_to_string(last.verse)
+        )
+    } else if first.verse != last.verse {
+        format!("{start}–{}", crate::js::number_to_string(last.verse))
+    } else {
+        start
+    };
+    if !adjacent.translation.is_empty() {
+        item.translation = adjacent.translation;
+    }
+    item.available = true;
+    item.error = None;
+    plan.updated_at = updated_at;
+    plan
+}
+
+pub fn expand_sermon_plan_items(items: Vec<SermonScriptureItem>) -> Vec<SermonScriptureItem> {
+    let mut expanded = Vec::new();
+    for item in items {
+        if item.verses.len() <= 1 {
+            expanded.push(item);
+            continue;
+        }
+        expanded.extend(item.verses.into_iter().enumerate().map(|(index, verse)| {
+            SermonScriptureItem {
+                id: format!(
+                    "{}-v{}-{}-{index}",
+                    item.id,
+                    crate::js::number_to_string(verse.chapter),
+                    crate::js::number_to_string(verse.verse)
+                ),
+                reference: verse_reference(&verse),
+                translation: item.translation.clone(),
+                verses: vec![verse],
+                available: item.available,
+                error: item.error.clone(),
+                extra: Default::default(),
+            }
+        }));
+    }
+    expanded
+}
+
+pub fn remove_sermon_plan_item(mut plan: SermonPlan, item_id: &str, removed_at: f64) -> SermonPlan {
+    plan.items.retain(|item| item.id != item_id);
+    plan.updated_at = removed_at;
+    plan
+}
+
+pub fn reorder_sermon_plan_item(
+    mut plan: SermonPlan,
+    dragged: &str,
+    target: &str,
+    position: crate::media_order::DropPosition,
+    moved_at: f64,
+) -> SermonPlan {
+    if dragged == target {
+        return plan;
+    }
+    let Some(from) = plan.items.iter().position(|item| item.id == dragged) else {
+        return plan;
+    };
+    let Some(to) = plan.items.iter().position(|item| item.id == target) else {
+        return plan;
+    };
+    let moved = plan.items.remove(from);
+    plan.items.insert(
+        to - usize::from(from < to)
+            + usize::from(position == crate::media_order::DropPosition::After),
+        moved,
+    );
+    plan.updated_at = moved_at;
+    plan
+}

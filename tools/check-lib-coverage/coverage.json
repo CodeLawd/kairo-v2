@@ -1,0 +1,590 @@
+{
+  "modules": {
+    "media-playback.ts": [
+      "media"
+    ],
+    "pa-media-range.ts": [
+      "media"
+    ],
+    "tracks.ts": [
+      "media"
+    ],
+    "rtf-text.ts": [
+      "lyrics::rtf"
+    ],
+    "detector-recovery.ts": [
+      "scripture"
+    ],
+    "bible-translations.ts": [
+      "scripture::translations",
+      "scripture"
+    ],
+    "bible-versification.ts": [
+      "scripture::versification"
+    ],
+    "sermon-notes-review.ts": [
+      "scripture::notes_review"
+    ],
+    "scripture-trace.ts": [
+      "scripture::trace",
+      "scripture_trace"
+    ],
+    "scripture-trace-store.ts": [
+      "scripture::trace"
+    ],
+    "scripture-live-progress.ts": [
+      "scripture::live_progress"
+    ],
+    "scripture-offline-state.ts": [
+      "scripture::offline_state",
+      "scripture::offline_state::api_cache_messages"
+    ],
+    "scripture-query.ts": [
+      "scripture::query"
+    ],
+    "sermon-plan-match.ts": [
+      "scripture::plan"
+    ],
+    "sermon-plan-resolve.ts": [
+      "scripture::plan"
+    ],
+    "spoken-translations.ts": [
+      "scripture::spoken_translations"
+    ],
+    "scripture-tab-presentation.ts": [
+      "scripture::small"
+    ],
+    "single-verse-presentation.ts": [
+      "scripture::small"
+    ],
+    "verse-text.ts": [
+      "scripture::small"
+    ],
+    "libraries.ts": [
+      "collections"
+    ],
+    "setlist.ts": [
+      "collections"
+    ],
+    "passages.ts": [
+      "collections"
+    ],
+    "audience-protocol.ts": [
+      "audience"
+    ],
+    "audience-connection.ts": [
+      "audience"
+    ],
+    "engage.ts": [
+      "audience"
+    ],
+    "cloud/contracts.ts": [
+      "cloud"
+    ],
+    "keyboard-shortcuts.ts": [
+      "keyboard_shortcuts",
+      "settings"
+    ],
+    "ipc.ts": [
+      "scripture::plan",
+      "scripture"
+    ],
+    "service-archive.ts": [
+      "services"
+    ],
+    "service-records.ts": [
+      "services"
+    ],
+    "sermon-upload.ts": [
+      "services"
+    ],
+    "song-usage.ts": [
+      "usage"
+    ],
+    "usage-ledger.ts": [
+      "usage"
+    ],
+    "lyrics-translate.ts": [
+      "lyrics::translate",
+      "lyrics"
+    ],
+    "lyrics-online-error.ts": [
+      "lyrics::online_error",
+      "lyrics"
+    ],
+    "lyrics-hotkeys.ts": [
+      "lyrics::hotkeys",
+      "lyrics"
+    ],
+    "lyrics-section-json.ts": [
+      "lyrics::section_json",
+      "lyrics"
+    ],
+    "lyrics-slides.ts": [
+      "lyrics::slides",
+      "lyrics"
+    ],
+    "lyrics-style.ts": [
+      "lyrics::style",
+      "lyrics"
+    ],
+    "lyrics-query.ts": [
+      "lyrics::query",
+      "lyrics"
+    ],
+    "lyrics-reflow.ts": [
+      "lyrics::reflow",
+      "lyrics"
+    ],
+    "lyrics-duplicate.ts": [
+      "lyrics::duplicate",
+      "lyrics"
+    ],
+    "lyrics-section-edit.ts": [
+      "lyrics::section_edit",
+      "lyrics"
+    ],
+    "lyrics-clipboard.ts": [
+      "lyrics::clipboard",
+      "lyrics"
+    ],
+    "lyrics-reorder.ts": [
+      "lyrics::reorder",
+      "lyrics"
+    ],
+    "cloud/usage.ts": [
+      "usage"
+    ],
+    "cloud/device-code.ts": [
+      "cloud"
+    ],
+    "cloud/licensing.ts": [
+      "cloud"
+    ],
+    "cloud/auth-state.ts": [
+      "cloud"
+    ],
+    "cloud/return-path.ts": [
+      "cloud"
+    ],
+    "cloud/crashes.ts": [
+      "cloud"
+    ],
+    "cloud/onboarding.ts": [
+      "cloud"
+    ],
+    "cloud/feedback.ts": [
+      "cloud"
+    ],
+    "cloud/timezone-search.ts": [
+      "cloud"
+    ],
+    "cloud/org-secrets.ts": [
+      "cloud"
+    ]
+  },
+  "exports": {
+    "program.ts#renderTimerHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#renderMessageHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#renderPropObjectHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#renderPropHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#renderPropsHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#renderLogoHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#renderQuestionHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#renderPollHTML": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "program.ts#programLayersFor": {
+      "owner": "054",
+      "reason": "Program-layer rendering belongs to the native scene."
+    },
+    "pa-media-range.ts#parseByteRange": {
+      "owner": "retired",
+      "reason": "The Electron media protocol and its HTTP range response retire."
+    },
+    "pa-media-range.ts#rangeResponseHeaders": {
+      "owner": "retired",
+      "reason": "The Electron media protocol and its HTTP range response retire."
+    },
+    "capture.ts#DEFAULT_CAPTURE_SETTINGS": "capture::CaptureSettings::default",
+    "capture.ts#IDLE_CAPTURE_STATUS": "capture::CaptureStatus::default",
+    "program.ts#DEFAULT_CONFIDENCE_LAYOUT": "program::ConfidenceLayout::default",
+    "program.ts#DEFAULT_PRESENTATION_SETTINGS": "program::PresentationSettings::default",
+    "program.ts#DEFAULT_SHOW_FILTER": "program::OutputShowFilter::default",
+    "program.ts#DEFAULT_TIMER": "program::ProgramTimerDef::default",
+    "program.ts#DEFAULT_VIDEO_SETTINGS": "program::VideoSettings::default",
+    "program.ts#EMPTY_PROGRAM_STATE": "program::ProgramState::default",
+    "audience-protocol.ts#DEFAULT_AUDIENCE_ROOM_SETTINGS": "audience::AudienceRoomSettings::default",
+    "audience-protocol.ts#AUDIENCE_CODE": "audience::is_audience_code",
+    "cloud/onboarding.ts#DEFAULT_ONBOARDING_STATE": "settings::OnboardingState::default",
+    "cloud/usage.ts#USAGE_DAY": "usage::is_usage_day",
+    "documents.ts#DEFAULT_DOCUMENTS_SETTINGS": "documents::DocumentsSettings::default",
+    "web.ts#DEFAULT_WEB_SETTINGS": "web::WebSettings::default",
+    "media-playback.ts#DEFAULT_MEDIA_PLAYBACK": "media::MediaPlayback::default",
+    "service-records.ts#idleUpload": "services::ServiceUploadState::default",
+    "libraries.ts#emptyLibraryState": "collections::LibraryState::default",
+    "libraries.ts#emptyLibrariesState": "collections::LibrariesState::default",
+    "libraries.ts#DEFAULT_LIBRARY_NAME": "collections::default_library_name",
+    "setlist.ts#emptySetlistState": "collections::SetlistState::default",
+    "tracks.ts#TRACK_EXT": "media::TRACK_FILE_EXTENSIONS",
+    "normalize.ts#COLOR_RE": "normalize::is_color",
+    "output-settings.ts#createOutputSettingsWriter": "output_settings::OutputSettingsWriter",
+    "program.ts#PropBox": "program::PropFrame",
+    "program.ts#PropImageObject": "program::PropObject",
+    "program.ts#PropShapeObject": "program::PropObject",
+    "program.ts#PropTextObject": "program::PropObject",
+    "program.ts#PropTimerObject": "program::PropObject",
+    "program.ts#PropObjectKind": "program::PropObject",
+    "cloud/org-secrets.ts#SttSecretKey": "settings::SettingsSecretClearKey",
+    "cloud/org-secrets.ts#LyricsSecretKey": "settings::SettingsSecretClearKey",
+    "ipc.ts#STTProvider": "status::SttProvider",
+    "bible-translations.ts#DEFAULT_TRANSLATION_ID": "settings::DEFAULT_TRANSLATION_ID",
+    "cloud/onboarding.ts#ONBOARDING_STEPS": "cloud::onboarding::ONBOARDING_STEPS",
+    "brand.ts#BRAND": "brand::colors",
+    "scripture-offline-state.ts#API_CACHE_MESSAGES": "scripture::offline_state::api_cache_messages",
+    "scripture-offline-state.ts#API_BIBLE_ATTRIBUTION": "scripture::offline_state::API_BIBLE_ATTRIBUTION_LABEL",
+    "sermon-notes-review.ts#SermonNotesDocNode": "scripture::notes_review::SermonNotesNode",
+    "ipc.ts#AccountAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#AppAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#AudioAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#DisplaysAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#FeedbackAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#IPC": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#KairoAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#LyricsAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#MediaAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#NdiAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#OnboardingAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#OrchestratorAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#OutputAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#ResilienceAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#ScriptureAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#SettingsAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#SettingsSectionPatch": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#TracksAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#TranscriptionAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#Unsubscribe": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#UpdatesAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "ipc.ts#WorkspaceAPI": {
+      "owner": "067",
+      "reason": "Electron preload interfaces and invoke channel strings are replaced by typed application calls and subscriptions."
+    },
+    "audience.ts#AUDIENCE": {
+      "owner": "046",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "audience.ts#AudienceAPI": {
+      "owner": "046",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "capture.ts#CaptureAPI": {
+      "owner": "064",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "documents.ts#DOCUMENTS": {
+      "owner": "045",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "documents.ts#DocumentsAPI": {
+      "owner": "045",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "kairo-bundle.ts#TRANSFER": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "kairo-bundle.ts#TransferAPI": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "libraries.ts#LIBRARIES_CHANGED": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "libraries.ts#LIBRARIES_CHANNEL": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "libraries.ts#LibrariesAPI": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "passages.ts#PASSAGES_CHANNEL": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "passages.ts#PASSAGES_CHANGED": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "passages.ts#PassagesAPI": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "program.ts#PROGRAM": {
+      "owner": "065",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "program.ts#ProgramAPI": {
+      "owner": "065",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "service-records.ts#SERVICE_CHANNEL": {
+      "owner": "032",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "service-records.ts#SERVICE_CHANGED": {
+      "owner": "032",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "service-records.ts#ServicesAPI": {
+      "owner": "032",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "setlist.ts#SETLIST_CHANNEL": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "setlist.ts#SETLIST_CHANGED": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "setlist.ts#SetlistAPI": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "song-usage.ts#SONG_USAGE": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "song-usage.ts#SongUsageAPI": {
+      "owner": "044",
+      "reason": "Electron invoke channels or preload callback interface. The native service exposes the operation through typed commands and events."
+    },
+    "output-settings.ts#OutputEdit": {
+      "owner": "013",
+      "reason": "The edit is the closure accepted directly by OutputSettingsWriter::begin."
+    },
+    "overlay-fit.ts#applyOverlayAutoFit": {
+      "owner": "052",
+      "reason": "Text fitting reads rendered bounds and belongs to the native scene text layout."
+    },
+    "overlay-fit.ts#largestFontThatFits": {
+      "owner": "052",
+      "reason": "Text fitting reads rendered bounds and belongs to the native scene text layout."
+    },
+    "overlay-fit.ts#overlayTextOverflows": {
+      "owner": "052",
+      "reason": "Text fitting reads rendered bounds and belongs to the native scene text layout."
+    },
+    "overlay-fit.ts#OVERLAY_TRANSPORT_VIDEOS": {
+      "owner": "055",
+      "reason": "DOM video nodes and transport are replaced by native playback."
+    },
+    "overlay-fit.ts#overlayVideoTime": {
+      "owner": "055",
+      "reason": "DOM video nodes and transport are replaced by native playback."
+    },
+    "overlay-fit.ts#OverlayVideoTime": {
+      "owner": "055",
+      "reason": "DOM video nodes and transport are replaced by native playback."
+    },
+    "overlay-fit.ts#playOverlayVideos": {
+      "owner": "055",
+      "reason": "DOM video nodes and transport are replaced by native playback."
+    },
+    "overlay-fit.ts#prepareOverlayMedia": {
+      "owner": "055",
+      "reason": "DOM video nodes and transport are replaced by native playback."
+    },
+    "overlay-fit.ts#seekOverlayVideos": {
+      "owner": "055",
+      "reason": "DOM video nodes and transport are replaced by native playback."
+    },
+    "overlay-fit.ts#setOverlayVideosPaused": {
+      "owner": "055",
+      "reason": "DOM video nodes and transport are replaced by native playback."
+    },
+    "overlay-template.ts#estimateAutoFitVerseFontPx": {
+      "owner": "052",
+      "reason": "Renderer text measurement and fitting belong to the scene text layout."
+    },
+    "overlay-template.ts#MAX_AUTO_FIT_PX": {
+      "owner": "052",
+      "reason": "Renderer text measurement and fitting belong to the scene text layout."
+    },
+    "overlay-template.ts#MIN_AUTO_FIT_PX": {
+      "owner": "052",
+      "reason": "Renderer text measurement and fitting belong to the scene text layout."
+    },
+    "overlay-template.ts#SMART_FILL_REFERENCE": {
+      "owner": "052",
+      "reason": "Renderer text measurement and fitting belong to the scene text layout."
+    },
+    "overlay-template.ts#colorWithOpacity": {
+      "owner": "053",
+      "reason": "Helpers construct HTML and CSS for Electron overlays. Native scenes consume typed text, color and geometry."
+    },
+    "overlay-template.ts#escapeAndBreak": {
+      "owner": "053",
+      "reason": "Helpers construct HTML and CSS for Electron overlays. Native scenes consume typed text, color and geometry."
+    },
+    "overlay-template.ts#escapeHtml": {
+      "owner": "053",
+      "reason": "Helpers construct HTML and CSS for Electron overlays. Native scenes consume typed text, color and geometry."
+    },
+    "overlay-template.ts#formatOverlayColoredText": {
+      "owner": "053",
+      "reason": "Helpers construct HTML and CSS for Electron overlays. Native scenes consume typed text, color and geometry."
+    },
+    "overlay-template.ts#OverlayColoredLine": {
+      "owner": "053",
+      "reason": "Helpers construct HTML and CSS for Electron overlays. Native scenes consume typed text, color and geometry."
+    },
+    "overlay-template.ts#renderOverlayHTML": {
+      "owner": "053",
+      "reason": "Helpers construct HTML and CSS for Electron overlays. Native scenes consume typed text, color and geometry."
+    },
+    "overlay-template.ts#sanitizeOverlayColor": {
+      "owner": "053",
+      "reason": "Helpers construct HTML and CSS for Electron overlays. Native scenes consume typed text, color and geometry."
+    },
+    "overlay-template.ts#overlayMediaUrl": {
+      "owner": "retired",
+      "reason": "Electron custom media protocol URL generation retires."
+    },
+    "overlay-template.ts#PA_MEDIA_URL_PREFIX": {
+      "owner": "retired",
+      "reason": "Electron custom media protocol URL generation retires."
+    },
+    "web.ts#WEB_FRAME_ALLOW": {
+      "owner": "059",
+      "reason": "Browser frame capability and postMessage wiring belong to the native web surface."
+    },
+    "web.ts#WEB_FRAME_SANDBOX": {
+      "owner": "059",
+      "reason": "Browser frame capability and postMessage wiring belong to the native web surface."
+    },
+    "web.ts#WEB_MIRROR_FRAME": {
+      "owner": "059",
+      "reason": "Browser frame capability and postMessage wiring belong to the native web surface."
+    },
+    "web.ts#WEB_POINTER_MESSAGE": {
+      "owner": "059",
+      "reason": "Browser frame capability and postMessage wiring belong to the native web surface."
+    },
+    "web.ts#WEB_PREVIEW_FRAME": {
+      "owner": "059",
+      "reason": "Browser frame capability and postMessage wiring belong to the native web surface."
+    },
+    "web.ts#WEB_SCREEN_FRAME": {
+      "owner": "059",
+      "reason": "Browser frame capability and postMessage wiring belong to the native web surface."
+    },
+    "web.ts#WEB_SCROLL_MESSAGE": {
+      "owner": "059",
+      "reason": "Browser frame capability and postMessage wiring belong to the native web surface."
+    },
+    "cloud/auth-state.ts#createSingleFlight": {
+      "owner": "073",
+      "reason": "The account UI owns asynchronous submit coordination and shares the running request."
+    },
+    "cloud/auth-state.ts#SingleFlight": {
+      "owner": "073",
+      "reason": "The account UI owns asynchronous submit coordination and shares the running request."
+    },
+    "service-archive.ts#ServiceArchiveStorage": {
+      "owner": "032",
+      "reason": "The service actor owns storage, listeners, UUIDs, analysis requests, and the periodic timer."
+    },
+    "service-archive.ts#ServiceRecords": {
+      "owner": "032",
+      "reason": "The service actor owns storage, listeners, UUIDs, analysis requests, and the periodic timer."
+    }
+  }
+}

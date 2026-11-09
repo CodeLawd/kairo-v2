@@ -546,6 +546,17 @@ pub fn parse_float(s: &str) -> f64 {
     if negative { -magnitude } else { magnitude }
 }
 
+/// JavaScript Number conversion for persisted JSON. Absence represents undefined.
+pub fn value_to_number(value: Option<&Value>) -> f64 {
+    match value {
+        None => f64::NAN,
+        Some(Value::Null) => 0.0,
+        Some(Value::Bool(value)) => f64::from(u8::from(*value)),
+        Some(Value::Number(value)) => value.as_f64().unwrap_or(f64::NAN),
+        Some(value) => string_to_number(&value_to_string(value)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

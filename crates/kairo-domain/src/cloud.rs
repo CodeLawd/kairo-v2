@@ -795,3 +795,80 @@ pub struct SessionDescription {
     pub detail: String,
     pub tone: SessionTone,
 }
+
+mod account_rules;
+pub use account_rules::*;
+
+mod onboarding;
+pub use onboarding::*;
+
+mod org_secrets;
+pub use org_secrets::*;
+
+pub const CRASH_KINDS: &[CrashKind] = CrashKind::ALL;
+pub const CRASH_MAX_REPORTS: usize = 10;
+pub const CRASH_MAX_ERRORS: usize = 20;
+pub const CRASH_MAX_ERROR_CHARS: usize = 1_000;
+pub const CRASH_MAX_LOG_LINES: usize = 200;
+pub const CRASH_MAX_LOG_CHARS: usize = 64_000;
+pub const CRASH_REPEAT_MS: u64 = 60_000;
+pub const FEEDBACK_KINDS: &[FeedbackKind] = FeedbackKind::ALL;
+pub const FEEDBACK_STATUSES: &[FeedbackStatus] = FeedbackStatus::ALL;
+pub const FEEDBACK_MAX_CHARS: usize = 5_000;
+
+pub fn scrub_home(text: &str, home: &str, windows: bool) -> String {
+    if home.is_empty() {
+        return text.into();
+    }
+    let forms = [
+        home.to_owned(),
+        home.replace('\\', "\\\\"),
+        home.replace('\\', "/"),
+    ];
+    let mut out = text.to_owned();
+    for form in forms {
+        if windows {
+            let escaped = regex::escape(&form);
+            if let Ok(pattern) = regex::RegexBuilder::new(&escaped)
+                .case_insensitive(true)
+                .build()
+            {
+                out = pattern.replace_all(&out, "~").into_owned();
+            }
+        } else {
+            out = out.replace(&form, "~");
+        }
+    }
+    out
+}
+
+pub fn log_tail(text: &str, max_lines: usize, max_chars: usize) -> String {
+    let mut lines: Vec<_> = text
+        .split('\n')
+        .map(|line| line.strip_suffix('\r').unwrap_or(line))
+        .collect();
+    if lines.last() == Some(&"") {
+        lines.pop();
+    }
+    let first = if max_lines == 0 {
+        0
+    } else {
+        lines.len().saturating_sub(max_lines)
+    };
+    let tail = lines[first..].join("\n");
+    if tail.encode_utf16().count() <= max_chars || max_chars == 0 {
+        return tail;
+    }
+    let mut units = 0;
+    let start = tail
+        .char_indices()
+        .rev()
+        .take_while(|(_, ch)| {
+            units += ch.len_utf16();
+            units <= max_chars
+        })
+        .last()
+        .map_or(tail.len(), |(index, _)| index);
+    let tail = &tail[start..];
+    tail.split_once('\n').map_or(tail, |(_, rest)| rest).into()
+}

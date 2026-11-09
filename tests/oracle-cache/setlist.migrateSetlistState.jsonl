@@ -1,0 +1,4 @@
+{"fn":"setlist.migrateSetlistState","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"1328017bae3c38b3","r":{"lists":[],"activeId":null}}
+{"k":"3a06ce5dd8754375","r":{"lists":[{"id":"a","name":"Sunday Service","songIds":["x"],"createdAt":3,"updatedAt":3}],"activeId":"a"}}
+{"k":"9b75736427172b60","r":{"lists":[{"id":"setlist-legacy","name":"Sunday service","songIds":["a","b"],"createdAt":12,"updatedAt":12}],"activeId":"setlist-legacy"}}
