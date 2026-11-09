@@ -645,3 +645,36 @@ pub struct StageDisplayStatus {
     pub ready: bool,
     pub reason: String,
 }
+
+/// `normalizeConfidenceLayout` (prompt 013 needs it for outputs; 016 owns
+/// the rest of `program.ts`).
+pub fn normalize_confidence_layout(raw: Option<&serde_json::Value>) -> ConfidenceLayout {
+    use crate::normalize::{as_object, safe_enum};
+    let r = as_object(raw);
+    ConfidenceLayout {
+        position: safe_enum(r.get("position"), TopOrBottom::Top),
+        size: safe_enum(r.get("size"), ConfidenceSize::Medium),
+        extra: Extra::new(),
+    }
+}
+
+/// `normalizeShowFilter` (prompt 013, as above).
+pub fn normalize_show_filter(raw: Option<&serde_json::Value>) -> OutputShowFilter {
+    use crate::normalize::{as_object, safe_bool};
+    let r = as_object(raw);
+    let d = OutputShowFilter::default();
+    OutputShowFilter {
+        scripture: safe_bool(r.get("scripture"), d.scripture),
+        lyrics: safe_bool(r.get("lyrics"), d.lyrics),
+        documents: safe_bool(r.get("documents"), d.documents),
+        backgrounds: safe_bool(r.get("backgrounds"), d.backgrounds),
+        poll: safe_bool(r.get("poll"), d.poll),
+        question: safe_bool(r.get("question"), d.question),
+        messages: safe_bool(r.get("messages"), d.messages),
+        overlays: safe_bool(r.get("overlays"), d.overlays),
+        countdown: safe_bool(r.get("countdown"), d.countdown),
+        clock: safe_bool(r.get("clock"), d.clock),
+        stage_message: safe_bool(r.get("stageMessage"), d.stage_message),
+        extra: Extra::new(),
+    }
+}

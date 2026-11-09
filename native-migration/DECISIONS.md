@@ -194,3 +194,13 @@ Decision: `kairo-domain` ports every persisted and exchanged data type in the pr
 9. Oracle helpers: the runner now reads exported constants (no arguments) and loads `oracle:<name>` modules from `tools/ts-oracle/modules`. `settings-defaults.ts` evaluates the `defaults` literal from `src/main/db/index.ts` with the TypeScript compiler, and builds a fresh-install file with theme ids and time pinned. Cache file names replace `:` and `/` for Windows.
 
 Affects prompts: 013 to 016, 021, and every prompt that reads or writes these types.
+
+## 2026-11-09 — 013 — Preserve first-pass overlay migration behavior
+
+Electron creates default outputs with a sparse background theme. Normalizing
+those outputs again fills `hue`, `saturation`, `brightness`, `contrast`,
+`blurPx` and `mediaLoop`. Keep the first-pass result identical to Electron's
+persisted shape. For output and settings normalization, assert that these
+six additions are the only second-pass changes and that the third pass
+matches the second. Other normalizers retain the first-pass idempotence check
+where applicable.

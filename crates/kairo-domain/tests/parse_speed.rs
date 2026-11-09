@@ -55,3 +55,31 @@ fn five_megabyte_settings_parse_under_20_ms() {
     );
     assert!(stored < 20.0 && canonical < 20.0);
 }
+
+#[test]
+#[ignore = "measures time; run in release"]
+fn settings_normalization_under_5_ms() {
+    use kairo_domain::overlay_defaults::normalize_overlay_settings;
+    use kairo_domain::pp_retirement::retire_pro_presenter_settings;
+    use kairo_domain::theme_library::normalize_theme_library;
+    use std::hint::black_box;
+
+    let text = include_str!("fixtures/owner/current-kairo-settings.json");
+    let settings: Value = serde_json::from_str(text).unwrap();
+    let elapsed = median_ms(text, |_| {
+        let retired = retire_pro_presenter_settings(Some(black_box(&settings)));
+        let overlay = normalize_overlay_settings(retired.get("overlay"));
+        let themes = normalize_theme_library(
+            retired.get("themeLibrary"),
+            &overlay.theme,
+            0.0,
+            "benchmark-legacy",
+        );
+        black_box((retired, overlay, themes));
+    });
+    println!(
+        "Settings normalization median {elapsed:.3} ms ({} bytes, 21 runs, JSON already parsed)",
+        text.len()
+    );
+    assert!(elapsed < 5.0);
+}
