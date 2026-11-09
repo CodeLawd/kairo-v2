@@ -1,0 +1,13 @@
+{
+	"onboarding": {
+		"completedSteps": [
+			"welcome",
+			"output",
+			"church"
+		],
+		"skippedSteps": [],
+		"currentStep": "church",
+		"completedAt": 1791371444520,
+		"source": "legacy"
+	}
+}

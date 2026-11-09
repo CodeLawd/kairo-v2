@@ -24,6 +24,7 @@ members = [
     "crates/kairo-audio",
     "crates/kairo-camera",
     "crates/kairo-sinks",
+    "crates/kairo-oracle",
     "crates/kairo-native-sys",
     "crates/kairo-ui-kit",
     "crates/ui-shell",

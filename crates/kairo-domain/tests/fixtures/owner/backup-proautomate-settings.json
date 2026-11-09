@@ -1,0 +1,1031 @@
+{
+	"propresenter": {
+		"host": "s1",
+		"port": 57563,
+		"password": "s2"
+	},
+	"audio": {
+		"deviceId": "s2"
+	},
+	"stt": {
+		"provider": "deepgram",
+		"apiKey": "s3",
+		"anthropicApiKey": "s2",
+		"deepseekApiKey": "s2",
+		"llmProvider": "anthropic",
+		"llmModel": "s2",
+		"bibleApiKey": "s4",
+		"language": "s5"
+	},
+	"scripture": {
+		"defaultTranslation": "s6",
+		"showVerseNumbers": true,
+		"autoMode": true,
+		"confidenceThreshold": 0.7,
+		"autoPresentDelaySec": 1,
+		"debounceInterval": 8,
+		"contextWindowSize": 90,
+		"offlineDownloadBibleIds": []
+	},
+	"lyrics": {
+		"braveApiKey": "s2",
+		"googleTranslateApiKey": "s2",
+		"glossColor": "#D4A017"
+	},
+	"display": {
+		"theme": "dark",
+		"fontSize": 16,
+		"transcriptionFontSize": 18
+	},
+	"overlay": {
+		"template": "s7",
+		"showTranslation": true,
+		"showVerseNumbers": true,
+		"maxVerses": 0,
+		"autoClearSec": 0,
+		"outputs": [
+			{
+				"id": "s8",
+				"name": "s9",
+				"kind": "ndi",
+				"enabled": false,
+				"order": 0,
+				"fallbackOnly": false,
+				"lookId": "s2",
+				"themeId": null,
+				"theme": {
+					"background": {
+						"type": "transparent",
+						"color": "#0b1220",
+						"opacity": 1,
+						"mediaFit": "cover",
+						"mediaLoop": false,
+						"hue": 0,
+						"saturation": 1,
+						"brightness": 1,
+						"contrast": 1
+					},
+					"verse": {
+						"fontFamily": "s10",
+						"fontSizePx": 54,
+						"fontWeight": 600,
+						"color": "#ffffff",
+						"colorOpacity": 1,
+						"lineHeight": 1.35,
+						"letterSpacingPx": 0,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": true,
+							"xPx": 0,
+							"yPx": 4,
+							"blurPx": 12,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 58,
+							"widthPct": 82,
+							"heightPct": 24
+						}
+					},
+					"reference": {
+						"fontFamily": "s10",
+						"fontSizePx": 32,
+						"fontWeight": 700,
+						"color": "#5eead4",
+						"colorOpacity": 1,
+						"lineHeight": 1.25,
+						"letterSpacingPx": 0.32,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": false,
+							"xPx": 0,
+							"yPx": 2,
+							"blurPx": 8,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 84,
+							"widthPct": 82,
+							"heightPct": 10
+						},
+						"show": true,
+						"position": "below"
+					},
+					"layout": {
+						"position": "lower-third",
+						"maxWidthPct": 82,
+						"paddingPx": 48,
+						"backdropBox": true,
+						"backdropColor": "rgba(3, 10, 20, 0.75)",
+						"backdropRadiusPx": 0,
+						"autoFitText": false
+					}
+				},
+				"ppVideoInputUuid": "s2",
+				"template": "s7",
+				"lyrics": null,
+				"displayId": null,
+				"displayLabel": "s2",
+				"displaySize": null,
+				"aspect": "letterbox",
+				"show": {
+					"scripture": true,
+					"lyrics": true,
+					"documents": true,
+					"backgrounds": true,
+					"messages": true,
+					"overlays": true
+				},
+				"source": "program",
+				"playlistId": "s2",
+				"slideSec": 8
+			},
+			{
+				"id": "library",
+				"name": "s11",
+				"kind": "library",
+				"enabled": true,
+				"order": 1,
+				"fallbackOnly": false,
+				"lookId": "s2",
+				"themeId": null,
+				"theme": {
+					"background": {
+						"type": "transparent",
+						"color": "#0b1220",
+						"opacity": 1,
+						"mediaFit": "cover",
+						"mediaLoop": false,
+						"hue": 0,
+						"saturation": 1,
+						"brightness": 1,
+						"contrast": 1
+					},
+					"verse": {
+						"fontFamily": "s10",
+						"fontSizePx": 54,
+						"fontWeight": 600,
+						"color": "#ffffff",
+						"colorOpacity": 1,
+						"lineHeight": 1.35,
+						"letterSpacingPx": 0,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": true,
+							"xPx": 0,
+							"yPx": 4,
+							"blurPx": 12,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 58,
+							"widthPct": 82,
+							"heightPct": 24
+						}
+					},
+					"reference": {
+						"fontFamily": "s10",
+						"fontSizePx": 32,
+						"fontWeight": 700,
+						"color": "#5eead4",
+						"colorOpacity": 1,
+						"lineHeight": 1.25,
+						"letterSpacingPx": 0.32,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": false,
+							"xPx": 0,
+							"yPx": 2,
+							"blurPx": 8,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 84,
+							"widthPct": 82,
+							"heightPct": 10
+						},
+						"show": true,
+						"position": "below"
+					},
+					"layout": {
+						"position": "lower-third",
+						"maxWidthPct": 82,
+						"paddingPx": 48,
+						"backdropBox": true,
+						"backdropColor": "rgba(3, 10, 20, 0.75)",
+						"backdropRadiusPx": 0,
+						"autoFitText": false
+					}
+				},
+				"ppVideoInputUuid": "s2",
+				"template": "s7",
+				"lyrics": null,
+				"displayId": null,
+				"displayLabel": "s2",
+				"displaySize": null,
+				"aspect": "letterbox",
+				"show": {
+					"scripture": true,
+					"lyrics": true,
+					"documents": true,
+					"backgrounds": true,
+					"messages": true,
+					"overlays": true
+				},
+				"source": "program",
+				"playlistId": "s2",
+				"slideSec": 8
+			},
+			{
+				"id": "lower-third",
+				"name": "s12",
+				"kind": "message",
+				"enabled": true,
+				"order": 0,
+				"fallbackOnly": true,
+				"lookId": "s2",
+				"themeId": null,
+				"theme": {
+					"background": {
+						"type": "transparent",
+						"color": "#0b1220",
+						"opacity": 1,
+						"mediaFit": "cover",
+						"mediaLoop": false,
+						"hue": 0,
+						"saturation": 1,
+						"brightness": 1,
+						"contrast": 1
+					},
+					"verse": {
+						"fontFamily": "s10",
+						"fontSizePx": 54,
+						"fontWeight": 600,
+						"color": "#ffffff",
+						"colorOpacity": 1,
+						"lineHeight": 1.35,
+						"letterSpacingPx": 0,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": true,
+							"xPx": 0,
+							"yPx": 4,
+							"blurPx": 12,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 58,
+							"widthPct": 82,
+							"heightPct": 24
+						}
+					},
+					"reference": {
+						"fontFamily": "s10",
+						"fontSizePx": 32,
+						"fontWeight": 700,
+						"color": "#5eead4",
+						"colorOpacity": 1,
+						"lineHeight": 1.25,
+						"letterSpacingPx": 0.32,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": false,
+							"xPx": 0,
+							"yPx": 2,
+							"blurPx": 8,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 84,
+							"widthPct": 82,
+							"heightPct": 10
+						},
+						"show": true,
+						"position": "below"
+					},
+					"layout": {
+						"position": "lower-third",
+						"maxWidthPct": 82,
+						"paddingPx": 48,
+						"backdropBox": true,
+						"backdropColor": "rgba(3, 10, 20, 0.75)",
+						"backdropRadiusPx": 0,
+						"autoFitText": false
+					}
+				},
+				"ppVideoInputUuid": "s2",
+				"template": "s7",
+				"lyrics": null,
+				"displayId": null,
+				"displayLabel": "s2",
+				"displaySize": null,
+				"aspect": "letterbox",
+				"show": {
+					"scripture": true,
+					"lyrics": true,
+					"documents": true,
+					"backgrounds": true,
+					"messages": true,
+					"overlays": true
+				},
+				"source": "program",
+				"playlistId": "s2",
+				"slideSec": 8
+			},
+			{
+				"id": "s13",
+				"name": "s14",
+				"kind": "s13",
+				"enabled": false,
+				"order": 0,
+				"fallbackOnly": false,
+				"lookId": "s2",
+				"themeId": null,
+				"theme": {
+					"background": {
+						"type": "transparent",
+						"color": "#0b1220",
+						"opacity": 1,
+						"mediaFit": "cover",
+						"mediaLoop": false,
+						"hue": 0,
+						"saturation": 1,
+						"brightness": 1,
+						"contrast": 1
+					},
+					"verse": {
+						"fontFamily": "s10",
+						"fontSizePx": 54,
+						"fontWeight": 600,
+						"color": "#ffffff",
+						"colorOpacity": 1,
+						"lineHeight": 1.35,
+						"letterSpacingPx": 0,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": true,
+							"xPx": 0,
+							"yPx": 4,
+							"blurPx": 12,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 58,
+							"widthPct": 82,
+							"heightPct": 24
+						}
+					},
+					"reference": {
+						"fontFamily": "s10",
+						"fontSizePx": 32,
+						"fontWeight": 700,
+						"color": "#5eead4",
+						"colorOpacity": 1,
+						"lineHeight": 1.25,
+						"letterSpacingPx": 0.32,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": false,
+							"xPx": 0,
+							"yPx": 2,
+							"blurPx": 8,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 84,
+							"widthPct": 82,
+							"heightPct": 10
+						},
+						"show": true,
+						"position": "below"
+					},
+					"layout": {
+						"position": "lower-third",
+						"maxWidthPct": 82,
+						"paddingPx": 48,
+						"backdropBox": true,
+						"backdropColor": "rgba(3, 10, 20, 0.75)",
+						"backdropRadiusPx": 0,
+						"autoFitText": false
+					}
+				},
+				"ppVideoInputUuid": "s2",
+				"template": "s7",
+				"lyrics": null,
+				"displayId": null,
+				"displayLabel": "s2",
+				"displaySize": null,
+				"aspect": "letterbox",
+				"show": {
+					"scripture": true,
+					"lyrics": true,
+					"documents": true,
+					"backgrounds": true,
+					"messages": true,
+					"overlays": true
+				},
+				"source": "program",
+				"playlistId": "s2",
+				"slideSec": 8
+			},
+			{
+				"id": "s15",
+				"name": "s16",
+				"kind": "message",
+				"enabled": true,
+				"order": 0,
+				"fallbackOnly": false,
+				"lookId": "s2",
+				"themeId": "s17",
+				"theme": {
+					"background": {
+						"type": "transparent",
+						"color": "#0b1220",
+						"opacity": 1,
+						"mediaFit": "cover",
+						"mediaLoop": false,
+						"hue": 0,
+						"saturation": 1,
+						"brightness": 1,
+						"contrast": 1
+					},
+					"verse": {
+						"fontFamily": "s10",
+						"fontSizePx": 54,
+						"fontWeight": 600,
+						"color": "#ffffff",
+						"colorOpacity": 1,
+						"lineHeight": 1.35,
+						"letterSpacingPx": 0,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": true,
+							"xPx": 0,
+							"yPx": 4,
+							"blurPx": 12,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 58,
+							"widthPct": 82,
+							"heightPct": 24
+						}
+					},
+					"reference": {
+						"fontFamily": "s10",
+						"fontSizePx": 32,
+						"fontWeight": 700,
+						"color": "#5eead4",
+						"colorOpacity": 1,
+						"lineHeight": 1.25,
+						"letterSpacingPx": 0.32,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": false,
+							"xPx": 0,
+							"yPx": 2,
+							"blurPx": 8,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 84,
+							"widthPct": 82,
+							"heightPct": 10
+						},
+						"show": true,
+						"position": "below"
+					},
+					"layout": {
+						"position": "lower-third",
+						"maxWidthPct": 82,
+						"paddingPx": 48,
+						"backdropBox": true,
+						"backdropColor": "rgba(3, 10, 20, 0.75)",
+						"backdropRadiusPx": 0,
+						"autoFitText": false
+					}
+				},
+				"ppVideoInputUuid": "s2",
+				"template": "s7",
+				"lyrics": null,
+				"displayId": null,
+				"displayLabel": "s2",
+				"displaySize": null,
+				"aspect": "letterbox",
+				"show": {
+					"scripture": true,
+					"lyrics": true,
+					"documents": true,
+					"backgrounds": true,
+					"messages": true,
+					"overlays": true
+				},
+				"source": "program",
+				"playlistId": "s2",
+				"slideSec": 8
+			},
+			{
+				"id": "s15",
+				"name": "s16",
+				"kind": "screen",
+				"enabled": false,
+				"order": 0,
+				"fallbackOnly": false,
+				"lookId": "s2",
+				"themeId": null,
+				"theme": {
+					"background": {
+						"type": "transparent",
+						"color": "#0b1220",
+						"opacity": 1,
+						"mediaFit": "cover"
+					},
+					"verse": {
+						"fontFamily": "s10",
+						"fontSizePx": 54,
+						"fontWeight": 600,
+						"color": "#ffffff",
+						"colorOpacity": 1,
+						"lineHeight": 1.35,
+						"letterSpacingPx": 0,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": true,
+							"xPx": 0,
+							"yPx": 4,
+							"blurPx": 12,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 58,
+							"widthPct": 82,
+							"heightPct": 24
+						}
+					},
+					"reference": {
+						"fontFamily": "s10",
+						"fontSizePx": 32,
+						"fontWeight": 700,
+						"color": "#5eead4",
+						"colorOpacity": 1,
+						"lineHeight": 1.25,
+						"letterSpacingPx": 0.32,
+						"align": "center",
+						"verticalAlign": "middle",
+						"textDecoration": "none",
+						"textTransform": "none",
+						"shadow": {
+							"enabled": false,
+							"xPx": 0,
+							"yPx": 2,
+							"blurPx": 8,
+							"color": "#000000",
+							"opacity": 0.7
+						},
+						"outline": {
+							"enabled": false,
+							"position": "outside",
+							"widthPx": 0,
+							"style": "solid",
+							"color": "#000000",
+							"opacity": 1
+						},
+						"box": {
+							"xPct": 9,
+							"yPct": 84,
+							"widthPct": 82,
+							"heightPct": 10
+						},
+						"show": true,
+						"position": "below"
+					},
+					"layout": {
+						"position": "lower-third",
+						"maxWidthPct": 82,
+						"paddingPx": 48,
+						"backdropBox": true,
+						"backdropColor": "rgba(3, 10, 20, 0.75)",
+						"backdropRadiusPx": 0,
+						"autoFitText": false
+					}
+				},
+				"ppVideoInputUuid": "s2",
+				"template": "s7",
+				"lyrics": null,
+				"displayId": null,
+				"displayLabel": "s2",
+				"displaySize": null,
+				"aspect": "letterbox",
+				"show": {
+					"scripture": true,
+					"lyrics": true,
+					"documents": true,
+					"backgrounds": true,
+					"messages": true,
+					"overlays": true
+				},
+				"source": "program",
+				"playlistId": "s2",
+				"slideSec": 8
+			}
+		],
+		"mode": "auto",
+		"ppVideoInputUuid": "s2",
+		"theme": {
+			"background": {
+				"type": "transparent",
+				"color": "#0b1220",
+				"opacity": 1,
+				"mediaFit": "cover",
+				"mediaLoop": false,
+				"hue": 0,
+				"saturation": 1,
+				"brightness": 1,
+				"contrast": 1
+			},
+			"verse": {
+				"fontFamily": "s10",
+				"fontSizePx": 54,
+				"fontWeight": 600,
+				"color": "#ffffff",
+				"colorOpacity": 1,
+				"lineHeight": 1.35,
+				"letterSpacingPx": 0,
+				"align": "center",
+				"verticalAlign": "middle",
+				"textDecoration": "none",
+				"textTransform": "none",
+				"shadow": {
+					"enabled": true,
+					"xPx": 0,
+					"yPx": 4,
+					"blurPx": 12,
+					"color": "#000000",
+					"opacity": 0.7
+				},
+				"outline": {
+					"enabled": false,
+					"position": "outside",
+					"widthPx": 0,
+					"style": "solid",
+					"color": "#000000",
+					"opacity": 1
+				},
+				"box": {
+					"xPct": 9,
+					"yPct": 58,
+					"widthPct": 82,
+					"heightPct": 24
+				}
+			},
+			"reference": {
+				"fontFamily": "s10",
+				"fontSizePx": 32,
+				"fontWeight": 700,
+				"color": "#5eead4",
+				"colorOpacity": 1,
+				"lineHeight": 1.25,
+				"letterSpacingPx": 0.32,
+				"align": "center",
+				"verticalAlign": "middle",
+				"textDecoration": "none",
+				"textTransform": "none",
+				"shadow": {
+					"enabled": false,
+					"xPx": 0,
+					"yPx": 2,
+					"blurPx": 8,
+					"color": "#000000",
+					"opacity": 0.7
+				},
+				"outline": {
+					"enabled": false,
+					"position": "outside",
+					"widthPx": 0,
+					"style": "solid",
+					"color": "#000000",
+					"opacity": 1
+				},
+				"box": {
+					"xPct": 9,
+					"yPct": 84,
+					"widthPct": 82,
+					"heightPct": 10
+				},
+				"show": true,
+				"position": "below"
+			},
+			"layout": {
+				"position": "lower-third",
+				"maxWidthPct": 82,
+				"paddingPx": 48,
+				"backdropBox": true,
+				"backdropColor": "rgba(3, 10, 20, 0.75)",
+				"backdropRadiusPx": 0,
+				"autoFitText": false
+			}
+		}
+	},
+	"themeLibrary": [
+		{
+			"id": "s17",
+			"name": "s18",
+			"kind": "scripture",
+			"createdAt": 1790462345759,
+			"updatedAt": 1790462345759,
+			"theme": {
+				"background": {
+					"type": "transparent",
+					"color": "#0b1220",
+					"opacity": 1,
+					"mediaFit": "cover",
+					"mediaLoop": false,
+					"hue": 0,
+					"saturation": 1,
+					"brightness": 1,
+					"contrast": 1
+				},
+				"verse": {
+					"fontFamily": "s10",
+					"fontSizePx": 54,
+					"fontWeight": 600,
+					"color": "#ffffff",
+					"colorOpacity": 1,
+					"lineHeight": 1.35,
+					"letterSpacingPx": 0,
+					"align": "center",
+					"verticalAlign": "middle",
+					"textDecoration": "none",
+					"textTransform": "none",
+					"shadow": {
+						"enabled": true,
+						"xPx": 0,
+						"yPx": 4,
+						"blurPx": 12,
+						"color": "#000000",
+						"opacity": 0.7
+					},
+					"outline": {
+						"enabled": false,
+						"position": "outside",
+						"widthPx": 0,
+						"style": "solid",
+						"color": "#000000",
+						"opacity": 1
+					},
+					"box": {
+						"xPct": 9,
+						"yPct": 58,
+						"widthPct": 82,
+						"heightPct": 24
+					}
+				},
+				"reference": {
+					"fontFamily": "s10",
+					"fontSizePx": 32,
+					"fontWeight": 700,
+					"color": "#5eead4",
+					"colorOpacity": 1,
+					"lineHeight": 1.25,
+					"letterSpacingPx": 0.32,
+					"align": "center",
+					"verticalAlign": "middle",
+					"textDecoration": "none",
+					"textTransform": "none",
+					"shadow": {
+						"enabled": false,
+						"xPx": 0,
+						"yPx": 2,
+						"blurPx": 8,
+						"color": "#000000",
+						"opacity": 0.7
+					},
+					"outline": {
+						"enabled": false,
+						"position": "outside",
+						"widthPx": 0,
+						"style": "solid",
+						"color": "#000000",
+						"opacity": 1
+					},
+					"box": {
+						"xPct": 9,
+						"yPct": 84,
+						"widthPct": 82,
+						"heightPct": 10
+					},
+					"show": true,
+					"position": "below"
+				},
+				"layout": {
+					"position": "lower-third",
+					"maxWidthPct": 82,
+					"paddingPx": 48,
+					"backdropBox": true,
+					"backdropColor": "rgba(3, 10, 20, 0.75)",
+					"backdropRadiusPx": 0,
+					"autoFitText": false
+				}
+			}
+		}
+	],
+	"workspace": {
+		"folder": "s2"
+	},
+	"media": {
+		"folder": "s19",
+		"playlists": []
+	},
+	"tracks": {
+		"folder": "s20"
+	},
+	"church": {
+		"name": "s21",
+		"timezone": "s22",
+		"role": "s23",
+		"serviceTimes": []
+	},
+	"documents": {
+		"slideshowSec": 10,
+		"slideshowLoop": true,
+		"slideshowAutoStart": false
+	},
+	"propresenterResources": {
+		"scriptureThemeId": "s2",
+		"lyricsThemeId": "s2",
+		"lowerThirdMessageId": "s2",
+		"defaultLookId": "s2",
+		"ndiVideoInputId": "s2",
+		"confidenceStageLayoutId": "s2",
+		"clearGroupId": "s2",
+		"serviceStartMacroId": "s2"
+	},
+	"presentation": {
+		"transition": {
+			"kind": "cut",
+			"durationMs": 400
+		},
+		"message": {
+			"position": "bottom",
+			"fontSizePx": 44,
+			"color": "#ffffff",
+			"background": "rgba(0,0,0,0.72)",
+			"scroll": false
+		},
+		"props": [],
+		"logo": {
+			"mediaPath": "s2",
+			"background": "#000000"
+		},
+		"stageDisplays": [],
+		"audio": {
+			"enabled": false,
+			"volume": 1,
+			"outputLabel": "s2",
+			"ndi": false
+		}
+	}
+}

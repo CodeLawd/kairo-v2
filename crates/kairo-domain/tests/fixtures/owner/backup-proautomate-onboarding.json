@@ -1,0 +1,17 @@
+{
+	"onboarding": {
+		"completedSteps": [
+			"propresenter",
+			"output",
+			"apiKeys",
+			"church"
+		],
+		"skippedSteps": [
+			"account",
+			"s1"
+		],
+		"currentStep": "church",
+		"completedAt": 1790463321482,
+		"source": "legacy"
+	}
+}

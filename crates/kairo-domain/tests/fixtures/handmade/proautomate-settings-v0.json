@@ -1,0 +1,9 @@
+{
+	"stt": { "provider": "deepgram", "apiKey": "test-not-a-key", "anthropicApiKey": "", "language": "en-US" },
+	"scripture": { "defaultTranslation": "NKJV", "showVerseNumbers": true, "autoMode": false, "confidenceThreshold": 0.8, "debounceInterval": 8, "contextWindowSize": 90 },
+	"lyrics": { "braveApiKey": "" },
+	"display": { "theme": "dark", "fontSize": 16 },
+	"propresenter": { "host": "127.0.0.1", "port": 1025, "password": "" },
+	"propresenterResources": { "scriptureThemeId": "", "lyricsThemeId": "", "clearGroupId": "" },
+	"overlay": { "mode": "propresenter", "template": "{Reference}\n{Text}", "autoClearSec": 0, "ppVideoInputUuid": "" }
+}

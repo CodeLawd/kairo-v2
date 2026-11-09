@@ -1,0 +1,2465 @@
+{
+	"plans": [
+		{
+			"id": "s1",
+			"title": "s2",
+			"sourceFileName": "s3",
+			"sourceText": "s4",
+			"items": [
+				{
+					"id": "s5",
+					"reference": "s6",
+					"translation": "s7",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 20,
+							"text": "s9"
+						},
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s10"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s11",
+					"reference": "s12",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s14",
+							"chapter": 12,
+							"verse": 1,
+							"text": "s15"
+						},
+						{
+							"book": "s14",
+							"chapter": 12,
+							"verse": 2,
+							"text": "s16"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s17",
+					"reference": "s18",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s19",
+							"chapter": 6,
+							"verse": 8,
+							"text": "s20"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s21",
+					"reference": "s22",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s23",
+							"chapter": 1,
+							"verse": 8,
+							"text": "s24"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s25",
+					"reference": "s26",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 4,
+							"text": "s28"
+						},
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 5,
+							"text": "s29"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s30",
+					"reference": "s31",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 5,
+							"verse": 16,
+							"text": "s33"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s34",
+					"reference": "s35",
+					"translation": "s7",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s10"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s36",
+					"reference": "s37",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s38",
+							"chapter": 3,
+							"verse": 10,
+							"text": "s39"
+						},
+						{
+							"book": "s38",
+							"chapter": 3,
+							"verse": 11,
+							"text": "s40"
+						},
+						{
+							"book": "s38",
+							"chapter": 3,
+							"verse": 12,
+							"text": "s41"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s42",
+					"reference": "s43",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s38",
+							"chapter": 4,
+							"verse": 10,
+							"text": "s44"
+						},
+						{
+							"book": "s38",
+							"chapter": 4,
+							"verse": 11,
+							"text": "s45"
+						},
+						{
+							"book": "s38",
+							"chapter": 4,
+							"verse": 12,
+							"text": "s46"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s47",
+					"reference": "s48",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s49",
+							"chapter": 16,
+							"verse": 11,
+							"text": "s50"
+						},
+						{
+							"book": "s49",
+							"chapter": 16,
+							"verse": 12,
+							"text": "s51"
+						},
+						{
+							"book": "s49",
+							"chapter": 16,
+							"verse": 13,
+							"text": "s52"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s53",
+					"reference": "s54",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 38,
+							"text": "s56"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s57",
+					"reference": "s58",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 18,
+							"text": "s59"
+						},
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 19,
+							"text": "s60"
+						},
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 20,
+							"text": "s61"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s62",
+					"reference": "s63",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s64",
+							"chapter": 2,
+							"verse": 14,
+							"text": "s65"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s66",
+					"reference": "s67",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s64",
+							"chapter": 2,
+							"verse": 41,
+							"text": "s68"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s69",
+					"reference": "s6",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 20,
+							"text": "s70"
+						},
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s71"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s72",
+					"reference": "s73",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s14",
+							"chapter": 12,
+							"verse": 1,
+							"text": "s15"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s74",
+					"reference": "s75",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s76",
+							"chapter": 1,
+							"verse": 15,
+							"text": "s77"
+						},
+						{
+							"book": "s76",
+							"chapter": 1,
+							"verse": 16,
+							"text": "s78"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s79",
+					"reference": "s80",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s81",
+							"chapter": 1,
+							"verse": 22,
+							"text": "s82"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s83",
+					"reference": "s84",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 8,
+							"text": "s85"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s86",
+					"reference": "s35",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s71"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s87",
+					"reference": "s88",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 24,
+							"verse": 3,
+							"text": "s90"
+						},
+						{
+							"book": "s89",
+							"chapter": 24,
+							"verse": 4,
+							"text": "s91"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s92",
+					"reference": "s93",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s94",
+							"chapter": 2,
+							"verse": 11,
+							"text": "s95"
+						},
+						{
+							"book": "s94",
+							"chapter": 2,
+							"verse": 12,
+							"text": "s96"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s97",
+					"reference": "s98",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s99",
+							"chapter": 1,
+							"verse": 9,
+							"text": "s100"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s101",
+					"reference": "s102",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s103",
+							"chapter": 9,
+							"verse": 9,
+							"text": "s104"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s105",
+					"reference": "s106",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s103",
+							"chapter": 12,
+							"verse": 1,
+							"text": "s107"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s108",
+					"reference": "s109",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 15,
+							"text": "s110"
+						},
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 16,
+							"text": "s111"
+						},
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 17,
+							"text": "s112"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s113",
+					"reference": "s114",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s115",
+							"chapter": 2,
+							"verse": 6,
+							"text": "s116"
+						},
+						{
+							"book": "s115",
+							"chapter": 2,
+							"verse": 7,
+							"text": "s117"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s118",
+					"reference": "s119",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s120",
+							"chapter": 4,
+							"verse": 2,
+							"text": "s121"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s122",
+					"reference": "s123",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s115",
+							"chapter": 3,
+							"verse": 23,
+							"text": "s124"
+						},
+						{
+							"book": "s115",
+							"chapter": 3,
+							"verse": 24,
+							"text": "s125"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s126",
+					"reference": "s127",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 25,
+							"verse": 21,
+							"text": "s128"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s129",
+					"reference": "s130",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 7,
+							"text": "s132"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 8,
+							"text": "s133"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 9,
+							"text": "s134"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 10,
+							"text": "s135"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 11,
+							"text": "s136"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 12,
+							"text": "s137"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s138",
+					"reference": "s139",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 20,
+							"text": "s140"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 21,
+							"text": "s141"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 22,
+							"text": "s142"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 23,
+							"text": "s143"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s144",
+					"reference": "s145",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s146",
+							"chapter": 4,
+							"verse": 14,
+							"text": "s147"
+						},
+						{
+							"book": "s146",
+							"chapter": 4,
+							"verse": 15,
+							"text": "s148"
+						},
+						{
+							"book": "s146",
+							"chapter": 4,
+							"verse": 16,
+							"text": "s149"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s150",
+					"reference": "s151",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s152",
+							"chapter": 4,
+							"verse": 12,
+							"text": "s153"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s154",
+					"reference": "s155",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 5,
+							"text": "s29"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s156",
+					"reference": "s157",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 139,
+							"verse": 23,
+							"text": "s158"
+						},
+						{
+							"book": "s89",
+							"chapter": 139,
+							"verse": 24,
+							"text": "s159"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s160",
+					"reference": "s161",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 51,
+							"verse": 10,
+							"text": "s162"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s163",
+					"reference": "s164",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 16,
+							"text": "s165"
+						}
+					],
+					"available": true
+				}
+			],
+			"createdAt": 1792497293003,
+			"updatedAt": 1792497293006
+		},
+		{
+			"id": "s166",
+			"title": "s2",
+			"sourceFileName": "s3",
+			"sourceText": "s4",
+			"items": [
+				{
+					"id": "s167",
+					"reference": "s6",
+					"translation": "s7",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 20,
+							"text": "s9"
+						},
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s10"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s168",
+					"reference": "s12",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s14",
+							"chapter": 12,
+							"verse": 1,
+							"text": "s15"
+						},
+						{
+							"book": "s14",
+							"chapter": 12,
+							"verse": 2,
+							"text": "s16"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s169",
+					"reference": "s18",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s19",
+							"chapter": 6,
+							"verse": 8,
+							"text": "s20"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s170",
+					"reference": "s22",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s23",
+							"chapter": 1,
+							"verse": 8,
+							"text": "s24"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s171",
+					"reference": "s26",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 4,
+							"text": "s28"
+						},
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 5,
+							"text": "s29"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s172",
+					"reference": "s31",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 5,
+							"verse": 16,
+							"text": "s33"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s173",
+					"reference": "s35",
+					"translation": "s7",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s10"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s174",
+					"reference": "s37",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s38",
+							"chapter": 3,
+							"verse": 10,
+							"text": "s39"
+						},
+						{
+							"book": "s38",
+							"chapter": 3,
+							"verse": 11,
+							"text": "s40"
+						},
+						{
+							"book": "s38",
+							"chapter": 3,
+							"verse": 12,
+							"text": "s41"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s175",
+					"reference": "s43",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s38",
+							"chapter": 4,
+							"verse": 10,
+							"text": "s44"
+						},
+						{
+							"book": "s38",
+							"chapter": 4,
+							"verse": 11,
+							"text": "s45"
+						},
+						{
+							"book": "s38",
+							"chapter": 4,
+							"verse": 12,
+							"text": "s46"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s176",
+					"reference": "s48",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s49",
+							"chapter": 16,
+							"verse": 11,
+							"text": "s50"
+						},
+						{
+							"book": "s49",
+							"chapter": 16,
+							"verse": 12,
+							"text": "s51"
+						},
+						{
+							"book": "s49",
+							"chapter": 16,
+							"verse": 13,
+							"text": "s52"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s177",
+					"reference": "s54",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 38,
+							"text": "s56"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s178",
+					"reference": "s58",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 18,
+							"text": "s59"
+						},
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 19,
+							"text": "s60"
+						},
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 20,
+							"text": "s61"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s179",
+					"reference": "s63",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s64",
+							"chapter": 2,
+							"verse": 14,
+							"text": "s65"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s180",
+					"reference": "s67",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s64",
+							"chapter": 2,
+							"verse": 41,
+							"text": "s68"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s181",
+					"reference": "s6",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 20,
+							"text": "s70"
+						},
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s71"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s182",
+					"reference": "s73",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s14",
+							"chapter": 12,
+							"verse": 1,
+							"text": "s15"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s183",
+					"reference": "s75",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s76",
+							"chapter": 1,
+							"verse": 15,
+							"text": "s77"
+						},
+						{
+							"book": "s76",
+							"chapter": 1,
+							"verse": 16,
+							"text": "s78"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s184",
+					"reference": "s80",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s81",
+							"chapter": 1,
+							"verse": 22,
+							"text": "s82"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s185",
+					"reference": "s84",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 8,
+							"text": "s85"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s186",
+					"reference": "s35",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s8",
+							"chapter": 2,
+							"verse": 21,
+							"text": "s71"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s187",
+					"reference": "s88",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 24,
+							"verse": 3,
+							"text": "s90"
+						},
+						{
+							"book": "s89",
+							"chapter": 24,
+							"verse": 4,
+							"text": "s91"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s188",
+					"reference": "s93",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s94",
+							"chapter": 2,
+							"verse": 11,
+							"text": "s95"
+						},
+						{
+							"book": "s94",
+							"chapter": 2,
+							"verse": 12,
+							"text": "s96"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s189",
+					"reference": "s98",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s99",
+							"chapter": 1,
+							"verse": 9,
+							"text": "s100"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s190",
+					"reference": "s102",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s103",
+							"chapter": 9,
+							"verse": 9,
+							"text": "s104"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s191",
+					"reference": "s106",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s103",
+							"chapter": 12,
+							"verse": 1,
+							"text": "s107"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s192",
+					"reference": "s109",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 15,
+							"text": "s110"
+						},
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 16,
+							"text": "s111"
+						},
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 17,
+							"text": "s112"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s193",
+					"reference": "s114",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s115",
+							"chapter": 2,
+							"verse": 6,
+							"text": "s116"
+						},
+						{
+							"book": "s115",
+							"chapter": 2,
+							"verse": 7,
+							"text": "s117"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s194",
+					"reference": "s119",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s120",
+							"chapter": 4,
+							"verse": 2,
+							"text": "s121"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s195",
+					"reference": "s123",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s115",
+							"chapter": 3,
+							"verse": 23,
+							"text": "s124"
+						},
+						{
+							"book": "s115",
+							"chapter": 3,
+							"verse": 24,
+							"text": "s125"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s196",
+					"reference": "s127",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 25,
+							"verse": 21,
+							"text": "s128"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s197",
+					"reference": "s130",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 7,
+							"text": "s132"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 8,
+							"text": "s133"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 9,
+							"text": "s134"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 10,
+							"text": "s135"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 11,
+							"text": "s136"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 12,
+							"text": "s137"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s198",
+					"reference": "s139",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 20,
+							"text": "s140"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 21,
+							"text": "s141"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 22,
+							"text": "s142"
+						},
+						{
+							"book": "s131",
+							"chapter": 39,
+							"verse": 23,
+							"text": "s143"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s199",
+					"reference": "s145",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s146",
+							"chapter": 4,
+							"verse": 14,
+							"text": "s147"
+						},
+						{
+							"book": "s146",
+							"chapter": 4,
+							"verse": 15,
+							"text": "s148"
+						},
+						{
+							"book": "s146",
+							"chapter": 4,
+							"verse": 16,
+							"text": "s149"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s200",
+					"reference": "s151",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s152",
+							"chapter": 4,
+							"verse": 12,
+							"text": "s153"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s201",
+					"reference": "s155",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 5,
+							"text": "s29"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s202",
+					"reference": "s157",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 139,
+							"verse": 23,
+							"text": "s158"
+						},
+						{
+							"book": "s89",
+							"chapter": 139,
+							"verse": 24,
+							"text": "s159"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s203",
+					"reference": "s161",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 51,
+							"verse": 10,
+							"text": "s162"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s204",
+					"reference": "s164",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 15,
+							"verse": 16,
+							"text": "s165"
+						}
+					],
+					"available": true
+				}
+			],
+			"createdAt": 1792432137605,
+			"updatedAt": 1792432137606
+		},
+		{
+			"id": "s205",
+			"title": "s206",
+			"sourceFileName": "s207",
+			"sourceText": "s208",
+			"items": [
+				{
+					"id": "s209",
+					"reference": "s210",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 11,
+							"verse": 1,
+							"text": "s211"
+						},
+						{
+							"book": "s55",
+							"chapter": 11,
+							"verse": 2,
+							"text": "s212"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s213",
+					"reference": "s214",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 103,
+							"verse": 20,
+							"text": "s215"
+						},
+						{
+							"book": "s89",
+							"chapter": 103,
+							"verse": 21,
+							"text": "s216"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s217",
+					"reference": "s218",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s131",
+							"chapter": 10,
+							"verse": 8,
+							"text": "s219"
+						},
+						{
+							"book": "s131",
+							"chapter": 10,
+							"verse": 9,
+							"text": "s220"
+						},
+						{
+							"book": "s131",
+							"chapter": 10,
+							"verse": 10,
+							"text": "s221"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s222",
+					"reference": "s223",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 8,
+							"text": "s224"
+						},
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 9,
+							"text": "s225"
+						},
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 10,
+							"text": "s226"
+						},
+						{
+							"book": "s32",
+							"chapter": 4,
+							"verse": 11,
+							"text": "s227"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s228",
+					"reference": "s229",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s131",
+							"chapter": 1,
+							"verse": 27,
+							"text": "s230"
+						},
+						{
+							"book": "s131",
+							"chapter": 1,
+							"verse": 28,
+							"text": "s231"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s232",
+					"reference": "s233",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s234",
+							"chapter": 10,
+							"verse": 14,
+							"text": "s235"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s236",
+					"reference": "s237",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 69,
+							"verse": 34,
+							"text": "s238"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s239",
+					"reference": "s240",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s131",
+							"chapter": 1,
+							"verse": 1,
+							"text": "s241"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s242",
+					"reference": "s243",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s38",
+							"chapter": 29,
+							"verse": 45,
+							"text": "s244"
+						},
+						{
+							"book": "s38",
+							"chapter": 29,
+							"verse": 46,
+							"text": "s245"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s246",
+					"reference": "s247",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 1,
+							"text": "s249"
+						},
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 2,
+							"text": "s250"
+						},
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 3,
+							"text": "s251"
+						},
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 4,
+							"text": "s252"
+						},
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 5,
+							"text": "s253"
+						},
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 6,
+							"text": "s254"
+						},
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 7,
+							"text": "s255"
+						},
+						{
+							"book": "s248",
+							"chapter": 21,
+							"verse": 8,
+							"text": "s256"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s257",
+					"reference": "s258",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 103,
+							"verse": 19,
+							"text": "s259"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s260",
+					"reference": "s261",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s23",
+							"chapter": 4,
+							"verse": 25,
+							"text": "s262"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s263",
+					"reference": "s264",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s19",
+							"chapter": 45,
+							"verse": 23,
+							"text": "s265"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s266",
+					"reference": "s267",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s268",
+							"chapter": 2,
+							"verse": 9,
+							"text": "s269"
+						},
+						{
+							"book": "s268",
+							"chapter": 2,
+							"verse": 10,
+							"text": "s270"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s271",
+					"reference": "s272",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s19",
+							"chapter": 42,
+							"verse": 1,
+							"text": "s273"
+						},
+						{
+							"book": "s19",
+							"chapter": 42,
+							"verse": 2,
+							"text": "s274"
+						},
+						{
+							"book": "s19",
+							"chapter": 42,
+							"verse": 3,
+							"text": "s275"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s276",
+					"reference": "s277",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s278",
+							"chapter": 6,
+							"verse": 13,
+							"text": "s279"
+						},
+						{
+							"book": "s278",
+							"chapter": 6,
+							"verse": 14,
+							"text": "s280"
+						},
+						{
+							"book": "s278",
+							"chapter": 6,
+							"verse": 15,
+							"text": "s281"
+						},
+						{
+							"book": "s278",
+							"chapter": 6,
+							"verse": 16,
+							"text": "s282"
+						},
+						{
+							"book": "s278",
+							"chapter": 6,
+							"verse": 17,
+							"text": "s283"
+						},
+						{
+							"book": "s278",
+							"chapter": 6,
+							"verse": 18,
+							"text": "s284"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s285",
+					"reference": "s286",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s287",
+							"chapter": 10,
+							"verse": 3,
+							"text": "s288"
+						},
+						{
+							"book": "s287",
+							"chapter": 10,
+							"verse": 4,
+							"text": "s289"
+						},
+						{
+							"book": "s287",
+							"chapter": 10,
+							"verse": 5,
+							"text": "s290"
+						},
+						{
+							"book": "s287",
+							"chapter": 10,
+							"verse": 6,
+							"text": "s291"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s292",
+					"reference": "s293",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 16,
+							"text": "s294"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 17,
+							"text": "s295"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s296",
+					"reference": "s297",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 3,
+							"verse": 5,
+							"text": "s298"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s299",
+					"reference": "s300",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 39,
+							"text": "s301"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 40,
+							"text": "s302"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 41,
+							"text": "s303"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 42,
+							"text": "s304"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 43,
+							"text": "s305"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 44,
+							"text": "s306"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 45,
+							"text": "s307"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s308",
+					"reference": "s309",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 18,
+							"text": "s310"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 19,
+							"text": "s311"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 20,
+							"text": "s312"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 21,
+							"text": "s313"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 22,
+							"text": "s314"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 23,
+							"text": "s315"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 24,
+							"text": "s316"
+						},
+						{
+							"book": "s32",
+							"chapter": 1,
+							"verse": 25,
+							"text": "s317"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s318",
+					"reference": "s319",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 2,
+							"verse": 13,
+							"text": "s320"
+						},
+						{
+							"book": "s32",
+							"chapter": 2,
+							"verse": 14,
+							"text": "s321"
+						},
+						{
+							"book": "s32",
+							"chapter": 2,
+							"verse": 15,
+							"text": "s322"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s323",
+					"reference": "s324",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s234",
+							"chapter": 11,
+							"verse": 18,
+							"text": "s325"
+						},
+						{
+							"book": "s234",
+							"chapter": 11,
+							"verse": 19,
+							"text": "s326"
+						},
+						{
+							"book": "s234",
+							"chapter": 11,
+							"verse": 20,
+							"text": "s327"
+						},
+						{
+							"book": "s234",
+							"chapter": 11,
+							"verse": 21,
+							"text": "s328"
+						},
+						{
+							"book": "s234",
+							"chapter": 11,
+							"verse": 22,
+							"text": "s329"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s330",
+					"reference": "s331",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 34,
+							"text": "s332"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 35,
+							"text": "s333"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 36,
+							"text": "s334"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 37,
+							"text": "s335"
+						},
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 38,
+							"text": "s56"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s336",
+					"reference": "s337",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 40,
+							"text": "s338"
+						},
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 41,
+							"text": "s339"
+						},
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 42,
+							"text": "s340"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s341",
+					"reference": "s342",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 51,
+							"text": "s343"
+						},
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 52,
+							"text": "s344"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s345",
+					"reference": "s346",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 48,
+							"text": "s347"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s348",
+					"reference": "s349",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s14",
+							"chapter": 5,
+							"verse": 8,
+							"text": "s350"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s351",
+					"reference": "s352",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s89",
+							"chapter": 45,
+							"verse": 6,
+							"text": "s353"
+						},
+						{
+							"book": "s89",
+							"chapter": 45,
+							"verse": 7,
+							"text": "s354"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s355",
+					"reference": "s356",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s120",
+							"chapter": 7,
+							"verse": 5,
+							"text": "s357"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s358",
+					"reference": "s359",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s103",
+							"chapter": 22,
+							"verse": 3,
+							"text": "s360"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s361",
+					"reference": "s362",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s363",
+							"chapter": 10,
+							"verse": 10,
+							"text": "s364"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s365",
+					"reference": "s366",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s103",
+							"chapter": 24,
+							"verse": 3,
+							"text": "s367"
+						},
+						{
+							"book": "s103",
+							"chapter": 24,
+							"verse": 4,
+							"text": "s368"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s369",
+					"reference": "s370",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s103",
+							"chapter": 14,
+							"verse": 1,
+							"text": "s371"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s372",
+					"reference": "s373",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 43,
+							"text": "s374"
+						},
+						{
+							"book": "s55",
+							"chapter": 2,
+							"verse": 44,
+							"text": "s375"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s376",
+					"reference": "s377",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s55",
+							"chapter": 1,
+							"verse": 80,
+							"text": "s378"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s379",
+					"reference": "s380",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s14",
+							"chapter": 8,
+							"verse": 18,
+							"text": "s381"
+						},
+						{
+							"book": "s14",
+							"chapter": 8,
+							"verse": 19,
+							"text": "s382"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s383",
+					"reference": "s384",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s19",
+							"chapter": 9,
+							"verse": 6,
+							"text": "s385"
+						},
+						{
+							"book": "s19",
+							"chapter": 9,
+							"verse": 7,
+							"text": "s386"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s387",
+					"reference": "s388",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s32",
+							"chapter": 3,
+							"verse": 17,
+							"text": "s389"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s390",
+					"reference": "s391",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s363",
+							"chapter": 10,
+							"verse": 16,
+							"text": "s392"
+						},
+						{
+							"book": "s363",
+							"chapter": 10,
+							"verse": 17,
+							"text": "s393"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s394",
+					"reference": "s395",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 6,
+							"verse": 27,
+							"text": "s396"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s397",
+					"reference": "s398",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 5,
+							"text": "s399"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s400",
+					"reference": "s109",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 15,
+							"text": "s110"
+						},
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 16,
+							"text": "s111"
+						},
+						{
+							"book": "s27",
+							"chapter": 21,
+							"verse": 17,
+							"text": "s112"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s401",
+					"reference": "s402",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s403",
+							"chapter": 11,
+							"verse": 32,
+							"text": "s404"
+						},
+						{
+							"book": "s403",
+							"chapter": 11,
+							"verse": 33,
+							"text": "s405"
+						},
+						{
+							"book": "s403",
+							"chapter": 11,
+							"verse": 34,
+							"text": "s406"
+						},
+						{
+							"book": "s403",
+							"chapter": 11,
+							"verse": 35,
+							"text": "s407"
+						}
+					],
+					"available": true
+				}
+			],
+			"createdAt": 1791709483663,
+			"updatedAt": 1791709483665
+		}
+	],
+	"livePlanId": null
+}

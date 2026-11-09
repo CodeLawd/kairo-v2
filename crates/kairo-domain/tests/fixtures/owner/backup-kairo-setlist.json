@@ -1,0 +1,12 @@
+{
+	"lists": [
+		{
+			"id": "s1",
+			"name": "s2",
+			"songIds": [],
+			"createdAt": 1790472049544,
+			"updatedAt": 1790474004423
+		}
+	],
+	"activeId": "s1"
+}

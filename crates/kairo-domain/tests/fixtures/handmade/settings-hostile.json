@@ -1,0 +1,15 @@
+{
+	"lyrics": { "braveApiKey": "", "googleTranslateApiKey": 12, "glossColor": "#D4A017" },
+	"scripture": { "defaultTranslation": "KJV", "showVerseNumbers": true, "autoMode": true, "confidenceThreshold": "0.7", "autoPresentDelaySec": 5, "debounceInterval": 8, "contextWindowSize": 90, "offlineDownloadBibleIds": null },
+	"stt": { "provider": "assemblyai", "apiKey": "", "anthropicApiKey": "", "deepseekApiKey": "", "llmProvider": "deepseek", "llmModel": "", "bibleApiKey": "", "language": "en-US" },
+	"church": null,
+	"workspace": "not an object",
+	"themeLibrary": {},
+	"themeDefaults": { "scripture": "theme-1", "lyrics": null },
+	"capture": { "sourceOutputId": "", "folder": "", "codec": "h264", "resolution": "1080p", "frameRate": 30, "bitrateMbps": 12, "audioDeviceId": "", "audioDeviceName": "", "addedLater": { "nested": [1, null, "x"] } },
+	"documents": { "slideshowSec": 1.7976931348623157e308, "slideshowLoop": true, "slideshowAutoStart": false },
+	"usage": { "shareStats": false },
+	"display": { "theme": "dark", "fontSize": 16, "transcriptionFontSize": 18, "shortcuts": { "clear": ["Escape"], "futureCommand": ["Mod+k"] } },
+	"web": { "bookmarks": [], "showPointer": false },
+	"futureSection": { "enabled": true }
+}

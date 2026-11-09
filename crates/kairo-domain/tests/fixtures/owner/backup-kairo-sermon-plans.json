@@ -1,0 +1,236 @@
+{
+	"plans": [
+		{
+			"id": "s1",
+			"title": "s2",
+			"sourceFileName": "s3",
+			"items": [
+				{
+					"id": "s4",
+					"reference": "s5",
+					"translation": "s6",
+					"verses": [
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 8,
+							"text": "s8"
+						},
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 9,
+							"text": "s9"
+						},
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 10,
+							"text": "s10"
+						},
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 11,
+							"text": "s11"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s12",
+					"reference": "s5",
+					"translation": "s13",
+					"verses": [
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 8,
+							"text": "s14"
+						},
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 9,
+							"text": "s15"
+						},
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 10,
+							"text": "s16"
+						},
+						{
+							"book": "s7",
+							"chapter": 1,
+							"verse": 11,
+							"text": "s17"
+						}
+					],
+					"available": true
+				},
+				{
+					"id": "s18",
+					"reference": "s19",
+					"translation": "s20",
+					"verses": [
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 1,
+							"text": "s22"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 2,
+							"text": "s23"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 3,
+							"text": "s24"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 4,
+							"text": "s25"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 5,
+							"text": "s26"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 6,
+							"text": "s27"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 7,
+							"text": "s28"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 8,
+							"text": "s29"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 9,
+							"text": "s30"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 10,
+							"text": "s31"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 11,
+							"text": "s32"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 12,
+							"text": "s33"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 13,
+							"text": "s34"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 14,
+							"text": "s35"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 15,
+							"text": "s36"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 16,
+							"text": "s37"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 17,
+							"text": "s38"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 18,
+							"text": "s39"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 19,
+							"text": "s40"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 20,
+							"text": "s41"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 21,
+							"text": "s42"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 22,
+							"text": "s43"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 23,
+							"text": "s44"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 24,
+							"text": "s45"
+						},
+						{
+							"book": "s21",
+							"chapter": 1,
+							"verse": 25,
+							"text": "s46"
+						}
+					],
+					"available": true
+				}
+			],
+			"createdAt": 1790599896118,
+			"updatedAt": 1790599975894
+		}
+	],
+	"livePlanId": null
+}

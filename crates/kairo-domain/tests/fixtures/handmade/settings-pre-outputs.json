@@ -1,0 +1,18 @@
+{
+	"whatsNew": { "lastSeenVersion": "1.0.20" },
+	"audio": { "deviceId": "" },
+	"overlay": {
+		"mode": "ndi",
+		"template": "{Reference}",
+		"showTranslation": true,
+		"showVerseNumbers": false,
+		"maxVerses": 3,
+		"theme": { "background": { "type": "color", "color": "#0b1220", "opacity": 1 }, "verse": { "fontFamily": "Inter", "fontSizePx": 48 } }
+	},
+	"presentation": {
+		"transition": { "kind": "fade", "durationMs": 400 },
+		"timer": { "rollover": true, "color": "#ffffff", "overrunColor": "#ff0000", "backdrop": false },
+		"props": [{ "id": "p1", "name": "Welcome", "position": "top-left", "text": "Welcome" }]
+	},
+	"media": { "folder": "", "playlists": [{ "id": "pl1", "name": "Walk-in", "itemIds": ["a.mp4", "gone.mp4"], "createdAt": 1700000000000 }] }
+}

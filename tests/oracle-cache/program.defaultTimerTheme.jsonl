@@ -1,0 +1,3 @@
+{"fn":"program.defaultTimerTheme","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"09612b07b5ecb5a5","r":{"background":null,"objects":[{"id":"timer-readout","kind":"timer","x":0.3,"y":0.05,"w":0.4,"h":0.12,"opacity":1,"fontSizePx":96,"color":"#5eead4","overrunColor":"#f87171","bold":true,"align":"center"}]}}
+{"k":"f9b95f8782bc2fe1","r":{"background":null,"objects":[{"id":"timer-readout","kind":"timer","x":0.3,"y":0.05,"w":0.4,"h":0.12,"opacity":1,"fontSizePx":96,"color":"#123456","overrunColor":"#abcdef","bold":true,"align":"center"}]}}

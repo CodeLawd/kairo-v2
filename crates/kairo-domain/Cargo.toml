@@ -3,3 +3,11 @@ name = "kairo-domain"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip", "raw_value"] }
+
+[dev-dependencies]
+kairo-oracle = { path = "../kairo-oracle" }
+proptest = "1"

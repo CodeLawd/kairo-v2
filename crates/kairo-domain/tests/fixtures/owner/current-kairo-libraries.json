@@ -1,0 +1,21 @@
+{
+	"songs": {
+		"libraries": [
+			{
+				"id": "s1",
+				"name": "s2",
+				"createdAt": 1791665125235,
+				"updatedAt": 1791665125235
+			}
+		],
+		"assignments": {}
+	},
+	"documents": {
+		"libraries": [],
+		"assignments": {}
+	},
+	"scripture": {
+		"libraries": [],
+		"assignments": {}
+	}
+}

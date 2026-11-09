@@ -1,0 +1,13 @@
+{
+	"onboarding": {
+		"completedSteps": [
+			"welcome",
+			"account",
+			"output"
+		],
+		"skippedSteps": [],
+		"currentStep": "output",
+		"completedAt": 1792876499343,
+		"source": "fresh"
+	}
+}

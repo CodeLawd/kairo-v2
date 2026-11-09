@@ -1,0 +1,9 @@
+[package]
+name = "kairo-oracle"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+proptest = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
