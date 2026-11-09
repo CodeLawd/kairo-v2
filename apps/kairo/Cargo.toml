@@ -6,3 +6,5 @@ publish = false
 
 [dependencies]
 gpui-kit.workspace = true
+kairo-store = { path = "../../crates/kairo-store" }
+tracing = "0.1"

@@ -3,3 +3,19 @@ name = "kairo-store"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+dirs = "6"
+interprocess = "2.4"
+kairo-domain = { path = "../kairo-domain" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sys-locale = "0.3"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "registry"] }
+
+[dev-dependencies]
+tempfile = "3"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "registry"] }

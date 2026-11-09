@@ -2,7 +2,7 @@
 
 **Go / no-go:** GO (owner, 2026-11-09; prompts 006 and 007 waived, see DECISIONS.md)
 **Planning baseline commit (kairo-presenter):** `de3bb54`
-**Current prompt:** 020
+**Current prompt:** 021
 
 Status values: `todo`, `in-progress`, `blocked`, `done`.
 
@@ -41,6 +41,7 @@ Append a line per session: date, prompt, outcome, next step.
 | 2026-11-09 | 015 | Scripture port and workspace gates passed | 041 when its prerequisites are ready |
 | 2026-11-09 | 016 | Shared domain port, coverage, parity and workspace gates passed | Phase 2 prompts can proceed when their prerequisites are ready |
 | 2026-11-09 | merge | 013 to 016 merged into `native-phase-0-spikes`; oracle cache regenerated against Electron `af978c5` (clean `src/lib`); fmt, Clippy `-D warnings` and 387 tests passed in cache mode | Run 020 |
+| 2026-11-09 | 020 | Paths, logging, crash handling and single instance done on macOS; Windows and Linux unverified | Run 021 |
 
 ## Prompts
 
@@ -75,7 +76,7 @@ Append a line per session: date, prompt, outcome, next step.
 
 | ID | Prompt | Status | Date | Branch | Notes |
 |---|---|---|---|---|---|
-| 020 | [Paths, logging, crash handling and single instance](./prompts/020-paths-logging.md) | todo | | | |
+| 020 | [Paths, logging, crash handling and single instance](./prompts/020-paths-logging.md) | done | 2026-11-09 | native-phase-0-spikes | `kairo-store`: `paths`, `logging`, `crash`, `instance`, `launch`, `build_config`, `os_locale`; `apps/kairo` uses them at startup. Choices in DECISIONS.md (020). Paths: per-OS expected-path tests for macOS, Windows and Linux, packaged and dev, `KAIRO_SHARED_PROFILE`, Roaming and XDG overrides, missing Documents. Packaged-style check: a release build of `examples/locate` found `~/Library/Application Support/Kairo` (with `kairo-settings.json`), `~/Library/Logs/Kairo/main.log`, `Crashpad`, Documents, workspace and Movies; sorted before/after listings of userData and the log folder were identical, so nothing was written. Release builds fail to compile with no URLs or with a local web URL (both checked). A dev launch wrote `Kairo Dev/logs/kairo.log` in electron-log's format. Single instance: integration test with real processes (the second forwards a `.kairo` path to the first; a killed first instance does not block the next), passed 5 runs in a row. Measured (release, M2 Pro, 3 runs of 100,000 events): log call p50 0.96–1.04 µs, p99 1.38–3.67 µs, single-call max 73 µs to 4.0 ms (scheduler or first-use outliers; the writer is non-blocking and lossy, so it never waits on disk). Edge cases handled: no home folder; non-Unicode system folders; empty XDG or Roaming values; trailing separators; missing Documents or Videos; unreadable userData in `renamed_store`; existing renamed file never replaced; log folder missing; oversized existing log; a line longer than the limit; failed rotation keeps writing; second subscriber install; panic with non-string payload; no snapshot provider or provider busy; unwritable recovery or ledger file; corrupt ledger; long panic messages; home folder in messages; re-entrant panic; lock held by a crashed process; listener not yet up (5 s retry); nobody listening; malformed forwarded message; app gone; relative `.kairo` arguments; upper-case extension; missing files; percent-encoded and non-UTF-8 file URLs; files arriving before and after the window. Gates: fmt, Clippy `-D warnings` and `cargo test --workspace` (420 passed, 7 ignored) passed. Electron status unchanged (0 entries). No API inventory rows are owned by 020. Not verified: Windows and Linux (paths are unit-tested only; the lock, named pipe and abstract socket have not run there); hosted CI (not pushed); a packaged `.app` bundle launch, and macOS open-file events from Finder (the wiring compiles, but no `.kairo` association exists until packaging); minidumps not implemented (evaluated, see DECISIONS.md). |
 | 021 | [Settings store and migrations](./prompts/021-settings-store.md) | todo | | | |
 | 022 | [Secure storage and Electron secret migration](./prompts/022-secure-storage.md) | todo | | | |
 | 023 | [SQLite access layer](./prompts/023-sqlite-layer.md) | todo | | | |
