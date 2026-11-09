@@ -330,10 +330,10 @@ fn move_matches() {
     assert_all_match("overlay-boxes.moveOverlayBox", &cases);
 }
 
-#[test]
-fn resize_matches() {
+/// Checks a resize port against its TypeScript export over generated drags.
+fn check_resize(seed: u64, name: &str, port: fn(Box2, &str, f64, f64, Min) -> Box2) {
     let cases: Vec<_> = generate(
-        13,
+        seed,
         EACH,
         (a_box(), handle(), coordinate(), coordinate(), minimum()),
     )
@@ -346,34 +346,25 @@ fn resize_matches() {
                 m,
                 i % 2 == 0,
             ),
-            input(resize(b, h, dx, dy, m.unwrap_or(TEXT))),
+            input(port(b, h, dx, dy, m.unwrap_or(TEXT))),
         )
     })
     .collect();
-    assert_all_match("overlay-boxes.resizeOverlayBox", &cases);
+    assert_all_match(name, &cases);
+}
+
+#[test]
+fn resize_matches() {
+    check_resize(13, "overlay-boxes.resizeOverlayBox", resize);
 }
 
 #[test]
 fn resize_keeping_aspect_matches() {
-    let cases: Vec<_> = generate(
+    check_resize(
         14,
-        EACH,
-        (a_box(), handle(), coordinate(), coordinate(), minimum()),
-    )
-    .into_iter()
-    .enumerate()
-    .map(|(i, (b, h, dx, dy, m))| {
-        (
-            args(
-                vec![input(b), json!(h), json!(dx), json!(dy)],
-                m,
-                i % 2 == 0,
-            ),
-            input(resize_aspect(b, h, dx, dy, m.unwrap_or(TEXT))),
-        )
-    })
-    .collect();
-    assert_all_match("overlay-boxes.resizeOverlayBoxKeepingAspect", &cases);
+        "overlay-boxes.resizeOverlayBoxKeepingAspect",
+        resize_aspect,
+    );
 }
 
 #[test]

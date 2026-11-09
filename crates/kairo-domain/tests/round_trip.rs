@@ -6,60 +6,20 @@
 //! (`tools/ts-oracle/sanitize-fixture.mjs`). `fixtures/handmade` holds old and
 //! hostile shapes written by hand.
 
+mod common;
+
+use common::{fixture, fixtures, read, round_trip};
 use kairo_domain::cloud::CrashReportQueue;
 use kairo_domain::collections::{LibrariesState, SetlistState};
 use kairo_domain::json::to_js_value;
 use kairo_domain::scripture::{PassageStore, SermonPlanStore};
 use kairo_domain::services::ServiceSnapshot;
-use kairo_domain::settings::{MigrationFlags, OnboardingStore, Stored, StoredSettings};
+use kairo_domain::settings::{
+    MigrationFlags, OnboardingStore, SECTION_COUNT, Stored, StoredSettings,
+};
 use kairo_domain::usage::{LedgerState, SongUsageStore};
-use kairo_oracle::compare;
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use std::path::{Path, PathBuf};
-
-fn fixtures(dir: &str) -> Vec<PathBuf> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(dir);
-    let mut files: Vec<_> = std::fs::read_dir(&root)
-        .unwrap_or_else(|e| panic!("{}: {e}", root.display()))
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
-        .collect();
-    files.sort();
-    files
-}
-
-fn read(path: &Path) -> Value {
-    serde_json::from_str(&std::fs::read_to_string(path).unwrap())
-        .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
-}
-
-/// Parses `json` as `T` and checks it writes back unchanged. Returns the value.
-fn round_trip<T: Serialize + DeserializeOwned>(label: &str, json: &Value) -> T {
-    let parsed: T = serde_json::from_value(json.clone()).unwrap_or_else(|e| {
-        panic!(
-            "{label} does not parse as {}: {e}",
-            std::any::type_name::<T>()
-        )
-    });
-    let written = to_js_value(&parsed).unwrap();
-    if &written != json {
-        let differences = compare(json, &written);
-        panic!(
-            "{label} changed in a round trip ({} differences, by value; number text differs if none):\n  {}",
-            differences.len(),
-            differences
-                .iter()
-                .take(10)
-                .cloned()
-                .collect::<Vec<_>>()
-                .join("\n  ")
-        );
-    }
-    parsed
-}
 
 /// Round trips an Electron store file as `Stored<T>` for its store type, and
 /// returns whether it parsed as the canonical `T`. A file that does not (an
@@ -133,12 +93,7 @@ fn every_handmade_file_round_trips() {
 /// in every section, so the rest of the app can use `AppSettings` directly.
 #[test]
 fn current_settings_are_fully_canonical() {
-    let json = read(
-        &fixtures("owner")
-            .into_iter()
-            .find(|p| p.ends_with("current-kairo-settings.json"))
-            .unwrap(),
-    );
+    let json = read(&fixture("owner/current-kairo-settings.json"));
     let stored: StoredSettings = round_trip("current settings", &json);
     assert_eq!(stored.non_canonical_sections(), Vec::<&str>::new());
     let settings = stored.into_canonical().unwrap();
@@ -168,14 +123,11 @@ fn old_files_keep_non_canonical_sections_raw() {
     assert!(stored.extra.contains_key("propresenterResources"));
     assert!(stored.into_canonical().is_err());
 
-    let v0 = read(
-        &Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/handmade/proautomate-settings-v0.json"),
-    );
+    let v0 = read(&fixture("handmade/proautomate-settings-v0.json"));
     let stored: StoredSettings = round_trip("v0", &v0);
     assert_eq!(
         stored.non_canonical_sections().len(),
-        18,
+        SECTION_COUNT,
         "every section is old or absent"
     );
 }
@@ -184,10 +136,7 @@ fn old_files_keep_non_canonical_sections_raw() {
 /// raw; a canonical section keeps unknown nested keys in its `extra`.
 #[test]
 fn hostile_values_stay_raw_and_unknown_keys_survive() {
-    let json = read(
-        &Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures/handmade/settings-hostile.json"),
-    );
+    let json = read(&fixture("handmade/settings-hostile.json"));
     let stored: StoredSettings = round_trip("hostile", &json);
     for raw in [
         "lyrics",
@@ -237,12 +186,7 @@ fn newer_version_keys_survive_at_every_level() {
             _ => {}
         }
     }
-    let mut json = read(
-        &fixtures("owner")
-            .into_iter()
-            .find(|p| p.ends_with("current-kairo-settings.json"))
-            .unwrap(),
-    );
+    let mut json = read(&fixture("owner/current-kairo-settings.json"));
     // Records keyed by data (shortcut bindings aside) gain a key like any object;
     // that is fine, as they are maps or have `extra`.
     add_keys(&mut json, 0);
@@ -274,7 +218,7 @@ fn absent_optional_fields_are_not_written_as_null() {
 #[test]
 fn empty_and_non_object_settings_files() {
     let empty: StoredSettings = round_trip("empty", &serde_json::json!({}));
-    assert_eq!(empty.non_canonical_sections().len(), 18);
+    assert_eq!(empty.non_canonical_sections().len(), SECTION_COUNT);
     for not_an_object in ["[]", "null", "\"text\"", "3", "{", ""] {
         assert!(
             serde_json::from_str::<StoredSettings>(not_an_object).is_err(),

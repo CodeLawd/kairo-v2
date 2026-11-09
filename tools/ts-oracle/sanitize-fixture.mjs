@@ -12,8 +12,9 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const electron = resolve(process.env.KAIRO_ELECTRON_DIR || '../kairo-presenter')
+const electron = resolve(process.env.KAIRO_ELECTRON_DIR || fileURLToPath(new URL('../../../kairo-presenter', import.meta.url)))
 const ts = createRequire(join(electron, 'package.json'))('typescript')
 
 function literalsIn(dir, out) {

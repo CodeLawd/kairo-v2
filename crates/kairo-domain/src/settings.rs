@@ -308,30 +308,125 @@ pub struct ThemeDefaults {
     pub extra: Extra,
 }
 
-/// The canonical settings shape.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AppSettings {
-    pub whats_new: WhatsNewSettings,
-    pub capture: CaptureSettings,
-    pub web: WebSettings,
-    pub audio: AudioSettings,
-    pub stt: SttSettings,
-    pub scripture: ScriptureSettings,
-    pub lyrics: LyricsSettings,
-    pub display: DisplaySettings,
-    pub overlay: OverlaySettings,
-    pub theme_library: Vec<CustomOverlayTheme>,
-    pub documents: DocumentsSettings,
-    pub workspace: WorkspaceSettings,
-    pub media: MediaSettings,
-    pub tracks: TracksSettings,
-    pub church: ChurchProfile,
-    pub presentation: PresentationSettings,
-    pub usage: UsageSettings,
-    pub theme_defaults: ThemeDefaults,
-    #[serde(flatten)]
-    pub extra: Extra,
+/// Declares every settings section once: [`AppSettings`], [`StoredSettings`],
+/// its streaming `Deserialize`, and the conversions between them.
+macro_rules! settings_sections {
+    ($($field:ident: $ty:ty = $key:literal,)*) => {
+        /// The number of sections in a settings file.
+        pub const SECTION_COUNT: usize = [$($key),*].len();
+
+        /// The canonical settings shape.
+        #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+        pub struct AppSettings {
+            $(#[serde(rename = $key)] pub $field: $ty,)*
+            #[serde(flatten)]
+            pub extra: Extra,
+        }
+
+        /// A settings file (`kairo-settings.json`, or `proautomate-settings.json`
+        /// before the rename) as found on disk. Absent sections stay absent; a
+        /// section that is present, even as `null`, is kept. As with
+        /// `JSON.parse`, the last of two equal keys wins.
+        #[derive(Clone, Debug, Default, PartialEq, Serialize)]
+        pub struct StoredSettings {
+            $(
+                #[serde(rename = $key, skip_serializing_if = "Option::is_none")]
+                pub $field: Option<Stored<$ty>>,
+            )*
+            /// Retired keys (`propresenter`, `propresenterResources`) and keys
+            /// from newer builds.
+            #[serde(flatten)]
+            pub extra: Extra,
+        }
+
+        /// Hand-written so sections are read straight from the input. The
+        /// derived version, with `flatten` for `extra`, buffers the whole file.
+        impl<'de> Deserialize<'de> for StoredSettings {
+            fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+                struct Fields;
+                impl<'de> serde::de::Visitor<'de> for Fields {
+                    type Value = StoredSettings;
+
+                    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                        f.write_str("a settings object")
+                    }
+
+                    fn visit_map<A: serde::de::MapAccess<'de>>(
+                        self,
+                        mut map: A,
+                    ) -> Result<StoredSettings, A::Error> {
+                        let mut out = StoredSettings::default();
+                        while let Some(key) = map.next_key::<String>()? {
+                            match key.as_str() {
+                                $($key => out.$field = Some(map.next_value()?),)*
+                                _ => {
+                                    let value = map.next_value()?;
+                                    out.extra.insert(key, value);
+                                }
+                            }
+                        }
+                        Ok(out)
+                    }
+                }
+                deserializer.deserialize_map(Fields)
+            }
+        }
+
+        impl StoredSettings {
+            /// Names of sections that are absent or not yet canonical, in field order.
+            pub fn non_canonical_sections(&self) -> Vec<&'static str> {
+                let mut out = Vec::new();
+                $(
+                    if !matches!(self.$field, Some(Stored::Typed(_))) {
+                        out.push($key);
+                    }
+                )*
+                out
+            }
+
+            /// The canonical settings, when every section is canonical.
+            /// Otherwise the file back unchanged, for the normalisers to
+            /// repair; see [`Self::non_canonical_sections`].
+            pub fn into_canonical(self) -> Result<AppSettings, Box<Self>> {
+                match self {
+                    StoredSettings { $($field: Some(Stored::Typed($field)),)* extra } => {
+                        Ok(AppSettings { $($field,)* extra })
+                    }
+                    other => Err(Box::new(other)),
+                }
+            }
+        }
+
+        impl From<AppSettings> for StoredSettings {
+            fn from(settings: AppSettings) -> Self {
+                Self {
+                    $($field: Some(Stored::Typed(settings.$field)),)*
+                    extra: settings.extra,
+                }
+            }
+        }
+    };
+}
+
+settings_sections! {
+    whats_new: WhatsNewSettings = "whatsNew",
+    capture: CaptureSettings = "capture",
+    web: WebSettings = "web",
+    audio: AudioSettings = "audio",
+    stt: SttSettings = "stt",
+    scripture: ScriptureSettings = "scripture",
+    lyrics: LyricsSettings = "lyrics",
+    display: DisplaySettings = "display",
+    overlay: OverlaySettings = "overlay",
+    theme_library: Vec<CustomOverlayTheme> = "themeLibrary",
+    documents: DocumentsSettings = "documents",
+    workspace: WorkspaceSettings = "workspace",
+    media: MediaSettings = "media",
+    tracks: TracksSettings = "tracks",
+    church: ChurchProfile = "church",
+    presentation: PresentationSettings = "presentation",
+    usage: UsageSettings = "usage",
+    theme_defaults: ThemeDefaults = "themeDefaults",
 }
 
 impl AppSettings {
@@ -416,270 +511,6 @@ impl<T> Stored<T> {
         match self {
             Stored::Typed(value) => Some(value),
             Stored::Raw(_) => None,
-        }
-    }
-}
-
-/// A settings file (`kairo-settings.json`, or `proautomate-settings.json`
-/// before the rename) as found on disk. Absent sections stay absent; a section
-/// that is present, even as `null`, is kept. As with `JSON.parse`, the last of
-/// two equal keys wins.
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct StoredSettings {
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub whats_new: Option<Stored<WhatsNewSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub capture: Option<Stored<CaptureSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub web: Option<Stored<WebSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub audio: Option<Stored<AudioSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub stt: Option<Stored<SttSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub scripture: Option<Stored<ScriptureSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub lyrics: Option<Stored<LyricsSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub display: Option<Stored<DisplaySettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub overlay: Option<Stored<OverlaySettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub theme_library: Option<Stored<Vec<CustomOverlayTheme>>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub documents: Option<Stored<DocumentsSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub workspace: Option<Stored<WorkspaceSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub media: Option<Stored<MediaSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub tracks: Option<Stored<TracksSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub church: Option<Stored<ChurchProfile>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub presentation: Option<Stored<PresentationSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub usage: Option<Stored<UsageSettings>>,
-    #[serde(
-        default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "present"
-    )]
-    pub theme_defaults: Option<Stored<ThemeDefaults>>,
-    /// Retired keys (`propresenter`, `propresenterResources`) and keys from
-    /// newer builds.
-    #[serde(flatten)]
-    pub extra: Extra,
-}
-
-/// Hand-written so sections are read straight from the input. The derived
-/// version, with `flatten` for `extra`, buffers the whole file first.
-impl<'de> Deserialize<'de> for StoredSettings {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Fields;
-        impl<'de> serde::de::Visitor<'de> for Fields {
-            type Value = StoredSettings;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                f.write_str("a settings object")
-            }
-
-            fn visit_map<A: serde::de::MapAccess<'de>>(
-                self,
-                mut map: A,
-            ) -> Result<StoredSettings, A::Error> {
-                let mut out = StoredSettings::default();
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "whatsNew" => out.whats_new = Some(map.next_value()?),
-                        "capture" => out.capture = Some(map.next_value()?),
-                        "web" => out.web = Some(map.next_value()?),
-                        "audio" => out.audio = Some(map.next_value()?),
-                        "stt" => out.stt = Some(map.next_value()?),
-                        "scripture" => out.scripture = Some(map.next_value()?),
-                        "lyrics" => out.lyrics = Some(map.next_value()?),
-                        "display" => out.display = Some(map.next_value()?),
-                        "overlay" => out.overlay = Some(map.next_value()?),
-                        "themeLibrary" => out.theme_library = Some(map.next_value()?),
-                        "documents" => out.documents = Some(map.next_value()?),
-                        "workspace" => out.workspace = Some(map.next_value()?),
-                        "media" => out.media = Some(map.next_value()?),
-                        "tracks" => out.tracks = Some(map.next_value()?),
-                        "church" => out.church = Some(map.next_value()?),
-                        "presentation" => out.presentation = Some(map.next_value()?),
-                        "usage" => out.usage = Some(map.next_value()?),
-                        "themeDefaults" => out.theme_defaults = Some(map.next_value()?),
-                        _ => {
-                            let value = map.next_value()?;
-                            out.extra.insert(key, value);
-                        }
-                    }
-                }
-                Ok(out)
-            }
-        }
-        deserializer.deserialize_map(Fields)
-    }
-}
-
-impl StoredSettings {
-    /// Names of sections that are absent or not yet canonical, in field order.
-    pub fn non_canonical_sections(&self) -> Vec<&'static str> {
-        fn check<T>(name: &'static str, section: &Option<Stored<T>>, out: &mut Vec<&'static str>) {
-            if !matches!(section, Some(Stored::Typed(_))) {
-                out.push(name);
-            }
-        }
-        let mut out = Vec::new();
-        check("whatsNew", &self.whats_new, &mut out);
-        check("capture", &self.capture, &mut out);
-        check("web", &self.web, &mut out);
-        check("audio", &self.audio, &mut out);
-        check("stt", &self.stt, &mut out);
-        check("scripture", &self.scripture, &mut out);
-        check("lyrics", &self.lyrics, &mut out);
-        check("display", &self.display, &mut out);
-        check("overlay", &self.overlay, &mut out);
-        check("themeLibrary", &self.theme_library, &mut out);
-        check("documents", &self.documents, &mut out);
-        check("workspace", &self.workspace, &mut out);
-        check("media", &self.media, &mut out);
-        check("tracks", &self.tracks, &mut out);
-        check("church", &self.church, &mut out);
-        check("presentation", &self.presentation, &mut out);
-        check("usage", &self.usage, &mut out);
-        check("themeDefaults", &self.theme_defaults, &mut out);
-        out
-    }
-
-    /// The canonical settings, when every section is canonical. Otherwise the
-    /// file back unchanged, for the normalisers to repair; see
-    /// [`Self::non_canonical_sections`].
-    pub fn into_canonical(self) -> Result<AppSettings, Box<Self>> {
-        if !self.non_canonical_sections().is_empty() {
-            return Err(Box::new(self));
-        }
-        fn take<T>(section: Option<Stored<T>>) -> T {
-            match section {
-                Some(Stored::Typed(value)) => value,
-                _ => unreachable!("every section was checked to be typed"),
-            }
-        }
-        Ok(AppSettings {
-            whats_new: take(self.whats_new),
-            capture: take(self.capture),
-            web: take(self.web),
-            audio: take(self.audio),
-            stt: take(self.stt),
-            scripture: take(self.scripture),
-            lyrics: take(self.lyrics),
-            display: take(self.display),
-            overlay: take(self.overlay),
-            theme_library: take(self.theme_library),
-            documents: take(self.documents),
-            workspace: take(self.workspace),
-            media: take(self.media),
-            tracks: take(self.tracks),
-            church: take(self.church),
-            presentation: take(self.presentation),
-            usage: take(self.usage),
-            theme_defaults: take(self.theme_defaults),
-            extra: self.extra,
-        })
-    }
-}
-
-impl From<AppSettings> for StoredSettings {
-    fn from(settings: AppSettings) -> Self {
-        Self {
-            whats_new: Some(Stored::Typed(settings.whats_new)),
-            capture: Some(Stored::Typed(settings.capture)),
-            web: Some(Stored::Typed(settings.web)),
-            audio: Some(Stored::Typed(settings.audio)),
-            stt: Some(Stored::Typed(settings.stt)),
-            scripture: Some(Stored::Typed(settings.scripture)),
-            lyrics: Some(Stored::Typed(settings.lyrics)),
-            display: Some(Stored::Typed(settings.display)),
-            overlay: Some(Stored::Typed(settings.overlay)),
-            theme_library: Some(Stored::Typed(settings.theme_library)),
-            documents: Some(Stored::Typed(settings.documents)),
-            workspace: Some(Stored::Typed(settings.workspace)),
-            media: Some(Stored::Typed(settings.media)),
-            tracks: Some(Stored::Typed(settings.tracks)),
-            church: Some(Stored::Typed(settings.church)),
-            presentation: Some(Stored::Typed(settings.presentation)),
-            usage: Some(Stored::Typed(settings.usage)),
-            theme_defaults: Some(Stored::Typed(settings.theme_defaults)),
-            extra: settings.extra,
         }
     }
 }

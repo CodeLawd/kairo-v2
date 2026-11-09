@@ -3,7 +3,7 @@
 use std::{fs, path::Path, process::Command, process::ExitCode};
 
 fn regenerate(root: &Path) -> Result<(), String> {
-    let cache = root.join("tests/oracle-cache");
+    let cache = kairo_oracle::cache_dir();
     fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(&cache).map_err(|e| e.to_string())? {
         let path = entry.map_err(|e| e.to_string())?.path();
@@ -11,10 +11,11 @@ fn regenerate(root: &Path) -> Result<(), String> {
             fs::remove_file(path).map_err(|e| e.to_string())?;
         }
     }
-    // Serial, as test binaries that share a function would otherwise race on its file.
+    // Cargo runs test binaries one at a time, and within one binary the
+    // shared oracle serialises cache writes, so tests can stay parallel.
     let status = Command::new("cargo")
-        .args(["test", "--workspace", "--", "--test-threads=1"])
-        .env("KAIRO_ORACLE_MODE", "refresh")
+        .args(["test", "--workspace"])
+        .env(kairo_oracle::MODE_ENV, "refresh")
         .current_dir(root)
         .status()
         .map_err(|e| format!("could not run cargo: {e}"))?;
@@ -29,8 +30,7 @@ fn main() -> ExitCode {
         eprintln!("usage: ts-oracle --regenerate");
         return ExitCode::FAILURE;
     }
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    match regenerate(&root) {
+    match regenerate(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("{error}");

@@ -7,7 +7,7 @@ import { createInterface } from 'node:readline'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
 
-const electron = resolve(process.env.KAIRO_ELECTRON_DIR || '../kairo-presenter')
+const electron = resolve(process.env.KAIRO_ELECTRON_DIR || fileURLToPath(new URL('../../../kairo-presenter', import.meta.url)))
 // Tests of the runner itself point this at probe modules instead of src/lib.
 const lib = resolve(process.env.KAIRO_ORACLE_LIB || join(electron, 'src/lib'))
 const output = process.stdout

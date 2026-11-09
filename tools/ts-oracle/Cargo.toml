@@ -3,3 +3,6 @@ name = "ts-oracle"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+kairo-oracle = { path = "../../crates/kairo-oracle" }

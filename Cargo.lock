@@ -850,6 +850,9 @@ dependencies = [
 [[package]]
 name = "check-api-coverage"
 version = "0.1.0"
+dependencies = [
+ "electron-sync",
+]
 
 [[package]]
 name = "chrono"
@@ -3424,6 +3427,7 @@ name = "kairo-oracle"
 version = "0.1.0"
 dependencies = [
  "proptest",
+ "serde",
  "serde_json",
 ]
 
@@ -6786,6 +6790,9 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 [[package]]
 name = "ts-oracle"
 version = "0.1.0"
+dependencies = [
+ "kairo-oracle",
+]
 
 [[package]]
 name = "ttf-parser"

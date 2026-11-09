@@ -66,7 +66,8 @@ pub struct CaptureAudioInput {
     pub name: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+/// `Default` is `IDLE_CAPTURE_STATUS`.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureStatus {
     pub available: bool,
@@ -83,20 +84,4 @@ pub struct CaptureStatus {
     pub error: Option<String>,
     #[serde(deserialize_with = "required")]
     pub warning: Option<String>,
-}
-
-/// `IDLE_CAPTURE_STATUS`.
-impl Default for CaptureStatus {
-    fn default() -> Self {
-        Self {
-            available: false,
-            reason: None,
-            recording: false,
-            started_at: None,
-            path: None,
-            source_name: None,
-            error: None,
-            warning: None,
-        }
-    }
 }

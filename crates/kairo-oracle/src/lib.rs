@@ -27,7 +27,7 @@ use proptest::{
 };
 use serde_json::{Value, json};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     fs,
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
@@ -36,6 +36,9 @@ use std::{
 };
 
 const REFRESH: &str = "cargo run -p ts-oracle -- --regenerate";
+
+/// The environment variable that picks the [`Mode`].
+pub const MODE_ENV: &str = "KAIRO_ORACLE_MODE";
 
 /// The TypeScript `undefined`.
 pub fn undefined() -> Value {
@@ -67,11 +70,24 @@ fn is_undefined(value: Option<&Value>) -> bool {
     value.is_none_or(|v| v.get("$oracle").and_then(Value::as_str) == Some("undefined"))
 }
 
+/// `value` as `JSON.stringify` would write it: object properties holding
+/// [`undefined`] are dropped.
+pub fn strip_undefined(value: Value) -> Value {
+    match value {
+        Value::Object(map) => Value::Object(
+            map.into_iter()
+                .filter(|(_, v)| !is_undefined(Some(v)))
+                .map(|(k, v)| (k, strip_undefined(v)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.into_iter().map(strip_undefined).collect()),
+        other => other,
+    }
+}
+
 /// Differences between the oracle's value and the Rust value, as readable paths.
 pub fn compare(expected: &Value, actual: &Value) -> Vec<String> {
-    let mut out = Vec::new();
-    walk("$", expected, actual, 0.0, &mut out);
-    out
+    compare_with_tolerance(expected, actual, 0.0)
 }
 
 /// As [`compare`], allowing numbers to differ by up to `tolerance`.
@@ -170,10 +186,64 @@ pub struct Oracle {
     electron: PathBuf,
     lib: Option<PathBuf>,
     node: Option<Node>,
+    /// Parsed cache files, so each is read once per process.
+    loaded: HashMap<String, BTreeMap<String, Value>>,
+    /// The Electron commit and `src/lib` dirtiness. Fixed for a test run.
+    stamp: OnceLock<(String, bool)>,
+}
+
+#[derive(serde::Deserialize)]
+struct CacheRow {
+    k: String,
+    r: Value,
 }
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+}
+
+/// Where cached oracle results live.
+pub fn cache_dir() -> PathBuf {
+    repo_root().join("tests/oracle-cache")
+}
+
+/// `value` as JSON text with object keys sorted, so a cache key does not
+/// depend on whether serde_json's `preserve_order` feature is on (gpui turns
+/// it on for `cargo test --workspace`).
+fn canonical(value: &Value, out: &mut String) {
+    match value {
+        Value::Object(map) => {
+            let mut entries: Vec<_> = map.iter().collect();
+            entries.sort_unstable_by_key(|(key, _)| *key);
+            out.push('{');
+            for (index, (key, item)) in entries.into_iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                out.push_str(&Value::from(key.as_str()).to_string());
+                out.push(':');
+                canonical(item, out);
+            }
+            out.push('}');
+        }
+        Value::Array(items) => {
+            out.push('[');
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                canonical(item, out);
+            }
+            out.push(']');
+        }
+        scalar => out.push_str(&scalar.to_string()),
+    }
+}
+
+fn cache_key(args: &Value) -> String {
+    let mut text = String::new();
+    canonical(args, &mut text);
+    fnv(&text)
 }
 
 fn fnv(text: &str) -> String {
@@ -185,7 +255,7 @@ fn fnv(text: &str) -> String {
 
 /// The mode named by `KAIRO_ORACLE_MODE`, `cache` when unset.
 pub fn mode_from_env() -> Result<Mode, String> {
-    parse_mode(std::env::var("KAIRO_ORACLE_MODE").ok().as_deref())
+    parse_mode(std::env::var(MODE_ENV).ok().as_deref())
 }
 
 /// The Electron checkout: `KAIRO_ELECTRON_DIR`, else `../kairo-presenter`.
@@ -213,6 +283,8 @@ impl Oracle {
             electron,
             lib: None,
             node: None,
+            loaded: HashMap::new(),
+            stamp: OnceLock::new(),
         }
     }
 
@@ -225,7 +297,7 @@ impl Oracle {
 
     fn from_env() -> Self {
         let mode = mode_from_env().unwrap_or_else(|error| panic!("{error}"));
-        Self::new(mode, repo_root().join("tests/oracle-cache"), electron_dir())
+        Self::new(mode, cache_dir(), electron_dir())
     }
 
     fn start(&mut self) -> Result<&mut Node, String> {
@@ -291,12 +363,15 @@ impl Oracle {
                 if read == 0 {
                     return Err("the oracle process exited early".to_owned());
                 }
-                let reply: Value =
+                let mut reply: Value =
                     serde_json::from_str(&line).map_err(|e| format!("bad oracle reply: {e}"))?;
                 if reply["ok"] == true {
-                    results.push(reply["value"].clone());
+                    results.push(reply["value"].take());
                 } else if reply["error"]["kind"] == "throw" {
-                    results.push(json!({"$oracle": "throw", "name": reply["error"]["name"], "message": reply["error"]["message"]}));
+                    let mut error = thrown();
+                    error["name"] = reply["error"]["name"].take();
+                    error["message"] = reply["error"]["message"].take();
+                    results.push(error);
                 } else if failure.is_none() {
                     failure = Some(format!(
                         "oracle failed for {name}: {}",
@@ -319,41 +394,48 @@ impl Oracle {
         self.cache.join(format!("{safe}.jsonl"))
     }
 
-    fn read_cache(&self, name: &str) -> Result<BTreeMap<String, Value>, String> {
+    /// The cache file for `name`, or `None` when there is none yet.
+    fn read_cache(&self, name: &str) -> Result<Option<BTreeMap<String, Value>>, String> {
         let Ok(text) = fs::read_to_string(self.cache_file(name)) else {
-            return Ok(BTreeMap::new());
+            return Ok(None);
         };
         let mut entries = BTreeMap::new();
         for line in text.lines().skip(1) {
-            let row: Value = serde_json::from_str(line)
+            let row: CacheRow = serde_json::from_str(line)
                 .map_err(|e| format!("corrupt cache for {name}: {e}. Run {REFRESH}"))?;
-            entries.insert(
-                row["k"].as_str().unwrap_or_default().to_owned(),
-                row["r"].clone(),
-            );
+            entries.insert(row.k, row.r);
         }
-        Ok(entries)
+        Ok(Some(entries))
     }
 
-    fn write_cache(&self, name: &str, entries: &BTreeMap<String, Value>) -> Result<(), String> {
-        let commit = |args: &[&str]| {
-            Command::new("git")
+    fn stamp(&self) -> Result<&(String, bool), String> {
+        if let Some(stamp) = self.stamp.get() {
+            return Ok(stamp);
+        }
+        let git = |args: &[&str]| {
+            let output = Command::new("git")
                 .arg("--no-optional-locks")
                 .arg("-C")
                 .arg(&self.electron)
                 .args(args)
                 .output()
-                .map_err(|e| e.to_string())
-                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                .map_err(|e| e.to_string())?;
+            if !output.status.success() {
+                return Err(format!(
+                    "{} is not a git checkout, so results cannot be stamped: {}",
+                    self.electron.display(),
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
+            Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
         };
-        let hash = commit(&["rev-parse", "--short=10", "HEAD"])?;
-        if hash.is_empty() {
-            return Err(format!(
-                "{} is not a git checkout, so results cannot be stamped",
-                self.electron.display()
-            ));
-        }
-        let dirty = !commit(&["status", "--porcelain", "--", "src/lib"])?.is_empty();
+        let hash = git(&["rev-parse", "--short=10", "HEAD"])?;
+        let dirty = !git(&["status", "--porcelain", "--", "src/lib"])?.is_empty();
+        Ok(self.stamp.get_or_init(|| (hash, dirty)))
+    }
+
+    fn write_cache(&self, name: &str, entries: &BTreeMap<String, Value>) -> Result<(), String> {
+        let (hash, dirty) = self.stamp()?;
         let mut text =
             json!({"fn": name, "electron_commit": hash, "src_lib_dirty": dirty}).to_string();
         text.push('\n');
@@ -370,21 +452,31 @@ impl Oracle {
         if inputs.is_empty() {
             return Ok(Vec::new());
         }
-        let keys: Vec<_> = inputs.iter().map(|args| fnv(&args.to_string())).collect();
+        let keys = || inputs.iter().map(cache_key);
         match self.mode {
             Mode::Live => self.live(name, inputs),
             Mode::Refresh => {
                 let results = self.live(name, inputs)?;
-                let mut entries = self.read_cache(name)?;
-                entries.extend(keys.into_iter().zip(results.iter().cloned()));
+                let mut entries = match self.loaded.remove(name) {
+                    Some(entries) => entries,
+                    None => self.read_cache(name)?.unwrap_or_default(),
+                };
+                entries.extend(keys().zip(results.iter().cloned()));
                 self.write_cache(name, &entries)?;
+                self.loaded.insert(name.to_owned(), entries);
                 Ok(results)
             }
             Mode::Cache => {
-                let entries = self.read_cache(name)?;
-                keys.iter()
+                // A missing file is not remembered, so a later write is seen.
+                if !self.loaded.contains_key(name)
+                    && let Some(entries) = self.read_cache(name)?
+                {
+                    self.loaded.insert(name.to_owned(), entries);
+                }
+                let entries = self.loaded.get(name);
+                keys()
                     .map(|key| {
-                        entries.get(key).cloned().ok_or_else(|| {
+                        entries.and_then(|e| e.get(&key)).cloned().ok_or_else(|| {
                             format!("no cached oracle result for {name}. Run {REFRESH}")
                         })
                     })
@@ -403,22 +495,22 @@ fn shared() -> &'static Mutex<Oracle> {
 /// as the mode says. For tests that need the value itself, such as a default
 /// to build a Rust value from. Panics with the refresh command on a miss.
 pub fn oracle_value(name: &str, args: Value) -> Value {
+    oracle_values(name, &[args]).remove(0)
+}
+
+/// As [`oracle_value`] for many argument lists in one batch.
+pub fn oracle_values(name: &str, inputs: &[Value]) -> Vec<Value> {
     shared()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .results(name, &[args])
+        .results(name, inputs)
         .unwrap_or_else(|error| panic!("{error}"))
-        .remove(0)
 }
 
 /// Compares many cases at once. Each case is `(arguments array, Rust output)`.
 pub fn assert_all_match(name: &str, cases: &[(Value, Value)]) {
     let inputs: Vec<_> = cases.iter().map(|(args, _)| args.clone()).collect();
-    let expected = shared()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .results(name, &inputs)
-        .unwrap_or_else(|error| panic!("{error}"));
+    let expected = oracle_values(name, &inputs);
     let mut failures = 0;
     let mut report = String::new();
     for ((args, actual), expected) in cases.iter().zip(&expected) {
@@ -486,6 +578,20 @@ mod tests {
             1
         );
         assert_eq!(compare(&number(f64::NAN), &json!(0)).len(), 1);
+    }
+
+    #[test]
+    fn cache_keys_ignore_object_key_order() {
+        let mut a = serde_json::Map::new();
+        a.insert("b".into(), json!(1));
+        a.insert("a".into(), json!([{"y": "\"", "x": 2.5}]));
+        let mut b = serde_json::Map::new();
+        b.insert("a".into(), json!([{"x": 2.5, "y": "\""}]));
+        b.insert("b".into(), json!(1));
+        assert_eq!(cache_key(&Value::Object(a)), cache_key(&Value::Object(b)));
+        let mut text = String::new();
+        canonical(&json!({"b": [1, null, true], "a": "é"}), &mut text);
+        assert_eq!(text, r#"{"a":"é","b":[1,null,true]}"#);
     }
 
     #[test]

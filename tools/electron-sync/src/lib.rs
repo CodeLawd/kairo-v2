@@ -84,7 +84,9 @@ impl Owners {
             .filter(|(path, _)| {
                 file == path.as_str()
                     || path.is_empty()
-                    || file.starts_with(&format!("{path}/"))
+                    || file
+                        .strip_prefix(path.as_str())
+                        .is_some_and(|rest| rest.starts_with('/'))
                     || (path.ends_with('-') && file.starts_with(path.as_str()))
             })
             .flat_map(|(_, ids)| ids.iter().cloned())
@@ -317,6 +319,7 @@ fn is_implemented(root: &Path, package: &str) -> bool {
 
 fn apply_generated(
     root: &Path,
+    electron: &Path,
     changed: &BTreeSet<String>,
     out: &mut String,
 ) -> Result<(), String> {
@@ -338,6 +341,7 @@ fn apply_generated(
         }
         let status = Command::new("cargo")
             .args(["run", "--quiet", "--package", package, "--", "--regenerate"])
+            .env("KAIRO_ELECTRON_DIR", electron)
             .current_dir(root)
             .status()
             .map_err(|error| format!("could not run {package}: {error}"))?;
@@ -346,24 +350,46 @@ fn apply_generated(
         }
         writeln!(out, "- regenerated {name}").ok();
     }
-    const GOLDENS: [(&str, &str); 3] = [
-        ("overlay-template.ts", "tests/golden/003-text"),
-        ("overlay.html", "tests/golden/003-text"),
-        ("theme-library.ts", "tests/golden/003-text"),
-    ];
-    let stale: BTreeSet<_> = GOLDENS
-        .iter()
-        .filter(|(name, _)| changed.iter().any(|file| file.ends_with(name)))
-        .map(|(_, golden)| *golden)
-        .collect();
+    /// Sources the text golden is rendered from.
+    const TEXT_GOLDEN_SOURCES: [&str; 3] =
+        ["overlay-template.ts", "overlay.html", "theme-library.ts"];
     writeln!(out, "\n## Goldens to recapture\n").ok();
-    if stale.is_empty() {
+    if changed
+        .iter()
+        .any(|file| TEXT_GOLDEN_SOURCES.iter().any(|name| file.ends_with(name)))
+    {
+        writeln!(out, "- tests/golden/003-text").ok();
+    } else {
         writeln!(out, "None.").ok();
     }
-    for golden in stale {
-        writeln!(out, "- {golden}").ok();
-    }
     Ok(())
+}
+
+/// Owners as a queue cell: comma separated, or `none`.
+fn owner_list(owners: &BTreeSet<String>) -> String {
+    if owners.is_empty() {
+        "none".into()
+    } else {
+        owners.iter().cloned().collect::<Vec<_>>().join(", ")
+    }
+}
+
+/// Each prompt's id (the first three characters of its file name) and path.
+pub fn prompt_files(root: &Path) -> Result<Vec<(String, PathBuf)>, String> {
+    let entries = fs::read_dir(root.join("native-migration/prompts"))
+        .map_err(|e| format!("cannot read prompts: {e}"))?;
+    let mut prompts = Vec::new();
+    for entry in entries {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        let name = path.file_name().unwrap_or_default().to_string_lossy();
+        if name.ends_with(".md") && name.len() > 3 {
+            prompts.push((name[..3].to_owned(), path.clone()));
+        }
+    }
+    if prompts.is_empty() {
+        return Err("no prompts found".into());
+    }
+    Ok(prompts)
 }
 
 fn describe(change: &Change, owners: &BTreeSet<String>, class: Class) -> String {
@@ -380,7 +406,6 @@ fn describe(change: &Change, owners: &BTreeSet<String>, class: Class) -> String 
     if owners.is_empty() && !matches!(class, Class::NoImpact(_)) {
         flags.push("NO OWNER");
     }
-    let owners = owners.iter().cloned().collect::<Vec<_>>().join(", ");
     let flags = if flags.is_empty() {
         String::new()
     } else {
@@ -390,7 +415,7 @@ fn describe(change: &Change, owners: &BTreeSet<String>, class: Class) -> String 
         "{} — {} — owners: {}{flags}",
         change.path,
         class.label(),
-        if owners.is_empty() { "none" } else { &owners }
+        owner_list(owners)
     )
 }
 
@@ -400,6 +425,7 @@ pub fn run(options: &Options) -> Result<String, String> {
     let electron = options
         .electron
         .clone()
+        .or_else(|| std::env::var_os("KAIRO_ELECTRON_DIR").map(PathBuf::from))
         .unwrap_or_else(|| root.join("../kairo-presenter"));
     let sync_path = migration.join("SYNC.md");
     let sync = fs::read_to_string(&sync_path)
@@ -420,26 +446,8 @@ pub fn run(options: &Options) -> Result<String, String> {
     .map_err(|_| format!("last-synced commit {last} is not in the Electron repository"))?;
 
     let mut owners = Owners::default();
-    let entries =
-        fs::read_dir(migration.join("prompts")).map_err(|e| format!("cannot read prompts: {e}"))?;
-    let mut prompts = 0;
-    for entry in entries {
-        let path = entry.map_err(|e| e.to_string())?.path();
-        let name = path
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .into_owned();
-        if name.ends_with(".md") && name.len() > 3 {
-            owners.add_prompt(
-                &name[..3],
-                &fs::read_to_string(&path).map_err(|e| e.to_string())?,
-            );
-            prompts += 1;
-        }
-    }
-    if prompts == 0 {
-        return Err("no prompts found".into());
+    for (id, path) in prompt_files(root)? {
+        owners.add_prompt(&id, &fs::read_to_string(&path).map_err(|e| e.to_string())?);
     }
     let done = done_prompts(&progress);
 
@@ -489,11 +497,10 @@ pub fn run(options: &Options) -> Result<String, String> {
                 .iter()
                 .any(|row| row[0] == *hash && row[1] == change.path)
             {
-                let list = who.iter().cloned().collect::<Vec<_>>().join(", ");
                 additions.push(vec![
                     hash.clone(),
                     change.path.clone(),
-                    if list.is_empty() { "none".into() } else { list },
+                    owner_list(&who),
                     class.label(),
                     class.status().to_owned(),
                     String::new(),
@@ -522,7 +529,7 @@ pub fn run(options: &Options) -> Result<String, String> {
             .chain(&uncommitted)
             .map(|c| c.path.clone())
             .collect();
-        apply_generated(root, &changed, &mut out)?;
+        apply_generated(root, &electron, &changed, &mut out)?;
     }
 
     let mut text = sync.clone();

@@ -1,19 +1,16 @@
 //! Parsing a 5 MB settings file, against the 20 ms target. Run with:
 //! `cargo test -p kairo-domain --release --test parse_speed -- --ignored --nocapture`
 
+mod common;
+
+use common::{fixture, read};
 use kairo_domain::{AppSettings, StoredSettings};
-use serde_json::Value;
 use std::time::Instant;
 
 /// The owner's settings, with the theme library repeated until the file is
 /// at least 5 MB. Themes are most of a real file's size.
 fn five_megabytes() -> String {
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/owner/current-kairo-settings.json"
-    );
-    let mut settings: Value =
-        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let mut settings = read(&fixture("owner/current-kairo-settings.json"));
     let themes = settings["themeLibrary"].as_array().unwrap().clone();
     assert!(!themes.is_empty());
     let mut text = serde_json::to_string(&settings).unwrap();

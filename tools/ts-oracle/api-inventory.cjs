@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Generates native-migration/api-inventory.md from the Electron TypeScript AST.
 // Reads the Electron checkout only. Usage: api-inventory.cjs [ELECTRON_DIR]
+// (default: $KAIRO_ELECTRON_DIR, else ../kairo-presenter)
 const fs = require('node:fs')
 const path = require('node:path')
 const { createRequire } = require('node:module')
 
 const root = path.resolve(__dirname, '../..')
-const electron = fs.realpathSync(path.resolve(process.argv[2] || path.join(root, '../kairo-presenter')))
+const electron = fs.realpathSync(path.resolve(process.argv[2] || process.env.KAIRO_ELECTRON_DIR || path.join(root, '../kairo-presenter')))
 const outFile = path.join(root, 'native-migration/api-inventory.md')
 const ts = createRequire(path.join(electron, 'package.json'))('typescript')
 const owners = JSON.parse(fs.readFileSync(path.join(__dirname, 'api-owners.json'), 'utf8'))

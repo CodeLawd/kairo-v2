@@ -3,14 +3,18 @@
 //! writes. Runs from `tests/oracle-cache` unless `KAIRO_ORACLE_MODE` says
 //! otherwise; refresh with `cargo run -p ts-oracle -- --regenerate`.
 
+mod common;
+
+use common::round_trip;
 use kairo_domain::audience::{AudienceQuestionState, AudienceRoomSettings};
+use kairo_domain::brand;
 use kairo_domain::capture::{CaptureFrameRate, CaptureSettings, CaptureStatus};
 use kairo_domain::cloud::{CrashKind, FeedbackKind, FeedbackStatus};
 use kairo_domain::collections::LibraryKind;
 use kairo_domain::documents::DocumentsSettings;
 use kairo_domain::import_menu::ImportKind;
 use kairo_domain::json::to_js_value;
-use kairo_domain::lyrics::LyricsSong;
+use kairo_domain::lyrics::{LyricsSectionType, LyricsSong, LyricsSource};
 use kairo_domain::overlay::{OutputAspect, OverlayTheme};
 use kairo_domain::program::{
     ConfidenceLayout, OutputShowFilter, PresentationSettings, ProgramState, VideoSettings,
@@ -18,51 +22,24 @@ use kairo_domain::program::{
 };
 use kairo_domain::services::ServiceUploadState;
 use kairo_domain::settings::{
-    AppSettings, DEFAULT_TRANSLATION_ID, OnboardingState, OverlaySettings, ShortcutCommand,
-    StoredSettings,
+    AppSettings, DEFAULT_TRANSLATION_ID, OnboardingState, OverlaySettings, SECTION_COUNT,
+    ShortcutCommand, StoredSettings,
 };
 use kairo_domain::usage::{UsageErrorKind, UsageFeature};
 use kairo_domain::web::WebSettings;
 use kairo_domain::workspace::SongFile;
-use kairo_domain::{brand, serde_util};
-use kairo_oracle::{assert_matches_oracle, generate, oracle_value};
+use kairo_oracle::{assert_matches_oracle, generate, oracle_value, oracle_values, strip_undefined};
 use proptest::prelude::*;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
 use serde_json::{Value, json};
-
-/// What `JSON.stringify` would write: object keys whose value is `undefined` go.
-fn on_disk(value: Value) -> Value {
-    match value {
-        Value::Object(map) => Value::Object(
-            map.into_iter()
-                .filter(|(_, v)| v.get("$oracle").and_then(Value::as_str) != Some("undefined"))
-                .map(|(k, v)| (k, on_disk(v)))
-                .collect(),
-        ),
-        Value::Array(items) => Value::Array(items.into_iter().map(on_disk).collect()),
-        other => other,
-    }
-}
 
 /// A TypeScript constant or zero-argument result, as written to disk.
 fn ts(name: &str) -> Value {
-    on_disk(oracle_value(name, json!([])))
+    strip_undefined(oracle_value(name, json!([])))
 }
 
 fn js<T: Serialize>(value: &T) -> Value {
     to_js_value(value).unwrap()
-}
-
-/// Parses `json` as `T` and checks it writes back unchanged.
-fn round_trip<T: Serialize + DeserializeOwned>(label: &str, json: &Value) -> T {
-    let parsed: T = serde_json::from_value(json.clone()).unwrap_or_else(|e| {
-        panic!(
-            "{label} does not parse as {}: {e}",
-            std::any::type_name::<T>()
-        )
-    });
-    assert_eq!(&js(&parsed), json, "{label} changed in a round trip");
-    parsed
 }
 
 #[test]
@@ -78,7 +55,7 @@ fn settings_defaults_match_db_index_section_by_section() {
     let mut sections: Vec<_> = expected.keys().chain(actual.keys()).collect();
     sections.sort();
     sections.dedup();
-    assert_eq!(sections.len(), 18, "sections: {sections:?}");
+    assert_eq!(sections.len(), SECTION_COUNT, "sections: {sections:?}");
     for section in sections {
         assert_eq!(
             actual.get(section),
@@ -152,7 +129,6 @@ fn exported_defaults_match() {
     for (name, rust) in cases {
         // Exact: same keys, values and number text, as the file would hold.
         assert_eq!(rust, ts(name), "{name}");
-        assert_matches_oracle(name, json!([]), rust);
     }
     let themed = default_timer_theme("#123456", "#abcdef");
     assert_matches_oracle(
@@ -169,69 +145,61 @@ fn enum_value_lists_match() {
     fn strings<T: Copy>(all: &[T], text: fn(T) -> &'static str) -> Value {
         Value::Array(all.iter().map(|v| json!(text(*v))).collect())
     }
-    let ids = |list: Value, key: &str| -> Value {
-        Value::Array(
-            list.as_array()
-                .unwrap()
-                .iter()
-                .map(|item| item[key].clone())
-                .collect(),
-        )
-    };
+    // (oracle name, id key when the constant lists objects, Rust values)
     let cases = [
         (
             "cloud/usage.USAGE_FEATURES",
-            ts("cloud/usage.USAGE_FEATURES"),
+            None,
             strings(UsageFeature::ALL, UsageFeature::as_str),
         ),
         (
             "cloud/usage.USAGE_ERRORS",
-            ts("cloud/usage.USAGE_ERRORS"),
+            None,
             strings(UsageErrorKind::ALL, UsageErrorKind::as_str),
         ),
         (
             "cloud/crashes.CRASH_KINDS",
-            ts("cloud/crashes.CRASH_KINDS"),
+            None,
             strings(CrashKind::ALL, CrashKind::as_str),
         ),
         (
             "cloud/feedback.FEEDBACK_KINDS",
-            ts("cloud/feedback.FEEDBACK_KINDS"),
+            None,
             strings(FeedbackKind::ALL, FeedbackKind::as_str),
         ),
         (
             "cloud/feedback.FEEDBACK_STATUSES",
-            ts("cloud/feedback.FEEDBACK_STATUSES"),
+            None,
             strings(FeedbackStatus::ALL, FeedbackStatus::as_str),
         ),
         (
             "libraries.LIBRARY_KINDS",
-            ts("libraries.LIBRARY_KINDS"),
+            None,
             strings(LibraryKind::ALL, LibraryKind::as_str),
         ),
         (
             "audience-protocol.AUDIENCE_STATES",
-            ts("audience-protocol.AUDIENCE_STATES"),
+            None,
             strings(AudienceQuestionState::ALL, AudienceQuestionState::as_str),
         ),
         (
             "displays.OUTPUT_ASPECT_VALUES",
-            ts("displays.OUTPUT_ASPECT_VALUES"),
+            None,
             strings(OutputAspect::ALL, OutputAspect::as_str),
         ),
         (
             "keyboard-shortcuts.SHORTCUT_COMMANDS",
-            ids(ts("keyboard-shortcuts.SHORTCUT_COMMANDS"), "id"),
+            Some("id"),
             strings(ShortcutCommand::ALL, ShortcutCommand::as_str),
         ),
         (
             "import-menu.IMPORT_OPTIONS",
-            ids(ts("import-menu.IMPORT_OPTIONS"), "kind"),
+            Some("kind"),
             strings(ImportKind::ALL, ImportKind::as_str),
         ),
         (
             "capture.CAPTURE_FRAME_RATES",
-            ts("capture.CAPTURE_FRAME_RATES"),
+            None,
             Value::Array(
                 CaptureFrameRate::ALL
                     .iter()
@@ -240,7 +208,16 @@ fn enum_value_lists_match() {
             ),
         ),
     ];
-    for (name, expected, actual) in cases {
+    for (name, key, actual) in cases {
+        let mut expected = ts(name);
+        if let Some(key) = key {
+            expected = expected
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|item| item[key].clone())
+                .collect();
+        }
         assert_eq!(actual, expected, "{name}");
     }
 }
@@ -282,16 +259,12 @@ fn text() -> impl Strategy<Value = String> {
 
 fn song() -> impl Strategy<Value = Value> {
     let section = (
-        prop::sample::select(vec![
-            "verse",
-            "chorus",
-            "bridge",
-            "pre-chorus",
-            "tag",
-            "intro",
-            "outro",
-            "ending",
-        ]),
+        prop::sample::select(
+            LyricsSectionType::ALL
+                .iter()
+                .map(|t| t.as_str())
+                .collect::<Vec<_>>(),
+        ),
         text(),
         prop::collection::vec(text(), 0..5),
         prop::option::of(prop::collection::vec(
@@ -317,15 +290,12 @@ fn song() -> impl Strategy<Value = Value> {
         prop::option::of(text()),
         prop::option::of("[0-9]{0,7}"),
         prop::option::of(any::<bool>()),
-        prop::option::of(prop::sample::select(vec![
-            "usr",
-            "text",
-            "propresenter",
-            "ccli",
-            "genius",
-            "lrclib",
-            "web",
-        ])),
+        prop::option::of(prop::sample::select(
+            LyricsSource::ALL
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>(),
+        )),
         prop::collection::vec(section, 0..4),
         1u64..2_000_000_000_000,
     )
@@ -355,20 +325,22 @@ fn song() -> impl Strategy<Value = Value> {
 #[test]
 fn song_files_written_by_electron_round_trip() {
     let songs = generate(1201, 200, song());
-    for (index, song) in songs.iter().enumerate() {
+    let inputs: Vec<_> = songs.iter().map(|song| json!([song])).collect();
+    let texts = oracle_values("workspace.serializeSongFile", &inputs);
+    let inputs: Vec<_> = texts.iter().map(|text| json!([text, "fallback"])).collect();
+    let read_backs = oracle_values("workspace.parseSongFile", &inputs);
+    for (index, ((song, text), read_back)) in songs.iter().zip(&texts).zip(read_backs).enumerate() {
         round_trip::<LyricsSong>(&format!("generated song {index}"), song);
-        let text = oracle_value("workspace.serializeSongFile", json!([song]));
         let file: Value = serde_json::from_str(text.as_str().expect("a string")).unwrap();
         let parsed: SongFile = round_trip(&format!("song file {index}"), &file);
         assert_eq!(
             parsed.kairo_song,
             kairo_domain::workspace::SONG_FILE_VERSION
         );
-        let read_back = on_disk(oracle_value(
-            "workspace.parseSongFile",
-            json!([text, "fallback"]),
-        ));
-        round_trip::<LyricsSong>(&format!("parsed song file {index}"), &read_back);
+        round_trip::<LyricsSong>(
+            &format!("parsed song file {index}"),
+            &strip_undefined(read_back),
+        );
     }
 }
 
@@ -376,5 +348,4 @@ fn song_files_written_by_electron_round_trip() {
 fn literal_true_fields_reject_false() {
     let segment = json!({"id": "t", "text": "", "words": [], "isFinal": false, "timestamp": 0, "duration": 0});
     assert!(serde_json::from_value::<kairo_domain::transcript::TranscriptResult>(segment).is_err());
-    let _ = serde_util::True;
 }

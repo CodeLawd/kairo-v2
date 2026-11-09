@@ -55,46 +55,27 @@ fn check(inventory: &str, prompts: &BTreeSet<String>) -> Result<usize, Vec<Strin
     }
 }
 
-fn prompt_ids(root: &Path) -> Result<BTreeSet<String>, String> {
-    let entries = fs::read_dir(root.join("native-migration/prompts")).map_err(|e| e.to_string())?;
-    Ok(entries
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            entry
-                .file_name()
-                .to_str()
-                .and_then(|n| n.get(..3))
-                .map(str::to_owned)
-        })
-        .collect())
-}
-
-fn main() -> ExitCode {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+fn run(root: &Path) -> Result<usize, Vec<String>> {
     if std::env::args().any(|arg| arg == "--regenerate") {
         let status = Command::new("node")
             .arg(root.join("tools/ts-oracle/api-inventory.cjs"))
             .status();
         if !status.is_ok_and(|status| status.success()) {
-            eprintln!("could not regenerate the inventory");
-            return ExitCode::FAILURE;
+            return Err(vec!["could not regenerate the inventory".into()]);
         }
     }
-    let inventory = match fs::read_to_string(root.join("native-migration/api-inventory.md")) {
-        Ok(text) => text,
-        Err(error) => {
-            eprintln!("cannot read api-inventory.md: {error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    let prompts = match prompt_ids(&root) {
-        Ok(prompts) => prompts,
-        Err(error) => {
-            eprintln!("cannot read prompts: {error}");
-            return ExitCode::FAILURE;
-        }
-    };
-    match check(&inventory, &prompts) {
+    let inventory = fs::read_to_string(root.join("native-migration/api-inventory.md"))
+        .map_err(|error| vec![format!("cannot read api-inventory.md: {error}")])?;
+    let prompts = electron_sync::prompt_files(root)
+        .map_err(|error| vec![error])?
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    check(&inventory, &prompts)
+}
+
+fn main() -> ExitCode {
+    match run(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")) {
         Ok(count) => {
             println!("{count} calls, all assigned");
             ExitCode::SUCCESS
