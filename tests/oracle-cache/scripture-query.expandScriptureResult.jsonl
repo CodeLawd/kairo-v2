@@ -1,0 +1,87 @@
+{"electron_commit":"af978c5159","fn":"scripture-query.expandScriptureResult","src_lib_dirty":false}
+{"k":"03e38450680effe5","r":[]}
+{"k":"040e8fbc85a10d7f","r":[{"reference":"3 John 1:14","translation":"AMPC","verses":[{"book":"3 John","chapter":1,"text":"Verse 14","verse":14}]},{"reference":"3 John 1:15","translation":"AMPC","verses":[{"book":"3 John","chapter":1,"text":"Verse 15","verse":15}]}]}
+{"k":"0786af550bb83df5","r":[{"reference":"Psalms 119:176","translation":"KJV","verses":[{"book":"Psalms","chapter":119,"text":"Verse 176","verse":176}]},{"reference":"Psalms 119:177","translation":"KJV","verses":[{"book":"Psalms","chapter":119,"text":"Verse 177","verse":177}]}]}
+{"k":"0bbea7af2dc50b3d","r":[{"reference":"Mark 10:1","translation":"AMPC","verses":[{"book":"Mark","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"15f5a3f53af994e5","r":[{"reference":"3 John 1:14","translation":"AMPC","verses":[{"book":"3 John","chapter":1,"text":"Verse 14","verse":14}]},{"reference":"3 John 1:15","translation":"AMPC","verses":[{"book":"3 John","chapter":1,"text":"Verse 15","verse":15}]}]}
+{"k":"198df742f8d63a19","r":[{"reference":"3 John 1:14","translation":"AMPC","verses":[{"book":"3 John","chapter":1,"text":"Verse 14","verse":14}]}]}
+{"k":"19c8ef8512e968ef","r":[{"reference":"Joshua 2:1","translation":"KJV","verses":[{"book":"Joshua","chapter":2,"text":"Verse 1","verse":1}]}]}
+{"k":"1a29ca026dca309f","r":[{"reference":"Mark 10:1","translation":"AMPC","verses":[{"book":"Mark","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"1d4164c58dbb0805","r":[{"reference":"Joshua 1:1","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 1","verse":1}]},{"reference":"Joshua 1:2","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 2","verse":2}]}]}
+{"k":"20f5f70408a4c18a","r":[{"reference":"Joshua 2:1","translation":"KJV","verses":[{"book":"Joshua","chapter":2,"text":"Verse 1","verse":1}]},{"reference":"Joshua 2:2","translation":"KJV","verses":[{"book":"Joshua","chapter":2,"text":"Verse 2","verse":2}]}]}
+{"k":"20fc89131ddaa54b","r":[{"reference":"Unknown 4:2","translation":"KJV","verses":[{"book":"Unknown","chapter":4,"text":"Verse 2","verse":2}]}]}
+{"k":"2243262309b389aa","r":[{"reference":"Mark 9:43","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 43","verse":43}]},{"reference":"Mark 9:44","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 44","verse":44}]}]}
+{"k":"22dd2faf6600e003","r":[{"reference":"Unknown 5:1","translation":"KJV","verses":[{"book":"Unknown","chapter":5,"text":"Verse 1","verse":1}]}]}
+{"k":"24453d2ba5e70723","r":[{"reference":"John -1:-3","translation":"KJV","verses":[{"book":"John","chapter":-1,"text":"Verse -3","verse":-3}]}]}
+{"k":"2ae4f9ee4d7ca239","r":[{"reference":"John 0:1","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 1","verse":1}]}]}
+{"k":"2db653284d4721f4","r":[{"reference":"Unknown 4:2","translation":"KJV","verses":[{"book":"Unknown","chapter":4,"text":"Verse 2","verse":2}]},{"reference":"Unknown 4:3","translation":"KJV","verses":[{"book":"Unknown","chapter":4,"text":"Verse 3","verse":3}]}]}
+{"k":"2ec2c54ee41361fd","r":[{"reference":"John 0:0","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 0","verse":0}]},{"reference":"John 0:1","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 1","verse":1}]}]}
+{"k":"30e7484c15033fc3","r":[{"reference":"Joshua 1:9","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 9","verse":9}]}]}
+{"k":"321f579209192733","r":[{"reference":"mk 10:1","translation":"AMPC","verses":[{"book":"mk","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"32227eb0e9bc11a9","r":[{"reference":"Mark 9:45","translation":"NKJV","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]}]}
+{"k":"324285f724bfaa77","r":[{"reference":"Joshua 1:1","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 1","verse":1}]}]}
+{"k":"34ebbf61e1b119eb","r":[{"reference":"Romans 8:28","translation":"KJV","verses":[{"book":"Romans","chapter":8,"text":"Verse 28","verse":28}]}]}
+{"k":"4018ce003d3ffa8d","r":[{"reference":"mk 9:43","translation":"AMPC","verses":[{"book":"mk","chapter":9,"text":"Verse 43","verse":43}]},{"reference":"mk 9:44","translation":"AMPC","verses":[{"book":"mk","chapter":9,"text":"Verse 44","verse":44}]}]}
+{"k":"427d63c64eaa83f9","r":[{"reference":"John 0:0","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 0","verse":0}]}]}
+{"k":"4b47264f1ea4484f","r":[{"reference":"John 3.5:1","translation":"KJV","verses":[{"book":"John","chapter":3.5,"text":"Verse 1","verse":1}]}]}
+{"k":"4e7498ddf9f66fc0","r":[{"reference":"Mark 9:45","translation":"NKJV","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]},{"reference":"Mark 9:46","translation":"NKJV","verses":[{"book":"Mark","chapter":9,"text":"Verse 46","verse":46}]}]}
+{"k":"5341a3d71440db95","r":[{"reference":"3 John 2:1","translation":"AMPC","verses":[{"book":"3 John","chapter":2,"text":"Verse 1","verse":1}]}]}
+{"k":"56b27271b0952b69","r":[{"reference":"John 0:1","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 1","verse":1}]}]}
+{"k":"56db1c49743daa34","r":[{"reference":"Mark 9:47","translation":"ampc","verses":[{"book":"Mark","chapter":9,"text":"Verse 47","verse":47}]},{"reference":"Mark 9:48","translation":"ampc","verses":[{"book":"Mark","chapter":9,"text":"Verse 48","verse":48}]}]}
+{"k":"5bb3e3ee44254633","r":[{"reference":"John 0:0","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 0","verse":0}]}]}
+{"k":"5c1c5a56cd802303","r":[{"reference":"John 0:0","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 0","verse":0}]},{"reference":"John 0:1","translation":"KJV","verses":[{"book":"John","chapter":0,"text":"Verse 1","verse":1}]}]}
+{"k":"5fe07f095f80cd1f","r":[{"reference":"Mark 10:1","translation":"ampc","verses":[{"book":"Mark","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"6acf481eb5c100c1","r":[{"reference":"Mark 10:1","translation":"NKJV","verses":[{"book":"Mark","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"6c9e8a2d4c103a07","r":[{"reference":"Psalms 120:1","translation":"KJV","verses":[{"book":"Psalms","chapter":120,"text":"Verse 1","verse":1}]}]}
+{"k":"71a3cbbf54ffe891","r":[{"reference":"mk 9:43","translation":"AMPC","verses":[{"book":"mk","chapter":9,"text":"Verse 43","verse":43}]}]}
+{"k":"73ec7ae0295b9989","r":[{"reference":"Mark 9:43","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 43","verse":43}]}]}
+{"k":"742cb169fc146bbf","r":[{"reference":"Psalms 119:176","translation":"KJV","verses":[{"book":"Psalms","chapter":119,"text":"Verse 176","verse":176}]},{"reference":"Psalms 119:177","translation":"KJV","verses":[{"book":"Psalms","chapter":119,"text":"Verse 177","verse":177}]}]}
+{"k":"7cd2cedf8de000d5","r":[]}
+{"k":"7f03af0ee12ff531","r":[{"reference":"John 1:1","translation":"KJV","verses":[{"book":"John","chapter":1,"text":"Verse 1","verse":1}]}]}
+{"k":"849f23b3c2b8a317","r":[{"reference":"Unknown 5:1","translation":"KJV","verses":[{"book":"Unknown","chapter":5,"text":"Verse 1","verse":1}]}]}
+{"k":"88807d82875d0dfa","r":[{"reference":"Mark 9:45","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]},{"reference":"Mark 9:46","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 46","verse":46}]}]}
+{"k":"8a1d90c0148cb527","r":[{"reference":"3 John 1:14","translation":"AMPC","verses":[{"book":"3 John","chapter":1,"text":"Verse 14","verse":14}]}]}
+{"k":"8ae6e8090d9ebcdb","r":[{"reference":"John 3.5:1","translation":"KJV","verses":[{"book":"John","chapter":3.5,"text":"Verse 1","verse":1}]}]}
+{"k":"91e09bd05283291b","r":[{"reference":"Mark 10:1","translation":"NKJV","verses":[{"book":"Mark","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"93901309b13d2fe1","r":[{"reference":"John -1:-3","translation":"KJV","verses":[{"book":"John","chapter":-1,"text":"Verse -3","verse":-3}]},{"reference":"John -1:-2","translation":"KJV","verses":[{"book":"John","chapter":-1,"text":"Verse -2","verse":-2}]}]}
+{"k":"99c6df6970d356ad","r":[{"reference":"Mark 9:45","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]}]}
+{"k":"a0dfcd28e419e5d6","r":[{"reference":"John 3:16","translation":"KJV","verses":[{"book":"John","chapter":3,"text":"Verse 16","verse":16}]},{"reference":"John 3:16","translation":"KJV","verses":[{"book":"John","chapter":3,"text":"Verse 16","verse":16}]}]}
+{"k":"a304937b8f55de0d","r":[{"reference":"John 2.5:1.5","translation":"KJV","verses":[{"book":"John","chapter":2.5,"text":"Verse 1.5","verse":1.5}]}]}
+{"k":"a4bcf4c23bef6bc9","r":[{"reference":"Mark 9:47","translation":"ampc","verses":[{"book":"Mark","chapter":9,"text":"Verse 47","verse":47}]}]}
+{"k":"a7d59914155ca7ad","r":[{"reference":"Mark 9:45","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]}]}
+{"k":"a9dc1f52b4afb360","r":[{"reference":"Joshua 2:1","translation":"KJV","verses":[{"book":"Joshua","chapter":2,"text":"Verse 1","verse":1}]},{"reference":"Joshua 2:2","translation":"KJV","verses":[{"book":"Joshua","chapter":2,"text":"Verse 2","verse":2}]}]}
+{"k":"acaa5b8b4a809e77","r":[{"reference":"Joshua 1:9","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 9","verse":9}]}]}
+{"k":"b63322f90740f4d3","r":[{"reference":"Joshua 1:1","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 1","verse":1}]}]}
+{"k":"b854e85214c14ac3","r":[{"reference":"Joshua 3:1","translation":"KJV","verses":[{"book":"Joshua","chapter":3,"text":"Verse 1","verse":1}]}]}
+{"k":"b994052f2b6f02a0","r":[{"reference":"John 2.5:1.5","translation":"KJV","verses":[{"book":"John","chapter":2.5,"text":"Verse 1.5","verse":1.5}]},{"reference":"John 2.5:2.5","translation":"KJV","verses":[{"book":"John","chapter":2.5,"text":"Verse 2.5","verse":2.5}]}]}
+{"k":"bba0fadf6fded093","r":[{"reference":"mk 9:43","translation":"AMPC","verses":[{"book":"mk","chapter":9,"text":"Verse 43","verse":43}]},{"reference":"mk 9:44","translation":"AMPC","verses":[{"book":"mk","chapter":9,"text":"Verse 44","verse":44}]}]}
+{"k":"c4a3c89deccf1241","r":[{"reference":"Joshua 1:9","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 9","verse":9}]},{"reference":"Joshua 1:10","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 10","verse":10}]}]}
+{"k":"c722c2e97512652f","r":[{"reference":"Joshua 1:1","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 1","verse":1}]},{"reference":"Joshua 1:2","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 2","verse":2}]}]}
+{"k":"c866f3719f345575","r":[{"reference":"Mark 9:43","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 43","verse":43}]}]}
+{"k":"c9d07061542623af","r":[{"reference":"John -1:-3","translation":"KJV","verses":[{"book":"John","chapter":-1,"text":"Verse -3","verse":-3}]}]}
+{"k":"caaa2eac1c1a4b8b","r":[{"reference":"mk 9:43","translation":"AMPC","verses":[{"book":"mk","chapter":9,"text":"Verse 43","verse":43}]}]}
+{"k":"ceb41f45bf02b62d","r":[{"reference":"John 3:16","translation":"KJV","verses":[{"book":"John","chapter":3,"text":"Verse 16","verse":16}]}]}
+{"k":"d1a95f34409fd123","r":[{"reference":"John 2.5:1.5","translation":"KJV","verses":[{"book":"John","chapter":2.5,"text":"Verse 1.5","verse":1.5}]}]}
+{"k":"d5826e0a7fd55934","r":[{"reference":"Mark 9:43","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 43","verse":43}]},{"reference":"Mark 9:44","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 44","verse":44}]}]}
+{"k":"d6de533385ac1dfa","r":[{"reference":"Mark 9:45","translation":"NKJV","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]},{"reference":"Mark 9:46","translation":"NKJV","verses":[{"book":"Mark","chapter":9,"text":"Verse 46","verse":46}]}]}
+{"k":"d70181797fa860f3","r":[{"reference":"Psalms 119:176","translation":"KJV","verses":[{"book":"Psalms","chapter":119,"text":"Verse 176","verse":176}]}]}
+{"k":"dae9a80f55abc571","r":[{"reference":"Psalms 119:176","translation":"KJV","verses":[{"book":"Psalms","chapter":119,"text":"Verse 176","verse":176}]}]}
+{"k":"de74c111211646e2","r":[{"reference":"Mark 9:47","translation":"ampc","verses":[{"book":"Mark","chapter":9,"text":"Verse 47","verse":47}]},{"reference":"Mark 9:48","translation":"ampc","verses":[{"book":"Mark","chapter":9,"text":"Verse 48","verse":48}]}]}
+{"k":"def54dc9cedcb792","r":[{"reference":"John 3:16","translation":"KJV","verses":[{"book":"John","chapter":3,"text":"Verse 16","verse":16}]},{"reference":"John 3:16","translation":"KJV","verses":[{"book":"John","chapter":3,"text":"Verse 16","verse":16}]}]}
+{"k":"dfc6ae0a9257c3bb","r":[{"reference":"Joshua 3:1","translation":"KJV","verses":[{"book":"Joshua","chapter":3,"text":"Verse 1","verse":1}]}]}
+{"k":"e2557f81db416625","r":[{"reference":"John 1:1","translation":"KJV","verses":[{"book":"John","chapter":1,"text":"Verse 1","verse":1}]}]}
+{"k":"e69184f82cec60d7","r":[{"reference":"John 3:16","translation":"KJV","verses":[{"book":"John","chapter":3,"text":"Verse 16","verse":16}]}]}
+{"k":"e7413c57a27a1d3f","r":[{"reference":"Joshua 1:9","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 9","verse":9}]},{"reference":"Joshua 1:10","translation":"KJV","verses":[{"book":"Joshua","chapter":1,"text":"Verse 10","verse":10}]}]}
+{"k":"ea2305fea742ca6e","r":[{"reference":"Unknown 4:2","translation":"KJV","verses":[{"book":"Unknown","chapter":4,"text":"Verse 2","verse":2}]},{"reference":"Unknown 4:3","translation":"KJV","verses":[{"book":"Unknown","chapter":4,"text":"Verse 3","verse":3}]}]}
+{"k":"eb144c3dfffddceb","r":[{"reference":"Romans 8:28","translation":"KJV","verses":[{"book":"Romans","chapter":8,"text":"Verse 28","verse":28}]}]}
+{"k":"ec3b2f6fb621b0f3","r":[{"reference":"Joshua 2:1","translation":"KJV","verses":[{"book":"Joshua","chapter":2,"text":"Verse 1","verse":1}]}]}
+{"k":"f1b0c157949dd51f","r":[{"reference":"mk 10:1","translation":"AMPC","verses":[{"book":"mk","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"f2ddc95b76a1dd05","r":[{"reference":"Mark 9:45","translation":"NKJV","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]}]}
+{"k":"f63d41c7be9c605d","r":[{"reference":"Unknown 4:2","translation":"KJV","verses":[{"book":"Unknown","chapter":4,"text":"Verse 2","verse":2}]}]}
+{"k":"f8866e642c5ff035","r":[{"reference":"Mark 9:47","translation":"ampc","verses":[{"book":"Mark","chapter":9,"text":"Verse 47","verse":47}]}]}
+{"k":"f8dc756ff9140aeb","r":[{"reference":"John -1:-3","translation":"KJV","verses":[{"book":"John","chapter":-1,"text":"Verse -3","verse":-3}]},{"reference":"John -1:-2","translation":"KJV","verses":[{"book":"John","chapter":-1,"text":"Verse -2","verse":-2}]}]}
+{"k":"f9c9cdef9c9a7eab","r":[{"reference":"3 John 2:1","translation":"AMPC","verses":[{"book":"3 John","chapter":2,"text":"Verse 1","verse":1}]}]}
+{"k":"fb054febcaceaca6","r":[{"reference":"John 2.5:1.5","translation":"KJV","verses":[{"book":"John","chapter":2.5,"text":"Verse 1.5","verse":1.5}]},{"reference":"John 2.5:2.5","translation":"KJV","verses":[{"book":"John","chapter":2.5,"text":"Verse 2.5","verse":2.5}]}]}
+{"k":"fdb82df2fe3da363","r":[{"reference":"Psalms 120:1","translation":"KJV","verses":[{"book":"Psalms","chapter":120,"text":"Verse 1","verse":1}]}]}
+{"k":"fe3dd50349b4bf7d","r":[{"reference":"Mark 10:1","translation":"ampc","verses":[{"book":"Mark","chapter":10,"text":"Verse 1","verse":1}]}]}
+{"k":"fec75c0d310a5144","r":[{"reference":"Mark 9:45","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 45","verse":45}]},{"reference":"Mark 9:46","translation":"AMPC","verses":[{"book":"Mark","chapter":9,"text":"Verse 46","verse":46}]}]}

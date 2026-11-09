@@ -270,7 +270,13 @@ impl Oracle {
         let node = self.start()?;
         let mut request = String::new();
         for args in inputs {
-            request.push_str(&json!({"fn": name, "args": args}).to_string());
+            // Node's readline also ends a line at U+2028 and U+2029, which
+            // serde_json writes raw; escaping them keeps one request per line.
+            let line = json!({"fn": name, "args": args})
+                .to_string()
+                .replace('\u{2028}', "\\u2028")
+                .replace('\u{2029}', "\\u2029");
+            request.push_str(&line);
             request.push('\n');
         }
         let Node { stdin, stdout, .. } = node;

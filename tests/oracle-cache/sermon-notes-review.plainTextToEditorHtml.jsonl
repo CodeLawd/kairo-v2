@@ -1,0 +1,342 @@
+{"electron_commit":"af978c5159","fn":"sermon-notes-review.plainTextToEditorHtml","src_lib_dirty":false}
+{"k":"019a6adea98ff188","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;😀</p>"}
+{"k":"022015857f7df960","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&gt;&amp;a</p>"}
+{"k":"03b1e5b30f2e7eb0","r":"<p>😀 &nbsp;</p>"}
+{"k":"03f2dffc07d82f84","r":"<p>a&gt;&lt;</p>"}
+{"k":"049a24a01a65e309","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"05e96708b7a5ad5d","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp; &nbsp;</p>"}
+{"k":"060bcad71404b800","r":"<p>&amp;</p><p>a</p><p><br></p><p>&amp;&nbsp;</p><p>&lt;</p>"}
+{"k":"07a49b68a2642d0a","r":"<p>&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>😀</p>"}
+{"k":"0929e6b195dccdf5","r":"<p><br></p><p>a&gt;&nbsp;&nbsp;a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"09b71df9441b4fbf","r":"<p>&gt;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"0a1754f2b588a31d","r":"<p><br></p><p>&lt;</p><p>&amp;</p><p>&gt;</p>"}
+{"k":"0a17c32cf3ce0dcf","r":"<p><br></p><p>&gt;</p><p><br></p>"}
+{"k":"0b0ab18c49921949","r":"<p>&lt;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"0f7bce761a3a9e37","r":"<p><br></p><p>&nbsp;&nbsp;</p><p><br></p><p><br></p><p><br></p>"}
+{"k":"10b17c1d87a4da5d","r":"<p>😀&amp;&nbsp;&nbsp;&nbsp;&nbsp;a</p><p><br></p>"}
+{"k":"10de5ed62281a1a6","r":"<p>&lt;&lt;😀&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp;</p><p><br></p>"}
+{"k":"116264a88579538a","r":"<p>&gt;a</p><p>&gt;</p><p>&amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"12ddc1da992b8f4e","r":"<p>a</p><p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;</p><p><br></p>"}
+{"k":"12ec2ea5e35c9e4e","r":"<p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;&amp;😀</p>"}
+{"k":"1302c8e3eb110ee1","r":"<p>&lt;</p><p>&nbsp;&nbsp;</p><p><br></p><p><br></p><p><br></p>"}
+{"k":"13f0924cd9ebdd7c","r":"<p>&gt; &nbsp;</p><p>&gt;😀&lt;&lt;&nbsp;</p>"}
+{"k":"142d194b4bb25a09","r":"<p><br></p><p>&amp;a&gt;&amp;</p><p>&nbsp; a</p>"}
+{"k":"149838539d8d2bad","r":"<p>a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;a</p>"}
+{"k":"14ed82d617089b29","r":"<p><br></p><p><br></p><p><br></p><p><br></p><p><br></p>"}
+{"k":"150259249e773ee9","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"15611a8de7bdbb08","r":"<p>&lt;😀&amp;</p>"}
+{"k":"158bc4e6081dc636","r":"<p><br></p><p><br></p><p>&gt;a &nbsp;</p>"}
+{"k":"15998547916a7d08","r":"<p>😀&nbsp;</p><p><br></p><p><br></p><p><br></p><p><br></p><p><br></p>"}
+{"k":"15e9f30f759815b8","r":"<p>&amp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;</p><p>😀</p><p>&amp;&lt;</p>"}
+{"k":"1616a98faeb8d5e1","r":"<p><br></p><p><br></p><p><br></p><p>&amp;</p><p>&amp;😀a</p><p><br></p>"}
+{"k":"162bd65404cf7969","r":"<p>&nbsp; &gt;&gt;&lt; &nbsp;</p>"}
+{"k":"1712275d0723fd9d","r":"<p>&amp;</p><p>&amp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p><br></p>"}
+{"k":"17366f5e5253c73d","r":"<p>&nbsp; &amp;&gt;</p><p><br></p><p><br></p>"}
+{"k":"17e0f3e4e7a6ff30","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;😀&nbsp;</p><p><br></p>"}
+{"k":"1976508378cae4e9","r":"<p>&nbsp;&nbsp;</p><p>😀</p><p>😀&gt;&amp;&lt;</p>"}
+{"k":"1a20019f67eadc79","r":"<p>&nbsp;&nbsp;</p>"}
+{"k":"1a3f16e690bb25e4","r":"<p>a&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p>&nbsp;</p>"}
+{"k":"1bb833a95bce1555","r":"<p>&nbsp;</p><p><br></p><p>&lt;&gt;&lt;</p>"}
+{"k":"1d06b32a0eff4718","r":"<p><br></p><p>😀a</p><p>&nbsp; &amp;a&amp;</p>"}
+{"k":"1d89948d50b322a7","r":"<p><br></p><p><br></p><p>&lt;&amp;</p><p>&gt;</p>"}
+{"k":"200f7e9d3926d683","r":"<p>&nbsp;&gt;&amp;&gt;</p>"}
+{"k":"209d208afd247f9f","r":"<p>😀a</p><p>&amp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"20cbe47c7aafc1ba","r":"<p>&nbsp;aa&nbsp;&nbsp;&nbsp;&nbsp;😀&gt;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"2131a69d61c672c5","r":"<p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"21892a733fb444a5","r":"<p>&amp;&lt;&nbsp;&nbsp;&nbsp;&nbsp;&gt;</p>"}
+{"k":"21e9849736b7320c","r":"<p><br></p><p>&lt; a&gt;</p>"}
+{"k":"227e311e3236b08f","r":"<p>&lt;</p><p><br></p><p><br></p><p>a&gt;a</p>"}
+{"k":"234e501a9e1ff7e5","r":"<p>&gt;😀&gt;😀</p><p><br></p>"}
+{"k":"236b058c7a5bcf71","r":"<p><br></p><p>&amp;</p>"}
+{"k":"25dd07d946b4b7e0","r":"<p><br></p><p>&nbsp;a&gt;&nbsp;&nbsp;&lt;</p><p><br></p>"}
+{"k":"266e1e0e4a3b27ac","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;&lt;&nbsp;&nbsp;😀</p>"}
+{"k":"26ad5990ffc4270f","r":"<p><br></p><p><br></p><p><br></p><p><br></p><p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"26b7d294853897ec","r":"<p>😀😀</p><p>a</p>"}
+{"k":"27102dd2910b55e8","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;😀</p>"}
+{"k":"27b226e148436069","r":"<p><br></p><p>&lt;</p><p><br></p>"}
+{"k":"288a5571a6395c33","r":"<p>😀&nbsp;&nbsp;&nbsp;&nbsp;&lt;&gt;😀</p>"}
+{"k":"2970bb99e1d177df","r":"<p>&gt;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&gt;</p>"}
+{"k":"2a73c10455a7d837","r":"<p>&nbsp;a&nbsp;&nbsp;b&nbsp;&nbsp;&nbsp;c&nbsp;</p>"}
+{"k":"2b0b5f164b843c6c","r":"<p>a</p><p><br></p>"}
+{"k":"2b288c997252f102","r":"<p>a</p>"}
+{"k":"2b76d7444734c861","r":"<p>&nbsp;&nbsp;</p><p>&amp;</p><p><br></p>"}
+{"k":"2b883513dc578165","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;</p><p>&lt;</p>"}
+{"k":"2c19159850db0c9f","r":"<p>&amp;</p>"}
+{"k":"2c47c4c3a1acec08","r":"<p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;😀</p><p><br></p>"}
+{"k":"2c85b6d0db0ee55d","r":"<p>😀&nbsp;</p><p>😀a😀</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"2cb7acd0315aac8d","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p>"}
+{"k":"2e177d6b7003e0c5","r":"<p><br></p><p>&gt;</p>"}
+{"k":"2fd96f27f5dfc004","r":"<p><br></p><p>&lt;😀&lt;</p>"}
+{"k":"311d226e05a16daa","r":"<p>&gt;&amp;</p><p>a</p><p>&nbsp; a😀</p>"}
+{"k":"31711c84d098f130","r":"<p><br></p><p>😀&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;&amp;&amp;</p><p><br></p>"}
+{"k":"3277ae05c78664b5","r":"<p>trail&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"33d5c29595e1a0e7","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"34160cfd3c8d8230","r":"<p>&lt;</p><p>&amp;😀</p>"}
+{"k":"35e569f9bfd8e2e8","r":"<p>a&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p><p><br></p><p><br></p>"}
+{"k":"36a84ff6e294c9a3","r":"<p>&lt;&amp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"36c42043950c281d","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p><p><br></p><p><br></p><p>&nbsp; &nbsp;</p>"}
+{"k":"36cbe7427713c292","r":"<p>&gt;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;a&gt;</p>"}
+{"k":"38d43e1f283f39dd","r":"<p>&amp;</p><p><br></p>"}
+{"k":"3b9dd50f62172e08","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;😀</p><p><br></p>"}
+{"k":"3c6700fcb3648b84","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;a&amp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p>&nbsp;</p>"}
+{"k":"3db416752548b8dc","r":"<p>😀</p><p><br></p><p>&nbsp;&nbsp;</p><p>&nbsp; &amp;&amp; &nbsp;</p>"}
+{"k":"3eeafd3a31cc7121","r":"<p><br></p><p>&nbsp; a😀&lt;</p><p><br></p><p>&gt;</p>"}
+{"k":"3f2894d4cee7f114","r":"<p>&gt;a&nbsp;&nbsp;😀😀&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp;</p>"}
+{"k":"3f9557dd8bae0489","r":"<p>&nbsp; &nbsp;</p>"}
+{"k":"418eb972a3d10a54","r":"<p>😀</p><p>&lt; &lt;&amp;</p>"}
+{"k":"42087e22d6643e5c","r":"<p>&lt;&amp;&gt;a</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"42b653f89fbde621","r":"<p>😀&amp; &lt;a&gt;&amp;</p>"}
+{"k":"4303f7adb7508e1b","r":"<p>&lt;&amp;&nbsp;&nbsp;&nbsp;&nbsp;&gt;a&nbsp;&nbsp;&nbsp;&nbsp;😀</p><p><br></p>"}
+{"k":"453d93f89c53eb32","r":"<p><br></p><p>a&amp;</p>"}
+{"k":"453eb6b1ded77010","r":"<p>a</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"466f5cd168b27bd4","r":"<p>&gt;a&lt;&nbsp;</p><p>&nbsp;</p>"}
+{"k":"46c160c5e512c7e3","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;</p><p>&gt;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"48ed0b24bbdaa7ff","r":"<p><br></p><p><br></p>"}
+{"k":"49c6f915cbe84a7a","r":"<p>a&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"4bb624788ff5537e","r":"<p>&amp; 😀</p>"}
+{"k":"4cef2730052a3513","r":"<p>&gt;&gt;&nbsp;&nbsp;&nbsp;&lt; &lt;&amp;</p>"}
+{"k":"4dce097c32ee6836","r":"<p>&amp;&amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p><p>😀</p><p><br></p>"}
+{"k":"4df42aa0a77fcdb2","r":"<p>&nbsp;a</p>"}
+{"k":"4df843d548bcbe42","r":"<p>&gt;😀</p>"}
+{"k":"4e58b37ccbc65789","r":"<p>&lt;</p><p><br></p><p><br></p><p><br></p>"}
+{"k":"4e83bccf64e6c203","r":"<p>&lt;</p><p>&nbsp;&nbsp;</p>"}
+{"k":"4eafd6d4369030d4","r":"<p>&lt;&amp;a&gt;</p>"}
+{"k":"4ee4f39f8608560f","r":"<p>&nbsp;&amp;</p>"}
+{"k":"4fc45b8512ebf654","r":"<p>😀a</p><p>😀&amp;&lt;&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p>"}
+{"k":"50ece2a9fb78df23","r":"<p><br></p><p><br></p><p>&nbsp; &nbsp;</p>"}
+{"k":"51387fb835afb02f","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&amp;&lt;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"52aa05b3e7a4d03a","r":"<p><br></p><p><br></p><p>😀&gt;</p><p>&nbsp;&nbsp;</p>"}
+{"k":"534cc26dcbdc3b66","r":"<p>😀</p><p><br></p><p>&amp;</p>"}
+{"k":"535f9b23b474aabf","r":"<p>&amp; &nbsp;</p><p><br></p><p>&nbsp;😀😀&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"53bdc1bba9fe1ebb","r":"<p><br></p><p>&amp;</p><p>&nbsp;&nbsp;</p>"}
+{"k":"5407fb75dbbb5db1","r":"<p>&lt;</p><p><br></p>"}
+{"k":"5412a9c4dbc85723","r":"<p>a &nbsp;</p><p>&lt;😀&gt;</p>"}
+{"k":"54a0800b2e299501","r":"<p>a&lt;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp; a</p>"}
+{"k":"55d17f6a1248139f","r":"<p>a</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;😀&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p>"}
+{"k":"562b6d5fc16dadb1","r":"<p>&nbsp;a&amp;&nbsp;&nbsp;&nbsp;😀&gt;aa</p>"}
+{"k":"56dc326c3168267d","r":"<p>&gt;&lt;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;</p><p>&gt;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"57ba96d55077e3ba","r":"<p><br></p><p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;😀</p>"}
+{"k":"584113539b23a52b","r":"<p>&lt; &amp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"588e66c806f53bce","r":"<p>a&nbsp;</p><p><br></p><p><br></p>"}
+{"k":"58901698b6616aa0","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;😀</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p><p><br></p>"}
+{"k":"591bb22e6a142434","r":"<p>&amp;a&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"5986f2b85f62587d","r":"<p>&nbsp;a</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p>a</p>"}
+{"k":"5a8d64993defce58","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&lt;x&gt; &amp; y&nbsp;</p>"}
+{"k":"5acd7b1e4ceec806","r":"<p><br></p><p><br></p><p>😀&amp;</p>"}
+{"k":"5ad038bd16952a35","r":"<p>&gt;&amp;</p><p>&gt;</p>"}
+{"k":"5af1e42561136bcd","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>a&nbsp;&nbsp;&nbsp;&nbsp;a</p>"}
+{"k":"5b82ddd8a6c33e4e","r":"<p>a</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"5b877a1f8abb3426","r":"<p>&gt; 😀&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"5c62b7d4b623dd0b","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;😀</p><p><br></p><p>&lt;a</p>"}
+{"k":"5c78ad564414ea8f","r":"<p>😀😀</p><p><br></p>"}
+{"k":"5d4255ac17a3b876","r":"<p><br></p><p>a&nbsp;&nbsp;&gt;&lt;aa&lt;&gt;</p>"}
+{"k":"5deda83311a39e76","r":"<p>a &nbsp;</p><p><br></p>"}
+{"k":"5e295935f9905e9f","r":"<p>&gt;</p><p><br></p><p>&nbsp;&nbsp;</p>"}
+{"k":"5e516cdeb93ea286","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>😀</p><p><br></p><p><br></p>"}
+{"k":"5eb7d08c07783f54","r":"<p><br></p><p><br></p><p>&lt;&nbsp;&nbsp;&nbsp;a&gt;&gt; &nbsp;</p>"}
+{"k":"5f460f986d9dc705","r":"<p>&lt;</p>"}
+{"k":"60a55ea3cef4a359","r":"<p>&amp;&nbsp;&nbsp;&gt;&nbsp;&nbsp;&amp;&nbsp;&nbsp;&amp;&nbsp;</p>"}
+{"k":"60cc0c863eea325d","r":"<p>&lt;&nbsp;&nbsp;&lt;&nbsp;&nbsp;&amp;</p><p><br></p><p><br></p>"}
+{"k":"612063c8e98dfff4","r":"<p>😀&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt; &amp;</p>"}
+{"k":"61b2eaf2b40fd8db","r":"<p><br></p><p>&amp;</p><p><br></p>"}
+{"k":"62b37a1512cacaf7","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&gt; &nbsp;</p>"}
+{"k":"63669f098c48c9ae","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p>"}
+{"k":"6575692cb39b9c86","r":"<p><br></p><p><br></p><p>&nbsp;😀&nbsp;</p>"}
+{"k":"65c285407a76d052","r":"<p>&amp;&lt;&nbsp;&nbsp;&nbsp;&nbsp;&gt;a &nbsp;</p><p><br></p>"}
+{"k":"67121d74322ffe6a","r":"<p>aaa</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"6915e29651dee89e","r":"<p><br></p><p><br></p><p>a&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"695514b94f437097","r":"<p>&amp;&lt; &nbsp;</p>"}
+{"k":"6a002fef66d944b9","r":"<p><br></p><p>&lt;&lt;</p><p>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&amp;&gt;</p>"}
+{"k":"6ac6a10bdaf79907","r":"<p>&nbsp;&nbsp;&nbsp;&lt;a&nbsp;&nbsp;a</p><p>&amp;</p>"}
+{"k":"6b92ef24cf7a9513","r":"<p><br></p><p><br></p>"}
+{"k":"6c3b53ca80ded727","r":"<p>&lt;&nbsp;</p><p><br></p>"}
+{"k":"6c3cbb81d523326b","r":"<p>&nbsp;&nbsp;&nbsp;lead</p>"}
+{"k":"6c4fde1243ba3543","r":"<p><br></p><p>&amp;&gt; &gt;&gt;</p>"}
+{"k":"6ce8bf0473589189","r":"<p>&amp;</p><p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&lt;</p>"}
+{"k":"6e53678468cdfac2","r":"<p>&nbsp;</p><p><br></p><p><br></p><p>&nbsp; a 😀😀</p>"}
+{"k":"6e6689615209efbf","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>😀&nbsp;&nbsp;&nbsp;&nbsp;&lt;&nbsp;&nbsp;a</p>"}
+{"k":"6ed736c8ff2122ee","r":"<p>&nbsp; &amp;</p><p>&lt;a</p>"}
+{"k":"6fd680d4a6b914a0","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;😀&lt;</p><p><br></p>"}
+{"k":"704d55de545db0ba","r":"<p><br></p><p>aaa</p><p><br></p>"}
+{"k":"708b1d987761afc7","r":"<p>&gt;</p>"}
+{"k":"72190efdc471a42f","r":"<p><br></p><p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p>"}
+{"k":"72fe87dabad807b9","r":"<p><br></p><p>&lt;</p>"}
+{"k":"734f7eb027d750b3","r":"<p><br></p><p>aa</p><p>&gt;&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p>"}
+{"k":"755ac0b7d4b4f380","r":"<p><br></p><p>a&nbsp;&nbsp;&nbsp;&lt;</p><p>&gt;</p><p>&lt;</p>"}
+{"k":"76915c1b792ccb79","r":"<p><br></p><p><br></p><p><br></p>"}
+{"k":"77f082fd1002897a","r":"<p>😀&lt;&nbsp;</p><p>&amp;&amp;&lt;&lt;</p>"}
+{"k":"796d98625039ce4e","r":"<p>&nbsp; 😀</p><p><br></p>"}
+{"k":"7a29bacc485d16c9","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&lt;&nbsp;</p>"}
+{"k":"7b231de37421b6a0","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p>a</p>"}
+{"k":"7b56e191acade562","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a</p>"}
+{"k":"7ba0f938e15702b7","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;</p>"}
+{"k":"7bf49c171ce9e5e1","r":"<p>&nbsp;&nbsp;</p><p>&lt;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p>"}
+{"k":"7c7bd9d774575304","r":"<p>😀&nbsp;&nbsp;&nbsp;&nbsp;&lt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p><p><br></p><p><br></p>"}
+{"k":"7cb6d45795d9f7d1","r":"<p><br></p><p><br></p><p>a</p><p>&nbsp; 😀</p><p><br></p>"}
+{"k":"7ce210ec71cc25c2","r":"<p><br></p><p>&lt;</p><p>😀&amp;</p><p><br></p><p><br></p>"}
+{"k":"7dcdeb15e9649b08","r":"<p>a</p><p><br></p>"}
+{"k":"7e05342bf736f0e6","r":"<p><br></p><p>a&nbsp;&nbsp;&gt;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"7e0f6172766f9dbd","r":"<p><br></p><p><br></p><p>&nbsp;&gt;&gt;</p><p>&gt;&amp;</p>"}
+{"k":"7e673a60a998e5d0","r":"<p>a&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&amp;&nbsp;</p><p><br></p>"}
+{"k":"7f96eb99d66a972a","r":"<p>&nbsp; &amp;&nbsp;&nbsp;&nbsp;😀 &lt;</p>"}
+{"k":"82fc1660537b151e","r":"<p>&nbsp;&amp;&nbsp;&nbsp;&nbsp;😀</p>"}
+{"k":"8317cba85e458ec7","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;aa</p><p><br></p><p><br></p><p><br></p>"}
+{"k":"838f1562b28a78c3","r":"<p>&nbsp;&lt;</p><p><br></p>"}
+{"k":"86002689efe03b87","r":"<p>😀😀&amp;&gt;</p><p><br></p><p>&lt;</p><p><br></p><p><br></p>"}
+{"k":"863edd4dd79a6d21","r":"<p><br></p><p><br></p><p><br></p><p>&nbsp; &lt;</p>"}
+{"k":"866f572331c07835","r":"<p><br></p><p>&amp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>a&gt;😀&lt;</p>"}
+{"k":"8676ac9f7ed8c462","r":"<p><br></p><p>&lt;</p><p>a&lt;</p>"}
+{"k":"877287ab4e4f5e3c","r":"<p>ABEL&nbsp;&nbsp;Genesis 4:3-5</p><p>NOAH</p>"}
+{"k":"88cd0fb10d134a56","r":"<p>&lt;&gt;😀</p>"}
+{"k":"8bb827da1ab16eb2","r":"<p><br></p><p>a</p><p>&amp;</p>"}
+{"k":"8bc97be95a5bc0ed","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&amp;</p>"}
+{"k":"8c1c66b2413b3a21","r":"<p>a&nbsp;&nbsp;&nbsp;&nbsp;</p><p>a&lt;</p>"}
+{"k":"8cc8fce79862e66f","r":"<p>&gt;</p><p>😀a&amp; &nbsp;</p><p>&gt;</p>"}
+{"k":"8da5666efbc03440","r":"<p>a</p><p>&nbsp; &lt;&amp;a&lt;&amp;😀</p>"}
+{"k":"8ef258d6918353c2","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a</p>"}
+{"k":"906c48c43e480244","r":"<p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>😀</p><p><br></p>"}
+{"k":"90dd70347d5e1875","r":"<p>&gt;&nbsp;&nbsp;😀&amp;&nbsp;&nbsp;😀</p><p><br></p>"}
+{"k":"91876013652561ed","r":"<p>&gt;&gt;</p>"}
+{"k":"91c02c3ccfa6e5dc","r":"<p>&lt;&lt;&gt;&gt;😀</p>"}
+{"k":"91ddd7ba3ba85443","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;😀&nbsp;&nbsp;😀</p><p><br></p><p><br></p>"}
+{"k":"93ad447376521bff","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p><p>&amp;&nbsp;&nbsp;&lt; &nbsp;</p>"}
+{"k":"94435aabad631145","r":"<p><br></p><p>&lt;&lt;</p>"}
+{"k":"944b5a206de6928b","r":"<p>aa a</p><p>a</p>"}
+{"k":"947e4788338c48b7","r":"<p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;&lt; &amp;</p>"}
+{"k":"94ef198d5941673a","r":"<p>&gt;&nbsp;</p><p>&nbsp;😀&nbsp;</p>"}
+{"k":"960c49ec4ad9271d","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;a&amp;a&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;&gt;</p>"}
+{"k":"96329be330924113","r":"<p>&lt;</p><p>aa&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p>"}
+{"k":"98854156f9552dee","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>a</p>"}
+{"k":"9984bafcc76d89ab","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&amp;</p>"}
+{"k":"9a03099e53603489","r":"<p><br></p><p><br></p><p>😀&gt;</p><p>&nbsp; 😀</p>"}
+{"k":"9a0684b4e7f7bf79","r":"<p><br></p><p>😀&gt;&amp;&nbsp;&nbsp;&gt;😀&amp;&nbsp;</p>"}
+{"k":"9a6d0588e0a30f82","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;a&gt;</p>"}
+{"k":"9b5c2004ac75c30b","r":"<p><br></p><p>&nbsp;&amp;</p>"}
+{"k":"a04a7a539b340630","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&amp;</p><p><br></p><p>a</p>"}
+{"k":"a0e6f7e67797e83f","r":"<p>&lt;&nbsp;&nbsp;&nbsp;&nbsp;&lt; &gt;😀😀</p>"}
+{"k":"a1bc8e299dc36cd7","r":"<p><br></p><p>&amp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p>"}
+{"k":"a1f2ae136e3013af","r":"<p>&gt;&lt;</p>"}
+{"k":"a1fd54ceffce56fb","r":"<p><br></p><p>&amp; &nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"a2bcc6e0c9873a78","r":"<p>😀</p>"}
+{"k":"a2c5db72679304f9","r":"<p><br></p><p>&gt;&nbsp;</p>"}
+{"k":"a3e948bab420397c","r":"<p><br></p><p>&lt;a&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"a4046c2f581a92e2","r":"<p>&nbsp;</p><p>😀&nbsp;&nbsp;&amp;</p>"}
+{"k":"a4d73cd9244d288e","r":"<p><br></p><p>a</p>"}
+{"k":"a574ddca65a1025b","r":"<p><br></p><p>&nbsp;a😀</p><p><br></p>"}
+{"k":"a61aad4225e87a31","r":"<p><br></p><p>😀&nbsp;&nbsp;&nbsp;&nbsp;😀&lt;</p>"}
+{"k":"a62513744dc343f9","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"a706d0e6607a0709","r":"<p>&lt;a</p><p>&nbsp; &amp;😀</p>"}
+{"k":"a78828f63729681c","r":"<p>😀&gt;</p>"}
+{"k":"a820b5e687fe5ee3","r":"<p>&gt;</p><p><br></p>"}
+{"k":"ab5eb51970a162c3","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p>"}
+{"k":"ae4ce18cd7698cf2","r":"<p>a&nbsp;&nbsp;a&nbsp;&nbsp;&nbsp;&nbsp;&amp;😀&amp;&nbsp;</p>"}
+{"k":"ae547bb52bc8fbef","r":"<p>&nbsp;&nbsp;</p><p><br></p><p><br></p><p><br></p><p><br></p><p><br></p><p>&nbsp;</p>"}
+{"k":"aedab3a3421eb4e5","r":"<p><br></p><p>&nbsp;a😀</p><p><br></p>"}
+{"k":"af56f996f139f7b8","r":"<p><br></p><p>&nbsp; &lt;😀😀 a&lt;</p>"}
+{"k":"afc50d8191730529","r":"<p><br></p><p>&nbsp;</p><p><br></p>"}
+{"k":"afeffe44627699cf","r":"<p>&nbsp;</p><p><br></p>"}
+{"k":"b091c4a50a304040","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;😀&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p><br></p><p><br></p>"}
+{"k":"b1168af4f40025aa","r":"<p><br></p><p>&nbsp; &nbsp;</p><p>a</p><p>&gt;</p>"}
+{"k":"b1ec057eaf9565e2","r":"<p><br></p><p>&amp;</p><p><br></p><p>a&gt;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"b1efcbe57b3ff22a","r":"<p><br></p><p>&lt;😀&lt;&amp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"b38ac22651be8a58","r":"<p>&gt;</p><p>&nbsp; a</p>"}
+{"k":"b3e050dfc0082e7c","r":"<p><br></p><p><br></p><p>&amp;&nbsp;</p><p>&gt;😀&amp;</p><p><br></p>"}
+{"k":"b539fdda4f959903","r":"<p><br></p><p>&amp;</p>"}
+{"k":"b5c7d0f9f3ef2d8f","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&gt;&lt;</p>"}
+{"k":"b62f275c4fcde25e","r":"<p>😀😀</p><p>&gt; a&lt;</p><p>&amp;</p>"}
+{"k":"b6c975df33e7354d","r":"<p><br></p><p>&nbsp;&gt;&lt;</p>"}
+{"k":"b7ecd7200cb8c78f","r":"<p>&nbsp;&lt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;</p>"}
+{"k":"b85ea859268f9c8b","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;a</p><p><br></p><p>😀&nbsp;</p>"}
+{"k":"b874eb6ad1a224fb","r":"<p>a</p><p>b</p><p>c</p>"}
+{"k":"b8c527bc319e4eca","r":"<p>&gt; 😀&amp;</p>"}
+{"k":"b8cc3dd694a64637","r":"<p>&lt;&nbsp;&nbsp;&lt;</p><p><br></p>"}
+{"k":"b99fd5bd4c49a19c","r":"<p>a&nbsp;</p>"}
+{"k":"badba316d9e4af5e","r":"<p>a&gt;a😀&amp;</p>"}
+{"k":"bb08ebb20e2bd674","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;😀</p><p>&gt;&lt;&lt;</p><p><br></p>"}
+{"k":"bb56b035667e77c0","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;a&amp;&gt; &gt;</p>"}
+{"k":"bd668243d916b183","r":"<p>&nbsp;</p><p><br></p>"}
+{"k":"bde80e25b4b18739","r":"<p><br></p><p>aa&gt;&amp;&lt;</p><p>&nbsp;&gt;</p>"}
+{"k":"bf066e608d2e9de1","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;&gt;&amp;</p>"}
+{"k":"bf5801a17099a9df","r":"<p>&nbsp;</p><p>😀</p><p>😀</p>"}
+{"k":"bf797f116c81bddc","r":"<p>😀&nbsp;</p><p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"bf83eeda649230da","r":"<p>&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&gt;&amp;</p><p>😀</p><p><br></p>"}
+{"k":"bfedc1bfe259138c","r":"<p>a&gt;a</p><p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;😀</p>"}
+{"k":"c177af2719bce256","r":"<p>😀&lt;&amp;</p><p>&nbsp;&nbsp;</p><p>&lt;</p>"}
+{"k":"c184c94e0589d1f8","r":"<p>😀&lt;&lt;</p>"}
+{"k":"c1a3c812ef6566b5","r":"<p>&gt;&amp;</p>"}
+{"k":"c3ea99acea330d85","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&gt;</p><p>&lt;&gt;a😀</p>"}
+{"k":"c43c7ff562df6445","r":"<p>&amp;&lt;</p><p><br></p><p><br></p><p><br></p>"}
+{"k":"c5107fac8aaee791","r":"<p>&amp;&nbsp;&nbsp;&nbsp;&nbsp;&gt;&nbsp;</p><p><br></p>"}
+{"k":"c6f7e1cf25dc01c2","r":"<p>&amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;😀</p>"}
+{"k":"c90b79b2ce210382","r":"<p>&nbsp; a😀&lt; 😀&amp;</p>"}
+{"k":"ca9012766d7a0a84","r":"<p><br></p><p>😀&nbsp;</p>"}
+{"k":"ccf3af58d53a7fa9","r":"<p>&gt;&gt;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"cd79df7c34dd9bb6","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&lt;&gt;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;😀&lt;</p>"}
+{"k":"cdfdff11b990beb7","r":"<p>&nbsp; a😀</p>"}
+{"k":"ce1025f4dd5bf2e1","r":"<p>&gt;&gt; &lt;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"ce4321dc058f8573","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp;a&amp;😀</p><p><br></p>"}
+{"k":"cf943f8596d6376d","r":"<p>&amp;&nbsp;&nbsp;&nbsp;&nbsp;&gt;&nbsp;&nbsp;&nbsp;&nbsp;😀😀</p>"}
+{"k":"d23a5384b9acb2a4","r":"<p>&amp;&gt;</p><p><br></p><p>a&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p>"}
+{"k":"d34e6e92fd5bbae4","r":"<p>&nbsp;&lt; 😀</p>"}
+{"k":"d35952a4efc26966","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;</p><p>😀&lt;</p>"}
+{"k":"d3e216fe443c6d28","r":"<p>&lt;😀&gt;</p><p>&nbsp;&nbsp;</p><p><br></p><p><br></p><p><br></p>"}
+{"k":"d46e08da0ca20a3a","r":"<p><br></p><p><br></p><p>a</p><p>&lt;</p>"}
+{"k":"d5b02bc9697beb02","r":"<p>&nbsp;a&nbsp;&nbsp;&nbsp;&nbsp;a&amp;&amp;&nbsp;&nbsp;😀</p>"}
+{"k":"d68ba362bef93fc7","r":"<p>😀😀&nbsp;&nbsp;&nbsp;&nbsp;&gt;</p>"}
+{"k":"d712a8a4ee5e6742","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;😀&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p>&gt;</p>"}
+{"k":"d962e86b69994928","r":"<p>a</p><p>&lt;</p><p>&amp;</p><p><br></p>"}
+{"k":"d9f93c758d583532","r":"<p>&nbsp;&nbsp;&nbsp;a</p>"}
+{"k":"da98a57458d69a86","r":"<p>a</p><p>&nbsp; &amp;&lt;</p><p><br></p><p><br></p>"}
+{"k":"db3b0c89e84f6465","r":"<p><br></p><p>&gt;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&amp;&amp;aa</p>"}
+{"k":"db46ecbe8154c22b","r":"<p>aa</p>"}
+{"k":"db83112ed63572f8","r":"<p><br></p><p>a&amp;</p>"}
+{"k":"dbb318a335729c46","r":"<p>&nbsp;</p><p>😀</p><p><br></p><p>&amp;</p><p>&nbsp; &nbsp;</p>"}
+{"k":"dbbce2f39c608265","r":"<p><br></p><p><br></p><p><br></p><p><br></p><p>&lt;</p><p><br></p>"}
+{"k":"dd1308a97694d58e","r":"<p>&lt;</p><p>a</p><p>&gt; &nbsp;</p><p>&lt;</p>"}
+{"k":"dd43ec9564dc2afd","r":"<p><br></p><p><br></p>"}
+{"k":"dd96f55f8be83d07","r":"<p>&gt;&lt;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&gt;</p>"}
+{"k":"de6160deb1006c63","r":"<p><br></p><p>&nbsp;</p><p><br></p>"}
+{"k":"de8730190e3a88cb","r":"<p><br></p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;</p>"}
+{"k":"df6424fee8f926ec","r":"<p>&nbsp;&nbsp;&nbsp;a😀&gt;&nbsp;&nbsp;&nbsp;a&lt;</p>"}
+{"k":"e2080a8eba9f807a","r":"<p>😀&amp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a</p><p>&gt;a</p><p><br></p>"}
+{"k":"e30364eda884f7be","r":"<p>&amp;</p><p>a😀</p><p>😀</p>"}
+{"k":"e3a7043e396a3ce9","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p>"}
+{"k":"e5e50688b7b58e60","r":"<p>a&amp;</p><p><br></p><p><br></p>"}
+{"k":"e643f91eccab7193","r":"<p>&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p>"}
+{"k":"e6a2db80c2ea64ce","r":"<p><br></p><p>😀 &nbsp;</p>"}
+{"k":"e7812b5fc9663161","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p><p><br></p><p>&nbsp; &lt;</p>"}
+{"k":"e7e0e5fe55fea161","r":"<p>&gt;&nbsp;&nbsp;&nbsp;&nbsp;😀&amp;</p><p>a&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp;&nbsp;</p>"}
+{"k":"e83d54adf1f93c2d","r":"<p>a&lt;😀&nbsp;&nbsp;&gt; &nbsp;</p><p>&nbsp;</p>"}
+{"k":"e84bb63be0cb409b","r":"<p>a&nbsp;</p><p>😀</p>"}
+{"k":"e8b326ab6c46c438","r":"<p><br></p><p>&amp;&lt; &gt;</p><p>😀</p><p><br></p>"}
+{"k":"e8cc356b48c4e01d","r":"<p><br></p><p>&amp;</p>"}
+{"k":"e9c7f536c2ca3c2b","r":"<p>&gt;&nbsp;&nbsp;&lt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&lt;</p><p><br></p>"}
+{"k":"ea4a8b811288c5c1","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;&gt;&amp;&gt;</p>"}
+{"k":"eb3c026b5cd7df27","r":"<p><br></p><p>&nbsp;&gt;</p><p><br></p><p><br></p>"}
+{"k":"ec056e185e3eaf72","r":"<p>&amp;a&gt;</p><p>aa</p>"}
+{"k":"ec2d17d177b711bd","r":"<p>&amp;&amp;</p>"}
+{"k":"ec4d797988879e1a","r":"<p>a&lt;&gt;a😀&amp;&nbsp;</p>"}
+{"k":"ee71940b43d9be53","r":"<p>&nbsp;&nbsp;&nbsp;&gt;&nbsp;</p>"}
+{"k":"eec16066295540f9","r":"<p><br></p>"}
+{"k":"ef640b8c5cdf714b","r":"<p><br></p><p>&lt;</p>"}
+{"k":"f1177657993d2ecd","r":"<p>&gt;</p><p><br></p><p><br></p>"}
+{"k":"f3a8b169a50b8979","r":"<p>&lt;&lt;a</p><p>&nbsp; 😀</p>"}
+{"k":"f3b6f549d6d91d74","r":"<p>a&amp;</p><p><br></p>"}
+{"k":"f446e5715b94835a","r":"<p>&amp;😀&lt;&nbsp;&nbsp;&nbsp;&nbsp;</p><p>&nbsp; &amp;&lt;</p>"}
+{"k":"f495c01f84dd3d6b","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p><p>&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><p><br></p>"}
+{"k":"f49e7bfc9e2ea509","r":"<p>&nbsp;</p><p><br></p><p><br></p>"}
+{"k":"f509e71abece0ac8","r":"<p>a</p><p>&nbsp; &amp;&lt;&lt;&nbsp;&nbsp;&nbsp;&nbsp;&lt;&lt;</p>"}
+{"k":"f5eec8a97114437f","r":"<p>a&nbsp;&nbsp;😀</p>"}
+{"k":"f624d5474e1a7483","r":"<p><br></p><p>a&nbsp;</p><p>&nbsp;&nbsp;</p><p>&nbsp;&nbsp;</p><p>😀</p>"}
+{"k":"f676250300420c2e","r":"<p><br></p><p>&nbsp; a</p>"}
+{"k":"f67c19f885ceee25","r":"<p><br></p><p>😀&lt;&lt;&nbsp;&nbsp;&nbsp;&nbsp;😀</p><p><br></p>"}
+{"k":"f7cca3895270bbc3","r":"<p>a&amp;😀</p>"}
+{"k":"f82de3983376ca09","r":"<p>&nbsp;</p>"}
+{"k":"f8536808431f4fce","r":"<p><br></p><p>&nbsp;😀</p><p>&gt;</p>"}
+{"k":"f93e136df9c18974","r":"<p>😀&gt; &lt;</p><p><br></p>"}
+{"k":"fa4c3e8f6d0f5708","r":"<p>&nbsp;a&lt;&lt;</p><p>&amp;&lt;</p>"}
+{"k":"fb29b178272fa173","r":"<p>&amp; &nbsp;</p><p>&nbsp; &amp;</p>"}
+{"k":"fb3d619ed1245f90","r":"<p>&gt;&nbsp;&nbsp;&nbsp;</p><p>😀</p>"}
+{"k":"fc546fa0c250b0eb","r":"<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&amp;</p><p><br></p>"}
+{"k":"fc649a3ebbe34cf9","r":"<p><br></p><p>a😀&nbsp;</p>"}
+{"k":"feda8a4f2efe5612","r":"<p>&lt;a&amp;&nbsp;</p><p>&nbsp; &amp;</p>"}

@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip", "raw_value"] }
 

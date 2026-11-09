@@ -1,5 +1,28 @@
 //! Scripture verses, suggestions, translations and sermon playlists, from
-//! `src/lib/ipc.ts`.
+//! `src/lib/ipc.ts` (prompt 012), and the scripture logic (prompt 015):
+//!
+//! - [`translations`] and [`versification`]: the translation registry.
+//! - [`query`]: book names, reference parsing and search-box behaviour.
+//! - [`live_progress`]: grouping, merging and following detected scripture.
+//! - [`plan`]: sermon playlist matching and resolving.
+//! - [`notes_review`]: sermon notes text and offsets, independent of any editor.
+//! - [`spoken_translations`]: translations named aloud.
+//! - [`trace`]: latency trace metrics, summaries and the trace store.
+//! - [`offline_state`]: cached API.Bible notices and offline Bible rows.
+//! - [`small`]: single-verse presentation, spoken verse text, detector
+//!   recovery and Scripture-tab pushes.
+
+mod js;
+pub mod live_progress;
+pub mod notes_review;
+pub mod offline_state;
+pub mod plan;
+pub mod query;
+pub mod small;
+pub mod spoken_translations;
+pub mod trace;
+pub mod translations;
+pub mod versification;
 
 use crate::serde_util::{Extra, True, nullable, present, required, string_enum};
 use serde::{Deserialize, Serialize};

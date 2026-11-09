@@ -1,0 +1,65 @@
+{"electron_commit":"af978c5159","fn":"oracle:scripture.nextAutoFollow","src_lib_dirty":false}
+{"k":"0278b8d48037e9c1","r":null}
+{"k":"0837eaee1b0f69d4","r":null}
+{"k":"19e76768b3209a81","r":null}
+{"k":"1ac1d02bac4604d3","r":null}
+{"k":"1ae17792009acd49","r":null}
+{"k":"1bc5a8bf98e049cf","r":null}
+{"k":"1f7ea16050692ed5","r":null}
+{"k":"1fb47187fa4c0f26","r":null}
+{"k":"20798ef5d6094936","r":null}
+{"k":"21318135d1fd4597","r":{"confidence":0.97,"id":"genesis-8-17","passageId":"genesis-8-15-22","passageIndex":2,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:17","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"Bring forth with thee every living thing that is with thee, of all flesh.","verse":17}]}}
+{"k":"243479bfde066ef5","r":null}
+{"k":"246d0678cd5ffe2a","r":null}
+{"k":"2888de936ba862c3","r":{"confidence":0.97,"id":"genesis-8-15","passageId":"genesis-8-15-22","passageIndex":0,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:15","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"And God spake unto Noah, saying,","verse":15}]}}
+{"k":"31e6e52c25760588","r":null}
+{"k":"38ae65bbade02c82","r":null}
+{"k":"38ca5c49a24089c1","r":null}
+{"k":"3d2b215abce72194","r":null}
+{"k":"3e57a30bfaaa67b4","r":{"confidence":0.97,"id":"genesis-8-16","passageId":"genesis-8-15-22","passageIndex":1,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:16","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"Go forth of the ark, thou, and thy wife, and thy sons, and thy sons' wives with thee.","verse":16}]}}
+{"k":"3f75ffccb156d096","r":null}
+{"k":"45bf5907b8a3aa8d","r":null}
+{"k":"46dfefd3edf911ce","r":null}
+{"k":"4aa23b1271858b6c","r":null}
+{"k":"4f4c43840f315df2","r":null}
+{"k":"50b68b76f9a11ce4","r":null}
+{"k":"5604917808c76677","r":null}
+{"k":"643f9adfe1f2f65a","r":null}
+{"k":"6dca3fec8d713ef3","r":null}
+{"k":"6e5d4d3cd03c8df1","r":null}
+{"k":"6fea9396576654c1","r":null}
+{"k":"75c9a5928ecb405d","r":null}
+{"k":"7649d7dd8a402fa1","r":null}
+{"k":"7e23d81b717d2850","r":null}
+{"k":"7ecd172772caa8d3","r":null}
+{"k":"810ff1c61b2fa159","r":{"confidence":0.97,"id":"genesis-8-17","passageId":"genesis-8-15-22","passageIndex":2,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:17","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"Bring forth with thee every living thing that is with thee, of all flesh.","verse":17}]}}
+{"k":"85badd81b1922cf3","r":null}
+{"k":"8ac0df08818f28da","r":{"confidence":0.97,"id":"genesis-8-17","passageId":"genesis-8-15-22","passageIndex":2,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:17","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"Bring forth with thee every living thing that is with thee, of all flesh.","verse":17}]}}
+{"k":"8c8f6827132f6f74","r":null}
+{"k":"90073f667f75e163","r":null}
+{"k":"90ac541f3ce1507e","r":null}
+{"k":"91b156eff14b007e","r":null}
+{"k":"91dee13aa48e692a","r":null}
+{"k":"94d82581d4851b0a","r":null}
+{"k":"98033b225b058a38","r":null}
+{"k":"980e44d5d419be76","r":null}
+{"k":"b4cbe778cb8cf484","r":{"confidence":0.97,"id":"genesis-8-17","passageId":"genesis-8-15-22","passageIndex":2,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:17","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"Bring forth with thee every living thing that is with thee, of all flesh.","verse":17}]}}
+{"k":"b8c9502a1d5e386b","r":null}
+{"k":"bbc5d4114355281b","r":null}
+{"k":"bccd7163ab5ff1b9","r":null}
+{"k":"c11ded85f1f50da0","r":null}
+{"k":"c1a3f2a2e6227ed7","r":null}
+{"k":"c4dd1b1229b6d0dd","r":{"confidence":0.97,"id":"genesis-8-15","passageId":"genesis-8-15-22","passageIndex":0,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:15","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"And God spake unto Noah, saying,","verse":15}]}}
+{"k":"c72daf43b4d875cf","r":null}
+{"k":"c8afabd9054a4177","r":null}
+{"k":"ca8006f9c0644694","r":null}
+{"k":"cd78555b7c782953","r":null}
+{"k":"da2d72befa081e39","r":null}
+{"k":"db72df8d595c6832","r":null}
+{"k":"dc23d0f33ccab970","r":null}
+{"k":"e1e4a5b0f68db5d8","r":null}
+{"k":"e5eefec928ec67fc","r":null}
+{"k":"eb4ea9c568a204aa","r":{"confidence":0.97,"id":"genesis-8-16","passageId":"genesis-8-15-22","passageIndex":1,"passageLength":8,"passageReference":"Genesis 8:15-22","reference":"Genesis 8:16","source":"auto","translation":"KJV","triggerText":"Genesis chapter eight","verses":[{"book":"Genesis","chapter":8,"text":"Go forth of the ark, thou, and thy wife, and thy sons, and thy sons' wives with thee.","verse":16}]}}
+{"k":"f5a1a739aef6112b","r":null}
+{"k":"f8d913424a3aca15","r":null}
+{"k":"f8ee65cfafab1dd8","r":null}

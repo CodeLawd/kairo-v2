@@ -194,3 +194,11 @@ Decision: `kairo-domain` ports every persisted and exchanged data type in the pr
 9. Oracle helpers: the runner now reads exported constants (no arguments) and loads `oracle:<name>` modules from `tools/ts-oracle/modules`. `settings-defaults.ts` evaluates the `defaults` literal from `src/main/db/index.ts` with the TypeScript compiler, and builds a fresh-install file with theme ids and time pinned. Cache file names replace `:` and `/` for Windows.
 
 Affects prompts: 013 to 016, 021, and every prompt that reads or writes these types.
+
+## 2026-11-09 — 015 — Keep scripture renderer initialization with its view
+
+The React static-render assertion in `scripture-initial-state.test.ts` checks
+that a missing-API-key warning stays hidden while translation options are
+loading. Prompt 078 owns the corresponding native scripture view test.
+The other scripture offline-state tests exercise domain behavior and are
+covered in prompt 015.
