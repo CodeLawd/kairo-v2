@@ -101,6 +101,20 @@ macro_rules! string_enum {
             pub fn as_str(self) -> &'static str {
                 match self { $($name::$variant => $text),+ }
             }
+
+            /// The value whose JSON text is exactly `text`.
+            pub fn from_name(text: &str) -> Option<Self> {
+                match text { $($text => Some($name::$variant),)+ _ => None }
+            }
+        }
+
+        impl $crate::normalize::StringEnum for $name {
+            fn from_name(name: &str) -> Option<Self> {
+                $name::from_name(name)
+            }
+            fn name(&self) -> &'static str {
+                self.as_str()
+            }
         }
     };
 }

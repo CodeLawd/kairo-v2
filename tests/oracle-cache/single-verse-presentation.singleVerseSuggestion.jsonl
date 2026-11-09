@@ -1,0 +1,5 @@
+{"fn":"single-verse-presentation.singleVerseSuggestion","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"2770281dec2953dd","r":{"id":"range","reference":"Acts 4:8","verses":[{"book":"Acts","chapter":4,"verse":8,"text":"Verse 8"}],"translation":"NKJV","confidence":1,"source":"manual","triggerText":"Acts 4","planId":"sermon","planItemId":"item","passageId":"p","custom":{"kept":true}}}
+{"k":"5cbc8ebcb6710f67","r":{"id":"range","reference":"Acts 4:8–9","verses":[],"translation":"NKJV","confidence":1,"source":"manual","triggerText":"Acts 4","planId":"sermon","planItemId":"item"}}
+{"k":"69dfab336fa271b7","r":{"id":"range","reference":"Acts 4.5:1e+21","verses":[{"book":"Acts","chapter":4.5,"verse":1e+21,"text":""}],"translation":"NKJV","confidence":1,"source":"manual","triggerText":"Acts 4","planId":"sermon","planItemId":"item"}}
+{"k":"70c0978b87aae905","r":{"id":"range","reference":"Acts 4:8","verses":[{"book":"Acts","chapter":4,"verse":8,"text":"Verse 8"}],"translation":"NKJV","confidence":1,"source":"manual","triggerText":"Acts 4","planId":"sermon","planItemId":"item"}}

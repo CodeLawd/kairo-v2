@@ -19,3 +19,23 @@ pub struct LiveOutputPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub translation: Option<ScriptureTranslation>,
 }
+
+pub fn build_lyrics_live_output_payload(
+    song: &crate::lyrics::LyricsSong,
+    slide: Option<&crate::lyrics::slides::LyricSlide>,
+) -> LiveOutputPayload {
+    let reference = slide
+        .filter(|slide| !slide.section_label.is_empty())
+        .map_or_else(
+            || song.title.clone(),
+            |slide| format!("{} · {}", song.title, slide.section_label),
+        );
+    LiveOutputPayload {
+        kind: OverlayContentKind::Lyrics,
+        reference,
+        text: slide.map_or_else(String::new, |slide| slide.lines.join("\n")),
+        line_colors: slide.map(|slide| slide.line_colors.clone()),
+        verses: None,
+        translation: None,
+    }
+}

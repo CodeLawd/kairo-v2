@@ -1,0 +1,481 @@
+{"fn":"oracle:scripture.planQuote","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"0032f20c90d3ebe2","r":null}
+{"k":"011cd23d1b1fb0db","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"019d61df561ca251","r":null}
+{"k":"020c67e850ee83c3","r":null}
+{"k":"028c2e0ff0dd8595","r":null}
+{"k":"028d89cd79acd349","r":null}
+{"k":"0321a94432148195","r":null}
+{"k":"034427ff64732f6a","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"03889d0e1b8806f3","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"0460d231c9ae48c6","r":null}
+{"k":"052b549cc2c569de","r":null}
+{"k":"0558f5e423d8d776","r":null}
+{"k":"0572e0169a8a6ab5","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"064e33c83317d3f2","r":null}
+{"k":"06a6c5f0527476d9","r":null}
+{"k":"0737819a03c819ee","r":null}
+{"k":"07c4334266c5c3cf","r":null}
+{"k":"0848801632abe1ad","r":null}
+{"k":"0a5911f7eca66474","r":null}
+{"k":"0a89e7fa3753d5e6","r":null}
+{"k":"0aaebe6451836803","r":null}
+{"k":"0b2a2b720556c857","r":null}
+{"k":"0b5d934d1a38b46c","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":2},"coverage":0.6875}}
+{"k":"0bf2c4846e1ce7d5","r":null}
+{"k":"0c6c91eb271b39af","r":null}
+{"k":"0d3e3c30103002f0","r":null}
+{"k":"0f0e515e47b0c610","r":null}
+{"k":"0f8715813ced5bdb","r":null}
+{"k":"101d97500b9f26bf","r":null}
+{"k":"1044a643b8894cba","r":null}
+{"k":"10a1081efd223b6a","r":null}
+{"k":"111e93974f1d5dd2","r":null}
+{"k":"115ada9f2431b776","r":null}
+{"k":"118f4be78a22bc25","r":null}
+{"k":"1210ecc78da5b3f5","r":null}
+{"k":"121a5a064f37578a","r":null}
+{"k":"147df4c8c43650d9","r":null}
+{"k":"14a95c9f80462269","r":null}
+{"k":"14dc59ef3d096085","r":null}
+{"k":"157935ea4fcfb158","r":null}
+{"k":"15bda9d0bbe35393","r":null}
+{"k":"17271c8975b01c27","r":null}
+{"k":"173b00bb9a8aea07","r":null}
+{"k":"17c372840505df5b","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"19015337acf336ea","r":null}
+{"k":"190a9898f095a594","r":null}
+{"k":"19860809c4f9f14d","r":null}
+{"k":"19d67c0b7031e691","r":null}
+{"k":"1a2f57d8001ac569","r":null}
+{"k":"1a64810543ceaebd","r":null}
+{"k":"1a73c809ba9e5d77","r":null}
+{"k":"1b3d0d368433db2f","r":null}
+{"k":"1bd43609cf2d9161","r":null}
+{"k":"1bdbadda9dea5f8a","r":null}
+{"k":"1bdc4e16d763756f","r":null}
+{"k":"1c96889d53c65aab","r":null}
+{"k":"1d61eb58f9c3119a","r":null}
+{"k":"1d81fad18d15a29c","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"1e145674c7a4cc0a","r":null}
+{"k":"1fbf89c7e3b84aa8","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"1ff5c82a8c760f0f","r":null}
+{"k":"218946aef946af49","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"21e4c1a44175ddfa","r":null}
+{"k":"22fd75cf70739703","r":null}
+{"k":"2343d8d0a163991f","r":null}
+{"k":"23669a3a6889e30b","r":null}
+{"k":"237f3a31d9665f4d","r":null}
+{"k":"239d3bf4cde27fa6","r":null}
+{"k":"23c5066a4c2a31a4","r":null}
+{"k":"24a369ff771d1c9a","r":null}
+{"k":"254785cb5644cf38","r":null}
+{"k":"26655a378795a735","r":null}
+{"k":"2732d51bb5fdc5dc","r":null}
+{"k":"275cf858ae2b4fb2","r":null}
+{"k":"27ab188c01b62e25","r":null}
+{"k":"27fd392ffefd212d","r":null}
+{"k":"280822c9ca621db9","r":null}
+{"k":"283a9a616b470f1d","r":null}
+{"k":"2895f7146922a335","r":null}
+{"k":"2982018f1fd4e7a9","r":null}
+{"k":"29b13d6bf6f635bd","r":null}
+{"k":"2aae5c596ec618c1","r":null}
+{"k":"2b146d2eaa075f5c","r":null}
+{"k":"2b30c2fd4c3d7319","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"2b32055ecbad48a0","r":null}
+{"k":"2b59eca867460d6c","r":null}
+{"k":"2cc607d6b6734416","r":null}
+{"k":"2da6d9a7a2305988","r":null}
+{"k":"2debc464a1343701","r":null}
+{"k":"2e2d60fac6356a47","r":null}
+{"k":"2e373dfa4debb777","r":null}
+{"k":"2e7ac6699f1351de","r":null}
+{"k":"2ecb5a181c24e6c3","r":null}
+{"k":"2f4aa4e629836f1c","r":null}
+{"k":"302722cb6f60d09c","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"30fb870f94711651","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"3132458e5d9f549c","r":null}
+{"k":"32142989871692d6","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"337c3b9ea2288229","r":null}
+{"k":"33f25b1f457ea39e","r":null}
+{"k":"347c1f429e2018d5","r":null}
+{"k":"34eafab54fe1c7c6","r":null}
+{"k":"3589dfe13bd1a874","r":null}
+{"k":"358d12a561d1e359","r":null}
+{"k":"35c21d837a92ac74","r":null}
+{"k":"35cca9d2dacf09b7","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"35db387e29674ee4","r":null}
+{"k":"3619d4e73802c3c7","r":null}
+{"k":"36eb3b46cd4495e6","r":null}
+{"k":"3708b9d277c98bbf","r":null}
+{"k":"376c364f1c48a6a1","r":null}
+{"k":"39443812728c0fc8","r":null}
+{"k":"39c5400937156704","r":null}
+{"k":"3a7412b52cbf6a7c","r":null}
+{"k":"3a9a8a5b3fd968b3","r":null}
+{"k":"3bf995607320e255","r":null}
+{"k":"3d36649688c12ddd","r":null}
+{"k":"3dbcd7bcd6870c39","r":null}
+{"k":"3e6803b3113b3cd8","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"3e6999a8fde776bf","r":null}
+{"k":"3e7906888461db37","r":null}
+{"k":"3f06247d4e00e101","r":null}
+{"k":"3fd97ff897276758","r":null}
+{"k":"4088e39293021747","r":null}
+{"k":"40a105aa391c69a6","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"4199e5a735ec3dca","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"41e4397771e14d1e","r":null}
+{"k":"41f3671045c0ffcf","r":null}
+{"k":"41ff2f2859281239","r":null}
+{"k":"42a1a7a4efcd2de3","r":null}
+{"k":"42a9b6fbf2b7b2b6","r":null}
+{"k":"4570be3b7dffbb12","r":null}
+{"k":"460edb004b5e84e8","r":null}
+{"k":"464d21da02f748ba","r":null}
+{"k":"46cde3676d5d47a4","r":null}
+{"k":"46de520fdd51c1d7","r":null}
+{"k":"46eec5f711307e4f","r":null}
+{"k":"46f405e1bb98d5f8","r":null}
+{"k":"474dd2b38b56d1f9","r":null}
+{"k":"47cb238049ba2fe9","r":null}
+{"k":"47e0e960ba7360a2","r":null}
+{"k":"4828e22f44ac523b","r":null}
+{"k":"4831949accdadd44","r":null}
+{"k":"48c90ce7e71c10a0","r":null}
+{"k":"48f9333078419238","r":null}
+{"k":"494994014dfda714","r":null}
+{"k":"49b514b41f60153c","r":null}
+{"k":"49d1dec038446cce","r":null}
+{"k":"4a3d94bfb0fcdba5","r":null}
+{"k":"4bf650b3598ae0a2","r":null}
+{"k":"4c49deee78033507","r":null}
+{"k":"4d09942389ae9339","r":null}
+{"k":"4d2f1386ef6c7446","r":null}
+{"k":"4dd7f2b799680993","r":null}
+{"k":"4deeeabeaa779631","r":null}
+{"k":"51c3bc00bfc6de2a","r":null}
+{"k":"52dc1c71f5c02047","r":null}
+{"k":"52f5b42e3278e3e5","r":null}
+{"k":"54b3571a08f41609","r":null}
+{"k":"558638932ba57605","r":null}
+{"k":"55cb86fc368f0627","r":null}
+{"k":"561e6dfb26378454","r":null}
+{"k":"562ab3c1b17c772b","r":null}
+{"k":"56e9b9d8606bafbb","r":null}
+{"k":"5706e6fb4f2adb25","r":null}
+{"k":"576655c100a781d2","r":null}
+{"k":"57cec27c35e3ecad","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"581205e519c995db","r":null}
+{"k":"5833ef5d6c24e5ed","r":null}
+{"k":"5895554e9daac91d","r":null}
+{"k":"59ef87ad2d4200be","r":null}
+{"k":"5a06a899292b14ad","r":null}
+{"k":"5a3363381c83962a","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"5a3fe20e107505c0","r":null}
+{"k":"5b5c57055811e04e","r":null}
+{"k":"5bc4a0b79ea79418","r":null}
+{"k":"5cfc09b370f86a7f","r":null}
+{"k":"5d04fed7e084cd88","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"5de1caa4c8b4c741","r":null}
+{"k":"5e6f274048a40cce","r":null}
+{"k":"5ef880f30e31c095","r":null}
+{"k":"5efba298b7fdaf93","r":null}
+{"k":"5f50478dc1afc5f6","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"5f71adffc05c12ce","r":null}
+{"k":"5f8956d666858239","r":null}
+{"k":"5fe0f9ad5f9ec21f","r":null}
+{"k":"60e6e573b2f34bb4","r":null}
+{"k":"617cb0be25d4fba2","r":null}
+{"k":"6202603694000d24","r":null}
+{"k":"630b12816faf7ad6","r":null}
+{"k":"631903221ab0ea76","r":null}
+{"k":"6466e0a9b5c11713","r":null}
+{"k":"64bbb45094da1604","r":null}
+{"k":"64f3b61834ad3eb9","r":null}
+{"k":"6556c5b3c5c3f468","r":null}
+{"k":"6721892dd926a7b6","r":null}
+{"k":"67a61b73ea618fae","r":{"entry":{"planId":"plan-1","planItemId":"earlier","itemReference":"Psalms 115:12","reference":"Psalms 115:12","translation":"NKJV","verse":{"book":"Psalms","chapter":115,"verse":12,"text":"the Lord has been mindful of us and he will bless us"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"67abfd07a9a9ffdb","r":null}
+{"k":"68612b3b803aacd2","r":null}
+{"k":"68a6a68828d491db","r":null}
+{"k":"690511f6df90e390","r":null}
+{"k":"691dc8aa5b89bcba","r":null}
+{"k":"691f5aae938d1678","r":null}
+{"k":"697d86358efafeae","r":null}
+{"k":"69c123d6abbe564d","r":null}
+{"k":"69c4dfc7a7e510f2","r":null}
+{"k":"69fad6b58fec9f9e","r":null}
+{"k":"6a0ddd3409e2a1e9","r":null}
+{"k":"6b97798501337df4","r":null}
+{"k":"6c2ad0686f065046","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"6cfeb795b695ff26","r":null}
+{"k":"6d08505d174d6937","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"6d48b3fdc71a4b39","r":null}
+{"k":"6eb172b4ba8afd07","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"7023c034f795efc3","r":null}
+{"k":"705f10be37f0f406","r":null}
+{"k":"7107d1b7e87ac9c4","r":null}
+{"k":"729d2748605c4b5f","r":null}
+{"k":"7316f2a4280d84b4","r":null}
+{"k":"73c4629be9fdfaa1","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":2},"coverage":0.6875}}
+{"k":"743df750e33df0c2","r":null}
+{"k":"7501ef79424f55d9","r":null}
+{"k":"7581b80f0ff86b73","r":null}
+{"k":"75889ebd82473ebe","r":null}
+{"k":"75de20c2c4dd4a64","r":null}
+{"k":"7701e47edb458ba4","r":null}
+{"k":"775b5a3968c08bf4","r":null}
+{"k":"77b3ff2b2765f379","r":null}
+{"k":"784b1767b631a904","r":null}
+{"k":"7885e267fc2ed7cf","r":null}
+{"k":"78f5e7624ecf7aa9","r":null}
+{"k":"791c80bdf9aa3b0e","r":null}
+{"k":"795a96247bde3782","r":null}
+{"k":"79975268f69bb0e2","r":null}
+{"k":"7a2d36d8a325c79f","r":null}
+{"k":"7a68d19680d8d218","r":null}
+{"k":"7a6a2e017d6532fa","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"7ae17e8461637c70","r":null}
+{"k":"7b9f2c4c4dbc6144","r":null}
+{"k":"7ba08c678f23371b","r":null}
+{"k":"7bcc0aaad880e2a3","r":null}
+{"k":"7c5cb68bce1f47c2","r":null}
+{"k":"7cd40771fe36b407","r":null}
+{"k":"7d5ec264947bfe64","r":null}
+{"k":"7dd731dab10ecaf9","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"7deb9a329632ee16","r":null}
+{"k":"7e57a610d1a9d36a","r":null}
+{"k":"7f9f53f412e49fcb","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"7fa598cc03cc079f","r":null}
+{"k":"7fd2af0865f1a4ba","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"80dc3429cd27d0b8","r":null}
+{"k":"819311ad5f435cfc","r":null}
+{"k":"81e1eb55c4b44d5f","r":null}
+{"k":"841a49fff56a9b9f","r":null}
+{"k":"85a4bbe23a54b637","r":null}
+{"k":"868e9b32c5672888","r":null}
+{"k":"86af53256e51f682","r":null}
+{"k":"86b5b322718fe115","r":null}
+{"k":"86f3f3af28868fc3","r":null}
+{"k":"872dd21795ea733b","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"8751227fab66e1ee","r":null}
+{"k":"88b4af0e23cf568f","r":null}
+{"k":"88f121fa7f3ee2a1","r":null}
+{"k":"893f128eb680edc8","r":null}
+{"k":"8a0d65ebd2217d71","r":null}
+{"k":"8a4205c87c23f995","r":null}
+{"k":"8a53250bfb0d97da","r":null}
+{"k":"8ac5a116b05e03b0","r":null}
+{"k":"8b0f141aa234943d","r":null}
+{"k":"8b8eb42976137205","r":null}
+{"k":"8ba6d6d301047b04","r":null}
+{"k":"8c06826725b6a9ba","r":null}
+{"k":"8cf4ad4033bf7911","r":null}
+{"k":"8d188503971600a4","r":null}
+{"k":"8d398c620879de72","r":null}
+{"k":"8d64999385a2b1df","r":null}
+{"k":"8d72a5adaa492e7f","r":null}
+{"k":"8e1122d02d4e37dd","r":null}
+{"k":"8e19b8f5c3b03795","r":null}
+{"k":"8ea77bf89111c03b","r":null}
+{"k":"8eef33936c638fc2","r":{"entry":{"planId":"plan-1","planItemId":"nkjv","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"8f85cb1c3e312e93","r":null}
+{"k":"8f8b4443ea0ca7fd","r":null}
+{"k":"90418ef006b7b0c8","r":null}
+{"k":"9097633632adc44b","r":null}
+{"k":"90df467300e643d5","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"91801dbea7796fa0","r":null}
+{"k":"91d0787a0f40879c","r":null}
+{"k":"937204cf73dbadfa","r":null}
+{"k":"93e093d733aa9a5e","r":null}
+{"k":"943b9229ebcbb40c","r":null}
+{"k":"943d55806a23d397","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"94ff4091e5c13438","r":null}
+{"k":"9548d7def041b10a","r":{"entry":{"planId":"plan-1","planItemId":"expected","itemReference":"Psalms 116:12","reference":"Psalms 116:12","translation":"NKJV","verse":{"book":"Psalms","chapter":116,"verse":12,"text":"the Lord has been mindful of us and he will bless us"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"956b6fa294e0050e","r":null}
+{"k":"961130b41537965e","r":null}
+{"k":"972fb6ddeafbbf58","r":null}
+{"k":"976f76fd7e15cba4","r":null}
+{"k":"97f315cb86773f5f","r":null}
+{"k":"996665f66d631d13","r":null}
+{"k":"9a4e115fe8078277","r":null}
+{"k":"9a64ccb7f45c9311","r":null}
+{"k":"9ac0f191b3b6d97c","r":null}
+{"k":"9c2bd15d0dd4e879","r":null}
+{"k":"9c5334abca6f9590","r":null}
+{"k":"9c5bd49d695958b7","r":null}
+{"k":"9c8579508ad00f9d","r":null}
+{"k":"9c9153af215acb34","r":null}
+{"k":"9ce4304dd3a4f1c0","r":null}
+{"k":"9de000b89786051b","r":null}
+{"k":"9e22ecde2451ea40","r":null}
+{"k":"9e31f00ab58c18d8","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":2},"coverage":0.6875}}
+{"k":"9f010ecbdcb244b6","r":null}
+{"k":"9f655d1e3b477e33","r":null}
+{"k":"9fdb3a1bcb9aa3f5","r":null}
+{"k":"a0115961b11af3d8","r":null}
+{"k":"a011658a7e65d948","r":null}
+{"k":"a06fa5299841a538","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"a0ccda255aa0f6a0","r":null}
+{"k":"a0ed2c9caa90866b","r":null}
+{"k":"a1311e5eb158d38c","r":null}
+{"k":"a1df7cb876b66b88","r":null}
+{"k":"a1e2ddc39762fdc1","r":{"entry":{"planId":"plan-1","planItemId":"earlier","itemReference":"Psalms 115:12","reference":"Psalms 115:12","translation":"NKJV","verse":{"book":"Psalms","chapter":115,"verse":12,"text":"the Lord has been mindful of us and he will bless us"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"a1e86927ebff73a1","r":null}
+{"k":"a3ae3f8da7731475","r":null}
+{"k":"a4dfecfb138552dd","r":null}
+{"k":"a524f803a7fd9dd7","r":null}
+{"k":"a5d6ff195a9ff0fc","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"a7303074c7a6b8a6","r":null}
+{"k":"a8a9c9be6255288e","r":null}
+{"k":"a8b3bd3e81d00687","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"aa61b92540925837","r":null}
+{"k":"ab2ee12f7711c875","r":null}
+{"k":"ab8c5b21c67b3c11","r":null}
+{"k":"ac05018992cf7b8f","r":null}
+{"k":"acb3aa4df9c50c10","r":null}
+{"k":"ad03a8a99702c8cc","r":null}
+{"k":"ad56e1523135a197","r":null}
+{"k":"ae1596120652a8e9","r":null}
+{"k":"ae87b9d225b329bf","r":null}
+{"k":"aee67d7f1d73f6c5","r":null}
+{"k":"af4fa09a67165fb5","r":null}
+{"k":"afc654d15529324f","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"b11489bded8ac7d0","r":null}
+{"k":"b2bb5fde9bdbfe40","r":null}
+{"k":"b2f69ad4b05c422a","r":null}
+{"k":"b3adf9126aaa1218","r":null}
+{"k":"b45ab310ac17bee3","r":null}
+{"k":"b45dc2feed69c45b","r":null}
+{"k":"b468726f7861ed7b","r":null}
+{"k":"b57a8c0c061cc72f","r":null}
+{"k":"b5c430eb3a50cf4a","r":null}
+{"k":"b6326d611368cf12","r":null}
+{"k":"b680eaee97542a00","r":null}
+{"k":"b690a390c8e33f46","r":null}
+{"k":"b6b1de9b2b2c71b9","r":null}
+{"k":"b6e69267e0ef57a9","r":null}
+{"k":"b80df0bb63193985","r":null}
+{"k":"b868bd8d34f1de29","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"b978182ad5c3a3ad","r":null}
+{"k":"ba61b5df1a119673","r":null}
+{"k":"baf15edaa6d8bb50","r":null}
+{"k":"bb92b7ac8712022b","r":{"entry":{"planId":"plan-1","planItemId":"item-single","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"bdb59f79501a78f0","r":null}
+{"k":"be3ea835013a1515","r":null}
+{"k":"bedf73c0f0c5d5e2","r":null}
+{"k":"bf7e1f5f6879ce95","r":null}
+{"k":"c2484e280640cd59","r":null}
+{"k":"c24ce39c1db29b4a","r":null}
+{"k":"c2bfc58ae7db31dd","r":null}
+{"k":"c4049ca3da80cb34","r":null}
+{"k":"c4cb233b03b06a1b","r":null}
+{"k":"c54cd39a1d98e155","r":null}
+{"k":"c56dbc6edfda8f17","r":null}
+{"k":"c5cb87f9ab261537","r":null}
+{"k":"c609e05f078ffc35","r":null}
+{"k":"c648455e986df212","r":null}
+{"k":"c6ad07ea76dd49ac","r":null}
+{"k":"c73a52ed9ab0da2f","r":null}
+{"k":"c876bcfb21a7eaff","r":null}
+{"k":"c8bc3fb06b48fcde","r":null}
+{"k":"c93c9aaf431dded6","r":null}
+{"k":"ca8d649d480d97b4","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"caab53db4e1054aa","r":null}
+{"k":"caeb57b2c4e3dab2","r":null}
+{"k":"cb601fc455180b56","r":null}
+{"k":"cbc6ab1215cef627","r":null}
+{"k":"cc12f032d8f533cc","r":null}
+{"k":"ccc7dbb427f7f343","r":null}
+{"k":"cce30c7bbe9f714d","r":null}
+{"k":"ccf6ffeeb04152a8","r":null}
+{"k":"cd1bf48fa670d6b2","r":null}
+{"k":"cda55811c4c1a19b","r":null}
+{"k":"cdb00f10b2d5a327","r":null}
+{"k":"cddd5ea105431606","r":null}
+{"k":"ced691f3fdc1c835","r":null}
+{"k":"cf30d665de0d20ce","r":null}
+{"k":"cf543cc2b5208b64","r":null}
+{"k":"cf81803006d081be","r":null}
+{"k":"d08c2b6fcb60d0e0","r":null}
+{"k":"d1212db41878ca6b","r":null}
+{"k":"d16412dba17232b0","r":null}
+{"k":"d17376eefc249ea3","r":{"entry":{"planId":"plan-1","planItemId":"nkjv","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"d290bdc4ad8f450d","r":null}
+{"k":"d4a990a76e8c57ec","r":null}
+{"k":"d558202f46e45a09","r":null}
+{"k":"d58c73e01da36d61","r":null}
+{"k":"d61255a1c7537501","r":null}
+{"k":"d64424a4f8ce5f54","r":null}
+{"k":"d6600f0226edeca6","r":null}
+{"k":"d777f0c6e452effc","r":null}
+{"k":"d7d4a6af83b9d716","r":null}
+{"k":"d7febe6ba426d46f","r":null}
+{"k":"d838a50b2fb7e0da","r":null}
+{"k":"d8628b90a6bd4bcb","r":null}
+{"k":"d92b73d82631f414","r":null}
+{"k":"d953f5202ff9f1fa","r":null}
+{"k":"da199ede44073240","r":null}
+{"k":"dab30c4c8fe7ad1f","r":null}
+{"k":"dafd921ea7e033c8","r":null}
+{"k":"dc9cdcdf971c92b1","r":null}
+{"k":"dcf9ebf6f8d3390a","r":null}
+{"k":"dd400901f8014443","r":null}
+{"k":"df11a480ecef7e03","r":null}
+{"k":"df779a73aeb0dde3","r":{"entry":{"planId":"plan-1","planItemId":"earlier","itemReference":"Psalms 115:12","reference":"Psalms 115:12","translation":"NKJV","verse":{"book":"Psalms","chapter":115,"verse":12,"text":"the Lord has been mindful of us and he will bless us"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"e0eaa1ee354a6ce5","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"e2cd3b7a3c5a339d","r":null}
+{"k":"e2dd031b3a8351d9","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"e3d8443cc61cb258","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"e3e2e68084e25d38","r":null}
+{"k":"e4a399851c7996a3","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"e608e276963d8944","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"e67723351af08eb5","r":null}
+{"k":"e6b4811df5f93b02","r":null}
+{"k":"e77244aa3c844472","r":null}
+{"k":"e7db049f72c41f3f","r":{"entry":{"planId":"plan-1","planItemId":"nkjv","itemReference":"Romans 8:28","reference":"Romans 8:28","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":28,"text":"And we know that all things work together for good to those who love God, to those who are the called according to His purpose."},"indexInItem":0,"itemLength":1},"coverage":0.6875}}
+{"k":"e7fb032d9c444292","r":null}
+{"k":"e86dfde4de44fb60","r":null}
+{"k":"e8e7948fea2e863c","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"e8feb7a83f345203","r":null}
+{"k":"e8ff244ebe0cb1f0","r":null}
+{"k":"e9c4a5cc0407d655","r":null}
+{"k":"e9eaeea7022f0144","r":null}
+{"k":"ea3bea55b4478645","r":null}
+{"k":"eac282df69c03720","r":{"entry":{"planId":"plan-1","planItemId":"next","itemReference":"John 3:16","reference":"John 3:16","translation":"NKJV","verse":{"book":"John","chapter":3,"verse":16,"text":"For God so loved the world that he gave his only begotten son"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"eb0b7c8d36783317","r":null}
+{"k":"eb36ee24fa544618","r":null}
+{"k":"eb906cc68d9e417c","r":null}
+{"k":"eba6808e76dbe118","r":null}
+{"k":"ed66d4c3dd2e8b3d","r":{"entry":{"planId":"plan-1","planItemId":"item-range","itemReference":"Romans 8:28–29","reference":"Romans 8:29","translation":"NKJV","verse":{"book":"Romans","chapter":8,"verse":29,"text":"For whom He foreknew, He also predestined to be conformed to the image of His Son, that He might be the firstborn among many brethren."},"indexInItem":1,"itemLength":2},"coverage":1}}
+{"k":"ed69caff204bba4a","r":{"entry":{"planId":"plan-1","planItemId":"expected","itemReference":"Psalms 116:12","reference":"Psalms 116:12","translation":"NKJV","verse":{"book":"Psalms","chapter":116,"verse":12,"text":"the Lord has been mindful of us and he will bless us"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"edc69ab9ff13d01f","r":null}
+{"k":"ee23d5a14ec12e9c","r":null}
+{"k":"eec214634b70bb20","r":null}
+{"k":"efee9f86ade3af60","r":null}
+{"k":"f0419aec68b09ad1","r":null}
+{"k":"f0613e70e555d33c","r":null}
+{"k":"f0719a09c1c4aaae","r":null}
+{"k":"f13a964273d1148e","r":null}
+{"k":"f21775dc1bb1bf0b","r":null}
+{"k":"f23c2cc064e78420","r":null}
+{"k":"f51384b3e85c8b38","r":null}
+{"k":"f5850ed5f84f2275","r":null}
+{"k":"f66153b3b4b77984","r":null}
+{"k":"f662cf52118a0301","r":null}
+{"k":"f71653debd98b71e","r":null}
+{"k":"f9a5ccd008733165","r":null}
+{"k":"f9c47154dd9b6874","r":null}
+{"k":"fa71a75c7033afeb","r":null}
+{"k":"fa9e67930969a0be","r":{"entry":{"planId":"plan-1","planItemId":"earlier","itemReference":"Psalms 115:12","reference":"Psalms 115:12","translation":"NKJV","verse":{"book":"Psalms","chapter":115,"verse":12,"text":"the Lord has been mindful of us and he will bless us"},"indexInItem":0,"itemLength":1},"coverage":1}}
+{"k":"faeeaa498eb1eb52","r":null}
+{"k":"fb1073e57bb5a5ca","r":null}
+{"k":"fb3d97100e0da40b","r":null}
+{"k":"fb59eed111dbb2a5","r":null}
+{"k":"fb7ad66c75096524","r":null}
+{"k":"fb7f5801592cb1fa","r":null}
+{"k":"fbc6431161ba121b","r":null}
+{"k":"fbd7f14818103daf","r":null}
+{"k":"fc6028a2fb4d867e","r":null}
+{"k":"fc6120a0e0d2fff2","r":null}

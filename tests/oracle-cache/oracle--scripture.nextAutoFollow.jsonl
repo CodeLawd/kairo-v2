@@ -1,0 +1,33 @@
+{"fn":"oracle:scripture.nextAutoFollow","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"0278b8d48037e9c1","r":null}
+{"k":"0837eaee1b0f69d4","r":null}
+{"k":"1ac1d02bac4604d3","r":null}
+{"k":"243479bfde066ef5","r":null}
+{"k":"246d0678cd5ffe2a","r":null}
+{"k":"2888de936ba862c3","r":{"id":"genesis-8-15","reference":"Genesis 8:15","verses":[{"book":"Genesis","chapter":8,"verse":15,"text":"And God spake unto Noah, saying,"}],"translation":"KJV","confidence":0.97,"source":"auto","triggerText":"Genesis chapter eight","passageId":"genesis-8-15-22","passageReference":"Genesis 8:15-22","passageIndex":0,"passageLength":8}}
+{"k":"38ca5c49a24089c1","r":null}
+{"k":"3e57a30bfaaa67b4","r":{"id":"genesis-8-16","reference":"Genesis 8:16","verses":[{"book":"Genesis","chapter":8,"verse":16,"text":"Go forth of the ark, thou, and thy wife, and thy sons, and thy sons' wives with thee."}],"translation":"KJV","confidence":0.97,"source":"auto","triggerText":"Genesis chapter eight","passageId":"genesis-8-15-22","passageReference":"Genesis 8:15-22","passageIndex":1,"passageLength":8}}
+{"k":"4aa23b1271858b6c","r":null}
+{"k":"5604917808c76677","r":null}
+{"k":"6dca3fec8d713ef3","r":null}
+{"k":"6fea9396576654c1","r":null}
+{"k":"7649d7dd8a402fa1","r":null}
+{"k":"7e23d81b717d2850","r":null}
+{"k":"810ff1c61b2fa159","r":{"id":"genesis-8-17","reference":"Genesis 8:17","verses":[{"book":"Genesis","chapter":8,"verse":17,"text":"Bring forth with thee every living thing that is with thee, of all flesh."}],"translation":"KJV","confidence":0.97,"source":"auto","triggerText":"Genesis chapter eight","passageId":"genesis-8-15-22","passageReference":"Genesis 8:15-22","passageIndex":2,"passageLength":8}}
+{"k":"85badd81b1922cf3","r":null}
+{"k":"8c8f6827132f6f74","r":null}
+{"k":"90ac541f3ce1507e","r":null}
+{"k":"91dee13aa48e692a","r":null}
+{"k":"94d82581d4851b0a","r":null}
+{"k":"980e44d5d419be76","r":null}
+{"k":"b4cbe778cb8cf484","r":{"id":"genesis-8-17","reference":"Genesis 8:17","verses":[{"book":"Genesis","chapter":8,"verse":17,"text":"Bring forth with thee every living thing that is with thee, of all flesh."}],"translation":"KJV","confidence":0.97,"source":"auto","triggerText":"Genesis chapter eight","passageId":"genesis-8-15-22","passageReference":"Genesis 8:15-22","passageIndex":2,"passageLength":8}}
+{"k":"b8c9502a1d5e386b","r":null}
+{"k":"bccd7163ab5ff1b9","r":null}
+{"k":"c11ded85f1f50da0","r":null}
+{"k":"c1a3f2a2e6227ed7","r":null}
+{"k":"ca8006f9c0644694","r":null}
+{"k":"db72df8d595c6832","r":null}
+{"k":"dc23d0f33ccab970","r":null}
+{"k":"e1e4a5b0f68db5d8","r":null}
+{"k":"f5a1a739aef6112b","r":null}
+{"k":"f8d913424a3aca15","r":null}

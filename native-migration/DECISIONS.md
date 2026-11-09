@@ -194,3 +194,72 @@ Decision: `kairo-domain` ports every persisted and exchanged data type in the pr
 9. Oracle helpers: the runner now reads exported constants (no arguments) and loads `oracle:<name>` modules from `tools/ts-oracle/modules`. `settings-defaults.ts` evaluates the `defaults` literal from `src/main/db/index.ts` with the TypeScript compiler, and builds a fresh-install file with theme ids and time pinned. Cache file names replace `:` and `/` for Windows.
 
 Affects prompts: 013 to 016, 021, and every prompt that reads or writes these types.
+
+## 2026-11-09 — 013 — Preserve first-pass overlay migration behavior
+
+Electron creates default outputs with a sparse background theme. Normalizing
+those outputs again fills `hue`, `saturation`, `brightness`, `contrast`,
+`blurPx` and `mediaLoop`. Keep the first-pass result identical to Electron's
+persisted shape. For output and settings normalization, assert that these
+six additions are the only second-pass changes and that the third pass
+matches the second. Other normalizers retain the first-pass idempotence check
+where applicable.
+
+## 2026-11-09 — 014 — Match JavaScript lyric text operations in Rust
+
+Lyrics use UTF-16 code units where Electron exposes offsets or measures line
+length. Rust strings preserve paired surrogates as Unicode scalars. RTF and
+cursor-splitting operations work in UTF-16 first so they can handle offsets
+inside a surrogate pair.
+
+The translation helpers implement the repeated-character backreference with
+an ASCII scan after key normalization. The glued section label lookahead
+checks the following character explicitly. Neither pattern needs
+`fancy-regex`.
+
+Keep the source test cases that exercise service behavior with the code they
+test. Prompt 024 owns `workspace-song-file.test.ts`, prompt 040 owns
+`lyrics-usr-title.test.ts` and its file-import path, and prompts 040/041
+own the canonicalization and online-ranking assertions in
+`lyrics-multilingual-search.test.ts`.
+
+## 2026-11-09 — 015 — Keep scripture renderer initialization with its view
+
+The React static-render assertion in `scripture-initial-state.test.ts` checks
+that a missing-API-key warning stays hidden while translation options are
+loading. Prompt 078 owns the corresponding native scripture view test.
+The other scripture offline-state tests exercise domain behavior and are
+covered in prompt 015.
+
+## 2026-11-09 — 016 — Domain boundaries for the remaining shared exports
+
+- The coverage checker inventories declarations and re-exports using the
+  reference checkout's TypeScript compiler. Native counterparts are indexed
+  by source module. Explicit mappings cover names that differ, including
+  constants represented by `Default` implementations. An unmapped export
+  or a stale exception fails the check. The generated table records the
+  owner and reason for each excluded Electron channel, DOM or rendering
+  operation, async UI coordinator, and service archive runtime operation.
+- Time and timezone come from the caller. Timers use epoch milliseconds and
+  `chrono::TimeZone` for wall-clock deadlines, with chrono's OS clock feature
+  disabled. The deadline picks the earlier instant in a DST overlap and
+  advances through a gap. Capture naming uses local calendar components.
+  Service text exports and locale-aware title ordering receive formatters
+  or a comparator from their caller.
+- Validation retains canonical Rust field types. Invalid non-boolean
+  document slideshow flags fall back to defaults, and library or named
+  setlist records without numeric timestamps are dropped as malformed.
+  UTF-16 text limits stop at a scalar boundary if the JavaScript slice
+  would split a surrogate pair. The wall-clock implementation accepts
+  the date range representable by chrono.
+- The transfer parser distinguishes unreadable JSON, foreign files, future
+  versions, unsupported kinds, empty song lists and missing playlist bodies.
+  It reuses song-file coercion, keeps the first duplicate song ID, drops
+  unknown setlist references, and preserves unavailable scripture rows.
+  The transfer service owns file I/O, the byte limit, picker cancellation,
+  and committing or discarding previews.
+- The library and usage ports preserve stale assignment handling, report
+  totals rather than deltas, and keep today's usage after acknowledgment.
+  The audience parser rejects invalid command shapes, limits request IDs
+  and message size, and keeps the vote command's optional request ID.
+  The web and account helpers validate URLs before returning them.

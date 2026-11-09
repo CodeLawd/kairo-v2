@@ -645,3 +645,399 @@ pub struct StageDisplayStatus {
     pub ready: bool,
     pub reason: String,
 }
+
+/// `normalizeConfidenceLayout` (prompt 013 needs it for outputs; 016 owns
+/// the rest of `program.ts`).
+pub fn normalize_confidence_layout(raw: Option<&serde_json::Value>) -> ConfidenceLayout {
+    use crate::normalize::{as_object, safe_enum};
+    let r = as_object(raw);
+    ConfidenceLayout {
+        position: safe_enum(r.get("position"), TopOrBottom::Top),
+        size: safe_enum(r.get("size"), ConfidenceSize::Medium),
+        extra: Extra::new(),
+    }
+}
+
+/// `normalizeShowFilter` (prompt 013, as above).
+pub fn normalize_show_filter(raw: Option<&serde_json::Value>) -> OutputShowFilter {
+    use crate::normalize::{as_object, safe_bool};
+    let r = as_object(raw);
+    let d = OutputShowFilter::default();
+    OutputShowFilter {
+        scripture: safe_bool(r.get("scripture"), d.scripture),
+        lyrics: safe_bool(r.get("lyrics"), d.lyrics),
+        documents: safe_bool(r.get("documents"), d.documents),
+        backgrounds: safe_bool(r.get("backgrounds"), d.backgrounds),
+        poll: safe_bool(r.get("poll"), d.poll),
+        question: safe_bool(r.get("question"), d.question),
+        messages: safe_bool(r.get("messages"), d.messages),
+        overlays: safe_bool(r.get("overlays"), d.overlays),
+        countdown: safe_bool(r.get("countdown"), d.countdown),
+        clock: safe_bool(r.get("clock"), d.clock),
+        stage_message: safe_bool(r.get("stageMessage"), d.stage_message),
+        extra: Extra::new(),
+    }
+}
+
+/// Remaining whole seconds, including a negative value when a running timer overruns.
+/// `now_ms` is supplied by the caller so all outputs can sample the same instant.
+pub fn timer_remaining_sec(timer: &ProgramTimerState, now_ms: f64) -> f64 {
+    timer.ends_at.map_or(timer.remaining_sec, |ends_at| {
+        ((ends_at - now_ms) / 1000.0).ceil()
+    })
+}
+
+pub fn timer_running(timer: &ProgramTimerState) -> bool {
+    timer.ends_at.is_some()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimerReadout {
+    pub seconds: f64,
+    pub time_up: bool,
+    pub paused: bool,
+}
+
+pub fn timer_readout(timer: &ProgramTimerState, now_ms: f64, rollover: bool) -> TimerReadout {
+    let raw = timer_remaining_sec(timer, now_ms);
+    let running = timer_running(timer);
+    TimerReadout {
+        seconds: if rollover {
+            raw
+        } else {
+            crate::js::math_max(0.0, raw)
+        },
+        time_up: timer.duration_sec > 0.0 && (raw < 0.0 || (raw == 0.0 && running)),
+        paused: !running && raw != timer.duration_sec,
+    }
+}
+
+pub fn start_timer(timer: &ProgramTimerState, now_ms: f64) -> ProgramTimerState {
+    let mut run = timer.clone();
+    if run.ends_at.is_none() {
+        run.ends_at = Some(now_ms + run.remaining_sec * 1000.0);
+    }
+    run
+}
+
+pub fn pause_timer(timer: &ProgramTimerState, now_ms: f64) -> ProgramTimerState {
+    ProgramTimerState {
+        duration_sec: timer.duration_sec,
+        ends_at: None,
+        remaining_sec: timer_remaining_sec(timer, now_ms),
+    }
+}
+
+pub fn reset_timer(timer: &ProgramTimerState, duration_sec: Option<f64>) -> ProgramTimerState {
+    let duration = crate::js::clamp(
+        crate::js::math_round(duration_sec.unwrap_or(timer.duration_sec)),
+        0.0,
+        24.0 * 3600.0,
+    );
+    ProgramTimerState {
+        duration_sec: duration,
+        ends_at: None,
+        remaining_sec: duration,
+    }
+}
+
+/// Build the idle run. The caller supplies the wall-clock resolver for its local
+/// timezone, including date rollover and daylight-saving transitions.
+pub fn idle_timer(
+    def: &ProgramTimerDef,
+    now_ms: f64,
+    next_time_of_day: impl FnOnce(&str, f64) -> f64,
+) -> ProgramTimerState {
+    let duration_sec = match def.kind {
+        TimerKind::Countdown => {
+            crate::js::clamp(crate::js::math_round(def.duration_sec), 0.0, 86_400.0)
+        }
+        TimerKind::CountdownTo => {
+            ((next_time_of_day(&def.target_time, now_ms) - now_ms) / 1000.0).ceil()
+        }
+    };
+    ProgramTimerState {
+        duration_sec,
+        ends_at: None,
+        remaining_sec: duration_sec,
+    }
+}
+
+/// Start or resume. A time-of-day countdown always resolves a fresh deadline.
+pub fn start_timer_for(
+    def: &ProgramTimerDef,
+    run: &ProgramTimerState,
+    now_ms: f64,
+    next_time_of_day: impl FnOnce(&str, f64) -> f64,
+) -> ProgramTimerState {
+    if timer_running(run) || def.kind == TimerKind::Countdown {
+        return start_timer(run, now_ms);
+    }
+    let ends_at = next_time_of_day(&def.target_time, now_ms);
+    ProgramTimerState {
+        duration_sec: ((ends_at - now_ms) / 1000.0).ceil(),
+        ends_at: Some(ends_at),
+        remaining_sec: 0.0,
+    }
+}
+
+/// Format a countdown, including the sign during an overrun.
+pub fn format_timer(seconds: f64) -> String {
+    let sign = if seconds < 0.0 { "-" } else { "" };
+    format!("{sign}{}", crate::media::format_media_clock(seconds.abs()))
+}
+
+mod normalization;
+pub use normalization::*;
+
+fn parse_clock_target(target: &str) -> Option<(u8, u8)> {
+    let [h1, h2, b':', m1, m2] = *target.as_bytes() else {
+        return None;
+    };
+    if ![h1, h2, m1, m2].iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    let hour = (h1 - b'0') * 10 + h2 - b'0';
+    let minute = (m1 - b'0') * 10 + m2 - b'0';
+    (hour < 24 && minute < 60).then_some((hour, minute))
+}
+
+pub fn transition_ms(transition: &ProgramTransition) -> f64 {
+    if transition.kind == TransitionKind::Fade {
+        transition.duration_ms
+    } else {
+        0.0
+    }
+}
+
+static DEFAULT_TIMER: std::sync::LazyLock<ProgramTimerDef> =
+    std::sync::LazyLock::new(ProgramTimerDef::default);
+
+pub fn screen_timer_def<'a>(
+    timers: &'a [ProgramTimerDef],
+    screen_timer_id: Option<&str>,
+) -> &'a ProgramTimerDef {
+    timers
+        .iter()
+        .find(|timer| Some(timer.id.as_str()) == screen_timer_id)
+        .or_else(|| timers.first())
+        .unwrap_or(&DEFAULT_TIMER)
+}
+
+pub fn timer_readout_object(def: &ProgramTimerDef) -> Option<&PropObject> {
+    def.theme
+        .objects
+        .iter()
+        .find(|object| matches!(object, PropObject::Timer { .. }))
+}
+
+pub fn screen_timer_style(
+    presentation: &PresentationSettings,
+    state: &ProgramState,
+) -> ProgramTimerStyle {
+    let def = screen_timer_def(&presentation.timers, state.screen_timer_id.as_deref());
+    let (color, overrun_color) = match timer_readout_object(def) {
+        Some(PropObject::Timer {
+            color,
+            overrun_color,
+            ..
+        }) => (color.as_str(), overrun_color.as_str()),
+        _ => ("#5eead4", "#f87171"),
+    };
+    ProgramTimerStyle {
+        rollover: def.overrun,
+        color: color.into(),
+        overrun_color: overrun_color.into(),
+        backdrop: false,
+    }
+}
+
+pub fn timer_view_for(
+    def: &ProgramTimerDef,
+    run: Option<&ProgramTimerState>,
+    now_ms: f64,
+    next_time_of_day: impl FnOnce(&str, f64) -> f64,
+) -> PropTimerView {
+    let idle;
+    let run = match run {
+        Some(run) => run,
+        None => {
+            idle = idle_timer(def, now_ms, next_time_of_day);
+            &idle
+        }
+    };
+    PropTimerView {
+        duration_sec: run.duration_sec,
+        ends_at: run.ends_at,
+        remaining_sec: run.remaining_sec,
+        rollover: def.overrun,
+        now: now_ms,
+    }
+}
+
+pub fn prop_timer_view_for(
+    state: &ProgramState,
+    presentation: &PresentationSettings,
+    now_ms: f64,
+    next_time_of_day: impl FnOnce(&str, f64) -> f64,
+) -> PropTimerView {
+    timer_view_for(
+        screen_timer_def(&presentation.timers, state.screen_timer_id.as_deref()),
+        Some(&state.timer),
+        now_ms,
+        next_time_of_day,
+    )
+}
+
+pub fn confidence_sizes(size: ConfidenceSize) -> ConfidenceSizes {
+    let (bar_px, message_px) = match size {
+        ConfidenceSize::Small => (48.0, 40.0),
+        ConfidenceSize::Medium => (72.0, 60.0),
+        ConfidenceSize::Large => (104.0, 84.0),
+    };
+    ConfidenceSizes { bar_px, message_px }
+}
+
+pub fn confidence_for(
+    output: &crate::overlay::OverlayOutput,
+    state: &ProgramState,
+    presentation: &PresentationSettings,
+) -> Option<ConfidenceInfo> {
+    let clock = output.show.clock && state.clock_on_screens;
+    let stage_message = output
+        .show
+        .stage_message
+        .then(|| state.stage_message.clone())
+        .flatten();
+    if !clock && stage_message.as_ref().is_none_or(String::is_empty) {
+        return None;
+    }
+    Some(ConfidenceInfo {
+        clock,
+        stage_message,
+        layout: output.confidence.clone(),
+        sizes: confidence_sizes(output.confidence.size),
+        style: screen_timer_style(presentation, state),
+    })
+}
+
+/// Wall clock display in the caller's timezone.
+pub fn format_clock(time: impl chrono::Timelike) -> String {
+    let hour = time.hour();
+    let clock_hour = (hour + 11) % 12 + 1;
+    let suffix = if hour < 12 { "AM" } else { "PM" };
+    format!("{clock_hour}:{:02} {suffix}", time.minute())
+}
+
+/// Resolve today's or tomorrow's local deadline without reading the system clock.
+/// In a fall-back overlap, the earlier instant wins. In a spring-forward gap,
+/// advance by the size of the offset change, as JavaScript Date does.
+pub fn next_time_of_day<T: chrono::TimeZone>(target: &str, now_ms: f64, zone: &T) -> f64 {
+    use chrono::{Duration, Offset};
+    let mut parts = target.split(':');
+    let hour = parts.next().map_or(f64::NAN, crate::js::string_to_number);
+    let minute = parts.next().map_or(f64::NAN, crate::js::string_to_number);
+    let minutes = hour.trunc() * 60.0 + minute.trunc();
+    if !minutes.is_finite() || minutes.abs() > 2.88e11 {
+        return f64::NAN;
+    }
+    if !now_ms.is_finite() || now_ms.abs() > 8.64e15 {
+        return f64::NAN;
+    }
+    let Some(now) = zone.timestamp_millis_opt(now_ms.trunc() as i64).single() else {
+        return f64::NAN;
+    };
+    let resolve = |local: chrono::NaiveDateTime| {
+        if let Some(instant) = zone.from_local_datetime(&local).earliest() {
+            return Some(instant);
+        }
+        let before = zone
+            .offset_from_local_datetime(&local.checked_sub_signed(Duration::days(2))?)
+            .latest()?;
+        let after = zone
+            .offset_from_local_datetime(&local.checked_add_signed(Duration::days(2))?)
+            .earliest()?;
+        let shift =
+            i64::from(after.fix().local_minus_utc()) - i64::from(before.fix().local_minus_utc());
+        zone.from_local_datetime(&local.checked_add_signed(Duration::seconds(shift))?)
+            .earliest()
+    };
+    let Some(local) = now
+        .date_naive()
+        .and_hms_opt(0, 0, 0)
+        .and_then(|midnight| midnight.checked_add_signed(Duration::minutes(minutes as i64)))
+    else {
+        return f64::NAN;
+    };
+    let Some(today) = resolve(local) else {
+        return f64::NAN;
+    };
+    if today.timestamp_millis() as f64 > now_ms {
+        return today.timestamp_millis() as f64;
+    }
+    // Date.setDate uses the already resolved clock fields if setHours fell in a gap.
+    today
+        .naive_local()
+        .checked_add_signed(Duration::days(1))
+        .and_then(resolve)
+        .map_or(f64::NAN, |time| time.timestamp_millis() as f64)
+}
+
+string_enum!(
+    pub enum OutputShowKey {
+        Scripture = "scripture",
+        Lyrics = "lyrics",
+        Documents = "documents",
+        Backgrounds = "backgrounds",
+        Poll = "poll",
+        Question = "question",
+        Messages = "messages",
+        Overlays = "overlays",
+        Countdown = "countdown",
+        Clock = "clock",
+        StageMessage = "stageMessage",
+    }
+);
+
+pub const PLAYLIST_SHOW_KEYS: &[OutputShowKey] = &[
+    OutputShowKey::Poll,
+    OutputShowKey::Question,
+    OutputShowKey::Messages,
+    OutputShowKey::Overlays,
+    OutputShowKey::Countdown,
+    OutputShowKey::Clock,
+    OutputShowKey::StageMessage,
+];
+
+pub fn output_show_label(key: OutputShowKey) -> &'static str {
+    match key {
+        OutputShowKey::Scripture => "Scripture",
+        OutputShowKey::Lyrics => "Lyrics",
+        OutputShowKey::Documents => "Slides",
+        OutputShowKey::Backgrounds => "Backgrounds",
+        OutputShowKey::Poll => "Poll results",
+        OutputShowKey::Question => "Audience questions",
+        OutputShowKey::Messages => "Messages",
+        OutputShowKey::Overlays => "Logo & props",
+        OutputShowKey::Countdown => "Countdown",
+        OutputShowKey::Clock => "Clock",
+        OutputShowKey::StageMessage => "Stage message",
+    }
+}
+
+/// Rebuild the live program snapshot after a timer update, retaining the on-screen
+/// readout when its selected timer has no separate run yet.
+pub fn program_state_with_timer_run(
+    state: &ProgramState,
+    presentation: &PresentationSettings,
+    timer_id: String,
+    run: ProgramTimerState,
+) -> ProgramState {
+    let mut next = state.clone();
+    next.timers.insert(timer_id, run);
+    let screen = screen_timer_def(&presentation.timers, state.screen_timer_id.as_deref());
+    if let Some(run) = next.timers.get(&screen.id) {
+        next.timer = run.clone();
+    }
+    next
+}

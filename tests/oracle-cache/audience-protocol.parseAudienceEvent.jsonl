@@ -1,0 +1,13 @@
+{"fn":"audience-protocol.parseAudienceEvent","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"20b606c6aa1946f5","r":null}
+{"k":"240181557f29b437","r":{"type":"ask","requestId":"req-1","text":"hello","author":"Sam"}}
+{"k":"32e56188c4bbc59a","r":null}
+{"k":"33d71d3919aa67bf","r":{"type":"settings","requestId":"req-1","settings":{"review":false,"showQuestions":true,"names":"off"}}}
+{"k":"5591dcf2349d3ba2","r":null}
+{"k":"81d4e299a36e5524","r":null}
+{"k":"8dfccb39844b9f4f","r":{"type":"vote","id":"a","voted":true}}
+{"k":"9b42d1d05e416a7e","r":{"type":"poll-vote","id":"a","options":["1","2"],"requestId":"req-1"}}
+{"k":"c51ae0a58f7ab3d8","r":{"type":"poll-save","poll":{"title":"What?"},"requestId":"req-1"}}
+{"k":"d336a4ed5195df0f","r":{"type":"state","requestId":"req-1","id":"a","state":"hidden"}}
+{"k":"ec7171cc52bfcfc1","r":{"type":"poll-state","id":"a","state":"open","showResults":false,"requestId":"req-1"}}
+{"k":"f6c9ecf667ac3cc4","r":{"type":"snapshot"}}

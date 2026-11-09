@@ -1,0 +1,4 @@
+{"fn":"cloud/onboarding.normalizeOnboardingState","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"38007de5517482a5","r":{"completedSteps":["welcome","output"],"skippedSteps":["account"],"currentStep":"welcome","completedAt":17,"source":"legacy"}}
+{"k":"b8a2851ef31701e2","r":{"completedSteps":[],"skippedSteps":[],"currentStep":"welcome","completedAt":null,"source":"fresh"}}
+{"k":"d4f345cbe1fb65f2","r":{"completedSteps":[],"skippedSteps":[],"currentStep":"account","completedAt":null,"source":"fresh"}}

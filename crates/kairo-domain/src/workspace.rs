@@ -92,3 +92,177 @@ pub struct SongFileSection {
     #[serde(flatten)]
     pub extra: Extra,
 }
+
+pub const WORKSPACE_FOLDER_NAME: &str = "Kairo Presenter";
+pub const SONGS_DIR_NAME: &str = "Songs";
+pub const MEDIA_DIR_NAME: &str = "Media";
+
+pub fn slugify_title(title: &str) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    let normalized: String = title
+        .nfd()
+        .filter(|c| !('\u{300}'..='\u{36f}').contains(c))
+        .collect();
+    let slug: String = normalized
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("-")
+        .chars()
+        .take(60)
+        .collect();
+    if slug.is_empty() { "song".into() } else { slug }
+}
+
+pub fn song_file_name(song: &crate::lyrics::LyricsSong) -> String {
+    format!("{}__{}{SONG_FILE_EXT}", slugify_title(&song.title), song.id)
+}
+
+pub fn song_id_from_file_name(name: &str) -> Option<&str> {
+    let stem = name.strip_suffix(SONG_FILE_EXT)?;
+    let id = crate::js::trim(stem.split_once("__").map_or(stem, |(_, id)| id));
+    (!id.is_empty()).then_some(id)
+}
+
+pub fn is_song_file_name(name: &str) -> bool {
+    name.ends_with(SONG_FILE_EXT) && !name.starts_with('.')
+}
+
+pub fn is_inside_folder(child: &str, parent: &str) -> bool {
+    let parent = parent.trim_end_matches(['/', '\\']);
+    let child = child.trim_end_matches(['/', '\\']);
+    let separator = if parent.contains('\\') { '\\' } else { '/' };
+    !parent.is_empty()
+        && (parent == child
+            || child
+                .strip_prefix(parent)
+                .is_some_and(|tail| tail.starts_with(separator)))
+}
+
+pub(crate) fn text(value: &serde_json::Value) -> &str {
+    crate::js::trim(value.as_str().unwrap_or_default())
+}
+
+pub(crate) fn fallback_text<'a>(value: &'a serde_json::Value, fallback: &'a str) -> &'a str {
+    let value = text(value);
+    if value.is_empty() { fallback } else { value }
+}
+
+pub fn parse_song_file(
+    raw: &str,
+    fallback_id: &str,
+    now_ms: f64,
+) -> Option<crate::lyrics::LyricsSong> {
+    coerce_song(&serde_json::from_str(raw).ok()?, fallback_id, now_ms)
+}
+
+pub(crate) fn coerce_song(
+    value: &serde_json::Value,
+    fallback_id: &str,
+    now_ms: f64,
+) -> Option<crate::lyrics::LyricsSong> {
+    use crate::lyrics::{LyricsSong, LyricsSongSection, hotkeys::normalize_hotkey};
+    use serde_json::Value;
+    if !(value["kairoSong"].is_number()
+        || value["title"].is_string() && value["sections"].is_array())
+    {
+        return None;
+    }
+    let id = fallback_text(&value["id"], fallback_id);
+    if id.is_empty() {
+        return None;
+    }
+    let sections = value["sections"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|section| {
+            let lines: Vec<_> = section["lines"]
+                .as_array()?
+                .iter()
+                .map(|line| {
+                    if line.is_null() {
+                        String::new()
+                    } else {
+                        crate::js::value_to_string(line)
+                    }
+                })
+                .collect();
+            let line_colors = section["lineColors"].as_array().and_then(|colors| {
+                let values: Vec<_> = (0..lines.len())
+                    .map(|i| {
+                        colors
+                            .get(i)
+                            .map(text)
+                            .filter(|s| !s.is_empty())
+                            .map(str::to_owned)
+                    })
+                    .collect();
+                values.iter().any(Option::is_some).then_some(values)
+            });
+            Some(LyricsSongSection {
+                kind: serde_json::from_value(section["type"].clone())
+                    .unwrap_or(LyricsSectionType::Verse),
+                label: section["label"]
+                    .as_str()
+                    .filter(|s| !crate::js::trim(s).is_empty())
+                    .unwrap_or("Verse 1")
+                    .into(),
+                lines,
+                line_colors,
+                hotkey: normalize_hotkey(section["hotkey"].as_str()),
+                extra: Extra::new(),
+            })
+        })
+        .collect();
+    let positive = |key: &str, default| value[key].as_f64().filter(|n| *n > 0.0).unwrap_or(default);
+    let created_at = positive("createdAt", now_ms);
+    let optional = |v: &Value| Some(text(v)).filter(|s| !s.is_empty()).map(str::to_owned);
+    Some(LyricsSong {
+        id: id.into(),
+        title: fallback_text(&value["title"], "Untitled").into(),
+        artist: text(&value["artist"]).into(),
+        copyright: optional(&value["copyright"]),
+        ccli_number: optional(&value["ccliNumber"]),
+        is_favorite: Some(value["isFavorite"].as_bool().unwrap_or(false)),
+        source: Some(serde_json::from_value(value["source"].clone()).unwrap_or(LyricsSource::Text)),
+        sections,
+        created_at,
+        updated_at: positive("updatedAt", created_at),
+        extra: Extra::new(),
+    })
+}
+
+pub fn serialize_song_file(song: &crate::lyrics::LyricsSong) -> serde_json::Result<String> {
+    let sections = song
+        .sections
+        .iter()
+        .map(|section| SongFileSection {
+            kind: section.kind,
+            label: section.label.clone(),
+            lines: section.lines.clone(),
+            line_colors: section.line_colors.clone().filter(|colors| {
+                colors
+                    .iter()
+                    .any(|color| color.as_ref().is_some_and(|color| !color.is_empty()))
+            }),
+            hotkey: crate::lyrics::hotkeys::normalize_hotkey(section.hotkey.as_deref()),
+            extra: Extra::new(),
+        })
+        .collect();
+    let file = SongFile {
+        kairo_song: SONG_FILE_VERSION,
+        id: song.id.clone(),
+        title: song.title.clone(),
+        artist: song.artist.clone(),
+        copyright: song.copyright.clone().unwrap_or_default(),
+        ccli_number: song.ccli_number.clone().unwrap_or_default(),
+        is_favorite: song.is_favorite.unwrap_or(false),
+        source: song.source.unwrap_or(LyricsSource::Text),
+        created_at: song.created_at,
+        updated_at: song.updated_at,
+        sections,
+        extra: Extra::new(),
+    };
+    Ok(serde_json::to_string_pretty(&crate::json::to_js_value(&file)?)? + "\n")
+}

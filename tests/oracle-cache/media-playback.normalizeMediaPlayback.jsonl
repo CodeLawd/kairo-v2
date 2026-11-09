@@ -1,0 +1,9 @@
+{"fn":"media-playback.normalizeMediaPlayback","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"21bb48384c49b381","r":{"startSeconds":5,"loop":false,"hue":0,"saturation":1,"brightness":1,"contrast":1}}
+{"k":"3c32d166550db735","r":{"loop":false,"hue":0,"saturation":1,"brightness":1,"contrast":1}}
+{"k":"51cef166f269f1b5","r":{"loop":false,"hue":0,"saturation":1,"brightness":1,"contrast":1}}
+{"k":"9e9a669d03d972e3","r":{"endSeconds":4,"rate":0.5,"fit":"fill","loop":true,"hue":0,"saturation":1,"brightness":1,"contrast":1}}
+{"k":"a8de7d9ae640f50b","r":{"loop":false,"hue":180,"saturation":0,"brightness":0.25,"contrast":1.75}}
+{"k":"b8a2851ef31701e2","r":{"loop":false,"hue":0,"saturation":1,"brightness":1,"contrast":1}}
+{"k":"e97e96b2098d1af3","r":{"startSeconds":9007199254740991,"rate":2,"fit":"contain","loop":false,"hue":0,"saturation":1,"brightness":1,"contrast":1}}
+{"k":"f74eb47268ed92d9","r":{"loop":false,"hue":0,"saturation":1,"brightness":1,"contrast":1}}

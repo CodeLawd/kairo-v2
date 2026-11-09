@@ -1,0 +1,505 @@
+{"fn":"output-health.dispatchHealth","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"0003de19797702b2","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); ndi (unknown); device (x)"}}}
+{"k":"00653c8111979f41","r":{"output":{"status":"ok"}}}
+{"k":"008170d83e5b198e","r":{"output":{"status":"ok"}}}
+{"k":"0218e5e5b0eb178c","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"02c16a4a66d3e46a","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); syphon (Device disconnected)"}}}
+{"k":"03208b58387be32b","r":{"output":{"status":"degraded","lastError":"Output failed: device (x); screen (unknown)"}}}
+{"k":"03bda8f4dde60509","r":{"output":{"status":"error","lastError":"Output failed: screen (); screen (unknown); device ()"}}}
+{"k":"0446ee59910c018a","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); device ()"}}}
+{"k":"0451facd1bc6c129","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"045839b52b6592e1","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown); device ()"}}}
+{"k":"04ae4e6de8236c7b","r":{"output":{"status":"ok"}}}
+{"k":"04d7915b9ca2b1a3","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); screen (Device disconnected)"}}}
+{"k":"05846c9212d5dfaa","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x); screen (unknown)"}}}
+{"k":"05add2cab510b66c","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected); ndi (x)"}}}
+{"k":"05b5ac0ff9d20a81","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (); screen (unknown)"}}}
+{"k":"05d9f773105a3b83","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"05ee0def9333b265","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); ndi (unknown)"}}}
+{"k":"07adeffefb969cc1","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected)"}}}
+{"k":"07d7017f0e1bbac4","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"085886e6e438d786","r":{"output":{"status":"ok"}}}
+{"k":"0866c11bd5f523f8","r":{"output":{"status":"error","lastError":"Output failed: ndi (x); screen (x)"}}}
+{"k":"086bfac88f79d987","r":{"output":{"status":"error","lastError":"Output failed: syphon (); ndi (x)"}}}
+{"k":"08a29f5648bb6d27","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"0a8d61b3e05334d2","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"0af58ad9b73310ea","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"0b3175ef561802e0","r":{"output":{"status":"degraded","lastError":"Output failed: device (x)"}}}
+{"k":"0b406045c48b97df","r":{"output":{"status":"ok"}}}
+{"k":"0d1fc37488c1ee93","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"0d295785647f623c","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"0d7b4935d1d2371f","r":{"output":{"status":"ok"}}}
+{"k":"0e01b296076e5fa5","r":{"output":{"status":"ok"}}}
+{"k":"0e0cae6bb7086f7c","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); syphon (unknown)"}}}
+{"k":"0e177efe950c0a39","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); syphon (unknown)"}}}
+{"k":"0ea5f0703b1cbd88","r":{"output":{"status":"error","lastError":"Output failed: syphon (x); ndi (Device disconnected)"}}}
+{"k":"0f3ce7ddbe75a66e","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"0f681275adc4b935","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"0fce33deb097e7ff","r":{"output":{"status":"degraded","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"10b9aebbf3abfac5","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); ndi (Device disconnected)"}}}
+{"k":"14403e0ec55474f7","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"1466fa750487d899","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"153ff1e78c5164e1","r":{"output":{"status":"error","lastError":"Output failed: syphon (); syphon (x); screen (unknown)"}}}
+{"k":"15a44363470999ea","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected); screen (x)"}}}
+{"k":"15d261a5a2963959","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"165c9887e2f62d6c","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"168db275be572266","r":{"output":{"status":"ok"}}}
+{"k":"16b9f0f48591a484","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"16e0603b8943d7bd","r":{"output":{"status":"ok"}}}
+{"k":"17a451281e2987d1","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"183e1db5a028984b","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x); device (Device disconnected)"}}}
+{"k":"189b3e92fca441ed","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); device (Device disconnected)"}}}
+{"k":"19198bf490230bba","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); device (unknown)"}}}
+{"k":"191dd88f3390e065","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x)"}}}
+{"k":"1961f2ffa8b36e99","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected); device (unknown)"}}}
+{"k":"1a68a7bcee80b5d0","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"1b2c982853495ab4","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"1c14ff0346cde7da","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected)"}}}
+{"k":"1d3741be6ee14f9d","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"1d55041644385389","r":{"output":{"status":"ok"}}}
+{"k":"1dcb5d27bfe216e0","r":{"output":{"status":"ok"}}}
+{"k":"1e6b2a61e74d8197","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"1e8eb372c1650d56","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"1ecb41f8cf2542a4","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected)"}}}
+{"k":"21f4afe49c7a409c","r":{"output":{"status":"ok"}}}
+{"k":"2208530339b6dad4","r":{"output":{"status":"ok"}}}
+{"k":"222747bffee477dc","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"22c2e2dcbc2bd318","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"235eb7ebab7a5431","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); device (unknown)"}}}
+{"k":"2387057860b18971","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); screen (unknown)"}}}
+{"k":"23f9d00d4789e609","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"25f416229ba975c7","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"26922558c0bf6502","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"27dfed2cef3587ad","r":{"output":{"status":"ok"}}}
+{"k":"27e9964fcd6bca7d","r":{"output":{"status":"ok"}}}
+{"k":"2804151be7458b5f","r":{"output":{"status":"error","lastError":"Output failed: screen (Device disconnected); syphon (x); screen (x)"}}}
+{"k":"287453d44cfa89ee","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"29238d5e6c462364","r":{"output":{"status":"error","lastError":"Output failed: screen (Device disconnected); device (unknown)"}}}
+{"k":"2a58ea6da6654a8b","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected); ndi ()"}}}
+{"k":"2a697336a7ee2c21","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown); device (unknown)"}}}
+{"k":"2a8f805345aca48d","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"2b211446eeee6233","r":{"output":{"status":"ok"}}}
+{"k":"2c037601d45da610","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); screen (unknown)"}}}
+{"k":"2d09efd74d38d4f9","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x); screen (unknown)"}}}
+{"k":"2d3f34c4e0a9ea00","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"2f1ef573ccf5740f","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"31588654e047ceb2","r":{"output":{"status":"error","lastError":"Output failed: syphon (x); device (unknown)"}}}
+{"k":"32a1bc2f682ee9d3","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); device (unknown)"}}}
+{"k":"3410b37536eaacab","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"34577ddff6fc1891","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"34b0c14fdea619f1","r":{"output":{"status":"ok"}}}
+{"k":"351f4f9a0da54d32","r":{"output":{"status":"error","lastError":"Output failed: device (); screen (unknown); ndi (x)"}}}
+{"k":"354ab7ea2bee30e0","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"35718f4a8ce24aa6","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"357b772c34bc6cc8","r":{"output":{"status":"ok"}}}
+{"k":"367bc4478d356d76","r":{"output":{"status":"degraded","lastError":"Output failed: screen (); ndi (unknown)"}}}
+{"k":"373efd142bef44e3","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown)"}}}
+{"k":"373fa13c2f29639e","r":{"output":{"status":"ok"}}}
+{"k":"3759094a0592cb31","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); syphon ()"}}}
+{"k":"37daef5f7190f69a","r":{"output":{"status":"error","lastError":"Output failed: ndi (); ndi (Device disconnected)"}}}
+{"k":"37e694f4e9543726","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"392cb9b71e0473f7","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"39940f716794c8c9","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"3a6bf8ee67f490e1","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); ndi ()"}}}
+{"k":"3b6e8b3b0279f843","r":{"output":{"status":"ok"}}}
+{"k":"3b8b7298c675a22b","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); screen (unknown)"}}}
+{"k":"3c32d166550db735","r":{"output":{"status":"error","lastError":"No outputs are enabled"}}}
+{"k":"3caefddbad521864","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown); ndi (unknown)"}}}
+{"k":"3cb14bd05e2dfb6c","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"3cbb9031a79b85d7","r":{"output":{"status":"error","lastError":"Output failed: screen (); device (unknown)"}}}
+{"k":"3cbe8a26d80da2cf","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); screen ()"}}}
+{"k":"3d201515ab5052db","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"3e58342557cf9376","r":{"output":{"status":"ok"}}}
+{"k":"3fbb7cdf99976e68","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"402680d2bec25516","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); device (unknown)"}}}
+{"k":"408b6ff1fb0e7ff7","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); device (unknown)"}}}
+{"k":"42462f04eb168ffe","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); ndi (unknown); syphon (x)"}}}
+{"k":"42a598e5950f1edb","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"42e0f685825ca815","r":{"output":{"status":"degraded","lastError":"Output failed: device (x); screen (x)"}}}
+{"k":"433d7dc8572ca129","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"434aa646b73e0fe5","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"43a7a0f2d1ea3662","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x); syphon (unknown)"}}}
+{"k":"441513bafb433d6c","r":{"output":{"status":"error","lastError":"Output failed: ndi ()"}}}
+{"k":"44cf6e1a8af50e46","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); device (x)"}}}
+{"k":"44d72675838a554a","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); device (Device disconnected); ndi (unknown)"}}}
+{"k":"468a5663aa85bac2","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"46cbb68a606d93c0","r":{"output":{"status":"ok"}}}
+{"k":"470793e1326b5da8","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"475927b10752408a","r":{"output":{"status":"ok"}}}
+{"k":"47d3fb9ddbbd5abb","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"48c10ee7b8829ac1","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"4927dc4964eb00fe","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x); syphon (unknown)"}}}
+{"k":"49bc805cd8d9358d","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); ndi (unknown)"}}}
+{"k":"4a982b6d8849fd5a","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); ndi (x)"}}}
+{"k":"4a983c149f086ee2","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); ndi (unknown)"}}}
+{"k":"4abcfcbba6e71914","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); device (Device disconnected); ndi ()"}}}
+{"k":"4b1781664b421ed2","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); device (); ndi (unknown)"}}}
+{"k":"4b4f5167eb744a07","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"4c445c4c201c2e39","r":{"output":{"status":"ok"}}}
+{"k":"4c9a81f41cb9b5d4","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"4e465134f203c669","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"520683cab60926ea","r":{"output":{"status":"error","lastError":"Output failed: syphon (x)"}}}
+{"k":"522d99107148bc33","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"52ad5bd4352cb2cc","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); screen (Device disconnected)"}}}
+{"k":"52babc5450fee72b","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"549da82d1f84ccd7","r":{"output":{"status":"error","lastError":"Output failed: ndi (x); syphon (x)"}}}
+{"k":"558a9fa1d7c4813c","r":{"output":{"status":"ok"}}}
+{"k":"5687bd13dfca7d8f","r":{"output":{"status":"ok"}}}
+{"k":"57d9e61292b769f4","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"5801ae177f4e105f","r":{"output":{"status":"degraded","lastError":"Output failed: screen (); syphon (Device disconnected)"}}}
+{"k":"581dc9160332aaa3","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); screen ()"}}}
+{"k":"5825375986fee4cf","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"591e8bdc83702de5","r":{"output":{"status":"ok"}}}
+{"k":"592cbf674adf7b2b","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"5a5b2333aa6961b6","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"5a72edd3c060aede","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"5a828c8b3e95094d","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); ndi ()"}}}
+{"k":"5a8862f8699e8692","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"5bc0b7d3b67ac6ec","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); ndi (x)"}}}
+{"k":"5bcff71727336e9f","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"5dd95c365ffbd7eb","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); device (unknown); device (x)"}}}
+{"k":"5e00b6f965095fcf","r":{"output":{"status":"ok"}}}
+{"k":"5e9e23fd31a5acd8","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"5f1b308847a2919c","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected); device ()"}}}
+{"k":"5f91637520c60e8c","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); ndi (unknown)"}}}
+{"k":"5fe45cbd00096c7d","r":{"output":{"status":"ok"}}}
+{"k":"60bad1f746f54577","r":{"output":{"status":"ok"}}}
+{"k":"60eb99874e70957c","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"61c3ec0b4afa907d","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); syphon (Device disconnected)"}}}
+{"k":"61f9ae953ccc0ab3","r":{"output":{"status":"ok"}}}
+{"k":"627caea7381ba66b","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"62c14bb5292cc3ab","r":{"output":{"status":"error","lastError":"Output failed: screen (x); screen (x)"}}}
+{"k":"633c8c716c3592a3","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); device ()"}}}
+{"k":"637188287a544e1a","r":{"output":{"status":"ok"}}}
+{"k":"6375d72d745279f3","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"643fd5b4cd413844","r":{"output":{"status":"ok"}}}
+{"k":"64a89af44e939491","r":{"output":{"status":"error","lastError":"Output failed: screen (); ndi (); syphon (unknown)"}}}
+{"k":"64cb885ff3aaa77c","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"6568a1919346bec9","r":{"output":{"status":"error","lastError":"Output failed: ndi (); ndi (unknown)"}}}
+{"k":"657cab3581d0ca56","r":{"output":{"status":"error","lastError":"Output failed: syphon (Device disconnected); syphon (unknown)"}}}
+{"k":"65a5abd608ce838e","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x); device (unknown)"}}}
+{"k":"65d3f04708114fe6","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"662e4b04799f5ae0","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"667987fe0c428651","r":{"output":{"status":"ok"}}}
+{"k":"66f46985b2153a58","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x)"}}}
+{"k":"67056846cfaba947","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); device (unknown)"}}}
+{"k":"67196f7f716fb713","r":{"output":{"status":"degraded","lastError":"Output failed: device (); syphon (x)"}}}
+{"k":"674cd064b2d00782","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); syphon (x); device (Device disconnected)"}}}
+{"k":"67d55194561ec29c","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); ndi (x); screen ()"}}}
+{"k":"6808ac1f73a1881e","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"6aca2fbc6eebdbd1","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); screen (Device disconnected)"}}}
+{"k":"6af2b56d4134d482","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"6b28ca4b97da9c44","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); ndi (unknown)"}}}
+{"k":"6b6c6ef3a3920698","r":{"output":{"status":"ok"}}}
+{"k":"6c087bcbeba2c40c","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); screen (x)"}}}
+{"k":"6cc03be2a7b84129","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"6d57123d0d7cf859","r":{"output":{"status":"degraded","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"6d5b4d734c7afeae","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); screen (unknown); device ()"}}}
+{"k":"6daedba7ff1a8b6a","r":{"output":{"status":"error","lastError":"Output failed: screen (); ndi (Device disconnected); syphon ()"}}}
+{"k":"6dc3e9ddc92837b1","r":{"output":{"status":"ok"}}}
+{"k":"6e3bf98b38573a14","r":{"output":{"status":"error","lastError":"Output failed: syphon (); syphon (Device disconnected); device (unknown)"}}}
+{"k":"6e80197fa0cd956c","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown); device (Device disconnected)"}}}
+{"k":"6ea4fd6fd3963b9b","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected); device (Device disconnected)"}}}
+{"k":"6ec01515004e2ce4","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"70c2d5f753cbf950","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"710b089262dd916b","r":{"output":{"status":"ok"}}}
+{"k":"71300f939a02d1ee","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"71fc5f8468a87600","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"72702378d5fa16d5","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"72f208bf0fe5b212","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x)"}}}
+{"k":"734f37428272ce57","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"735ab4cf7482996d","r":{"output":{"status":"ok"}}}
+{"k":"7419b1281ce7c1d1","r":{"output":{"status":"ok"}}}
+{"k":"7453e6f65c8640bb","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected); ndi ()"}}}
+{"k":"75aee59e1771ba19","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"75eaa98d836cd712","r":{"output":{"status":"degraded","lastError":"Output failed: screen (); screen (unknown)"}}}
+{"k":"76ec53a54e586497","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"78082422485a2150","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown); syphon (Device disconnected)"}}}
+{"k":"788b36e40cb809e4","r":{"output":{"status":"error","lastError":"Output failed: screen (x); syphon (unknown)"}}}
+{"k":"78e6e4e7ee2b3a00","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"791dc0048a831d3f","r":{"output":{"status":"error","lastError":"Output failed: device ()"}}}
+{"k":"796a7524e4bdb59c","r":{"output":{"status":"error","lastError":"Output failed: ndi (); device (x)"}}}
+{"k":"7a0e13adcd6a4662","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"7afe48a3f614b582","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected); device ()"}}}
+{"k":"7be118dff507c040","r":{"output":{"status":"ok"}}}
+{"k":"7c1b58e2c7425fb7","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"7c25c6059c914e2e","r":{"output":{"status":"ok"}}}
+{"k":"7c8740185ded80bd","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); screen (x); screen ()"}}}
+{"k":"7d466dde7b26fc85","r":{"output":{"status":"ok"}}}
+{"k":"7d6cc0e88efb9cf9","r":{"output":{"status":"degraded","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"7dfffc93a70b0f0f","r":{"output":{"status":"ok"}}}
+{"k":"7e60f7bc612d6412","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); ndi (unknown)"}}}
+{"k":"7e9d63035ad27535","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"7f99634dd2b4295d","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"800482675f9643d0","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); ndi ()"}}}
+{"k":"80b50ce0ff4c615c","r":{"output":{"status":"ok"}}}
+{"k":"81362c6858367c34","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); screen (x)"}}}
+{"k":"815953c82fb974ac","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); screen (); screen (unknown)"}}}
+{"k":"816daa5bac0fae45","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"8172a457b0071a9b","r":{"output":{"status":"ok"}}}
+{"k":"81c86c09a6b68408","r":{"output":{"status":"ok"}}}
+{"k":"826f956786d1a7c9","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected)"}}}
+{"k":"830f281773390c6e","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); syphon (unknown)"}}}
+{"k":"8349b1afd0912f0c","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"8375df6cb87afaa5","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"839275c8f5418b7c","r":{"output":{"status":"degraded","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"83f4d6d30fa9de0c","r":{"output":{"status":"degraded","lastError":"Output failed: device (x)"}}}
+{"k":"8467c56fe5ae7bc3","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); syphon (); screen (unknown)"}}}
+{"k":"84c2d84da649f705","r":{"output":{"status":"ok"}}}
+{"k":"851d855fc25b4ed6","r":{"output":{"status":"error","lastError":"Output failed: screen (); device (x); screen (Device disconnected)"}}}
+{"k":"85b01c4c71a88298","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"85bc1e28b4bde4f9","r":{"output":{"status":"error","lastError":"Output failed: screen ()"}}}
+{"k":"85d1f9e1ceb1a5c5","r":{"output":{"status":"ok"}}}
+{"k":"866d68cc4af4d889","r":{"output":{"status":"ok"}}}
+{"k":"868aabb199ff11f6","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"873c3a86b76b18a5","r":{"output":{"status":"ok"}}}
+{"k":"8764b73ccc33a38d","r":{"output":{"status":"degraded","lastError":"Output failed: device (x)"}}}
+{"k":"87c2e31d742db078","r":{"output":{"status":"error","lastError":"Output failed: syphon (); device (x)"}}}
+{"k":"8887347a18c0c508","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x)"}}}
+{"k":"88914e56fe9186fe","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x); device (Device disconnected)"}}}
+{"k":"88fe5f60fe717b63","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"89e1ec78173fa01f","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"89ea4bc5d0bbc837","r":{"output":{"status":"ok"}}}
+{"k":"8ada1b35d0050ee9","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (); screen (unknown)"}}}
+{"k":"8b5377fbf724aded","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown); ndi (x)"}}}
+{"k":"8b7fd30a65c59225","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"8c1aca3e2015c7c5","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"8c76589369275f96","r":{"output":{"status":"error","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"8d89d657b01ce2c9","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); syphon (unknown)"}}}
+{"k":"8df6766d3cdda2b8","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"8f611afc4242b969","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"90092b619c7e96e8","r":{"output":{"status":"degraded","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"90151d803775d553","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected)"}}}
+{"k":"902194073fecc6fe","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); device ()"}}}
+{"k":"90e006cb14bd2f43","r":{"output":{"status":"ok"}}}
+{"k":"912474378ea3885d","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); syphon (); screen ()"}}}
+{"k":"9141a009eecde412","r":{"output":{"status":"ok"}}}
+{"k":"915c98eb10ac0986","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); syphon (unknown)"}}}
+{"k":"91a077a4ee7d601e","r":{"output":{"status":"ok"}}}
+{"k":"92bc9f28e29b09a4","r":{"output":{"status":"ok"}}}
+{"k":"9422e8326db7c770","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"943004d29de0c4ed","r":{"output":{"status":"ok"}}}
+{"k":"94454ec6ec5925b5","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"9455698f1a56e497","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"94e668f4f21514af","r":{"output":{"status":"ok"}}}
+{"k":"952d80ceb39c562f","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown); syphon (unknown)"}}}
+{"k":"95570027a50d1fce","r":{"output":{"status":"ok"}}}
+{"k":"960a8defef2df37f","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"966552feafb3b2db","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x); ndi ()"}}}
+{"k":"96fe7098c15f870b","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); device (unknown)"}}}
+{"k":"97d7537704ae7ae0","r":{"output":{"status":"ok"}}}
+{"k":"9810d09edf3e7f4a","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"98191d57fd1e5d97","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected); ndi (unknown)"}}}
+{"k":"988cd5a64a8b714f","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"98d4ecdbf57b92c2","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"993119bbb34505e7","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"996e9094f56b4e38","r":{"output":{"status":"error","lastError":"Output failed: screen (); ndi (unknown); screen ()"}}}
+{"k":"99c13b648eabebf2","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); screen (x)"}}}
+{"k":"9a01d7ca7c1d69cb","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected); ndi ()"}}}
+{"k":"9b05ca645fec8d8b","r":{"output":{"status":"error","lastError":"Output failed: ndi (x); ndi (unknown)"}}}
+{"k":"9b357f10b145e1ca","r":{"output":{"status":"ok"}}}
+{"k":"9b6b70f9b4f3b1a9","r":{"output":{"status":"ok"}}}
+{"k":"9b6b888291ec1710","r":{"output":{"status":"ok"}}}
+{"k":"9bd93dce3fe0db47","r":{"output":{"status":"error","lastError":"Output failed: device (x); device (x)"}}}
+{"k":"9bf9a2ef862a3e66","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"9cb3902c6d57e9fa","r":{"output":{"status":"ok"}}}
+{"k":"9d5a3cf459c2132d","r":{"output":{"status":"ok"}}}
+{"k":"9dec994a1304a8a1","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); screen (unknown)"}}}
+{"k":"9ee4b412c78aade5","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); screen ()"}}}
+{"k":"9efe641dd14f4b86","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"a1913775f83129a7","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"a1d48711a1d0f248","r":{"output":{"status":"ok"}}}
+{"k":"a25d95bb2469bfbd","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"a293229ad60846f3","r":{"output":{"status":"error","lastError":"Output failed: syphon (); syphon (unknown)"}}}
+{"k":"a3262e3c1b29a6fc","r":{"output":{"status":"ok"}}}
+{"k":"a39abc522e5ebfb0","r":{"output":{"status":"ok"}}}
+{"k":"a3df94237b58ec56","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); ndi (unknown); screen (unknown)"}}}
+{"k":"a3f8fada5ec63ac8","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"a6381a40fb63cc4c","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); device ()"}}}
+{"k":"a6e0a0ffbe862fc6","r":{"output":{"status":"ok"}}}
+{"k":"a6e9727ac92d9bf7","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); ndi (unknown)"}}}
+{"k":"a7704107a0c389eb","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); syphon (unknown)"}}}
+{"k":"a8070a019d338075","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x)"}}}
+{"k":"a8387f2a3a287a30","r":{"output":{"status":"ok"}}}
+{"k":"a90155c72b644cab","r":{"output":{"status":"ok"}}}
+{"k":"a924a24d7fd0d26a","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); device (unknown)"}}}
+{"k":"a9f0fa70de3cda2c","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"a9fbf7721b5495e9","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"aa17c2f3589ad645","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"aad5601173916aac","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"aae5b114b09e0cee","r":{"output":{"status":"ok"}}}
+{"k":"ab45be3bd4e63c4e","r":{"output":{"status":"ok"}}}
+{"k":"ab56fc3afc72fba7","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x)"}}}
+{"k":"ab8d447da01d5911","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); syphon (unknown)"}}}
+{"k":"abefc2771ac20b27","r":{"output":{"status":"ok"}}}
+{"k":"ac3e2f4e3a1cdfb2","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"ac4d74af586b8dae","r":{"output":{"status":"ok"}}}
+{"k":"ace3aa876037f011","r":{"output":{"status":"error","lastError":"Output failed: syphon (x); ndi (x)"}}}
+{"k":"ad3ad6871031162e","r":{"output":{"status":"degraded","lastError":"Output failed: screen (); syphon ()"}}}
+{"k":"ad615abf96329074","r":{"output":{"status":"ok"}}}
+{"k":"add34e32b56683b0","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x); ndi (Device disconnected)"}}}
+{"k":"ae1ba322a6d7b260","r":{"output":{"status":"ok"}}}
+{"k":"ae9c7be7677c7810","r":{"output":{"status":"ok"}}}
+{"k":"af00c484392c29ab","r":{"output":{"status":"error","lastError":"Output failed: device (); syphon (Device disconnected)"}}}
+{"k":"af1f4b0fb7f39024","r":{"output":{"status":"ok"}}}
+{"k":"af36ce3a6061abe8","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); screen ()"}}}
+{"k":"afa8c9f6b2fa30b9","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"afcd9812d7dfb026","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (x); device ()"}}}
+{"k":"b01220408549d7c7","r":{"output":{"status":"ok"}}}
+{"k":"b025dcb0e035eb6b","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x); ndi (x)"}}}
+{"k":"b0e46f592fd2bc71","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); screen ()"}}}
+{"k":"b15d248ec589838b","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); syphon (unknown); device (unknown)"}}}
+{"k":"b1d330fb8ec19cbc","r":{"output":{"status":"degraded","lastError":"Output failed: device (); ndi ()"}}}
+{"k":"b2349de23a2fa6c4","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"b26d0d3b03d5b5ca","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"b30f95da63f82354","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); syphon (unknown)"}}}
+{"k":"b4158fd1806efc48","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); screen (x)"}}}
+{"k":"b4306f073ecee37f","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"b47fe7a240214141","r":{"output":{"status":"ok"}}}
+{"k":"b4cdce74f16f7c3f","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); screen (unknown)"}}}
+{"k":"b52b067b802a8ee4","r":{"output":{"status":"error","lastError":"Output failed: screen (x); device (Device disconnected)"}}}
+{"k":"b52b8598337b7582","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); screen (); ndi ()"}}}
+{"k":"b5c8895d0c469087","r":{"output":{"status":"ok"}}}
+{"k":"b6233bd3ce554803","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected); ndi (unknown)"}}}
+{"k":"b6e48c6ffc9794e5","r":{"output":{"status":"ok"}}}
+{"k":"b77ba447eb5c40b2","r":{"output":{"status":"ok"}}}
+{"k":"b94d6d4775fb0ea6","r":{"output":{"status":"ok"}}}
+{"k":"ba79777a2566e9d5","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); screen (Device disconnected); device (Device disconnected)"}}}
+{"k":"bac7120dcfe5ded7","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"baec713f34523430","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); device (unknown)"}}}
+{"k":"bbf2c33c6c8cecdb","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); ndi (unknown)"}}}
+{"k":"bd4d7ceeb67168b6","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"bdddb37b05aa7b9c","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); ndi (unknown); device (unknown)"}}}
+{"k":"beccac4717ec62a7","r":{"output":{"status":"ok"}}}
+{"k":"bedba61719f525bc","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); syphon (unknown)"}}}
+{"k":"bee61da14a7483ec","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (Device disconnected); syphon (unknown)"}}}
+{"k":"bf8dc02aee3eccfa","r":{"output":{"status":"error","lastError":"Output failed: syphon (); device (); device (unknown)"}}}
+{"k":"bfa00a6834c2c4a5","r":{"output":{"status":"degraded","lastError":"Output failed: screen (); ndi (unknown)"}}}
+{"k":"bfb6a693b7ddbc64","r":{"output":{"status":"error","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"bfb95ffae689723d","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"c04542cae6847ed9","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x)"}}}
+{"k":"c18a28f8915f0a41","r":{"output":{"status":"degraded","lastError":"Output failed: ndi ()"}}}
+{"k":"c1ce98df52ffcfb0","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"c272f40ae16fe0f6","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown); screen (unknown)"}}}
+{"k":"c2760da240c2d8d8","r":{"output":{"status":"degraded","lastError":"Output failed: device (x); screen (x)"}}}
+{"k":"c3a6f55a2661c690","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"c41455045d8eeab9","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); ndi (unknown); syphon (unknown)"}}}
+{"k":"c4222ed2a075c3be","r":{"output":{"status":"ok"}}}
+{"k":"c42de745fdb6e4ab","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"c441dea663dfd63a","r":{"output":{"status":"ok"}}}
+{"k":"c4e6e088eb520387","r":{"output":{"status":"ok"}}}
+{"k":"c6e366a6601e31b0","r":{"output":{"status":"degraded","lastError":"Output failed: device (x); ndi (Device disconnected)"}}}
+{"k":"c6f1cdc9ec565c8c","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x); screen (unknown)"}}}
+{"k":"c75f9f393221fe57","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected); screen (Device disconnected)"}}}
+{"k":"c786002b9dacd89d","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"c85c3bd961a2514e","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); ndi (unknown)"}}}
+{"k":"c8a7607e1eab0745","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"c8bbaefa6abe592f","r":{"output":{"status":"error","lastError":"Output failed: device (x)"}}}
+{"k":"c8e2fc8adf6ec148","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"c927724836858560","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"c93330f06c2b3837","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"c949f816e411a8f7","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"c95b5d2d6b98a8a4","r":{"output":{"status":"degraded","lastError":"Output failed: device (x)"}}}
+{"k":"c99fa016f65295de","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"cb50df0e3b036cf6","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"cd4ed526e23df629","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"d09e321be66298f4","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"d0d7886b037010a1","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); device (unknown)"}}}
+{"k":"d18caae3acbcbc15","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); syphon (unknown)"}}}
+{"k":"d1eb0e565f908aa5","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); device (unknown)"}}}
+{"k":"d4d9c250bd332422","r":{"output":{"status":"degraded","lastError":"Output failed: device (x); device (unknown)"}}}
+{"k":"d5a315f85af40785","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"d5a537f95cf5123b","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); ndi (Device disconnected); ndi ()"}}}
+{"k":"d61f46542b9da854","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"d6e0d94557e1d24d","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"d7490fad4752e268","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"d8743e2e5ccec76d","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"d8ebf2d28223114b","r":{"output":{"status":"ok"}}}
+{"k":"d9a2581bbd53188d","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"da0eda0b03d0b823","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"daecdfc8114f2d95","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"dbd224573b3db2ee","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); screen ()"}}}
+{"k":"dc6b5a8d213613b8","r":{"output":{"status":"error","lastError":"Output failed: syphon (); screen ()"}}}
+{"k":"dd586c6ce60c7d4f","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); screen (unknown)"}}}
+{"k":"dec482039756c476","r":{"output":{"status":"degraded","lastError":"Output failed: screen (); ndi ()"}}}
+{"k":"df312dce1b3e083b","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"df392328707bd6e6","r":{"output":{"status":"error","lastError":"Output failed: ndi (x)"}}}
+{"k":"df826f405ac328bb","r":{"output":{"status":"error","lastError":"Output failed: device (x); syphon (Device disconnected)"}}}
+{"k":"dfb3b332e0778bc7","r":{"output":{"status":"ok"}}}
+{"k":"dfd037777cb2ffe2","r":{"output":{"status":"ok"}}}
+{"k":"dffb9f38624dc8ba","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"e05fd424823d92dd","r":{"output":{"status":"error","lastError":"Output failed: device (unknown)"}}}
+{"k":"e150f3eb77cfaab9","r":{"output":{"status":"degraded","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"e1e264ed3a70d6b3","r":{"output":{"status":"error","lastError":"Output failed: syphon (Device disconnected)"}}}
+{"k":"e309fc58760e330f","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"e37ee38dac98e3de","r":{"output":{"status":"ok"}}}
+{"k":"e4b70b73aeb79a59","r":{"output":{"status":"ok"}}}
+{"k":"e522e519883e3036","r":{"output":{"status":"ok"}}}
+{"k":"e619af6a53274e9a","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"e6334d39454af8dd","r":{"output":{"status":"ok"}}}
+{"k":"e6c7bdf8e8e43cfd","r":{"output":{"status":"degraded","lastError":"Output failed: screen (x)"}}}
+{"k":"e6d4794b77cb8e00","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); syphon (unknown); screen (unknown)"}}}
+{"k":"e71f089d28d1a202","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"e72d295313ff4463","r":{"output":{"status":"ok"}}}
+{"k":"e75188f64f558d05","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"e85af44192866cd2","r":{"output":{"status":"ok"}}}
+{"k":"e87a9e23e67e92c9","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected)"}}}
+{"k":"e87b92335feb3448","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"e99ab86a2cee23ac","r":{"output":{"status":"degraded","lastError":"Output failed: screen ()"}}}
+{"k":"ea86a6670e46a94b","r":{"output":{"status":"ok"}}}
+{"k":"eae68c356acb5f6a","r":{"output":{"status":"ok"}}}
+{"k":"eb50c14c12b65879","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (); ndi (unknown)"}}}
+{"k":"eb8287a62864dae7","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"ebb9add9c8494287","r":{"output":{"status":"ok"}}}
+{"k":"ec536866c6ec552b","r":{"output":{"status":"degraded","lastError":"Output failed: syphon ()"}}}
+{"k":"ec77ec6871c78668","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"edefa1e56790eb09","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); device ()"}}}
+{"k":"ee490634c79df77d","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"eef5a53470731a85","r":{"output":{"status":"ok"}}}
+{"k":"ef224e2e3b7bbd32","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (); syphon (unknown)"}}}
+{"k":"ef70694b2ca0e5df","r":{"output":{"status":"ok"}}}
+{"k":"ef8bad6bf334877a","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); screen (unknown); device (Device disconnected)"}}}
+{"k":"efeb2c25e4f05e87","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x); syphon (x)"}}}
+{"k":"f0610bcfbd833cdc","r":{"output":{"status":"error","lastError":"Output failed: screen (unknown); syphon ()"}}}
+{"k":"f06bd50955a56081","r":{"output":{"status":"degraded","lastError":"Output failed: device (x); device (Device disconnected)"}}}
+{"k":"f0c86e3d231b46a4","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"f0da2bb6fad270c5","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown); ndi (unknown)"}}}
+{"k":"f13600cf2ac403ae","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"f18b828786fed4cf","r":{"output":{"status":"ok"}}}
+{"k":"f1925b65aa81dae0","r":{"output":{"status":"degraded","lastError":"Output failed: device (x); ndi (unknown)"}}}
+{"k":"f19b8591e61b7bef","r":{"output":{"status":"error","lastError":"Output failed: device (Device disconnected); device (x); device (Device disconnected)"}}}
+{"k":"f38f2479de925eea","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); screen (unknown); screen (unknown)"}}}
+{"k":"f3e7b3898fef1e2d","r":{"output":{"status":"error","lastError":"Output failed: screen (); device (unknown); screen (x)"}}}
+{"k":"f423f9c808d07e4e","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (x)"}}}
+{"k":"f42aee4ef4a1b0aa","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"f58dc6f06644990f","r":{"output":{"status":"error","lastError":"Output failed: syphon (x); ndi (unknown)"}}}
+{"k":"f59bd1d5d9a7ec5b","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); ndi (unknown); device ()"}}}
+{"k":"f614821e14d78a58","r":{"output":{"status":"degraded","lastError":"Output failed: device (Device disconnected); ndi ()"}}}
+{"k":"f65019f92ec38edc","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"f6b55d05361e557d","r":{"output":{"status":"degraded","lastError":"Output failed: syphon (unknown)"}}}
+{"k":"f6bc59ff3840081e","r":{"output":{"status":"degraded","lastError":"Output failed: device (unknown)"}}}
+{"k":"f78a72ed0a73cde2","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); screen ()"}}}
+{"k":"f874bc98bf6eea2c","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (Device disconnected)"}}}
+{"k":"f8769d0774a84141","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); screen ()"}}}
+{"k":"f8a287f62b1f5ebc","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); screen (unknown)"}}}
+{"k":"f8eceef48e16df1c","r":{"output":{"status":"degraded","lastError":"Output failed: device (); device (Device disconnected)"}}}
+{"k":"f9198d8c13dcbed8","r":{"output":{"status":"error","lastError":"Output failed: ndi (Device disconnected); ndi (unknown); screen (unknown)"}}}
+{"k":"f93c30c166ad6aad","r":{"output":{"status":"error","lastError":"Output failed: screen (x)"}}}
+{"k":"f966ad2c3899e997","r":{"output":{"status":"ok"}}}
+{"k":"f9fe565467c26abb","r":{"output":{"status":"error","lastError":"Output failed: syphon (unknown); device (Device disconnected)"}}}
+{"k":"faa2736033d71d99","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"fb289f4397b19379","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"fc831092c1fb6591","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); ndi ()"}}}
+{"k":"fd22ea87484ce0da","r":{"output":{"status":"degraded","lastError":"Output failed: device (x)"}}}
+{"k":"fd3caf1d1bf7ec66","r":{"output":{"status":"degraded","lastError":"Output failed: device ()"}}}
+{"k":"fd495004222d12ac","r":{"output":{"status":"ok"}}}
+{"k":"fd7511acebc37f0f","r":{"output":{"status":"degraded","lastError":"Output failed: screen (Device disconnected)"}}}
+{"k":"fd9af359ef232c65","r":{"output":{"status":"error","lastError":"Output failed: device (); device (unknown)"}}}
+{"k":"fdb734ff7f9c4e81","r":{"output":{"status":"error","lastError":"Output failed: device (unknown); syphon (x); ndi (unknown)"}}}
+{"k":"fdbf1b6a2cb38398","r":{"output":{"status":"error","lastError":"Output failed: ndi (unknown); screen (Device disconnected); ndi (x)"}}}
+{"k":"fdc5e60ad67675b3","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown)"}}}
+{"k":"fdde90f140de5b24","r":{"output":{"status":"degraded","lastError":"Output failed: screen (); device ()"}}}
+{"k":"fe6793dd728140ae","r":{"output":{"status":"ok"}}}
+{"k":"ff2324e4ab438a72","r":{"output":{"status":"degraded","lastError":"Output failed: ndi (unknown)"}}}
+{"k":"ffae2e5131cfa29e","r":{"output":{"status":"degraded","lastError":"Output failed: screen (unknown); syphon (x)"}}}
+{"k":"ffca9d8d6d00b588","r":{"output":{"status":"error","lastError":"Output failed: syphon ()"}}}

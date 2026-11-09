@@ -1,0 +1,19 @@
+{"fn":"oracle:scripture.cacheNotice","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"098ad3aa06545242","r":null}
+{"k":"20747ff4e4c9a182","r":null}
+{"k":"61b5fc74ee691e7a","r":{"kind":"access-revoked","message":"Your API.Bible account no longer has access to this translation.","hint":"Check the translations enabled for your key at API.Bible, or choose another translation."}}
+{"k":"6765c9924308fe2e","r":{"kind":"refresh-required","message":"This Bible must be refreshed before it can be used offline.","hint":"Cached API.Bible text expires after 30 days. Reconnect and refresh it in Settings → Scripture → Offline Bibles."}}
+{"k":"6ef3d61f4f07d327","r":null}
+{"k":"6f91facd2249526d","r":null}
+{"k":"72d826fcf71ce9f6","r":null}
+{"k":"77a4be3dfb47a717","r":{"kind":"download-not-licensed","message":"Offline download for this translation has not been licensed for this app.","hint":"Confirm the API.Bible plan and publisher licence before enabling whole-Bible download."}}
+{"k":"861ebb41425e58e1","r":null}
+{"k":"ad61e0a2af6eb326","r":null}
+{"k":"b28f8bc7fb42af1e","r":null}
+{"k":"b29caa7a55aa3e58","r":{"kind":"download-not-licensed","message":"Offline download for this translation has not been licensed for this app.","hint":"Confirm the API.Bible plan and publisher licence before enabling whole-Bible download."}}
+{"k":"b451842d3dc0dadb","r":null}
+{"k":"bf9b46c72a841f3d","r":{"kind":"refresh-required","message":"This Bible must be refreshed before it can be used offline.","hint":"Cached API.Bible text expires after 30 days. Reconnect and refresh it in Settings → Scripture → Offline Bibles."}}
+{"k":"c7d39d8e22b56b3b","r":{"kind":"access-revoked","message":"Your API.Bible account no longer has access to this translation.","hint":"Check the translations enabled for your key at API.Bible, or choose another translation."}}
+{"k":"cc951b0f4b6eea32","r":null}
+{"k":"ee08de421e33ec07","r":{"kind":"offline-missing","message":"This passage is not available offline.","hint":"Restore the internet connection, or download this Bible for offline use in Settings → Scripture."}}
+{"k":"f9ecf26939d0f916","r":{"kind":"offline-missing","message":"This passage is not available offline.","hint":"Restore the internet connection, or download this Bible for offline use in Settings → Scripture."}}

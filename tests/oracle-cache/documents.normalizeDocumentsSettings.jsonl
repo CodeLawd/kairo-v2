@@ -1,0 +1,5 @@
+{"fn":"documents.normalizeDocumentsSettings","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"48587c137cef951a","r":{"slideshowSec":2,"slideshowLoop":true,"slideshowAutoStart":true}}
+{"k":"94c392a40f919b9b","r":{"slideshowSec":3600,"slideshowLoop":true,"slideshowAutoStart":false}}
+{"k":"9501029d6824aa4f","r":{"slideshowSec":10,"slideshowLoop":false,"slideshowAutoStart":false}}
+{"k":"b8a2851ef31701e2","r":{"slideshowSec":10,"slideshowLoop":true,"slideshowAutoStart":false}}

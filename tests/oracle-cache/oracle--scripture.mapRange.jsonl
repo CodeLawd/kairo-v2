@@ -1,0 +1,727 @@
+{"fn":"oracle:scripture.mapRange","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"007bbc402fda031b","r":{"text":"\n\n\n\n\n\n\n\n\n\n\na\n\n\n\n\n\n\n a\n\n\n\n😀","ranges":[null,null,null,null,null,null,null,{"from":24,"to":26}]}}
+{"k":"009f877f97ac32e4","r":{"text":"\n","ranges":[null,null,null,{"from":1,"to":2},null,null,{"from":1,"to":2}]}}
+{"k":"00a39c146ef2ad45","r":{"text":"Romans 8:28 John 3:16\nRomans 8:28 John 3:16é","ranges":[null,null,null,{"from":3,"to":57},null,null,{"from":3,"to":4},{"from":15,"to":24},{"from":3,"to":14}]}}
+{"k":"010f759c8650951b","r":{"text":"\n\nlet x = 1  ","ranges":[null,null,null,{"from":11,"to":44},null,null,{"from":11,"to":12}]}}
+{"k":"011f6e6a477dba67","r":{"text":"\n\nGenesis 1:1\n\n\n\n\nRomans 8:28 \n\n\n\n\n\n\n\n\n\n\n\n\nRomans 8:28 Genesis 1:1😀\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":19,"to":30},{"from":65,"to":67}]}}
+{"k":"02142df0d7f2505c","r":{"text":"\n\nGenesis 1:1\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"027763f8e4bd2ab7","r":{"text":"Romans 8:28 \nGenesis 1:1 😀 code\n\n","ranges":[null,null,null,{"from":3,"to":47},null,null,{"from":3,"to":4},{"from":21,"to":32},{"from":3,"to":14},{"from":36,"to":38}]}}
+{"k":"02a15f38d6bf70b7","r":{"text":"Genesis 1:1John 3:16😀😀","ranges":[null,null,null,{"from":5,"to":33},null,null,{"from":5,"to":6},{"from":5,"to":16},{"from":20,"to":29},{"from":29,"to":31}]}}
+{"k":"0370c23aaa641f98","r":{"text":"é\n","ranges":[null,null,null,{"from":2,"to":4},null,null,{"from":2,"to":3}]}}
+{"k":"03927dd2db70b0dc","r":{"text":"😀\n\n\n😀Romans 8:28 😀John 3:16\n\nGenesis 1:1a","ranges":[null,null,null,{"from":1,"to":75},null,null,{"from":1,"to":2},{"from":59,"to":70},{"from":36,"to":45},{"from":16,"to":27},{"from":1,"to":3}]}}
+{"k":"03c0101c32b314c8","r":{"text":"\nGenesis 1:1\n\n\n\nRomans 8:28 \nlet x = 1\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":21,"to":32}]}}
+{"k":"041970fd24aa9ff4","r":{"text":"\n\n\n\n \n\n\n\na\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"046c6954ea643d49","r":{"text":"😀 codeééGenesis 1:1\n\n","ranges":[null,null,null,{"from":1,"to":49},null,null,{"from":1,"to":2},{"from":36,"to":47},{"from":1,"to":3}]}}
+{"k":"04da7774e99cfb0b","r":{"text":"😀 code😀 code😀\nRomans 8:28 \nJohn 3:16\n","ranges":[null,null,null,{"from":1,"to":57},null,null,{"from":1,"to":2},{"from":47,"to":56},{"from":30,"to":41},{"from":1,"to":3}]}}
+{"k":"053fc987afd391c1","r":{"text":"Genesis 1:1\n\nlet x = 1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"05745bd04249a4d7","r":{"text":"😀 code\n\n\n","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"058bebeeeb2e5843","r":{"text":"\né\n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2}]}}
+{"k":"059e3ba979bb02b8","r":{"text":"😀 code\nJohn 3:16\n\nRomans 8:28 \n\n\n😀 code\nlet x = 1","ranges":[null,null,null,{"from":1,"to":57},null,null,{"from":1,"to":2},{"from":10,"to":19},{"from":22,"to":33},{"from":1,"to":3}]}}
+{"k":"0612774c3a74bf63","r":{"text":"\n\n\n\n\n\n\nRomans 8:28 Genesis 1:1\n\n😀 code\n\n\n\n","ranges":[null,null,null,{"from":1,"to":44},null,null,{"from":1,"to":2},{"from":19,"to":30},{"from":7,"to":18},{"from":33,"to":35}]}}
+{"k":"06894c4fba49cc9d","r":{"text":"\n\n\n\n\nJohn 3:16Romans 8:28 \n\n\n\n\n\n\n\n\n\nRomans 8:28 a\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13},{"from":13,"to":24}]}}
+{"k":"06a189e431497503","r":{"text":"\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"072b70cc3bcaf56c","r":{"text":"\n\naRomans 8:28 Romans 8:28 \n","ranges":[null,null,null,{"from":3,"to":41},null,null,{"from":3,"to":4},{"from":11,"to":22}]}}
+{"k":"078325b0f4bdf3f0","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"07c50bb9f9ef2f20","r":{"text":"\n\n\n\n\n\n😀\n\n\n\n\n\n\nRomans 8:28 \n\n\n\n\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":14,"to":25},{"from":5,"to":7}]}}
+{"k":"07c6ad80f15b3cd7","r":{"text":"\n\n\n\n\n\nJohn 3:16\n\n\n\nGenesis 1:1\n\n\n\n\n\n\nJohn 3:16John 3:16\n\n😀 code\n\n\né","ranges":[null,null,null,null,null,null,null,{"from":19,"to":30},{"from":5,"to":14},{"from":58,"to":60}]}}
+{"k":"083ec4bb9676b80b","r":{"text":"\n\n\nGenesis 1:1\n\n\n\n\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":27,"to":29}]}}
+{"k":"0892ef7b43d2bb66","r":{"text":"😀 code\n\n\n\n","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"08ca69570eca109f","r":{"text":"\n\nRomans 8:28 \n😀","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":17,"to":19}]}}
+{"k":"09098d127ffb305e","r":{"text":"😀 code\n\n\n\n\n\nGenesis 1:1\n\n\n\na\n\n\n\n\n\n\n\n\n\n\n\n\nJohn 3:16\n\n\n","ranges":[null,null,null,{"from":1,"to":71},null,null,{"from":1,"to":2},{"from":17,"to":28},{"from":56,"to":65},{"from":1,"to":3}]}}
+{"k":"0912d579f7516fa6","r":{"text":"\n\né\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":18,"to":20}]}}
+{"k":"0a023e00c06475e9","r":{"text":"\n\nRomans 8:28 Genesis 1:1\nlet x = 1","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26},{"from":3,"to":14}]}}
+{"k":"0a0b56b9792be95a","r":{"text":"John 3:16\n\n\nRomans 8:28 \n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":1,"to":10},{"from":13,"to":24},{"from":28,"to":30}]}}
+{"k":"0a4f7b5c55955434","r":{"text":"a\n\n","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"0ab173baf949f730","r":{"text":"\n","ranges":[null,null,null,{"from":1,"to":2},null,null,{"from":1,"to":2}]}}
+{"k":"0b393bfff04c2507","r":{"text":"\n Romans 8:28 ","ranges":[null,null,null,{"from":3,"to":17},null,null,{"from":3,"to":4},{"from":5,"to":16}]}}
+{"k":"0c4f815e8885f8ae","r":{"text":"\nRomans 8:28 \n\n\n Genesis 1:1","ranges":[null,null,null,{"from":1,"to":29},null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":2,"to":13}]}}
+{"k":"0d716ebb6c99a39d","r":{"text":"\n\n\né\n\n😀 code\n\n\n\n\n\n\né","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":7,"to":9}]}}
+{"k":"0dfbe8bcf1f3cea0","r":{"text":"\n\n\n","ranges":[null,null,null,{"from":3,"to":8},null,null,{"from":3,"to":4}]}}
+{"k":"0e507977a2fb14dc","r":{"text":"😀 code\n😀 code\n\n\n\n\n\n😀\nRomans 8:28 \n\n\nJohn 3:16\n","ranges":[null,null,null,{"from":1,"to":57},null,null,{"from":1,"to":2},{"from":47,"to":56},{"from":30,"to":41},{"from":1,"to":3}]}}
+{"k":"0e5f09635d87fc4e","r":{"text":"\n😀  ","ranges":[null,null,null,{"from":3,"to":12},null,null,{"from":3,"to":4},{"from":4,"to":6}]}}
+{"k":"0ea10ba17dacfcb9","r":{"text":"\n\nGenesis 1:1\n\n\né\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"0ea52f8a257b7254","r":{"text":"\n\n\n\n\n\n\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":8,"to":19}]}}
+{"k":"0fec69fec148b7bb","r":{"text":"\n\n\n\n\n\n\n\na\n\n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":20,"to":29}]}}
+{"k":"1008a34286ea0bfd","r":{"text":"\n\n\nJohn 3:16 \n\n\n\n\n\n😀John 3:16\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13},{"from":25,"to":27}]}}
+{"k":"1014623b89647201","r":{"text":"\n\n\nJohn 3:16\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13}]}}
+{"k":"10ba67f95a4d9c42","r":{"text":"let x = 1\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"11245f2cd06dfb50","r":{"text":"let x = 1\n\n","ranges":[null,null,null,{"from":1,"to":16},null,null,{"from":1,"to":2}]}}
+{"k":"1137c66814e32593","r":{"text":"let x = 1\nGenesis 1:1John 3:16","ranges":[null,null,null,{"from":2,"to":35},null,null,{"from":2,"to":3},{"from":15,"to":26},{"from":26,"to":35}]}}
+{"k":"11a706059610606f","r":{"text":"\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":2,"to":4}]}}
+{"k":"1261940adf974975","r":{"text":"\n\n\nJohn 3:16\n\n\n\n\n\n\n\n\n\n\n\né","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13}]}}
+{"k":"12a570c26d7d5e06","r":{"text":"\n\n\n\na \n\n\n\nRomans 8:28 Genesis 1:1\n\n\n\n\n\nGenesis 1:1\n\n\n\n😀\n😀","ranges":[null,null,null,{"from":1,"to":72},null,null,{"from":1,"to":2},{"from":26,"to":37},{"from":14,"to":25},{"from":67,"to":69}]}}
+{"k":"12f9e7c280501391","r":{"text":"Genesis 1:1John 3:16\n","ranges":[null,null,null,{"from":3,"to":28},null,null,{"from":3,"to":4},{"from":3,"to":14},{"from":18,"to":27}]}}
+{"k":"137f0035db322943","r":{"text":" \n😀 code\nlet x = 1\nJohn 3:16\n\n","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":24,"to":33},{"from":4,"to":6}]}}
+{"k":"13c5ad7c6b3f632b","r":{"text":" a\n","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"13cb770e8db4f664","r":{"text":"a\n\n\n\n😀😀 ","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2},{"from":5,"to":7}]}}
+{"k":"13eb9d0a99b69048","r":{"text":"\n\n\n\n\nlet x = 1\n😀 code\n\n\n\né\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":22,"to":24}]}}
+{"k":"148f9ebf9b2a0841","r":{"text":"\n\naGenesis 1:1\n\n\n\n\n\n\né \n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"14b3be4f7dc89ee2","r":{"text":"😀 code","ranges":[null,null,null,{"from":1,"to":8},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"14bd2cc0d7b00956","r":{"text":"\n\n \n😀😀 code","ranges":[null,null,null,{"from":3,"to":38},null,null,{"from":3,"to":4},{"from":21,"to":23}]}}
+{"k":"14ea364cd8512e0b","r":{"text":"\n\n\n\n\n Romans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16}]}}
+{"k":"14ede8c854af5578","r":{"text":"\n\na\n\n😀Romans 8:28 \n\nGenesis 1:1\n\n\n\n\n\n\né😀","ranges":[null,null,null,null,null,null,null,{"from":22,"to":33},{"from":8,"to":19},{"from":6,"to":8}]}}
+{"k":"15bb9b703f40647d","r":{"text":"\n\n\n\n\naGenesis 1:1\n\n\n\n\n\n\n\n\n\n\nRomans 8:28 \n\n\n\n\n\n\n\n\n\n\na\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16},{"from":27,"to":38}]}}
+{"k":"163002eb10357aa5","r":{"text":"\n\n\n","ranges":[null,null,null,{"from":3,"to":10},null,null,{"from":3,"to":4}]}}
+{"k":"16b67ecefb0a0422","r":{"text":"\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"16bc8a1d9c794435","r":{"text":"\n Genesis 1:1\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15}]}}
+{"k":"1733ac2b50e7410a","r":{"text":"\n\nJohn 3:16\n\n\n\n\n\n \na","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12}]}}
+{"k":"1756ab80f05a072e","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"1765fc73956156b6","r":{"text":"😀 code\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"177fe54cc8064a68","r":{"text":"😀 code\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":31},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"1784e7e8f255a1e2","r":{"text":"\nGenesis 1:1Genesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13}]}}
+{"k":"182ed5aafcca422b","r":{"text":"😀 code","ranges":[null,null,null,{"from":1,"to":8},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"189d20d17c139303","r":{"text":"let x = 1\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"18cd0db499190c96","r":{"text":"\n\nRomans 8:28 \n\n\nGenesis 1:1 \n😀 code\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":21,"to":32},{"from":3,"to":14},{"from":36,"to":38}]}}
+{"k":"18cdf4c8afee832c","r":{"text":"\n\né","ranges":[null,null,null,null,null,null,null]}}
+{"k":"1906afeee1cf5804","r":{"text":"\n \n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"193c17cc33c556f5","r":{"text":"\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"19cbd5fa203f2eb4","r":{"text":"Romans 8:28 😀 codelet x = 1😀é","ranges":[null,null,null,{"from":3,"to":42},null,null,{"from":3,"to":4},{"from":3,"to":14},{"from":19,"to":21}]}}
+{"k":"19e8696e377d14f3","r":{"text":"😀 code\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"19e896b8936873f0","r":{"text":"\n\n\n\n😀a\n\n\n\n\n\nGenesis 1:1\na","ranges":[null,null,null,null,null,null,null,{"from":22,"to":33},{"from":7,"to":9}]}}
+{"k":"1ad25c629bccdc40","r":{"text":"\nGenesis 1:1\n\n\n\n\n\nRomans 8:28 \n😀 code\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":22,"to":33},{"from":38,"to":40}]}}
+{"k":"1b2c9137b44e7d85","r":{"text":"\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"1b43de1fb3072dd4","r":{"text":"let x = 1\n\nJohn 3:16\n\n\n\n\n\n\n\né\na\n\n\n\n\n\n\nRomans 8:28 \n\n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":54},null,null,{"from":1,"to":2},{"from":12,"to":21},{"from":36,"to":47}]}}
+{"k":"1b4ac171d0d6008d","r":{"text":"Genesis 1:1😀\n","ranges":[null,null,null,{"from":4,"to":18},null,null,{"from":4,"to":5},{"from":4,"to":15},{"from":15,"to":17}]}}
+{"k":"1c1748778e44f42f","r":{"text":"\n\né\n😀 code\n\n\n\né","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":7,"to":9}]}}
+{"k":"1daaeff9f2e82660","r":{"text":"\n\n\n\n\nlet x = 1\n\n\n\n\n\n\n\né","ranges":[null,null,null,null,null,null,null]}}
+{"k":"1dc81d09d32a0412","r":{"text":"\n","ranges":[null,null,null,{"from":3,"to":4},null,null,{"from":3,"to":4}]}}
+{"k":"1de67e9b5c330b34","r":{"text":"\nlet x = 1\n ","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2}]}}
+{"k":"1df3df6899686a45","r":{"text":"John 3:16\nGenesis 1:1\nGenesis 1:1","ranges":[null,null,null,{"from":5,"to":42},null,null,{"from":5,"to":6},{"from":15,"to":26},{"from":5,"to":14}]}}
+{"k":"1e11859f10aa5232","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"1e74a5255390a436","r":{"text":"\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\n\n\n\n😀😀","ranges":[null,null,null,null,null,null,null,{"from":12,"to":23},{"from":35,"to":37}]}}
+{"k":"1f7cd02d14176728","r":{"text":"\n\n\n\nGenesis 1:1\n\nJohn 3:16😀😀","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16},{"from":20,"to":29},{"from":29,"to":31}]}}
+{"k":"1f98f403616e5959","r":{"text":"let x = 1\nRomans 8:28 \nlet x = 1","ranges":[null,null,null,{"from":1,"to":43},null,null,{"from":1,"to":2},{"from":17,"to":28}]}}
+{"k":"1fbe64876b96f583","r":{"text":"\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"1ffc9f7738de6f02","r":{"text":"\n\n\naGenesis 1:1\n\n\n\n\n\nRomans 8:28 \n\n\n\n\n\n\na\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16},{"from":27,"to":38}]}}
+{"k":"201fb10229278cd1","r":{"text":"\n\né\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"20f58e3c51d5b42d","r":{"text":"\naJohn 3:16","ranges":[null,null,null,{"from":3,"to":14},null,null,{"from":3,"to":4},{"from":5,"to":14}]}}
+{"k":"216cef07f4cdcfd1","r":{"text":" \n\na\n","ranges":[null,null,null,{"from":7,"to":16},null,null,{"from":7,"to":8}]}}
+{"k":"221845c1ee2f4e36","r":{"text":"\n\n😀 \n\n\nGenesis 1:1John 3:16\n\n\néé\n\n\n😀","ranges":[null,null,null,null,null,null,null,{"from":11,"to":22},{"from":22,"to":31},{"from":3,"to":5}]}}
+{"k":"2225e1edf51760e2","r":{"text":"😀 code\na\na\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"225e996e0c2cd474","r":{"text":"\n\n\n\né\n\n\nlet x = 1\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":20,"to":22}]}}
+{"k":"225f0c602a12aa90","r":{"text":"\nGenesis 1:1\n\n\n\nRomans 8:28 \n\n\n\n\n\n\n\nRomans 8:28 Genesis 1:1😀\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":19,"to":30},{"from":65,"to":67}]}}
+{"k":"22821261391bcaac","r":{"text":"\n\n\n\n\n\n\n\n\n\na\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"22a4cad03ab8bc1a","r":{"text":"\n\nRomans 8:28 \n😀 code\nlet x = 1\n😀é\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":19,"to":21}]}}
+{"k":"22deddb238ca9494","r":{"text":"Genesis 1:1\n\n\nlet x = 1\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"22fe0132f73d6ffd","r":{"text":"a😀Romans 8:28 Genesis 1:1\né😀","ranges":[null,null,null,{"from":2,"to":41},null,null,{"from":2,"to":3},{"from":22,"to":33},{"from":8,"to":19},{"from":6,"to":8}]}}
+{"k":"2340ba5767aa432a","r":{"text":"é\n\n","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"2360e3b0a3d9b4c5","r":{"text":"\nélet x = 1","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2}]}}
+{"k":"236ccffac4d66ee2","r":{"text":"\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12}]}}
+{"k":"238307d6a4533f67","r":{"text":"😀 code\n\n\né\n\n\n\n\n\n\n\n\né\n\nGenesis 1:1\n\n","ranges":[null,null,null,{"from":1,"to":49},null,null,{"from":1,"to":2},{"from":36,"to":47},{"from":1,"to":3}]}}
+{"k":"2390a5512d38e403","r":{"text":"John 3:16","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"23973633c17d5118","r":{"text":"\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"25d63b2c0233ec55","r":{"text":"let x = 1\n\n\n\n\n\n😀\n","ranges":[null,null,null,{"from":1,"to":17},null,null,{"from":1,"to":2},{"from":14,"to":16}]}}
+{"k":"25f5ee57bae896ae","r":{"text":"\n\n\n\nRomans 8:28 Genesis 1:1\n\nlet x = 1","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26},{"from":3,"to":14}]}}
+{"k":"261d248b74b59c39","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"2637e84754849113","r":{"text":"\n\n\n😀Romans 8:28 aJohn 3:16Genesis 1:1","ranges":[null,null,null,{"from":1,"to":49},null,null,{"from":1,"to":2},{"from":38,"to":49},{"from":29,"to":38},{"from":10,"to":21},{"from":8,"to":10}]}}
+{"k":"272a5e97a0415b29","r":{"text":"\n\né\n\n\n\n\n\n😀","ranges":[null,null,null,null,null,null,null,{"from":15,"to":17}]}}
+{"k":"274602a76708e3ed","r":{"text":"\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"2761f9eef484e676","r":{"text":"\n\n\n\nJohn 3:16Romans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":7,"to":16},{"from":16,"to":27}]}}
+{"k":"278772ca9e802d3d","r":{"text":"\n\n\n\né\n\n\n\n\n\n😀 code\n\n\n\n\n\n\n\né\n\n","ranges":[null,null,null,null,null,null,null,{"from":12,"to":14}]}}
+{"k":"279db83e7b97e820","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"27fe4f992a0be900","r":{"text":"\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"284c2d2016078dd3","r":{"text":"a\n\n😀😀a \né","ranges":[null,null,null,{"from":3,"to":27},null,null,{"from":3,"to":4},{"from":10,"to":12}]}}
+{"k":"28bfe9906500b6bb","r":{"text":"\n\nJohn 3:16Genesis 1:1\nJohn 3:16John 3:16😀 code\né","ranges":[null,null,null,{"from":3,"to":69},null,null,{"from":3,"to":4},{"from":19,"to":30},{"from":5,"to":14},{"from":58,"to":60}]}}
+{"k":"2904c36e2a660b4c","r":{"text":"Genesis 1:1\n","ranges":[null,null,null,{"from":3,"to":15},null,null,{"from":3,"to":4},{"from":3,"to":14}]}}
+{"k":"2924a4f0f9ea41e8","r":{"text":"\n\n\n\n\n \n\n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":18},null,null,{"from":1,"to":2}]}}
+{"k":"29918d360ee4e5e9","r":{"text":"a\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"2a91ced201d29ea5","r":{"text":"Genesis 1:1\néJohn 3:16","ranges":[null,null,null,{"from":7,"to":42},null,null,{"from":7,"to":8},{"from":7,"to":18},{"from":33,"to":42}]}}
+{"k":"2bbc0b3d9ead67d1","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"2c23d406c4c92a3a","r":{"text":"\n\n\n\n\n\n\n\n\na\nJohn 3:16\n\n😀 code\n\n\n\n\n\nRomans 8:28 \n\né","ranges":[null,null,null,null,null,null,null,{"from":10,"to":19},{"from":34,"to":45},{"from":23,"to":25}]}}
+{"k":"2c4b4caf5f9aeaca","r":{"text":"\nJohn 3:16\n😀 code\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":11},{"from":14,"to":16}]}}
+{"k":"2cf7eaf7b234f45e","r":{"text":"\n\n\n\nlet x = 1\n\n ","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2}]}}
+{"k":"2cf9fd8afffc1e33","r":{"text":"\nalet x = 1","ranges":[null,null,null,{"from":11,"to":26},null,null,{"from":11,"to":12}]}}
+{"k":"2d0476691555562b","r":{"text":"let x = 1let x = 1","ranges":[null,null,null,{"from":1,"to":21},null,null,{"from":1,"to":2}]}}
+{"k":"2d04848d7258a502","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26}]}}
+{"k":"2d1c40ca2d635cc4","r":{"text":"Intro Genesis 1:1\n\n\nFirst John 3:16\n\nSecond Romans 8:28","ranges":[null,null,null,{"from":1,"to":59},null,null,{"from":1,"to":2},{"from":7,"to":18},{"from":28,"to":37},{"from":48,"to":59}]}}
+{"k":"2d95cc97b9d59422","r":{"text":"😀 code\n\n\na\n\n","ranges":[null,null,null,{"from":1,"to":17},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"2e152c5695dc84f2","r":{"text":"😀 code\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"2e2c73704727aab5","r":{"text":"let x = 1😀\nlet x = 1😀Genesis 1:1","ranges":[null,null,null,{"from":1,"to":45},null,null,{"from":1,"to":2},{"from":34,"to":45},{"from":12,"to":14}]}}
+{"k":"2e9995cf8b1385c9","r":{"text":"\n\nlet x = 1\n\n\n\n\nGenesis 1:1John 3:16","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26},{"from":26,"to":35}]}}
+{"k":"2eeca786a552fe74","r":{"text":"\n\n\n\n\n\n\n\nRomans 8:28 \né\n\n\n\n\n\n\n\n\n\n \n\nlet x = 1","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18}]}}
+{"k":"2ef8d37ea4d63426","r":{"text":" \n\n","ranges":[null,null,null,{"from":2,"to":5},null,null,{"from":2,"to":3}]}}
+{"k":"2f3228b90c3ce9d2","r":{"text":" Genesis 1:1\n\n\n\n","ranges":[null,null,null,{"from":3,"to":31},null,null,{"from":3,"to":4},{"from":4,"to":15}]}}
+{"k":"2f35e16b05132b11","r":{"text":"😀 code\n\n\n\né😀\n\n\n\n😀a\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"2f594f9abd0b7960","r":{"text":"\n\nGenesis 1:1\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"2f9b1c15dc9ddc86","r":{"text":"\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"2fd40901f9e2bc6d","r":{"text":" \n\n😀 code\n\nlet x = 1\n\nJohn 3:16\n\n","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":24,"to":33},{"from":4,"to":6}]}}
+{"k":"30333c931db16232","r":{"text":"let x = 1\n\n\n\n \n\n","ranges":[null,null,null,{"from":1,"to":21},null,null,{"from":1,"to":2}]}}
+{"k":"3069ed9b175047e5","r":{"text":" \n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"306ac1bcede14b35","r":{"text":"\n\n\n\n\n\n\n\n \n\n\n\n\n\na\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"30730bafc6945b25","r":{"text":"😀 codea\na","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"30b1cd48a71127e7","r":{"text":"Romans 8:28 😀Romans 8:28 \n😀\n\nGenesis 1:1 \nRomans 8:28 Genesis 1:1 ","ranges":[null,null,null,{"from":3,"to":95},null,null,{"from":3,"to":4},{"from":52,"to":63},{"from":3,"to":14},{"from":15,"to":17}]}}
+{"k":"3160dcc19892e900","r":{"text":"\n\n \n\n\n\n\né\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"316608e2e6db3b58","r":{"text":"\n😀\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":2,"to":4}]}}
+{"k":"31e425426d3d80b2","r":{"text":"\n \n😀a","ranges":[null,null,null,{"from":3,"to":17},null,null,{"from":3,"to":4},{"from":10,"to":12}]}}
+{"k":"32313ec11fb1c40a","r":{"text":"é\n\n\n\n😀 code","ranges":[null,null,null,{"from":3,"to":25},null,null,{"from":3,"to":4},{"from":18,"to":20}]}}
+{"k":"3238293e2c835673","r":{"text":"let x = 1\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":33},null,null,{"from":1,"to":2},{"from":26,"to":28}]}}
+{"k":"3241c1918b5e3b31","r":{"text":"\n\n\néRomans 8:28  \n\n\n\né😀\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":27,"to":29}]}}
+{"k":"3248ddfd5cf570bb","r":{"text":"Genesis 1:1John 3:16\nRomans 8:28 \n","ranges":[null,null,null,{"from":13,"to":52},null,null,{"from":13,"to":14},{"from":13,"to":24},{"from":24,"to":33},{"from":39,"to":50}]}}
+{"k":"3385a07543c38b6c","r":{"text":"\n\n\n\nJohn 3:16\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":6,"to":15}]}}
+{"k":"33a01d3483d9573b","r":{"text":"\n\n\n\n\n\n😀Romans 8:28 \n\n\naJohn 3:16Genesis 1:1\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":38,"to":49},{"from":29,"to":38},{"from":10,"to":21},{"from":8,"to":10}]}}
+{"k":"34456d56822398a9","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\nlet x = 1","ranges":[null,null,null,null,null,null,null]}}
+{"k":"349b0b307bbd9ba2","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"35cbcc1bdaf141fd","r":{"text":"😀 code\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"3632d40264551a30","r":{"text":"Genesis 1:1\n\n\nRomans 8:28 \n\n\nRomans 8:28 Genesis 1:1😀\n","ranges":[null,null,null,{"from":2,"to":79},null,null,{"from":2,"to":3},{"from":2,"to":13},{"from":19,"to":30},{"from":65,"to":67}]}}
+{"k":"36dd880c312d6866","r":{"text":"😀 code\n\n\n\nlet x = 1\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"36e4a924a4c5d99f","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"386082bd120c1b68","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":18,"to":29}]}}
+{"k":"387526bf0d34e06e","r":{"text":"aGenesis 1:1\né ","ranges":[null,null,null,{"from":2,"to":22},null,null,{"from":2,"to":3},{"from":3,"to":14}]}}
+{"k":"393637b85fc7ef8f","r":{"text":"\nGenesis 1:1 John 3:16Romans 8:28 \n","ranges":[null,null,null,{"from":3,"to":44},null,null,{"from":3,"to":4},{"from":4,"to":15},{"from":22,"to":31},{"from":31,"to":42}]}}
+{"k":"3967ddeb727f9f6f","r":{"text":"let x = 1\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"39732447447d3334","r":{"text":"Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"39759231f55e918d","r":{"text":"\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"397ec019178bb943","r":{"text":"😀 code\n\na\na\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"3984f84bf53a71cc","r":{"text":"a\nRomans 8:28 let x = 1\n a","ranges":[null,null,null,{"from":1,"to":31},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"39b73adf747b4ae9","r":{"text":"\nJohn 3:16\n é","ranges":[null,null,null,{"from":2,"to":17},null,null,{"from":2,"to":3},{"from":3,"to":12}]}}
+{"k":"39ce54304c33f25e","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nlet x = 1\n\n\n\n\n\n\n\n\n\n  ","ranges":[null,null,null,null,null,null,null]}}
+{"k":"39d89baa6d75f358","r":{"text":"\n\n\na\n😀\na","ranges":[null,null,null,{"from":1,"to":16},null,null,{"from":1,"to":2},{"from":8,"to":10}]}}
+{"k":"39f07ad18c4d3507","r":{"text":"😀 code\n\nRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":30},null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":1,"to":3}]}}
+{"k":"3a82dd4854ef79b4","r":{"text":"\n\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"3aa8a295f8433e34","r":{"text":"😀\n\n","ranges":[null,null,null,{"from":2,"to":6},null,null,{"from":2,"to":3},{"from":2,"to":4}]}}
+{"k":"3b04f5fd2ab1c3d8","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"3b99acf563a2d92e","r":{"text":"Romans 8:28 ","ranges":[null,null,null,{"from":3,"to":15},null,null,{"from":3,"to":4},{"from":3,"to":14}]}}
+{"k":"3b9d6ac9ebb38148","r":{"text":"Romans 8:28 Genesis 1:1let x = 1","ranges":[null,null,null,{"from":3,"to":38},null,null,{"from":3,"to":4},{"from":15,"to":26},{"from":3,"to":14}]}}
+{"k":"3c0114b03f581222","r":{"text":"\n\n\n\n\n\n\n\n\n\néa\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"3c05e8ecc5334a30","r":{"text":"let x = 1 \n\n","ranges":[null,null,null,{"from":1,"to":21},null,null,{"from":1,"to":2}]}}
+{"k":"3c2048c824b92635","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"3c65cc4f79dc8a64","r":{"text":"\n\n\n\n\n\né","ranges":[null,null,null,null,null,null,null]}}
+{"k":"3cb92c13279cbbdc","r":{"text":" ","ranges":[null,null,null,{"from":1,"to":2},null,null,{"from":1,"to":2}]}}
+{"k":"3de7834cd2f56010","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"3e99a404b6f8dc24","r":{"text":"\n\n ","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"4006350995f9ce07","r":{"text":" \n\n\né\n","ranges":[null,null,null,{"from":3,"to":18},null,null,{"from":3,"to":4}]}}
+{"k":"401bb628f8b27cf1","r":{"text":"\n\n\n","ranges":[null,null,null,{"from":5,"to":8},null,null,{"from":5,"to":6}]}}
+{"k":"40212098d3e00bb7","r":{"text":"a\n\n😀😀 ","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2},{"from":5,"to":7}]}}
+{"k":"4030e253f79b76f0","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"41bb868c6bc0aade","r":{"text":"\n\n\n\n\naJohn 3:16\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":14}]}}
+{"k":"42a19e3121bdadcd","r":{"text":"let x = 1","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2}]}}
+{"k":"43b956bc261ded9c","r":{"text":"\n\n\néé","ranges":[null,null,null,null,null,null,null]}}
+{"k":"4460bb17eb22a19b","r":{"text":" ","ranges":[null,null,null,{"from":2,"to":3},null,null,{"from":2,"to":3}]}}
+{"k":"44d494cd5131d88f","r":{"text":"\n\n\n\n\n ","ranges":[null,null,null,null,null,null,null]}}
+{"k":"44f3fedec2ad856d","r":{"text":"let x = 1\néé  \n\n","ranges":[null,null,null,{"from":1,"to":29},null,null,{"from":1,"to":2}]}}
+{"k":"4597ae404792dd09","r":{"text":"\n\n","ranges":[null,null,null,{"from":2,"to":4},null,null,{"from":2,"to":3}]}}
+{"k":"460038ae3ea84d05","r":{"text":"\n\n\n😀 \n\n\n\n\n\nGenesis 1:1John 3:16\n\n\n\n\néé\n\n\n\n\n😀","ranges":[null,null,null,null,null,null,null,{"from":11,"to":22},{"from":22,"to":31},{"from":3,"to":5}]}}
+{"k":"46676a0361f00736","r":{"text":"😀\n\n\n\n\n\n\n\n😀Romans 8:28 \n\n\n😀John 3:16\n\n\n\n\n\n\n\nGenesis 1:1\n\na","ranges":[null,null,null,{"from":1,"to":75},null,null,{"from":1,"to":2},{"from":59,"to":70},{"from":36,"to":45},{"from":16,"to":27},{"from":1,"to":3}]}}
+{"k":"4718ab4a39d1c4e1","r":{"text":"John 3:16","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"4732da966a7dbcd1","r":{"text":"\n\nGenesis 1:1\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":14,"to":23}]}}
+{"k":"473fee5e979f24cc","r":{"text":"\n\n\n\nRomans 8:28 \n\n\n\n😀 code\n\n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":30,"to":39},{"from":3,"to":14},{"from":19,"to":21}]}}
+{"k":"478f3ea2545cfbea","r":{"text":"\n\nRomans 8:28 \n\n😀 code\n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":30,"to":39},{"from":3,"to":14},{"from":19,"to":21}]}}
+{"k":"47e6387ccb2bc53c","r":{"text":"Genesis 1:1\n","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"485cfbc7ec8bbcf2","r":{"text":"\nGenesis 1:1é😀\n","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":2,"to":13},{"from":17,"to":19}]}}
+{"k":"48626f1132a20772","r":{"text":"😀 code\n\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":31},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"48789fd089cf21f0","r":{"text":"\nRomans 8:28 Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":26},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"48a60bf2f86ae86b","r":{"text":"\n\n\n\n\nJohn 3:16\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13}]}}
+{"k":"48c386586bac356f","r":{"text":"\nGenesis 1:1é\n\n\n\n😀\n","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":2,"to":13},{"from":17,"to":19}]}}
+{"k":"48cda31b562a4db2","r":{"text":" ","ranges":[null,null,null,{"from":1,"to":2},null,null,{"from":1,"to":2}]}}
+{"k":"48d592cb0d5994f2","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"496bc4cc615f5eb1","r":{"text":"\n\nRomans 8:28 \n\n","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"4a077d35252fa90a","r":{"text":"\n\né\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"4a1925fa7be38e9f","r":{"text":"\n\n\n\n\n\n\nJohn 3:16\n\n\n\n\n\néJohn 3:16\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":7,"to":16}]}}
+{"k":"4a45b06600611389","r":{"text":" ","ranges":[null,null,null,{"from":1,"to":2},null,null,{"from":1,"to":2}]}}
+{"k":"4a49ea1e291b72c4","r":{"text":"é\n","ranges":[null,null,null,{"from":3,"to":5},null,null,{"from":3,"to":4}]}}
+{"k":"4ab94e6dc6b83e6c","r":{"text":"John 3:16\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"4ac3cd9e1781d9e4","r":{"text":"😀 code","ranges":[null,null,null,{"from":2,"to":9},null,null,{"from":2,"to":3},{"from":2,"to":4}]}}
+{"k":"4ae9d86acadd63ae","r":{"text":"let x = 1\n\n\n😀\n","ranges":[null,null,null,{"from":1,"to":17},null,null,{"from":1,"to":2},{"from":14,"to":16}]}}
+{"k":"4ba79e1bd3cf8934","r":{"text":"let x = 1","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2}]}}
+{"k":"4bb7d4de7bb89678","r":{"text":"Genesis 1:1é","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"4c1aa991d64f272a","r":{"text":"\n\n ","ranges":[null,null,null,{"from":4,"to":7},null,null,{"from":4,"to":5}]}}
+{"k":"4d20ed0df35c31ef","r":{"text":"Genesis 1:1\né","ranges":[null,null,null,{"from":3,"to":20},null,null,{"from":3,"to":4},{"from":3,"to":14}]}}
+{"k":"4d84bc6425d291ce","r":{"text":"\n\n\n\n\n\n\n \n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":18},null,null,{"from":1,"to":2}]}}
+{"k":"4dc8e6dcfa168321","r":{"text":"😀\n\n😀 code","ranges":[null,null,null,{"from":2,"to":16},null,null,{"from":2,"to":3},{"from":2,"to":4}]}}
+{"k":"4de5e3ced0f74f66","r":{"text":"😀 codeé😀\n\n😀a","ranges":[null,null,null,{"from":1,"to":21},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"4e337f0921fae716","r":{"text":"Romans 8:28 \n\n\n\n\n\n\n\n\naGenesis 1:1\n\n\n\n😀\né\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":20,"to":31},{"from":1,"to":12},{"from":35,"to":37}]}}
+{"k":"4eadef1dbf2247c3","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"4ef495141d55528a","r":{"text":"\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\nJohn 3:16😀😀","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16},{"from":20,"to":29},{"from":29,"to":31}]}}
+{"k":"4f4a9415a86eddc2","r":{"text":"\nGenesis 1:1\n\n\n😀 code","ranges":[null,null,null,{"from":2,"to":34},null,null,{"from":2,"to":3},{"from":3,"to":14},{"from":27,"to":29}]}}
+{"k":"5019be69d30ca691","r":{"text":"\n\n\n\n\n\n\n\nJohn 3:16Romans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":7,"to":16},{"from":16,"to":27}]}}
+{"k":"506902d2c92205dd","r":{"text":" \nGenesis 1:1\n\né😀 codelet x = 1","ranges":[null,null,null,{"from":7,"to":51},null,null,{"from":7,"to":8},{"from":9,"to":20},{"from":33,"to":35}]}}
+{"k":"50f44c08502f938c","r":{"text":"\nRomans 8:28 \n Genesis 1:1","ranges":[null,null,null,{"from":1,"to":29},null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":2,"to":13}]}}
+{"k":"51bf53c49ffb07bf","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,{"from":5,"to":19},null,null,{"from":5,"to":6}]}}
+{"k":"527282c7108e045d","r":{"text":"Genesis 1:1John 3:16😀John 3:16\n","ranges":[null,null,null,{"from":3,"to":40},null,null,{"from":3,"to":4},{"from":3,"to":14},{"from":14,"to":23},{"from":23,"to":25}]}}
+{"k":"52766f0b3c2f2ed1","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"52805142f548a7ca","r":{"text":"\n\nGenesis 1:1","ranges":[null,null,null,{"from":16,"to":29},null,null,{"from":16,"to":17},{"from":18,"to":29}]}}
+{"k":"529ec4e00578e187","r":{"text":"\n\n\n\n\n","ranges":[null,null,null,{"from":2,"to":10},null,null,{"from":2,"to":3}]}}
+{"k":"52ff004253f94b42","r":{"text":"\n😀 codelet x = 1","ranges":[null,null,null,{"from":1,"to":22},null,null,{"from":1,"to":2},{"from":4,"to":6}]}}
+{"k":"53324bbdb9434787","r":{"text":"\n\n\n😀 code\n\n\n\n\n\n😀\nRomans 8:28 \n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":4,"to":6}]}}
+{"k":"536f0417c9fa7ec2","r":{"text":"\né\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"555368a8493519a6","r":{"text":"\n\n\n\n\na\nJohn 3:16\n😀 code\n\n\nRomans 8:28 \né","ranges":[null,null,null,null,null,null,null,{"from":10,"to":19},{"from":34,"to":45},{"from":23,"to":25}]}}
+{"k":"555979117ff4af3e","r":{"text":"\n\nRomans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"5562fbeac71f1b9a","r":{"text":"\n","ranges":[null,null,null,{"from":2,"to":3},null,null,{"from":2,"to":3}]}}
+{"k":"55886ac8cb42b0eb","r":{"text":"\n\n\n\n\na\nGenesis 1:1 ","ranges":[null,null,null,null,null,null,null,{"from":14,"to":25}]}}
+{"k":"559f50209a384ad9","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\né\n\n\n\n\n\naaGenesis 1:1\n\n\n\n\na\n\n","ranges":[null,null,null,null,null,null,null,{"from":25,"to":36}]}}
+{"k":"55ce6e6324131910","r":{"text":"let x = 1\n\n\nRomans 8:28 \n\n\n\n\n\n ","ranges":[null,null,null,{"from":1,"to":38},null,null,{"from":1,"to":2},{"from":15,"to":26}]}}
+{"k":"55f0c9e6cebb843d","r":{"text":"let x = 1\n\n\n\n","ranges":[null,null,null,{"from":1,"to":22},null,null,{"from":1,"to":2}]}}
+{"k":"565e2022745d0490","r":{"text":"😀 code\nGenesis 1:1\na\n\n\n\n\n\nJohn 3:16\n\n","ranges":[null,null,null,{"from":1,"to":71},null,null,{"from":1,"to":2},{"from":17,"to":28},{"from":56,"to":65},{"from":1,"to":3}]}}
+{"k":"57288c58f595a86a","r":{"text":"😀 code\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"57925373ed70d749","r":{"text":"\n\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":6,"to":17}]}}
+{"k":"57d2c20f158c154b","r":{"text":"\nRomans 8:28 Genesis 1:1😀 code\n\n","ranges":[null,null,null,{"from":1,"to":44},null,null,{"from":1,"to":2},{"from":19,"to":30},{"from":7,"to":18},{"from":33,"to":35}]}}
+{"k":"593058945632cb47","r":{"text":"let x = 1\n\n\n\n\n\n\n\n \n\n","ranges":[null,null,null,{"from":1,"to":21},null,null,{"from":1,"to":2}]}}
+{"k":"59acb80ad294c8a2","r":{"text":"\n\nGenesis 1:1John 3:16😀\n\nJohn 3:16\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":14,"to":23},{"from":23,"to":25}]}}
+{"k":"59b74e3224c600e2","r":{"text":"\n\n\n\n\n\n\n\n\n\n\nRomans 8:28 \n\nRomans 8:28 \n\n","ranges":[null,null,null,null,null,null,null,{"from":18,"to":29}]}}
+{"k":"59b96bad8a1a2d9e","r":{"text":"aRomans 8:28 \n a\n","ranges":[null,null,null,{"from":1,"to":27},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"5a01f23187914bee","r":{"text":"\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"5a73b91bc6e4ca5d","r":{"text":" \nGenesis 1:1😀 code\n\n\n\n","ranges":[null,null,null,{"from":2,"to":41},null,null,{"from":2,"to":3},{"from":9,"to":20},{"from":24,"to":26}]}}
+{"k":"5a9e02abeb896e80","r":{"text":"\nJohn 3:16\n","ranges":[null,null,null,{"from":3,"to":14},null,null,{"from":3,"to":4},{"from":4,"to":13}]}}
+{"k":"5b137768ff08cc70","r":{"text":"😀 code\n\nlet x = 1\n\n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"5bea10512ae97ee3","r":{"text":"\n\n\n\n\n\n\n\n ","ranges":[null,null,null,null,null,null,null]}}
+{"k":"5c1e3b0822ecb572","r":{"text":"\n\n\n\nJohn 3:16\n\n\n\n\n\n\n\n\n\n \na","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12}]}}
+{"k":"5c5c31373b6b4754","r":{"text":"\n\n\n\nGenesis 1:1\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"5d0327b30d9d34db","r":{"text":"\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"5d22f0fba7e52683","r":{"text":"😀 code\n\n\n\n\n\na\n\n","ranges":[null,null,null,{"from":1,"to":17},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"5eeaa1960c9f8df1","r":{"text":"\n\n\n\n\nJohn 3:16😀\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":6,"to":15},{"from":15,"to":17}]}}
+{"k":"5f01e29cfd4034a2","r":{"text":"\n\n\n\n\n\n\n\n\n\naRomans 8:28 Romans 8:28 \n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":11,"to":22}]}}
+{"k":"5f516878ecf02636","r":{"text":"\n\n\n \n\n\n\n\n\n\nJohn 3:16Genesis 1:1\n\n","ranges":[null,null,null,null,null,null,null,{"from":19,"to":30},{"from":10,"to":19}]}}
+{"k":"5fa6db9208cb5022","r":{"text":"\n\n\n\n\néa\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"5fd6f249d2915ef3","r":{"text":"Genesis 1:1\n\n😀 code\n\n\n\néJohn 3:16a\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":12},{"from":25,"to":34},{"from":14,"to":16}]}}
+{"k":"60707ad113b2eb64","r":{"text":"\n\n\n\nGenesis 1:1\n\n\n\nJohn 3:16\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":18,"to":27}]}}
+{"k":"60ad825b195ce87c","r":{"text":"\n\n\n \n\n\n😀\na\n\n","ranges":[null,null,null,null,null,null,null,{"from":10,"to":12}]}}
+{"k":"60f568e3341821b5","r":{"text":"\n\n\n\n","ranges":[null,null,null,{"from":3,"to":11},null,null,{"from":3,"to":4}]}}
+{"k":"60fe9f5869b0c77e","r":{"text":" 😀 codelet x = 1John 3:16\n\n","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":24,"to":33},{"from":4,"to":6}]}}
+{"k":"61ae153bdadbcbd2","r":{"text":"Genesis 1:1\n","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"62c0d3eafaa3420d","r":{"text":"\n\n\n\n\n😀\n\n","ranges":[null,null,null,null,null,null,null,{"from":8,"to":10}]}}
+{"k":"6394afdc31e210e3","r":{"text":"\n\n\n\n \n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"64131105d2096c54","r":{"text":"é\n\n\n\n\n\n😀é\n\n\n\n\n\nRomans 8:28  \n\n\n\n\n\n é \n\n\n\n\n\n\n\n\nGenesis 1:1a\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":47,"to":58},{"from":15,"to":26},{"from":6,"to":8}]}}
+{"k":"6429b104fc307958","r":{"text":"\n\n\nGenesis 1:1 \n\n\n\nJohn 3:16Romans 8:28 \n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":22,"to":31},{"from":31,"to":42}]}}
+{"k":"645f8e5cd2956531","r":{"text":"let x = 1\n\n\n\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":28},null,null,{"from":1,"to":2},{"from":16,"to":27}]}}
+{"k":"6470874562f03ff4","r":{"text":"😀\n\naé\n","ranges":[null,null,null,{"from":7,"to":23},null,null,{"from":7,"to":8},{"from":7,"to":9}]}}
+{"k":"64a7344c8922783a","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"64cc058767fd7b57","r":{"text":"aRomans 8:28 \n\n\n\n \n\n\na\n","ranges":[null,null,null,{"from":1,"to":27},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"64ddc5f8348f83c4","r":{"text":"let x = 1\n😀\n\n\n\nlet x = 1\n😀Genesis 1:1","ranges":[null,null,null,{"from":1,"to":45},null,null,{"from":1,"to":2},{"from":34,"to":45},{"from":12,"to":14}]}}
+{"k":"64f8eaa4ab42a1b6","r":{"text":"\nlet x = 1John 3:16😀 code","ranges":[null,null,null,{"from":1,"to":34},null,null,{"from":1,"to":2},{"from":16,"to":25},{"from":27,"to":29}]}}
+{"k":"651ab27e1239fff5","r":{"text":"\n \nJohn 3:16Genesis 1:1","ranges":[null,null,null,{"from":2,"to":30},null,null,{"from":2,"to":3},{"from":19,"to":30},{"from":10,"to":19}]}}
+{"k":"652395c589a76cd8","r":{"text":"Genesis 1:1é","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"6692a0c11752d8c3","r":{"text":"let x = 1\n\n😀\n\n\n\n\n\n\nlet x = 1\n\n😀Genesis 1:1","ranges":[null,null,null,{"from":1,"to":45},null,null,{"from":1,"to":2},{"from":34,"to":45},{"from":12,"to":14}]}}
+{"k":"672f2be45d80b019","r":{"text":"\n\nRomans 8:28 Romans 8:28 \n\n","ranges":[null,null,null,{"from":10,"to":48},null,null,{"from":10,"to":11},{"from":18,"to":29}]}}
+{"k":"678240b9a18ab7f4","r":{"text":"\n\n\n","ranges":[null,null,null,{"from":3,"to":6},null,null,{"from":3,"to":4}]}}
+{"k":"67910d846f79f002","r":{"text":"\n\n\nRomans 8:28 \n\n\n\nJohn 3:16Romans 8:28 Genesis 1:1\n","ranges":[null,null,null,null,null,null,null,{"from":44,"to":55},{"from":23,"to":32},{"from":4,"to":15}]}}
+{"k":"67b99bf068faed71","r":{"text":" a\n","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"67e167e547b500a6","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"680dea10a5532544","r":{"text":"éRomans 8:28 \n","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"68a3b803d02578d8","r":{"text":"let x = 1\nJohn 3:16\n\n\n\né\na\n\n\n\nRomans 8:28 \n\n\n\n","ranges":[null,null,null,{"from":1,"to":54},null,null,{"from":1,"to":2},{"from":12,"to":21},{"from":36,"to":47}]}}
+{"k":"69050422bdc9e133","r":{"text":"\n\n\nlet x = 1\nJohn 3:16\n😀 code","ranges":[null,null,null,{"from":1,"to":34},null,null,{"from":1,"to":2},{"from":16,"to":25},{"from":27,"to":29}]}}
+{"k":"691b01e4929de305","r":{"text":"😀Genesis 1:1\n","ranges":[null,null,null,{"from":2,"to":16},null,null,{"from":2,"to":3},{"from":4,"to":15},{"from":2,"to":4}]}}
+{"k":"69322876a8f18f64","r":{"text":"\n\n\nGenesis 1:1\n\n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16}]}}
+{"k":"69b0c69488aaf3c2","r":{"text":"\n😀\n\n\n\n\n\n\n\n\n\n\nGenesis 1:1éa\n\n\n\n\n\n\n\n😀Genesis 1:1Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":61},null,null,{"from":1,"to":2},{"from":13,"to":24},{"from":49,"to":60},{"from":2,"to":4}]}}
+{"k":"6a904e33be097e18","r":{"text":"\n\n a\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"6af274d12486bf30","r":{"text":"\n\nRomans 8:28 John 3:16\n\n\nRomans 8:28 \n\n\nJohn 3:16é\n","ranges":[null,null,null,null,null,null,null,{"from":15,"to":24},{"from":3,"to":14}]}}
+{"k":"6af6489a96799c10","r":{"text":"\né😀 code\né","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":7,"to":9}]}}
+{"k":"6b34612c6e65ed61","r":{"text":"😀 code","ranges":[null,null,null,{"from":1,"to":8},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"6b42f26747fd5662","r":{"text":"let x = 1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"6b6fb244298ecd3a","r":{"text":"let x = 1😀\n","ranges":[null,null,null,{"from":1,"to":17},null,null,{"from":1,"to":2},{"from":14,"to":16}]}}
+{"k":"6c3eeb87df843889","r":{"text":"John 3:16","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"6ca924c32af36fd8","r":{"text":"aGenesis 1:1 ","ranges":[null,null,null,{"from":9,"to":26},null,null,{"from":9,"to":10},{"from":14,"to":25}]}}
+{"k":"6caaf34fa6a15af0","r":{"text":"\n\n\n\n\n \n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"6cc8513c701f2c71","r":{"text":"\n\n\n\nRomans 8:28 \né\n\n\n\n\n \nlet x = 1","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18}]}}
+{"k":"6d48b7ce9967b6f7","r":{"text":"éa\n","ranges":[null,null,null,{"from":10,"to":13},null,null,{"from":10,"to":11}]}}
+{"k":"6d73c3cd6e39b3d3","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"6d90905697416da8","r":{"text":"\n\na\n\n\n😀\n😀\n\na \n\n\né","ranges":[null,null,null,null,null,null,null,{"from":10,"to":12}]}}
+{"k":"6dbd869768bd4352","r":{"text":"Romans 8:28 \n\n\n\n\naGenesis 1:1\n\n😀\né\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":20,"to":31},{"from":1,"to":12},{"from":35,"to":37}]}}
+{"k":"6e4db9455a0f67c8","r":{"text":"\n\n\n\n\n\n\n\n\n😀Romans 8:28 \n\n\n\n\n\naJohn 3:16Genesis 1:1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":38,"to":49},{"from":29,"to":38},{"from":10,"to":21},{"from":8,"to":10}]}}
+{"k":"6eae98e46cbe54b4","r":{"text":"😀 code","ranges":[null,null,null,{"from":1,"to":8},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"6eb1dd5c56f18895","r":{"text":"\n\nJohn 3:16","ranges":[null,null,null,{"from":4,"to":15},null,null,{"from":4,"to":5},{"from":6,"to":15}]}}
+{"k":"6f2504f30117ee8e","r":{"text":"\n\n\n\nRomans 8:28 \n\n\n\n\n\n\n\nJohn 3:16Romans 8:28 Genesis 1:1\n\n","ranges":[null,null,null,null,null,null,null,{"from":44,"to":55},{"from":23,"to":32},{"from":4,"to":15}]}}
+{"k":"6f6af445a9da34c6","r":{"text":"\n\n\n\nJohn 3:16\n\n\n\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12},{"from":25,"to":27}]}}
+{"k":"6f7a39e729d345e9","r":{"text":"\n\n\n\n\n😀 code\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":18,"to":27},{"from":8,"to":10}]}}
+{"k":"7019d05a67ffb9f4","r":{"text":"\n😀\n\n\n","ranges":[null,null,null,{"from":3,"to":13},null,null,{"from":3,"to":4},{"from":4,"to":6}]}}
+{"k":"70371774cf7fd4f6","r":{"text":"\n\n\n é\n\n\nlet x = 1\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"7040f875bbd51f40","r":{"text":"\n\n Genesis 1:1\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15}]}}
+{"k":"70af25bb1bd88777","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\na\n\n\n\n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":20,"to":29}]}}
+{"k":"70c3de9de19892f6","r":{"text":"\nRomans 8:28 \n","ranges":[null,null,null,{"from":4,"to":18},null,null,{"from":4,"to":5},{"from":5,"to":16}]}}
+{"k":"70e2dd5cf2beb9e7","r":{"text":"\n\n \n\n\n\n\n\n\nGenesis 1:1\n\n😀 code\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":9,"to":20},{"from":24,"to":26}]}}
+{"k":"72001912973ca853","r":{"text":"let x = 1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"726e9ddf48ffe805","r":{"text":"\n\nRomans 8:28 John 3:16Romans 8:28 Genesis 1:1","ranges":[null,null,null,{"from":2,"to":55},null,null,{"from":2,"to":3},{"from":44,"to":55},{"from":23,"to":32},{"from":4,"to":15}]}}
+{"k":"72f575548ea0e84f","r":{"text":"\n\nGenesis 1:1\n\nJohn 3:16\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":18,"to":27}]}}
+{"k":"7301b5b5b30669f3","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"7374b646ab35b2c9","r":{"text":"\nlet x = 1\n\né","ranges":[null,null,null,{"from":2,"to":22},null,null,{"from":2,"to":3}]}}
+{"k":"73b14a46f5915f87","r":{"text":"alet x = 1😀 code","ranges":[null,null,null,{"from":2,"to":24},null,null,{"from":2,"to":3},{"from":17,"to":19}]}}
+{"k":"7443d6f76d4ecd22","r":{"text":"😀 code\n\nJohn 3:16\n\n\n\nRomans 8:28 \n\n\n\n😀 code\n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":57},null,null,{"from":1,"to":2},{"from":10,"to":19},{"from":22,"to":33},{"from":1,"to":3}]}}
+{"k":"7468b8ad1a18c992","r":{"text":"STS BIBLICAL EXAMPLES\n\nINTRODUCTION\n#3 FATHER ABRAHAM Genesis 14:18-20 and Genesis 28:20-22\n#4 DAVID 1 Samuel 17:48-51\nE Esther 2:5-11; Esth 4:14\nHebrews 7:1-7","ranges":[null,null,null,{"from":1,"to":166},null,null,{"from":1,"to":2},{"from":58,"to":74},{"from":106,"to":123},{"from":153,"to":166}]}}
+{"k":"74e4cace5308c68f","r":{"text":"let x = 1\n😀 code","ranges":[null,null,null,{"from":1,"to":33},null,null,{"from":1,"to":2},{"from":26,"to":28}]}}
+{"k":"750cba5cbc6a2832","r":{"text":"\n\n\n\nRomans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"755c1adaca1cf167","r":{"text":"\n\n\n\nRomans 8:28 \n\n\nGenesis 1:1a\n\n😀\n","ranges":[null,null,null,null,null,null,null,{"from":25,"to":36},{"from":7,"to":18},{"from":41,"to":43}]}}
+{"k":"759a0fee3172a194","r":{"text":"😀 code\n\n\n\n\n\n\n\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":30},null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":1,"to":3}]}}
+{"k":"75a87dbbfc6d4a6a","r":{"text":"\n\n\n\n\n\n\na \n\n\n\n\n\nRomans 8:28 Genesis 1:1\n\n\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\n\n\n\n\n😀\n😀","ranges":[null,null,null,{"from":1,"to":72},null,null,{"from":1,"to":2},{"from":26,"to":37},{"from":14,"to":25},{"from":67,"to":69}]}}
+{"k":"7605b9a5d81e35c0","r":{"text":"\n\n😀 code\nlet x = 1\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":4,"to":6}]}}
+{"k":"76531abcffae7efa","r":{"text":"\na\n","ranges":[null,null,null,{"from":3,"to":14},null,null,{"from":3,"to":4}]}}
+{"k":"768145bfcdc36355","r":{"text":"\n \n\n😀\n ","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2},{"from":9,"to":11}]}}
+{"k":"7747e6fe2e01b21b","r":{"text":"\n\n\n\n\n\n\nlet x = 1\n\n\n ","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2}]}}
+{"k":"7855ef79396479a9","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"78574a57aa33ba3d","r":{"text":"John 3:16 \n\n ","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"78702fb360c88fba","r":{"text":"aRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"79dac436e25b9280","r":{"text":"\n\n\n😀\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\né\né\n\n\n\n\n\n\n😀John 3:16","ranges":[null,null,null,null,null,null,null,{"from":33,"to":42},{"from":3,"to":5}]}}
+{"k":"7a2011296c09d5f9","r":{"text":"\n\n\n\n\n😀\n\n\n\n\n\na\n\n\n\n\nGenesis 1:1é ","ranges":[null,null,null,null,null,null,null,{"from":31,"to":42},{"from":8,"to":10}]}}
+{"k":"7a36a735e349367c","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n \n\n\n\n\n\n\n😀\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":21,"to":23}]}}
+{"k":"7ad340866d940af8","r":{"text":"John 3:16😀 code","ranges":[null,null,null,{"from":2,"to":21},null,null,{"from":2,"to":3},{"from":2,"to":11},{"from":14,"to":16}]}}
+{"k":"7aff3266fef0d68e","r":{"text":"\n\n\n\n\n\nJohn 3:16\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":6,"to":15}]}}
+{"k":"7b0c49fecb152f5f","r":{"text":" \n\n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2}]}}
+{"k":"7b1df5cb225e461e","r":{"text":"\n\n\nlet x = 1\n\n\n\n\né","ranges":[null,null,null,null,null,null,null]}}
+{"k":"7b3f4957f7adfb12","r":{"text":"\n","ranges":[null,null,null,{"from":3,"to":4},null,null,{"from":3,"to":4}]}}
+{"k":"7c4b64b7ae1a3806","r":{"text":"\né\nlet x = 1","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2}]}}
+{"k":"7c50626a4895a537","r":{"text":"\n\n\n\n\na\n😀\n\n\n\n\n\n\na\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":8,"to":10}]}}
+{"k":"7c71a69c48bc3997","r":{"text":"\n\n\n\nRomans 8:28 John 3:16\n\n\n\n\nRomans 8:28 \n\n\n\n\n\nJohn 3:16é\n\n","ranges":[null,null,null,null,null,null,null,{"from":15,"to":24},{"from":3,"to":14}]}}
+{"k":"7cd01f7e75b68aee","r":{"text":"\n\n\n\n\n\na\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"7d0c1baf69bc9d31","r":{"text":"\n\n\n\n\n\n\n\n \nGenesis 1:1\n\n\n\n\n\n\n\né\n\n😀 code\n\nlet x = 1","ranges":[null,null,null,null,null,null,null,{"from":9,"to":20},{"from":33,"to":35}]}}
+{"k":"7d1f2a88bd5d0842","r":{"text":"\n😀\nGenesis 1:1éa\n\n😀Genesis 1:1Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":61},null,null,{"from":1,"to":2},{"from":13,"to":24},{"from":49,"to":60},{"from":2,"to":4}]}}
+{"k":"7d52afa584e24fc3","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"7d5fb1bb1c07bf41","r":{"text":"\n\nRomans 8:28 😀\n\nRomans 8:28 \n\n\n😀\n\n\n\n\n\n\nGenesis 1:1 \n\n\n\nRomans 8:28 Genesis 1:1 ","ranges":[null,null,null,null,null,null,null,{"from":52,"to":63},{"from":3,"to":14},{"from":15,"to":17}]}}
+{"k":"7dd4dda694d3d20e","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"7e1b726202333279","r":{"text":"\n\n😀Genesis 1:1é\n😀 codelet x = 1","ranges":[null,null,null,{"from":1,"to":40},null,null,{"from":1,"to":2},{"from":7,"to":18},{"from":3,"to":5}]}}
+{"k":"7e49f092df1974a1","r":{"text":"Genesis 1:1Genesis 1:1","ranges":[null,null,null,{"from":2,"to":24},null,null,{"from":2,"to":3},{"from":2,"to":13}]}}
+{"k":"7ed9a09ab8686e71","r":{"text":"\n\n\n\n \nGenesis 1:1\n\n\n\n\né\n😀 code\nlet x = 1","ranges":[null,null,null,null,null,null,null,{"from":9,"to":20},{"from":33,"to":35}]}}
+{"k":"7f6cb7024d77dd78","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"7fc39940eb6e710b","r":{"text":"\n\na\n\n","ranges":[null,null,null,{"from":3,"to":12},null,null,{"from":3,"to":4}]}}
+{"k":"802729f914272985","r":{"text":"Intro Genesis 1:1\n\n\n\n\n\nFirst John 3:16\n\n\n\nSecond Romans 8:28","ranges":[null,null,null,{"from":1,"to":59},null,null,{"from":1,"to":2},{"from":7,"to":18},{"from":28,"to":37},{"from":48,"to":59}]}}
+{"k":"806d185941ccfb5d","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\né\n\n\n\n\n\n \n\n\n\n\n😀Genesis 1:1","ranges":[null,null,null,{"from":1,"to":36},null,null,{"from":1,"to":2},{"from":25,"to":36},{"from":23,"to":25}]}}
+{"k":"808c178e1b88cec3","r":{"text":"a😀😀 ","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2},{"from":5,"to":7}]}}
+{"k":"80e583e6625d0a5a","r":{"text":"\naGenesis 1:1\nRomans 8:28 \n\n\na\n\n\n","ranges":[null,null,null,{"from":3,"to":58},null,null,{"from":3,"to":4},{"from":5,"to":16},{"from":27,"to":38}]}}
+{"k":"814de6736ec94c98","r":{"text":"\n\n\n \n","ranges":[null,null,null,{"from":1,"to":18},null,null,{"from":1,"to":2}]}}
+{"k":"81691c90b76fcf2c","r":{"text":"\n\n\n\nGenesis 1:1\n\n\n\na\n\n\n\n😀Romans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":35,"to":46},{"from":33,"to":35}]}}
+{"k":"81794b9e651704f0","r":{"text":"\nRomans 8:28 a\n\n","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"821e32a9de6935de","r":{"text":"\n\n\n\n\n\na\n\n\n\n a\n\n😀","ranges":[null,null,null,null,null,null,null,{"from":24,"to":26}]}}
+{"k":"8253a45394a3fe49","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"82c7e5688b56023a","r":{"text":"\n\n😀 code\n\n\n😀\nRomans 8:28 \n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":4,"to":6}]}}
+{"k":"83f53fe50ee66d07","r":{"text":"\n\n\n\n\n\nJohn 3:16 \n\n\n\n\n\n\n\n\n\n\n😀John 3:16\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13},{"from":25,"to":27}]}}
+{"k":"83f6a2955359ec1a","r":{"text":"let x = 1\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":22},null,null,{"from":1,"to":2}]}}
+{"k":"846eef1b14104a08","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n😀\n\néJohn 3:16\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":21,"to":30},{"from":14,"to":16}]}}
+{"k":"84937acd708f6b58","r":{"text":"\n\nRomans 8:28 \n\n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"84ce204801ee78b2","r":{"text":"\n\n\n\n\n\n\na\nlet x = 1","ranges":[null,null,null,null,null,null,null]}}
+{"k":"84e979f55bbbe5b3","r":{"text":"\n\nGenesis 1:1\n\n\n\n\n\n\n\n\n\n\nRomans 8:28 \n\n😀 code\n\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":22,"to":33},{"from":38,"to":40}]}}
+{"k":"8506d6a09a35a9ed","r":{"text":"\n\nGenesis 1:1","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"8511314bf5094738","r":{"text":"\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"851ec5338e277d86","r":{"text":"\néé","ranges":[null,null,null,{"from":2,"to":5},null,null,{"from":2,"to":3}]}}
+{"k":"858fe58345a5afd9","r":{"text":"\n\n\n\n\n\n\nGenesis 1:1John 3:16\n\n\nRomans 8:28 \n","ranges":[null,null,null,null,null,null,null,{"from":13,"to":24},{"from":24,"to":33},{"from":39,"to":50}]}}
+{"k":"860c7e9b5c790f60","r":{"text":"é\n😀","ranges":[null,null,null,{"from":3,"to":17},null,null,{"from":3,"to":4},{"from":15,"to":17}]}}
+{"k":"8655b5d3b05095ea","r":{"text":"\nRomans 8:28 \n","ranges":[null,null,null,{"from":2,"to":16},null,null,{"from":2,"to":3},{"from":3,"to":14}]}}
+{"k":"86d0aab42e790b73","r":{"text":"\n\n\n😀 code\n\nlet x = 1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":4,"to":6}]}}
+{"k":"87202fcef5e26c94","r":{"text":"\n\n\n\nRomans 8:28 \n😀","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":17,"to":19}]}}
+{"k":"874e2541cd2e8112","r":{"text":"\n\n\n\n\n😀 \n\n\n\n \n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":6}]}}
+{"k":"87a0c3459d070fdf","r":{"text":"\n\n\n\n\n\n\n\n \n\n\n\n😀\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":21,"to":23}]}}
+{"k":"8825e7d93d3204e8","r":{"text":"\nlet x = 1\n\n\nGenesis 1:1John 3:16","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26},{"from":26,"to":35}]}}
+{"k":"884d31e0bbe000b5","r":{"text":"\n\n\n\n\n\n\n\n\n😀\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":8,"to":10}]}}
+{"k":"8858ee2116e0710f","r":{"text":"😀 code\n\n\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":30},null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":1,"to":3}]}}
+{"k":"885b36cb0d1cf92e","r":{"text":"John 3:16 \n😀John 3:16\n","ranges":[null,null,null,{"from":4,"to":37},null,null,{"from":4,"to":5},{"from":4,"to":13},{"from":25,"to":27}]}}
+{"k":"885fe8e29d3ad10f","r":{"text":"é😀 codeé\n\n","ranges":[null,null,null,{"from":3,"to":27},null,null,{"from":3,"to":4},{"from":12,"to":14}]}}
+{"k":"887e8fabbc1aa85a","r":{"text":"\n\n\n\n\n\nGenesis 1:1\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16}]}}
+{"k":"8a6571e79bfb75ea","r":{"text":"John 3:16Romans 8:28 \n\n\n\n\n\n\n\nJohn 3:16\n\n\n\n😀\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":10},{"from":10,"to":21},{"from":41,"to":43}]}}
+{"k":"8bbdb37b3f6df291","r":{"text":"\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":2,"to":4}]}}
+{"k":"8bcd4cb5458057ae","r":{"text":"\n\n\n\n\n\n\n\n\n\nlet x = 1\n\n😀 code\n\n\n\n\n\né\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":22,"to":24}]}}
+{"k":"8d261bd79a6853f5","r":{"text":"\na\n😀Romans 8:28 \nGenesis 1:1\n\n\n\né😀","ranges":[null,null,null,null,null,null,null,{"from":22,"to":33},{"from":8,"to":19},{"from":6,"to":8}]}}
+{"k":"8da172bfa72d0cfc","r":{"text":"let x = 1\n\n\n\n\nRomans 8:28 \n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":43},null,null,{"from":1,"to":2},{"from":17,"to":28}]}}
+{"k":"8df11b9b8ae31383","r":{"text":"\n\nGenesis 1:1Genesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13}]}}
+{"k":"8e4118bf7a7fb4f3","r":{"text":"\n\n\n\n\néRomans 8:28  \n\n\n\n\n\n\n\né😀\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":27,"to":29}]}}
+{"k":"8e5d50cf37856307","r":{"text":"\n😀\n","ranges":[null,null,null,{"from":7,"to":11},null,null,{"from":7,"to":8},{"from":8,"to":10}]}}
+{"k":"8ea8f1bc61ef0d1c","r":{"text":"Genesis 1:1\n","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"8fb9e7d16d4b3776","r":{"text":"\n\n é😀\n\nGenesis 1:1a\n\n\n\n\nJohn 3:16\n\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":12,"to":23},{"from":33,"to":42},{"from":50,"to":61},{"from":5,"to":7}]}}
+{"k":"8ffb7ad458cc521d","r":{"text":"\n\n \n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"90042834ad9faef0","r":{"text":"John 3:16Romans 8:28 ","ranges":[null,null,null,{"from":7,"to":28},null,null,{"from":7,"to":8},{"from":7,"to":16},{"from":16,"to":27}]}}
+{"k":"9058c3712a3ddf04","r":{"text":"let x = 1😀 code\n","ranges":[null,null,null,{"from":4,"to":25},null,null,{"from":4,"to":5},{"from":15,"to":17}]}}
+{"k":"9059b00782cc6a74","r":{"text":"\n\n\n\nRomans 8:28 \n\n\n\n\nGenesis 1:1 \n\n😀 code\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":21,"to":32},{"from":3,"to":14},{"from":36,"to":38}]}}
+{"k":"9128e00ee1a7f692","r":{"text":"John 3:16😀 code","ranges":[null,null,null,{"from":3,"to":32},null,null,{"from":3,"to":4},{"from":3,"to":12},{"from":25,"to":27}]}}
+{"k":"915b0df3e33047e7","r":{"text":"\n\n\n\na\n\n\n\n😀\n\n😀\n\n\n\na \n\n\n\n\né","ranges":[null,null,null,null,null,null,null,{"from":10,"to":12}]}}
+{"k":"9167a410cbcc44e0","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"91e31e404d05e3f2","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"9277aba18690815c","r":{"text":"\n😀éJohn 3:16\n\n\n","ranges":[null,null,null,{"from":13,"to":47},null,null,{"from":13,"to":14},{"from":21,"to":30},{"from":14,"to":16}]}}
+{"k":"929a4516b8d5edbd","r":{"text":"\na\n a😀","ranges":[null,null,null,{"from":9,"to":26},null,null,{"from":9,"to":10},{"from":24,"to":26}]}}
+{"k":"92bd360c0c0418ec","r":{"text":"\n\n\n\n\n\nGenesis 1:1😀\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":15,"to":17}]}}
+{"k":"92c53a44f73e9a9f","r":{"text":"\n\n\n\n\n\n\n\n😀\n\n\n\na\n\n\n\n\n\né\n","ranges":[null,null,null,null,null,null,null,{"from":7,"to":9}]}}
+{"k":"931a519674f60242","r":{"text":"\n\na\n\nlet x = 1\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":17,"to":19}]}}
+{"k":"93365f06cd02a1fe","r":{"text":"😀 code\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"93662ad53e7c4007","r":{"text":"\n\nRomans 8:28 \n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":20,"to":29},{"from":3,"to":14}]}}
+{"k":"93b4b163993c92c9","r":{"text":"\néRomans 8:28  é😀\n\n","ranges":[null,null,null,{"from":2,"to":35},null,null,{"from":2,"to":3},{"from":7,"to":18},{"from":27,"to":29}]}}
+{"k":"93c062cc652ce5b1","r":{"text":"\n\n\nRomans 8:28 \n\n😀 code\n\n\n\n\n\né\n\n\n\n\n\n\n\n\n ","ranges":[null,null,null,{"from":1,"to":41},null,null,{"from":1,"to":2},{"from":4,"to":15},{"from":18,"to":20}]}}
+{"k":"94919a6e7c93687c","r":{"text":"a\n","ranges":[null,null,null,{"from":1,"to":3},null,null,{"from":1,"to":2}]}}
+{"k":"94c38b35d9cfaa88","r":{"text":"\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"94db9df37900fbb2","r":{"text":"\nJohn 3:16\n é let x = 1","ranges":[null,null,null,{"from":1,"to":34},null,null,{"from":1,"to":2},{"from":2,"to":11}]}}
+{"k":"964deac417debcb5","r":{"text":"\n\nJohn 3:16\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12},{"from":25,"to":27}]}}
+{"k":"96b4f732486bcf39","r":{"text":"\n\n\n\n\n\n\n\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":18,"to":29}]}}
+{"k":"96bf7e0f8579d3f4","r":{"text":"\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":3,"to":5}]}}
+{"k":"971edd007ccb3762","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"9844b990aae97965","r":{"text":"😀 code\n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"997585d79a4a382b","r":{"text":"😀 code\n\n Romans 8:28 \n","ranges":[null,null,null,{"from":1,"to":25},null,null,{"from":1,"to":2},{"from":12,"to":23},{"from":1,"to":3}]}}
+{"k":"99c934bcb62b142b","r":{"text":"\n\né\n\nlet x = 1\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":20,"to":22}]}}
+{"k":"9ad9749619cd5390","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"9b4d276eb2c098f3","r":{"text":"Romans 8:28 \n","ranges":[null,null,null,{"from":1,"to":18},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"9bac0635b8059298","r":{"text":"let x = 1\n\nlet x = 1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"9c698b70ccd5cfcd","r":{"text":"😀 code","ranges":[null,null,null,{"from":3,"to":10},null,null,{"from":3,"to":4},{"from":3,"to":5}]}}
+{"k":"9c7ccc7c941d9252","r":{"text":"Genesis 1:1Romans 8:28 let x = 1","ranges":[null,null,null,{"from":2,"to":45},null,null,{"from":2,"to":3},{"from":2,"to":13},{"from":21,"to":32}]}}
+{"k":"9c86fed9f0bdbe94","r":{"text":"Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"9c8b7321a7866b9f","r":{"text":"\n\n\n\n\n\n😀 John 3:16\n\n😀 code\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":7,"to":16},{"from":4,"to":6}]}}
+{"k":"9cc2a5bf6d5b648c","r":{"text":"\n\n😀 code\nJohn 3:16","ranges":[null,null,null,{"from":3,"to":27},null,null,{"from":3,"to":4},{"from":18,"to":27},{"from":8,"to":10}]}}
+{"k":"9d6f5a27f6002f27","r":{"text":"😀 code\n\n\n\n Romans 8:28 \n","ranges":[null,null,null,{"from":1,"to":25},null,null,{"from":1,"to":2},{"from":12,"to":23},{"from":1,"to":3}]}}
+{"k":"9e2571501daeed60","r":{"text":"\n\n\n\na\n😀\n\n\n\na\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":8,"to":10}]}}
+{"k":"9ecc196d5e4b8fb8","r":{"text":" \n","ranges":[null,null,null,{"from":7,"to":9},null,null,{"from":7,"to":8}]}}
+{"k":"9f6eebf0254f40e2","r":{"text":"é\nlet x = 1😀 code","ranges":[null,null,null,{"from":3,"to":27},null,null,{"from":3,"to":4},{"from":20,"to":22}]}}
+{"k":"9f71efbbe7bbf466","r":{"text":"\n\n\n😀 \n\n \n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":6}]}}
+{"k":"9fa3fa752141912e","r":{"text":"\nJohn 3:16😀\n\n\n\n","ranges":[null,null,null,{"from":2,"to":23},null,null,{"from":2,"to":3},{"from":6,"to":15},{"from":15,"to":17}]}}
+{"k":"a08dae0ae971a5b3","r":{"text":"\n\n😀Genesis 1:1\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":2,"to":4}]}}
+{"k":"a0c92fc7b8ad0a0f","r":{"text":"\nRomans 8:28 \n\n Genesis 1:1","ranges":[null,null,null,{"from":1,"to":29},null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":2,"to":13}]}}
+{"k":"a0d2368e56ac049e","r":{"text":"😀 code\n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"a0eb87dd197d97da","r":{"text":"éRomans 8:28 \n","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"a0ebbb735a19719d","r":{"text":"\n\nRomans 8:28 \n\n\n\n","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"a1092c2fe598a55f","r":{"text":"\nRomans 8:28 \na\n\n","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"a11640aba331c282","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\na\n\nlet x = 1","ranges":[null,null,null,null,null,null,null]}}
+{"k":"a1418a59d594411a","r":{"text":"\nJohn 3:16\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":12,"to":23},{"from":2,"to":11}]}}
+{"k":"a1c13799880473c2","r":{"text":"\n\n\n\n\n\nlet x = 1","ranges":[null,null,null,null,null,null,null]}}
+{"k":"a1e7cc2b180b1189","r":{"text":"\n\n\n \n\n\n\n😀\n\n\n ","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2},{"from":9,"to":11}]}}
+{"k":"a3bed326264e3ccc","r":{"text":"\n\n\n\nJohn 3:16\n\nGenesis 1:1\n\n\n\nJohn 3:16John 3:16\n😀 code\n\né","ranges":[null,null,null,null,null,null,null,{"from":19,"to":30},{"from":5,"to":14},{"from":58,"to":60}]}}
+{"k":"a3d149f84927e9d4","r":{"text":"\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"a4abfd1244abda3b","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"a4df3e829b95b71f","r":{"text":"\n\n\nGenesis 1:1\n\n😀😀","ranges":[null,null,null,{"from":5,"to":39},null,null,{"from":5,"to":6},{"from":12,"to":23},{"from":35,"to":37}]}}
+{"k":"a5a24f670807f245","r":{"text":"Romans 8:28 \naGenesis 1:1😀\né","ranges":[null,null,null,{"from":1,"to":39},null,null,{"from":1,"to":2},{"from":20,"to":31},{"from":1,"to":12},{"from":35,"to":37}]}}
+{"k":"a5d5fe79fe4abcf9","r":{"text":"\n😀 code😀\nRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":30},null,null,{"from":1,"to":2},{"from":18,"to":29},{"from":4,"to":6}]}}
+{"k":"a604eb81a4867fac","r":{"text":"\n\n\n\n😀\n\n\n\nRomans 8:28 \n\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":14,"to":25},{"from":5,"to":7}]}}
+{"k":"a65a5362b9a47392","r":{"text":"\n😀\n\n\n\n\n\nGenesis 1:1éa\n\n\n\n\n😀Genesis 1:1Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":61},null,null,{"from":1,"to":2},{"from":13,"to":24},{"from":49,"to":60},{"from":2,"to":4}]}}
+{"k":"a73bc4058bb73f04","r":{"text":"let x = 1\n\nRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":28},null,null,{"from":1,"to":2},{"from":16,"to":27}]}}
+{"k":"a825797fcb52f917","r":{"text":"\na \n\nRomans 8:28 Genesis 1:1\n\nGenesis 1:1😀\n😀","ranges":[null,null,null,{"from":1,"to":72},null,null,{"from":1,"to":2},{"from":26,"to":37},{"from":14,"to":25},{"from":67,"to":69}]}}
+{"k":"a82db75a4c9fbcda","r":{"text":"\naGenesis 1:1\n\n\n\né \n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"a8570b8567d6b0ac","r":{"text":" a","ranges":[null,null,null,{"from":2,"to":4},null,null,{"from":2,"to":3}]}}
+{"k":"a862039d40ceb412","r":{"text":"\n\n\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":8,"to":19}]}}
+{"k":"a92e7e39f76a385e","r":{"text":"Genesis 1:1éalet x = 1let x = 1a\nJohn 3:16a\n","ranges":[null,null,null,{"from":3,"to":61},null,null,{"from":3,"to":4},{"from":3,"to":14},{"from":50,"to":59}]}}
+{"k":"a95118b917738c2a","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\naa\n\n\n\na\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"a952ab510a5612b9","r":{"text":"\n\n\nGenesis 1:1😀\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":15,"to":17}]}}
+{"k":"a9809b2c223f06ba","r":{"text":"\nGenesis 1:1","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"aadb5ef34db125d0","r":{"text":"😀 codelet x = 1","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"ab39cd51d72e7c22","r":{"text":"\n\n\n\nGenesis 1:1\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"ab5dacde5302a0b0","r":{"text":"Genesis 1:1\n\n","ranges":[null,null,null,{"from":3,"to":16},null,null,{"from":3,"to":4},{"from":3,"to":14}]}}
+{"k":"ab9b228817a55334","r":{"text":"let x = 1\n\n\n\n\n\nRomans 8:28 \n\n\n\n\n\n\n\n\n ","ranges":[null,null,null,{"from":1,"to":38},null,null,{"from":1,"to":2},{"from":15,"to":26}]}}
+{"k":"aba749dfc3e0a94d","r":{"text":"\n😀","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2},{"from":2,"to":4}]}}
+{"k":"ac21190c83c5bbf8","r":{"text":"Intro Genesis 1:1First John 3:16Second Romans 8:28","ranges":[null,null,null,{"from":1,"to":59},null,null,{"from":1,"to":2},{"from":7,"to":18},{"from":28,"to":37},{"from":48,"to":59}]}}
+{"k":"ac2483016097a785","r":{"text":"\n\nRomans 8:28 \n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"aca91f8647ac2de7","r":{"text":"Genesis 1:1","ranges":[null,null,null,{"from":6,"to":17},null,null,{"from":6,"to":7},{"from":6,"to":17}]}}
+{"k":"acc08b622804576f","r":{"text":"Romans 8:28 \n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":18},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"ada96cf60c628ac7","r":{"text":"\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\n\n\n\n\n\n\n\n\n\néJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":33,"to":42}]}}
+{"k":"adbef8284d7e6a64","r":{"text":"John 3:16\nGenesis 1:1","ranges":[null,null,null,{"from":2,"to":23},null,null,{"from":2,"to":3},{"from":12,"to":23},{"from":2,"to":11}]}}
+{"k":"adfd7f82cd5e1a78","r":{"text":"let x = 1\nlet x = 1\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"ae7721b8a5cb8ee4","r":{"text":"\nGenesis 1:1","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"aea99e8f6a233f83","r":{"text":"\n\n\n\n\n\n\n\n😀\néJohn 3:16\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":21,"to":30},{"from":14,"to":16}]}}
+{"k":"aeace5d45f078552","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"af0aa0585bae79c2","r":{"text":"😀 code","ranges":[null,null,null,{"from":1,"to":8},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"af1d4b5e8bba34ab","r":{"text":"\n\n\n\n\n\n\n\n \n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"af50e29cb1a6f63c","r":{"text":"\n\n \n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"af62b69cc60fd130","r":{"text":"\n\nGenesis 1:1\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":27,"to":29}]}}
+{"k":"affc492e6c5f83c0","r":{"text":"\n\n\n\nRomans 8:28 \n\n😀 code\n\nlet x = 1\n\n😀é\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":19,"to":21}]}}
+{"k":"b00615c75ccc122f","r":{"text":"\né","ranges":[null,null,null,{"from":4,"to":10},null,null,{"from":4,"to":5}]}}
+{"k":"b03600b19ee70cf2","r":{"text":"a\n","ranges":[null,null,null,{"from":1,"to":3},null,null,{"from":1,"to":2}]}}
+{"k":"b1473198753077ea","r":{"text":"\n\n\n\nRomans 8:28 😀\n\n\n\nRomans 8:28 \n\n\n\n\n😀\n\n\n\n\n\n\n\n\n\n\n\nGenesis 1:1 \n\n\n\n\n\n\nRomans 8:28 Genesis 1:1 ","ranges":[null,null,null,null,null,null,null,{"from":52,"to":63},{"from":3,"to":14},{"from":15,"to":17}]}}
+{"k":"b14c8685408bbe9b","r":{"text":"\n😀\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":2,"to":4}]}}
+{"k":"b1bec2ba07cd1987","r":{"text":" élet x = 1","ranges":[null,null,null,{"from":4,"to":23},null,null,{"from":4,"to":5}]}}
+{"k":"b23a5452fc7d60be","r":{"text":"Romans 8:28 \né let x = 1","ranges":[null,null,null,{"from":7,"to":44},null,null,{"from":7,"to":8},{"from":7,"to":18}]}}
+{"k":"b2910a0c9c4164a1","r":{"text":"Genesis 1:1\n\n","ranges":[null,null,null,{"from":3,"to":24},null,null,{"from":3,"to":4},{"from":3,"to":14}]}}
+{"k":"b2bdfd2a42fad75e","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"b316119c77153463","r":{"text":"\n\n\néaaGenesis 1:1\na","ranges":[null,null,null,{"from":3,"to":42},null,null,{"from":3,"to":4},{"from":25,"to":36}]}}
+{"k":"b3243cb5c3c18ac7","r":{"text":" \n\n\n\n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2}]}}
+{"k":"b40849ffd790eb05","r":{"text":"😀\n\n\n\n\n\n\n\n\n\n\n\n\n😀Romans 8:28 \n\n\n\n\n\n😀John 3:16\n\n\n\n\n\n\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\na","ranges":[null,null,null,{"from":1,"to":75},null,null,{"from":1,"to":2},{"from":59,"to":70},{"from":36,"to":45},{"from":16,"to":27},{"from":1,"to":3}]}}
+{"k":"b41aa88eb3aa2d81","r":{"text":"Genesis 1:1😀 codeéJohn 3:16a","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":1,"to":12},{"from":25,"to":34},{"from":14,"to":16}]}}
+{"k":"b4b9bf2fb7180eea","r":{"text":"Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"b4e6aecc4300f1ae","r":{"text":"\n\n\n\n\n\n\n \n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"b545438e6d04f4fe","r":{"text":"\nRomans 8:28 \n\na\n\n","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"b59742a9e2bd251a","r":{"text":"\n\n\n\n\nJohn 3:16\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\né","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13}]}}
+{"k":"b5bc0dbccf1b6f03","r":{"text":"\n\n\n\n😀\n\n\na\n\n\né\n","ranges":[null,null,null,null,null,null,null,{"from":7,"to":9}]}}
+{"k":"b5d69363f6f2044f","r":{"text":"\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"b5f3fda9a5529eec","r":{"text":"\n\n ","ranges":[null,null,null,{"from":5,"to":8},null,null,{"from":5,"to":6}]}}
+{"k":"b66fba12c9fd921d","r":{"text":"😀 code\n\né😀\n\n\n😀a\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"b69379fd2f423012","r":{"text":"let x = 1","ranges":[null,null,null,{"from":12,"to":21},null,null,{"from":12,"to":13}]}}
+{"k":"b7ba0b283b69c43a","r":{"text":"\n\n😀\n\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":4}]}}
+{"k":"b81f9a8a7e90c5c3","r":{"text":"let x = 1😀 code\n\né😀 code","ranges":[null,null,null,{"from":11,"to":45},null,null,{"from":11,"to":12},{"from":22,"to":24}]}}
+{"k":"b82762c7ecbf44ff","r":{"text":"let x = 1","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2}]}}
+{"k":"b885638643945f43","r":{"text":"let x = 1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"b924e7d64275493a","r":{"text":"\n\n\n\nGenesis 1:1\n\n\n\n\n\n\néJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":33,"to":42}]}}
+{"k":"ba400b6f6aa2514d","r":{"text":"Genesis 1:1\nRomans 8:28 😀 code","ranges":[null,null,null,{"from":2,"to":45},null,null,{"from":2,"to":3},{"from":2,"to":13},{"from":22,"to":33},{"from":38,"to":40}]}}
+{"k":"ba56fb96aca2932a","r":{"text":"\n\n\n\nGenesis 1:1John 3:16😀\n\n\n\nJohn 3:16\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":14,"to":23},{"from":23,"to":25}]}}
+{"k":"ba5f33437d6a7bf0","r":{"text":"\n\n\n\n\n\na\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"ba73dba98ab22ff8","r":{"text":"\n\n😀\n\nGenesis 1:1é\n\n\n😀 code\n\nlet x = 1\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":7,"to":18},{"from":3,"to":5}]}}
+{"k":"bbc0492f389bf2bc","r":{"text":"\n\n\nJohn 3:16Romans 8:28 \n\n\n\n\nRomans 8:28 a\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":13},{"from":13,"to":24}]}}
+{"k":"bbdbd2f5dc60e193","r":{"text":"\né\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"bc592180c3432ce7","r":{"text":"\n\n\n\n\n\nJohn 3:16\nGenesis 1:1\n\n\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26},{"from":5,"to":14}]}}
+{"k":"bd1a03152ef71c1c","r":{"text":"\n\n\n\n\n\n\n\n😀 code\n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":18,"to":27},{"from":8,"to":10}]}}
+{"k":"bd6e92474600829f","r":{"text":"\n \n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"bdb98f46ee3dc324","r":{"text":"John 3:16\n\n \na","ranges":[null,null,null,{"from":3,"to":25},null,null,{"from":3,"to":4},{"from":3,"to":12}]}}
+{"k":"bef01bca5dd8bd24","r":{"text":"\n\n\n\n","ranges":[null,null,null,{"from":3,"to":19},null,null,{"from":3,"to":4}]}}
+{"k":"bf299a05399b5a12","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"bfc6f368bcb6bda4","r":{"text":"\n😀\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":2,"to":4}]}}
+{"k":"bfcce4936be147d0","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\nGenesis 1:1John 3:16\n\n\n\n\nRomans 8:28 \n","ranges":[null,null,null,null,null,null,null,{"from":13,"to":24},{"from":24,"to":33},{"from":39,"to":50}]}}
+{"k":"c086b1eccc582c79","r":{"text":"\n\n\n\n\n😀\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":6}]}}
+{"k":"c0cd55a48e9cccfa","r":{"text":"\n\n ","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"c1336b7cd384e0e3","r":{"text":"John 3:16","ranges":[null,null,null,{"from":3,"to":12},null,null,{"from":3,"to":4},{"from":3,"to":12}]}}
+{"k":"c1603e91b216641c","r":{"text":"\n a\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"c19e993b1bf7ebee","r":{"text":"a\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"c1d4126c66e0098f","r":{"text":"\n\nGenesis 1:1","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"c1eec7d40814574a","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"c254b17a368575ef","r":{"text":"\n\n\naJohn 3:16\n\n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":14}]}}
+{"k":"c276812e22b0591c","r":{"text":"Romans 8:28 Genesis 1:1a😀\n","ranges":[null,null,null,{"from":7,"to":44},null,null,{"from":7,"to":8},{"from":25,"to":36},{"from":7,"to":18},{"from":41,"to":43}]}}
+{"k":"c32508309184967e","r":{"text":"\n\n\n\n\n\n é\n\n\n\n\n\nlet x = 1\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"c3bd2d36179d9fb3","r":{"text":"let x = 1\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"c3c21cbfb9d8fd10","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nRomans 8:28 \n\n\n\nRomans 8:28 \n\n","ranges":[null,null,null,null,null,null,null,{"from":18,"to":29}]}}
+{"k":"c3d16495c82e7bd2","r":{"text":"\n\n\n\nRomans 8:28 \n\n\n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":20,"to":29},{"from":3,"to":14}]}}
+{"k":"c49f514caf421ce1","r":{"text":"😀a\n\nGenesis 1:1\na","ranges":[null,null,null,{"from":7,"to":35},null,null,{"from":7,"to":8},{"from":22,"to":33},{"from":7,"to":9}]}}
+{"k":"c5212a5a20419365","r":{"text":"😀 codea\n\n","ranges":[null,null,null,{"from":1,"to":17},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"c57b04a4c699d0c8","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"c59e1a7660b01c0f","r":{"text":"\n\n\n\nRomans 8:28 \n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16}]}}
+{"k":"c639cbdbd19f9729","r":{"text":"\n\nGenesis 1:1\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"c654071e7ccea8cf","r":{"text":"\n\nGenesis 1:1éa\nlet x = 1\nlet x = 1\n\n\na\n\nJohn 3:16a\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":50,"to":59}]}}
+{"k":"c6c2547392a9b3fe","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"c7131692436874ea","r":{"text":"let x = 1","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2}]}}
+{"k":"c730297c09aa22b1","r":{"text":"😀\na\n\n\nGenesis 1:1é ","ranges":[null,null,null,{"from":8,"to":44},null,null,{"from":8,"to":9},{"from":31,"to":42},{"from":8,"to":10}]}}
+{"k":"c73563516920badd","r":{"text":"😀 code\nlet x = 1","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"c7569970bce5ad61","r":{"text":"\n\n\n\n\nGenesis 1:1 \n\n\n\n\n\n\n\nJohn 3:16Romans 8:28 \n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":22,"to":31},{"from":31,"to":42}]}}
+{"k":"c76d0afc034e14fc","r":{"text":"\n\n\n\n \n\n\n\n\n\n\né\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"c7baaf95f515cc91","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\n\n\n\n\n\n\n\n\n😀😀","ranges":[null,null,null,null,null,null,null,{"from":12,"to":23},{"from":35,"to":37}]}}
+{"k":"c81e3ea83027b192","r":{"text":"John 3:16\n","ranges":[null,null,null,{"from":1,"to":11},null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"c826b7c9ffdd51fd","r":{"text":"\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"c86bb566bec4a66b","r":{"text":"😀 codeJohn 3:16Romans 8:28 \n\n😀 codelet x = 1","ranges":[null,null,null,{"from":1,"to":57},null,null,{"from":1,"to":2},{"from":10,"to":19},{"from":22,"to":33},{"from":1,"to":3}]}}
+{"k":"c881c94afec1b128","r":{"text":"\nJohn 3:16\n\n\n\né","ranges":[null,null,null,{"from":3,"to":36},null,null,{"from":3,"to":4},{"from":4,"to":13}]}}
+{"k":"c990bb5141588a1f","r":{"text":" é😀\nGenesis 1:1aJohn 3:16\n\n\nRomans 8:28 ","ranges":[null,null,null,{"from":3,"to":62},null,null,{"from":3,"to":4},{"from":12,"to":23},{"from":33,"to":42},{"from":50,"to":61},{"from":5,"to":7}]}}
+{"k":"ca99596fe9ad80bb","r":{"text":"\n\n\n😀\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":6}]}}
+{"k":"caa90e3a87de8a04","r":{"text":"a\nRomans 8:28 \nlet x = 1\n\n a","ranges":[null,null,null,{"from":1,"to":31},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"cbc8fd432a79a2c2","r":{"text":"é","ranges":[null,null,null,{"from":2,"to":3},null,null,{"from":2,"to":3}]}}
+{"k":"cc5067095067a135","r":{"text":"\n\n\n\né\n\n\n\n\n\n\n\n\n\n\n😀","ranges":[null,null,null,null,null,null,null,{"from":15,"to":17}]}}
+{"k":"cc9d67c3070657f2","r":{"text":"😀 code\n\n\n\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\n\n\n\na\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nJohn 3:16\n\n\n\n","ranges":[null,null,null,{"from":1,"to":71},null,null,{"from":1,"to":2},{"from":17,"to":28},{"from":56,"to":65},{"from":1,"to":3}]}}
+{"k":"ccabda6c11000f8c","r":{"text":"😀 code","ranges":[null,null,null,{"from":1,"to":8},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"ccccb5ca16b2fbd0","r":{"text":"\n \n\n\n\nGenesis 1:1\n😀 code\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":9,"to":20},{"from":24,"to":26}]}}
+{"k":"cce54422fccad7f8","r":{"text":"\n\n\nJohn 3:16😀\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":6,"to":15},{"from":15,"to":17}]}}
+{"k":"cd00cfda493dabcb","r":{"text":"John 3:16\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"cd1bd04286e811a3","r":{"text":"\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"cd5ec3c5dc3e63f0","r":{"text":"let x = 1Romans 8:28 \n\n\n ","ranges":[null,null,null,{"from":1,"to":38},null,null,{"from":1,"to":2},{"from":15,"to":26}]}}
+{"k":"cda8316d726c3f20","r":{"text":"let x = 1","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2}]}}
+{"k":"cdb7b639a87e29bd","r":{"text":"let x = 1\n\n\n\n\né\n\n\n\n\n\né \n\n\n\n \n\n","ranges":[null,null,null,{"from":1,"to":29},null,null,{"from":1,"to":2}]}}
+{"k":"ce018e4c989e945a","r":{"text":"\n\n ","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"ce059adbb5e2533f","r":{"text":"\n\néé","ranges":[null,null,null,null,null,null,null]}}
+{"k":"ce086cf000230d52","r":{"text":"John 3:16\n\n \n\n\n\n\n\n ","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"cf0a75b2067030c8","r":{"text":"\n😀 Genesis 1:1John 3:16\néé\n😀","ranges":[null,null,null,{"from":2,"to":46},null,null,{"from":2,"to":3},{"from":11,"to":22},{"from":22,"to":31},{"from":3,"to":5}]}}
+{"k":"cf5a9a749267771f","r":{"text":"\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"d0a481c39038866d","r":{"text":"Genesis 1:1","ranges":[null,null,null,{"from":5,"to":16},null,null,{"from":5,"to":6},{"from":5,"to":16}]}}
+{"k":"d0e50b273f2f4143","r":{"text":"\nJohn 3:16\n\n\n \n\n\n\n\n\né \n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":34},null,null,{"from":1,"to":2},{"from":2,"to":11}]}}
+{"k":"d0edc17b93a3d13f","r":{"text":"Genesis 1:1\n😀 code\n\néJohn 3:16a\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":12},{"from":25,"to":34},{"from":14,"to":16}]}}
+{"k":"d10f2244bf3f5ea6","r":{"text":"\nRomans 8:28 Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":26},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"d1f71661df7eb11a","r":{"text":"\nGenesis 1:1","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"d239db2ff142952b","r":{"text":"\né","ranges":[null,null,null,null,null,null,null]}}
+{"k":"d2ee76b97f14b911","r":{"text":"\n\nJohn 3:16\n\n é","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12}]}}
+{"k":"d33d2fd6efefd11f","r":{"text":"é😀é\n\nRomans 8:28   é \nGenesis 1:1a\n","ranges":[null,null,null,{"from":1,"to":60},null,null,{"from":1,"to":2},{"from":47,"to":58},{"from":15,"to":26},{"from":6,"to":8}]}}
+{"k":"d39d42697f097d03","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"d3a5d6c448a932da","r":{"text":"John 3:16\nRomans 8:28 \n😀 code","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":1,"to":10},{"from":13,"to":24},{"from":28,"to":30}]}}
+{"k":"d3a79cf0334a41a1","r":{"text":"😀 code\n\n\n\n\n\né\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\né\n\n\n\nGenesis 1:1\n\n","ranges":[null,null,null,{"from":1,"to":49},null,null,{"from":1,"to":2},{"from":36,"to":47},{"from":1,"to":3}]}}
+{"k":"d42e54e8b04d7fe4","r":{"text":"aRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"d4c6dca3539b7a0e","r":{"text":"Genesis 1:1\nlet x = 1","ranges":[null,null,null,{"from":1,"to":24},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"d4cb9e0266f08392","r":{"text":"\n\n\n\n\nJohn 3:16\n\n\néJohn 3:16\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":7,"to":16}]}}
+{"k":"d4ed42372b3878be","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"d4ef40ff7e311dd4","r":{"text":"é\n\n","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"d4f55b89f51a1e15","r":{"text":"\n\n\n\nRomans 8:28 ","ranges":[null,null,null,{"from":2,"to":27},null,null,{"from":2,"to":3},{"from":15,"to":26}]}}
+{"k":"d5fbbfc1d52bc84b","r":{"text":"\na\nlet x = 1\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":17,"to":19}]}}
+{"k":"d6307e3f89abde79","r":{"text":"\n\n\n\né\n\n\n\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":18,"to":20}]}}
+{"k":"d77d1d7cdd6d16f3","r":{"text":"STS BIBLICAL EXAMPLES\n\n\n\nINTRODUCTION\n\n#3 FATHER ABRAHAM Genesis 14:18-20 and Genesis 28:20-22\n\n#4 DAVID 1 Samuel 17:48-51\n\nE Esther 2:5-11; Esth 4:14\n\nHebrews 7:1-7","ranges":[null,null,null,{"from":1,"to":166},null,null,{"from":1,"to":2},{"from":58,"to":74},{"from":106,"to":123},{"from":153,"to":166}]}}
+{"k":"d81522c4eb2370c4","r":{"text":"\n😀","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2},{"from":2,"to":4}]}}
+{"k":"d89fd0d9b139f270","r":{"text":"\n\n\n\n é😀\n\n\nGenesis 1:1a\n\n\n\n\n\n\n\n\n\nJohn 3:16\n\n\n\n\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":12,"to":23},{"from":33,"to":42},{"from":50,"to":61},{"from":5,"to":7}]}}
+{"k":"d8b4446b1d230a5d","r":{"text":"\n\n\n\n\nlet x = 1\n\nJohn 3:16\n\n😀 code","ranges":[null,null,null,{"from":1,"to":34},null,null,{"from":1,"to":2},{"from":16,"to":25},{"from":27,"to":29}]}}
+{"k":"d945036e5dcc1c29","r":{"text":"Genesis 1:1a\n\n😀Romans 8:28 ","ranges":[null,null,null,{"from":7,"to":47},null,null,{"from":7,"to":8},{"from":7,"to":18},{"from":35,"to":46},{"from":33,"to":35}]}}
+{"k":"d95161835f0717f0","r":{"text":"\nGenesis 1:1","ranges":[null,null,null,{"from":3,"to":19},null,null,{"from":3,"to":4},{"from":8,"to":19}]}}
+{"k":"d994f917d3d78db2","r":{"text":"\n\n\n\n\n\n\n\n\n\n\né","ranges":[null,null,null,null,null,null,null]}}
+{"k":"d9a0e1b15d668ff0","r":{"text":"John 3:16\n \n\n\n\n ","ranges":[null,null,null,{"from":1,"to":19},null,null,{"from":1,"to":2},{"from":1,"to":10}]}}
+{"k":"da3b9d6c875351dd","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"da6870933172c95a","r":{"text":"\nGenesis 1:1\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":14,"to":23}]}}
+{"k":"db1d2d4fb4067a48","r":{"text":"\n😀\n\n\n\né\né\n😀John 3:16","ranges":[null,null,null,{"from":2,"to":42},null,null,{"from":2,"to":3},{"from":33,"to":42},{"from":3,"to":5}]}}
+{"k":"db2fcc68220483aa","r":{"text":"\n\n\n\nlet x = 1\n\n😀 code\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":15,"to":17}]}}
+{"k":"db8e641923df076c","r":{"text":"\n\n\nRomans 8:28 \n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"dc76eae9bee71bf5","r":{"text":"\n\n \n\n\n😀\n\n ","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2},{"from":9,"to":11}]}}
+{"k":"dc9426129f2fb3a4","r":{"text":"éRomans 8:28 \n","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"dce3d9ebaacf3423","r":{"text":"\na\n\nJohn 3:16","ranges":[null,null,null,{"from":8,"to":29},null,null,{"from":8,"to":9},{"from":20,"to":29}]}}
+{"k":"dd527c776ec20a1c","r":{"text":"a\n","ranges":[null,null,null,{"from":1,"to":3},null,null,{"from":1,"to":2}]}}
+{"k":"ddc7d647cef9d87d","r":{"text":"\n\n\nJohn 3:16\nGenesis 1:1\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26},{"from":5,"to":14}]}}
+{"k":"deb6d64b682e145f","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"debac1cc7717b03c","r":{"text":"\n\n\n\n\n\n\n\n😀a\n\n\n\n\n\n\n\n\n\nGenesis 1:1\na","ranges":[null,null,null,null,null,null,null,{"from":22,"to":33},{"from":7,"to":9}]}}
+{"k":"df14d813222d0efd","r":{"text":"\n\n\n😀 John 3:16\n😀 code\n\n","ranges":[null,null,null,null,null,null,null,{"from":7,"to":16},{"from":4,"to":6}]}}
+{"k":"e056651098869346","r":{"text":"\nRomans 8:28 Romans 8:28 ","ranges":[null,null,null,{"from":1,"to":26},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"e0a94c39f86fe631","r":{"text":"\n\n\n\nRomans 8:28 Genesis 1:1\n😀 code\n\n\n","ranges":[null,null,null,{"from":1,"to":44},null,null,{"from":1,"to":2},{"from":19,"to":30},{"from":7,"to":18},{"from":33,"to":35}]}}
+{"k":"e10ce1bc79d24930","r":{"text":"\n\n\n\nGenesis 1:1\n\n\n\n\né\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"e11b5a4b6e17d0ec","r":{"text":"aaa\n","ranges":[null,null,null,{"from":14,"to":23},null,null,{"from":14,"to":15}]}}
+{"k":"e1538947644bd6a7","r":{"text":"\n\nJohn 3:16\n\n😀 code\n\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":11},{"from":14,"to":16}]}}
+{"k":"e16728686818464e","r":{"text":"\n\n\n\n\n\n\n\n\n\n\na\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"e1cd294d047c90de","r":{"text":"\n\n\n\n\n \n\n\n\n\n😀\n\na\n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":10,"to":12}]}}
+{"k":"e21874ef5fe3ae2e","r":{"text":"\n😀Genesis 1:1\n","ranges":[null,null,null,null,null,null,null,{"from":4,"to":15},{"from":2,"to":4}]}}
+{"k":"e22248064771a253","r":{"text":"\n\n\n\n\n\n\n\n \n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"e22f1653faebf39b","r":{"text":"\n\né\n\n\n😀 code\n\n\n\né\n\n","ranges":[null,null,null,null,null,null,null,{"from":12,"to":14}]}}
+{"k":"e237b66fe490b64d","r":{"text":"\n\n\n\n\n\n\n\n\n\n\n\n\nlet x = 1\n\n\n\n\n  ","ranges":[null,null,null,null,null,null,null]}}
+{"k":"e239a9bffd0f5a51","r":{"text":"\n\né \n😀Genesis 1:1","ranges":[null,null,null,{"from":1,"to":36},null,null,{"from":1,"to":2},{"from":25,"to":36},{"from":23,"to":25}]}}
+{"k":"e241c4ac71a83c9e","r":{"text":"\n\n\n\n\n\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":15,"to":26}]}}
+{"k":"e2eda24a765dabc4","r":{"text":"\n\n \n\n\n\nJohn 3:16Genesis 1:1\n","ranges":[null,null,null,null,null,null,null,{"from":19,"to":30},{"from":10,"to":19}]}}
+{"k":"e34b2b24a7781169","r":{"text":"John 3:16Romans 8:28 \n\n\n\nJohn 3:16\n\n😀\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":1,"to":10},{"from":10,"to":21},{"from":41,"to":43}]}}
+{"k":"e38f799c7479358c","r":{"text":"\n\n\n\n\n\n\n\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":6,"to":17}]}}
+{"k":"e3a18e4caf92af9e","r":{"text":"\n\n\n\n\n\n\n\nGenesis 1:1éJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":19,"to":28}]}}
+{"k":"e43358c685ab39f9","r":{"text":"\n\nJohn 3:16\nGenesis 1:1","ranges":[null,null,null,null,null,null,null,{"from":12,"to":23},{"from":2,"to":11}]}}
+{"k":"e446e5aa358d25b9","r":{"text":"\n\n\nJohn 3:16\n\n\n é","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12}]}}
+{"k":"e46a00a5077619b7","r":{"text":"Romans 8:28 \n😀","ranges":[null,null,null,{"from":4,"to":19},null,null,{"from":4,"to":5},{"from":4,"to":15},{"from":17,"to":19}]}}
+{"k":"e54eeb074ead750c","r":{"text":"\n \n\n\n\n","ranges":[null,null,null,{"from":3,"to":21},null,null,{"from":3,"to":4}]}}
+{"k":"e5661dfcafe52f95","r":{"text":"\n\nGenesis 1:1","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"e65bf12036272eca","r":{"text":"let x = 1","ranges":[null,null,null,{"from":1,"to":10},null,null,{"from":1,"to":2}]}}
+{"k":"e6a119c2803fe73f","r":{"text":"\nJohn 3:16\n\n \n\n\né \nlet x = 1","ranges":[null,null,null,{"from":1,"to":34},null,null,{"from":1,"to":2},{"from":2,"to":11}]}}
+{"k":"e71d7d02c518b544","r":{"text":"aRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":14},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"e7711870b36b98c3","r":{"text":"\n\n😀\nGenesis 1:1é\n\n😀 code\nlet x = 1\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":7,"to":18},{"from":3,"to":5}]}}
+{"k":"e855ba7323498dc2","r":{"text":"\n\n\n\nGenesis 1:1\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14}]}}
+{"k":"e8569157018643f6","r":{"text":"\n\n\n\n\n\n\né\n\n\n \n\n\n😀Genesis 1:1","ranges":[null,null,null,{"from":1,"to":36},null,null,{"from":1,"to":2},{"from":25,"to":36},{"from":23,"to":25}]}}
+{"k":"e8e86a34f2f89157","r":{"text":"\n\n\n Romans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16}]}}
+{"k":"e967fde27cac46a8","r":{"text":"\n\n\n\nGenesis 1:1éa\n\nlet x = 1\n\nlet x = 1\n\n\n\n\n\na\n\n\nJohn 3:16a\n","ranges":[null,null,null,null,null,null,null,{"from":3,"to":14},{"from":50,"to":59}]}}
+{"k":"e96ddc077713f865","r":{"text":"\n\nGenesis 1:1\n\n\n\n\n\n\n\nRomans 8:28 \n\nlet x = 1\n\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":13},{"from":21,"to":32}]}}
+{"k":"e977d0bd2409d7c1","r":{"text":"\n\n\n\n\n\n\n\n\n\n😀\n\n\n\n\n\n\n\n\n\n\na\n\n\n\n\n\n\nGenesis 1:1é ","ranges":[null,null,null,null,null,null,null,{"from":31,"to":42},{"from":8,"to":10}]}}
+{"k":"eaa8e6be84ee78a1","r":{"text":"\na\nJohn 3:16😀 codeRomans 8:28 é","ranges":[null,null,null,{"from":3,"to":50},null,null,{"from":3,"to":4},{"from":10,"to":19},{"from":34,"to":45},{"from":23,"to":25}]}}
+{"k":"eb0fb2c11e71d062","r":{"text":"\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"eb828be8c53a63a8","r":{"text":"\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"ebb89a24f49d3e08","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"ebe4b9dbaca45f9e","r":{"text":"\n\n\n\nGenesis 1:1éJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":19,"to":28}]}}
+{"k":"ece5115ea7949a2c","r":{"text":"\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"ecf8851905b45fbd","r":{"text":"let x = 1\n\n\n\n\nRomans 8:28 ","ranges":[null,null,null,{"from":1,"to":28},null,null,{"from":1,"to":2},{"from":16,"to":27}]}}
+{"k":"ed3997b2fc4f1fdc","r":{"text":"Genesis 1:1éJohn 3:16","ranges":[null,null,null,{"from":7,"to":28},null,null,{"from":7,"to":8},{"from":7,"to":18},{"from":19,"to":28}]}}
+{"k":"ed66147dd8dae771","r":{"text":"let x = 1\n\n\né\n\n\né \n\n \n\n","ranges":[null,null,null,{"from":1,"to":29},null,null,{"from":1,"to":2}]}}
+{"k":"ed8cffd16a8eb0ca","r":{"text":"é\n\n","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}
+{"k":"edc92d35bb8b9863","r":{"text":"\n\n\n\n\n\n\n\n\n\né\n\n\naaGenesis 1:1\n\n\na\n","ranges":[null,null,null,null,null,null,null,{"from":25,"to":36}]}}
+{"k":"edd7d4e19cfd176f","r":{"text":"\n\n\n\n \n\n\n\n\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"ee5aa10daf86afe0","r":{"text":"\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":3,"to":5}]}}
+{"k":"eeb04b213adf6439","r":{"text":"\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"ef791bc89ae60fe5","r":{"text":"😀 code\n\n😀 code\n\n\n\n\n\n\n\n\n\n\n\n😀\nRomans 8:28 \n\n\n\n\nJohn 3:16\n","ranges":[null,null,null,{"from":1,"to":57},null,null,{"from":1,"to":2},{"from":47,"to":56},{"from":30,"to":41},{"from":1,"to":3}]}}
+{"k":"efc45358032a3f96","r":{"text":"John 3:16\n\nRomans 8:28 \n\n😀 code","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":1,"to":10},{"from":13,"to":24},{"from":28,"to":30}]}}
+{"k":"f0017bff44b6bf01","r":{"text":"\n\n\n\n\n\n\n\n\n\na\n\nGenesis 1:1 ","ranges":[null,null,null,null,null,null,null,{"from":14,"to":25}]}}
+{"k":"f0aa738d5c389340","r":{"text":"😀 code\n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":31},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"f13e8353bdf5fe56","r":{"text":"\n\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"f14252af701ca4db","r":{"text":"\n\n\n\n\n\n\n\nGenesis 1:1\n\n\n\n\n\n\n\na\n\n\n\n\n\n😀Romans 8:28 ","ranges":[null,null,null,null,null,null,null,{"from":7,"to":18},{"from":35,"to":46},{"from":33,"to":35}]}}
+{"k":"f1b2b99658135ab3","r":{"text":"\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"f254d772f9617427","r":{"text":"Genesis 1:1\nJohn 3:16","ranges":[null,null,null,{"from":2,"to":23},null,null,{"from":2,"to":3},{"from":2,"to":13},{"from":14,"to":23}]}}
+{"k":"f27e70bf36fb0fc4","r":{"text":"\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"f2a33b607a3c1b59","r":{"text":" \n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"f3867ee1d8796e20","r":{"text":"\n😀\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":2,"to":4}]}}
+{"k":"f38fcd93fd20d43c","r":{"text":" ","ranges":[null,null,null,{"from":1,"to":2},null,null,{"from":1,"to":2}]}}
+{"k":"f39bf12ef4301c01","r":{"text":"\n\n\nJohn 3:16éJohn 3:16\n","ranges":[null,null,null,{"from":1,"to":38},null,null,{"from":1,"to":2},{"from":7,"to":16}]}}
+{"k":"f3b8a2c1f9607a37","r":{"text":"\n😀\n\n","ranges":[null,null,null,null,null,null,null,{"from":2,"to":4}]}}
+{"k":"f3c74d40539527c2","r":{"text":"\nGenesis 1:1é\n\n😀\n","ranges":[null,null,null,{"from":1,"to":20},null,null,{"from":1,"to":2},{"from":2,"to":13},{"from":17,"to":19}]}}
+{"k":"f3f761867afe9154","r":{"text":"let x = 1\n\n\n\n\n\n\n\n\n\n\n\n\n\n","ranges":[null,null,null,{"from":1,"to":22},null,null,{"from":1,"to":2}]}}
+{"k":"f4099c9c49966660","r":{"text":"let x = 1\n\n\n\n\n\n\n\n\nRomans 8:28 \n\n\nlet x = 1","ranges":[null,null,null,{"from":1,"to":43},null,null,{"from":1,"to":2},{"from":17,"to":28}]}}
+{"k":"f4f8d06b33ed6c65","r":{"text":"\n\n\n\n\n\n\nRomans 8:28 \n","ranges":[null,null,null,null,null,null,null,{"from":5,"to":16}]}}
+{"k":"f51b4167fe47ec08","r":{"text":"let x = 1John 3:16é\na\nRomans 8:28 \n\n","ranges":[null,null,null,{"from":1,"to":54},null,null,{"from":1,"to":2},{"from":12,"to":21},{"from":36,"to":47}]}}
+{"k":"f5c4939b3a5fc347","r":{"text":"😀 code Romans 8:28 \n","ranges":[null,null,null,{"from":1,"to":25},null,null,{"from":1,"to":2},{"from":12,"to":23},{"from":1,"to":3}]}}
+{"k":"f602a673acfe796e","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"f60334d52c9fef74","r":{"text":"\n\n\n\n\n\n\n\nRomans 8:28 \n\n\n\n\n\nGenesis 1:1a\n\n\n\n😀\n","ranges":[null,null,null,null,null,null,null,{"from":25,"to":36},{"from":7,"to":18},{"from":41,"to":43}]}}
+{"k":"f6e7410248b447c7","r":{"text":"😀 codelet x = 1😀 code","ranges":[null,null,null,{"from":1,"to":35},null,null,{"from":1,"to":2},{"from":1,"to":3}]}}
+{"k":"f6f09ae81c566ece","r":{"text":"\nJohn 3:16Romans 8:28 Romans 8:28 a\n","ranges":[null,null,null,{"from":3,"to":59},null,null,{"from":3,"to":4},{"from":4,"to":13},{"from":13,"to":24}]}}
+{"k":"f6ffb3199651f4d4","r":{"text":"STS BIBLICAL EXAMPLESINTRODUCTION#3 FATHER ABRAHAM Genesis 14:18-20 and Genesis 28:20-22#4 DAVID 1 Samuel 17:48-51E Esther 2:5-11; Esth 4:14Hebrews 7:1-7","ranges":[null,null,null,{"from":1,"to":166},null,null,{"from":1,"to":2},{"from":58,"to":74},{"from":106,"to":123},{"from":153,"to":166}]}}
+{"k":"f78a7575b4d5e693","r":{"text":"Romans 8:28 \n\n\n","ranges":[null,null,null,{"from":1,"to":18},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"f78f9a74aed72805","r":{"text":"\n\n\n\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"f7f6f7d29fbdae0e","r":{"text":"\n\n\n\nJohn 3:16","ranges":[null,null,null,null,null,null,null,{"from":3,"to":12}]}}
+{"k":"f83c5582feae9e59","r":{"text":"\n\n😀\n\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":2,"to":4}]}}
+{"k":"f87fa7aa09318a6e","r":{"text":"Genesis 1:1é","ranges":[null,null,null,{"from":1,"to":13},null,null,{"from":1,"to":2},{"from":1,"to":12}]}}
+{"k":"f964d3716d08eaff","r":{"text":"let x = 1\n\n\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2}]}}
+{"k":"f96b63f287d6190e","r":{"text":"aRomans 8:28 \n\n\n\n\n\n\n \n\n\n\n\n\na\n","ranges":[null,null,null,{"from":1,"to":27},null,null,{"from":1,"to":2},{"from":2,"to":13}]}}
+{"k":"fa1b7a46820917fc","r":{"text":"","ranges":[null,null,null,null,null,null,null]}}
+{"k":"fa7226b2928dac6e","r":{"text":"😀 John 3:16😀 code\n","ranges":[null,null,null,{"from":4,"to":30},null,null,{"from":4,"to":5},{"from":7,"to":16},{"from":4,"to":6}]}}
+{"k":"fa848282a8dd9142","r":{"text":"\n\n😀\n\n\n\n\n\n\n\n\n\n\né\né\n\n\n\n😀John 3:16","ranges":[null,null,null,null,null,null,null,{"from":33,"to":42},{"from":3,"to":5}]}}
+{"k":"faea553c443b9163","r":{"text":"let x = 1\n\n\n\n\n\n\n\n\n😀 code","ranges":[null,null,null,{"from":1,"to":33},null,null,{"from":1,"to":2},{"from":26,"to":28}]}}
+{"k":"fb32307e00808f03","r":{"text":"John 3:16Romans 8:28 John 3:16😀","ranges":[null,null,null,{"from":1,"to":43},null,null,{"from":1,"to":2},{"from":1,"to":10},{"from":10,"to":21},{"from":41,"to":43}]}}
+{"k":"fb80bcde57c6fc49","r":{"text":"\nRomans 8:28 😀 codeé\n ","ranges":[null,null,null,{"from":1,"to":41},null,null,{"from":1,"to":2},{"from":4,"to":15},{"from":18,"to":20}]}}
+{"k":"fbb92d8f343120c2","r":{"text":"\n\nlet x = 1\n😀 code\n\n","ranges":[null,null,null,null,null,null,null,{"from":15,"to":17}]}}
+{"k":"fbd896d22e45b513","r":{"text":" \nlet x = 1","ranges":[null,null,null,{"from":1,"to":15},null,null,{"from":1,"to":2}]}}
+{"k":"fc18396e2750e013","r":{"text":"\n\nRomans 8:28 \n😀 code\n\n\né\n\n\n\n\n ","ranges":[null,null,null,{"from":1,"to":41},null,null,{"from":1,"to":2},{"from":4,"to":15},{"from":18,"to":20}]}}
+{"k":"fc36982f7d6038fb","r":{"text":"a\nRomans 8:28 \n\nlet x = 1\n\n\n a","ranges":[null,null,null,{"from":1,"to":31},null,null,{"from":1,"to":2},{"from":3,"to":14}]}}
+{"k":"fcd6ddb8944f0b55","r":{"text":"\n\n\n\n\n\n\n\naa\n\na\n","ranges":[null,null,null,null,null,null,null]}}
+{"k":"fd6fbb844a5eee71","r":{"text":"\n😀\n\n\n😀 code","ranges":[null,null,null,null,null,null,null,{"from":2,"to":4}]}}
+{"k":"fdd6b9e5b06d229a","r":{"text":"\n\n😀\nRomans 8:28 \n😀 code","ranges":[null,null,null,{"from":3,"to":48},null,null,{"from":3,"to":4},{"from":14,"to":25},{"from":5,"to":7}]}}
+{"k":"fe1e6e0afcc00e6a","r":{"text":"\n\n\n\n\n\naRomans 8:28 Romans 8:28 \n\n\n\n","ranges":[null,null,null,null,null,null,null,{"from":11,"to":22}]}}
+{"k":"feffda62f89e5fba","r":{"text":"é\n\n\n😀é\n\n\n\nRomans 8:28  \n\n\n é \n\n\n\n\nGenesis 1:1a\n\n","ranges":[null,null,null,null,null,null,{"from":1,"to":2},{"from":47,"to":58},{"from":15,"to":26},{"from":6,"to":8}]}}
+{"k":"ff320151e2e11d49","r":{"text":"Romans 8:28 \nJohn 3:16","ranges":[null,null,null,{"from":3,"to":29},null,null,{"from":3,"to":4},{"from":20,"to":29},{"from":3,"to":14}]}}
+{"k":"ff32674b6aad916d","r":{"text":"Romans 8:28 😀 code\n\nJohn 3:16","ranges":[null,null,null,{"from":3,"to":39},null,null,{"from":3,"to":4},{"from":30,"to":39},{"from":3,"to":14},{"from":19,"to":21}]}}
+{"k":"ffe73bb1fff69f73","r":{"text":" a\n","ranges":[null,null,null,{"from":1,"to":4},null,null,{"from":1,"to":2}]}}

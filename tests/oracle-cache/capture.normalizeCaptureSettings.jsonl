@@ -1,0 +1,5 @@
+{"fn":"capture.normalizeCaptureSettings","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"1200a73a96d44bb7","r":{"sourceOutputId":"","folder":"","codec":"prores4444","resolution":"1080p","frameRate":30,"bitrateMbps":2,"audioDeviceId":"","audioDeviceName":"device"}}
+{"k":"1826b7fa53814949","r":{"sourceOutputId":"","folder":"","codec":"hevc","resolution":"1080p","frameRate":25,"bitrateMbps":3,"audioDeviceId":"","audioDeviceName":""}}
+{"k":"b8a2851ef31701e2","r":{"sourceOutputId":"","folder":"","codec":"h264","resolution":"1080p","frameRate":30,"bitrateMbps":12,"audioDeviceId":"","audioDeviceName":""}}
+{"k":"f9bf09f441cc1f75","r":{"sourceOutputId":"","folder":"","codec":"h264","resolution":"720p","frameRate":60,"bitrateMbps":100,"audioDeviceId":"","audioDeviceName":""}}
