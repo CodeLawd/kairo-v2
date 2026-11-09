@@ -1,0 +1,121 @@
+{"fn":"lyrics-duplicate.lyricFingerprint","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"006be5ed0db897f6","r":{"$oracle":"set","value":["modupe o","five","two"]}}
+{"k":"0266f7f27899c99b","r":{"$oracle":"set","value":["four","three"]}}
+{"k":"02c9400b92aa5d1c","r":{"$oracle":"set","value":[]}}
+{"k":"05b9ba528cd4a847","r":{"$oracle":"set","value":["one","five","modupe o","three"]}}
+{"k":"0a7bb659ceddf5f3","r":{"$oracle":"set","value":["one","four","two"]}}
+{"k":"0aa1aa1c855cd9f0","r":{"$oracle":"set","value":["three","ese","two","four"]}}
+{"k":"0f7071901afe4878","r":{"$oracle":"set","value":["two"]}}
+{"k":"0fcd7f7b0633d51c","r":{"$oracle":"set","value":[]}}
+{"k":"114beec84860453e","r":{"$oracle":"set","value":["ese","two"]}}
+{"k":"116294e67c6107d8","r":{"$oracle":"set","value":["one","two","ese"]}}
+{"k":"1375dbc7c116392f","r":{"$oracle":"set","value":[]}}
+{"k":"13df2c644cceeff9","r":{"$oracle":"set","value":["four"]}}
+{"k":"15e25df11b558066","r":{"$oracle":"set","value":["three","five"]}}
+{"k":"190b2bb53e6acfbb","r":{"$oracle":"set","value":["two"]}}
+{"k":"1e97c0bca25be769","r":{"$oracle":"set","value":[]}}
+{"k":"2003f5cb6ed7abee","r":{"$oracle":"set","value":[]}}
+{"k":"203c2422583046b7","r":{"$oracle":"set","value":["one","ese","four"]}}
+{"k":"20eeab977f66c1e1","r":{"$oracle":"set","value":["ese","four"]}}
+{"k":"249e0be59a6c6f3d","r":{"$oracle":"set","value":[]}}
+{"k":"26308573880ea09a","r":{"$oracle":"set","value":[]}}
+{"k":"26683996da0cedce","r":{"$oracle":"set","value":["ese","three"]}}
+{"k":"26947cf41474db9a","r":{"$oracle":"set","value":[]}}
+{"k":"29033593cb2014ec","r":{"$oracle":"set","value":[]}}
+{"k":"2a11d0f1bb3cd3d1","r":{"$oracle":"set","value":[]}}
+{"k":"2aea01a91d53f330","r":{"$oracle":"set","value":["ese"]}}
+{"k":"2bc29bef27daf606","r":{"$oracle":"set","value":["five","ese","three"]}}
+{"k":"2c828b4f502e6cf1","r":{"$oracle":"set","value":["modupe o"]}}
+{"k":"2cc7a349f53c6dc2","r":{"$oracle":"set","value":["ese","four"]}}
+{"k":"2cf172ed347f045f","r":{"$oracle":"set","value":[]}}
+{"k":"2d9691c31a5c2b53","r":{"$oracle":"set","value":[]}}
+{"k":"32b76442031a7eb5","r":{"$oracle":"set","value":["five","two","one"]}}
+{"k":"3609bc7c2e2d2526","r":{"$oracle":"set","value":["one","two"]}}
+{"k":"3719d3e616d7e377","r":{"$oracle":"set","value":[]}}
+{"k":"374f201d8fb97b66","r":{"$oracle":"set","value":[]}}
+{"k":"38c0f540928697fa","r":{"$oracle":"set","value":["five","ese","three"]}}
+{"k":"3b6ee7493af50590","r":{"$oracle":"set","value":["two"]}}
+{"k":"3ce96954b3fc976f","r":{"$oracle":"set","value":[]}}
+{"k":"3d4d268f613c9320","r":{"$oracle":"set","value":["three","five"]}}
+{"k":"426e55e4021249f7","r":{"$oracle":"set","value":["two","five","ese","three"]}}
+{"k":"47306fcb6fcc2f7d","r":{"$oracle":"set","value":[]}}
+{"k":"4abbda57615656eb","r":{"$oracle":"set","value":["four","five","ese"]}}
+{"k":"4bd56c7b320e9128","r":{"$oracle":"set","value":[]}}
+{"k":"4e1173c393944bc5","r":{"$oracle":"set","value":["one"]}}
+{"k":"50f94722eae6e32e","r":{"$oracle":"set","value":["one","two","ese"]}}
+{"k":"51ad990e486ba0f4","r":{"$oracle":"set","value":[]}}
+{"k":"51fe5129f91654d6","r":{"$oracle":"set","value":[]}}
+{"k":"53ede539b4207468","r":{"$oracle":"set","value":["one","ese","four"]}}
+{"k":"5a7471be12141599","r":{"$oracle":"set","value":["one","ese","four"]}}
+{"k":"5e389ba320d06fca","r":{"$oracle":"set","value":["four"]}}
+{"k":"5e4e8a669d5f43e4","r":{"$oracle":"set","value":["ese"]}}
+{"k":"60c15757ea28e0a4","r":{"$oracle":"set","value":["three","four","one"]}}
+{"k":"60e2812314096638","r":{"$oracle":"set","value":["five"]}}
+{"k":"63486ca8419917d3","r":{"$oracle":"set","value":[]}}
+{"k":"67ee865c6610da8a","r":{"$oracle":"set","value":["one","ese","four"]}}
+{"k":"688af4ae56fb6fd9","r":{"$oracle":"set","value":[]}}
+{"k":"6c0b42e5245ecd5e","r":{"$oracle":"set","value":["two","one","ese","three","modupe o","five"]}}
+{"k":"6c4c16ba12e8c43b","r":{"$oracle":"set","value":["one","five"]}}
+{"k":"6c89384b5388118d","r":{"$oracle":"set","value":[]}}
+{"k":"6f0a4225067d2edd","r":{"$oracle":"set","value":[]}}
+{"k":"76a1226a484b130d","r":{"$oracle":"set","value":[]}}
+{"k":"774a80c1fd1ffb60","r":{"$oracle":"set","value":["one","two"]}}
+{"k":"7a54dd4eb2fec3c7","r":{"$oracle":"set","value":["one"]}}
+{"k":"7a9c2d34667fec41","r":{"$oracle":"set","value":["modupe o"]}}
+{"k":"7e58b9e6c6cd82fa","r":{"$oracle":"set","value":[]}}
+{"k":"7e88e0de046d7a8f","r":{"$oracle":"set","value":[]}}
+{"k":"803717fc2c3682c6","r":{"$oracle":"set","value":["two","ese"]}}
+{"k":"83224df07c1328e3","r":{"$oracle":"set","value":[]}}
+{"k":"86456697b3009cf6","r":{"$oracle":"set","value":[]}}
+{"k":"899458ffd1820e33","r":{"$oracle":"set","value":[]}}
+{"k":"8dc31fa06296f4d6","r":{"$oracle":"set","value":["ese","four"]}}
+{"k":"962a6e932700407c","r":{"$oracle":"set","value":["modupe o","five","two"]}}
+{"k":"9680e4aabb7f0e49","r":{"$oracle":"set","value":[]}}
+{"k":"96b410471c02b7c6","r":{"$oracle":"set","value":["three"]}}
+{"k":"983f019f72db88e7","r":{"$oracle":"set","value":["four"]}}
+{"k":"9b57e25d73572111","r":{"$oracle":"set","value":["two"]}}
+{"k":"9d33204d500ce8bc","r":{"$oracle":"set","value":["ese","two"]}}
+{"k":"9edd016eae950e26","r":{"$oracle":"set","value":[]}}
+{"k":"a26a282ac9c7e9a7","r":{"$oracle":"set","value":["ese","four"]}}
+{"k":"a27bd11fe324394c","r":{"$oracle":"set","value":["two","one","ese","three","modupe o","five"]}}
+{"k":"a80c448fdda634cb","r":{"$oracle":"set","value":[]}}
+{"k":"a8ef8c404f63b700","r":{"$oracle":"set","value":[]}}
+{"k":"a9466fcf21cdfd49","r":{"$oracle":"set","value":[]}}
+{"k":"aac5a07066a17c16","r":{"$oracle":"set","value":[]}}
+{"k":"af4cf56ff4e9a445","r":{"$oracle":"set","value":["modupe o","five","one","two","three"]}}
+{"k":"b35adc79d21a0770","r":{"$oracle":"set","value":[]}}
+{"k":"b7ce9dcc66abd171","r":{"$oracle":"set","value":["modupe o"]}}
+{"k":"b855b6388040e438","r":{"$oracle":"set","value":[]}}
+{"k":"b959875662676546","r":{"$oracle":"set","value":["ese"]}}
+{"k":"be7909e3a7278507","r":{"$oracle":"set","value":["two","five","ese","three"]}}
+{"k":"be9cf15aef43f1d0","r":{"$oracle":"set","value":[]}}
+{"k":"c02d83e023c68871","r":{"$oracle":"set","value":["one","five"]}}
+{"k":"c3107b9c89c42808","r":{"$oracle":"set","value":[]}}
+{"k":"c4ef7c5a160098f3","r":{"$oracle":"set","value":["modupe o","five","one","two","three"]}}
+{"k":"cdcc7a93372cad5c","r":{"$oracle":"set","value":[]}}
+{"k":"cfd50dd850827ccb","r":{"$oracle":"set","value":["five"]}}
+{"k":"d00b3322b88ad4a5","r":{"$oracle":"set","value":["four","five","ese"]}}
+{"k":"d2c806a057704e74","r":{"$oracle":"set","value":["three","four","one"]}}
+{"k":"d2e7fd336cf93219","r":{"$oracle":"set","value":[]}}
+{"k":"d3099e894c305226","r":{"$oracle":"set","value":["four"]}}
+{"k":"d369d2164b722325","r":{"$oracle":"set","value":["five"]}}
+{"k":"d67d02493370b2ac","r":{"$oracle":"set","value":["ese"]}}
+{"k":"d6ca44fba2623264","r":{"$oracle":"set","value":["five"]}}
+{"k":"d80164ef3bd41f26","r":{"$oracle":"set","value":["three"]}}
+{"k":"d8cca09f6821647e","r":{"$oracle":"set","value":[]}}
+{"k":"db1bdd142dec4cc6","r":{"$oracle":"set","value":["ese","three"]}}
+{"k":"ddad8f393838db2d","r":{"$oracle":"set","value":["ese","three"]}}
+{"k":"ddd66d539e9940dc","r":{"$oracle":"set","value":["ese","five"]}}
+{"k":"dec1784fc8d3d6b1","r":{"$oracle":"set","value":["ese","three"]}}
+{"k":"dec4cf4bc2a1fe72","r":{"$oracle":"set","value":["three","ese","two","four"]}}
+{"k":"e0a9b0bd76bdddba","r":{"$oracle":"set","value":["ese","five"]}}
+{"k":"e71dc7133d5a2947","r":{"$oracle":"set","value":["modupe o"]}}
+{"k":"eaadcac02a05fa01","r":{"$oracle":"set","value":["four","three"]}}
+{"k":"ead5ad8f188f2454","r":{"$oracle":"set","value":[]}}
+{"k":"ec12776e7ce3ea8d","r":{"$oracle":"set","value":["one","five","modupe o","three"]}}
+{"k":"eec81b5286b17303","r":{"$oracle":"set","value":["one","four","two"]}}
+{"k":"f46f7438a0269ad6","r":{"$oracle":"set","value":["two","ese"]}}
+{"k":"fad24c518ee566ea","r":{"$oracle":"set","value":[]}}
+{"k":"fb328baf60ccca93","r":{"$oracle":"set","value":["five","two","one"]}}
+{"k":"fbd8e609aa3e7649","r":{"$oracle":"set","value":[]}}
+{"k":"fda91f59d8e159e8","r":{"$oracle":"set","value":[]}}

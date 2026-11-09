@@ -1,4 +1,24 @@
-//! Songs and lyric imports, from `src/lib/ipc.ts` and `src/lib/lyrics-duplicate.ts`.
+//! Songs and lyric imports, from `src/lib/ipc.ts` and `src/lib/lyrics-duplicate.ts`
+//! (types, prompt 012), and the pure song logic of `src/lib/lyrics-*.ts` and
+//! `src/lib/rtf-text.ts` (prompt 014), one submodule per TypeScript file.
+//!
+//! Where TypeScript exposes string offsets or lengths they are UTF-16 code
+//! units, as in JavaScript; see [`js_text`] for the rest of the string rules.
+
+pub mod clipboard;
+pub mod duplicate;
+pub mod hotkeys;
+mod js_text;
+pub mod online_error;
+pub mod query;
+pub mod reflow;
+pub mod reorder;
+pub mod rtf;
+pub mod section_edit;
+pub mod section_json;
+pub mod slides;
+pub mod style;
+pub mod translate;
 
 use crate::serde_util::{Extra, present, required, string_enum};
 use serde::{Deserialize, Serialize};

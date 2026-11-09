@@ -194,3 +194,21 @@ Decision: `kairo-domain` ports every persisted and exchanged data type in the pr
 9. Oracle helpers: the runner now reads exported constants (no arguments) and loads `oracle:<name>` modules from `tools/ts-oracle/modules`. `settings-defaults.ts` evaluates the `defaults` literal from `src/main/db/index.ts` with the TypeScript compiler, and builds a fresh-install file with theme ids and time pinned. Cache file names replace `:` and `/` for Windows.
 
 Affects prompts: 013 to 016, 021, and every prompt that reads or writes these types.
+
+## 2026-11-09 — 014 — Match JavaScript lyric text operations in Rust
+
+Lyrics use UTF-16 code units where Electron exposes offsets or measures line
+length. Rust strings preserve paired surrogates as Unicode scalars. RTF and
+cursor-splitting operations work in UTF-16 first so they can handle offsets
+inside a surrogate pair.
+
+The translation helpers implement the repeated-character backreference with
+an ASCII scan after key normalization. The glued section label lookahead
+checks the following character explicitly. Neither pattern needs
+`fancy-regex`.
+
+Keep the source test cases that exercise service behavior with the code they
+test. Prompt 024 owns `workspace-song-file.test.ts`, prompt 040 owns
+`lyrics-usr-title.test.ts` and its file-import path, and prompts 040/041
+own the canonicalization and online-ranking assertions in
+`lyrics-multilingual-search.test.ts`.
