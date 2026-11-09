@@ -1,6 +1,7 @@
-//! Where Kairo keeps things and how it starts, logs and fails (prompt 020).
-//! Settings, secrets, SQLite and workspace files follow in prompts 021 to 024.
+//! Where Kairo keeps things and how it starts, logs and fails.
 //!
+//! - [`db`]: SQLite workers, profile seeding and read-only pack validation.
+//! - [`secrets`]: protected data keys and Electron-compatible encrypted payloads.
 //! - [`paths`]: every folder Electron's `app.getPath` gives, for the same profile.
 //! - [`logging`]: `tracing` into electron-log's folder.
 //! - [`crash`]: the panic hook, recovery snapshot and local crash ledger.
@@ -11,10 +12,15 @@
 
 pub mod build_config;
 pub mod crash;
+pub mod db;
 pub mod instance;
+pub mod json_store;
+pub mod json_text;
 pub mod launch;
 pub mod logging;
 pub mod paths;
+pub mod secrets;
+pub mod settings;
 
 /// `app.getLocale()`: the system's preferred locale as a BCP 47 tag, such as
 /// `en-US`. Falls back to `en-US`, Chromium's default, when the system says nothing.

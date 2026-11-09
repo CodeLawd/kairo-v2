@@ -64,18 +64,31 @@ impl CrashLedger {
     }
 }
 
-/// Writes `bytes` to `path` through a temporary file and a rename, so a
-/// crash during the write never leaves a half-written file.
+/// Writes `bytes` to `path` crash-safely: a temporary file in the same
+/// folder, `fsync`, then a rename over the old file (and, on Unix, an `fsync`
+/// of the folder so the rename itself survives power loss). A failure at any
+/// point leaves the old file whole.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    let tmp = path.with_extension(format!("tmp-{}", std::process::id()));
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let dir = path
+        .parent()
+        .filter(|d| !d.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    std::fs::create_dir_all(dir)?;
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
+    let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp = dir.join(format!(".{name}.tmp-{}-{n}", std::process::id()));
     let result = (|| {
         let mut file = std::fs::File::create(&tmp)?;
         file.write_all(bytes)?;
         file.sync_all()?;
-        std::fs::rename(&tmp, path)
+        drop(file);
+        std::fs::rename(&tmp, path)?;
+        #[cfg(unix)]
+        if let Ok(folder) = std::fs::File::open(dir) {
+            let _ = folder.sync_all();
+        }
+        Ok(())
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(&tmp);

@@ -278,3 +278,104 @@ Decision: `kairo-store` holds `paths`, `logging`, `crash`, `instance`, `launch`,
 8. `main-window.ts` (dialog parent) is GPUI window management, so it goes to the shell prompt (070), not here. Usage counting of uncaught errors (`usageService.trackError`) goes to the usage prompt.
 
 Affects prompts: 021 to 025, 032, 050, 070.
+
+## 2026-11-09 — 022 — Electron OS-crypt and native data keys
+
+The Electron dependency is `^33.2.0`. The installed verification runtime reports
+Electron 33.4.11 and Chromium 130.0.6723.191. Electron wraps a base64-encoded
+32-byte data key in `safeStorage`. Both Kairo stores then use AES-256-GCM with
+a 12-byte nonce, a 16-byte tag and no associated data. JSON and SQLite carry the
+ciphertext, IV and tag in separate base64 fields.
+
+- macOS `v10` uses the application's Safe Storage generic-password item.
+  Chromium derives a 128-bit AES key with PBKDF2-HMAC-SHA1, salt `saltysalt`,
+  and 1,003 iterations. The payload is CBC with PKCS#7 padding and a 16-space
+  IV. The signed application's keychain access control can prompt the operator
+  when the native executable first reads the item. [Chromium macOS OS-crypt](https://raw.githubusercontent.com/chromium/chromium/130.0.6723.191/components/os_crypt/sync/os_crypt_mac.mm)
+- Windows `v10` uses a 12-byte nonce followed by AES-256-GCM ciphertext and
+  tag. Its Chromium key is in `Local State` under `os_crypt.encrypted_key` as
+  base64 of a `DPAPI` marker and the protected key. Legacy unversioned blobs
+  go directly to DPAPI. Electron reads Local State from session data, which
+  defaults to userData. [Chromium Windows OS-crypt](https://raw.githubusercontent.com/chromium/chromium/130.0.6723.191/components/os_crypt/sync/os_crypt_win.cc), [Electron browser process](https://raw.githubusercontent.com/electron/electron/v33.4.11/shell/browser/browser_process_impl.cc)
+- Linux `v10` uses the basic-text password. `v11` uses the selected desktop
+  backend's password. Chromium derives the CBC key using the same salt and
+  IV as macOS with one PBKDF2 iteration. Electron reports the selected backend,
+  which can include Secret Service or a KWallet variant. [Chromium Linux OS-crypt](https://raw.githubusercontent.com/chromium/chromium/130.0.6723.191/components/os_crypt/sync/os_crypt_linux.cc), [Electron safeStorage](https://github.com/electron/electron/blob/v33.4.11/shell/browser/api/electron_api_safe_storage.cc)
+
+Decision: Keep Electron's wrapped key files for rollback. Rewrap recovered data
+keys in profile-specific native keyring entries. Keep cloud credentials and
+licensed-text cache keys separate. Account, settings and scripture service
+callers consume these persistence APIs in prompts 021, 030 and 034.
+
+## 2026-11-09 — 023 — SQLite ownership
+
+Decision: Use bundled SQLite with FTS5 and keep Electron's schema and tokenizer
+declarations. Own connections on dedicated threads with bounded async queues.
+Install the seed with an atomic no-clobber publish, and open standalone pack
+files read-only and immutable for validation. Domain query services and pack
+installation are owned by the later scripture and lyrics prompts.
+
+### 022 verification and recovery
+
+On macOS the fixture used a unique ad-hoc signed Electron app and a disposable
+userData directory. A separately signed Rust test executable opened both
+legacy wraps, read the encrypted token and verse, then reopened the credential store
+using its native keyring entry. The legacy wraps remained in place and
+the test cleaned up its fixture keychain entries. macOS may show an Allow
+prompt when the executable's signature changes. The dialog itself was not
+captured. Run the opt-in `real_macos_electron_profile_survives_migration` test
+with the profile produced by `crates/kairo-store/tests/fixtures/electron-secure-profile.cjs`
+inside a uniquely named `KairoMigrationFixture-*` test bundle.
+
+The cloud store returns no remembered sign-in on a keychain or read failure.
+Corrupt JSON, malformed payload fields, invalid authentication, and unusable
+keys discard the affected credential. Writes use private atomic replacement.
+The notice is the existing credentials notice. The API.Bible cache stays
+disabled when protected storage is unavailable. A missing or unusable data
+key triggers removal of the old cache and side files before installing a
+replacement key. This runs once under exclusive profile ownership before
+opening SQLite connections. A cleanup failure leaves the new key unset for
+retry. Callers can surface the same notice when cache data was discarded.
+
+The Windows implementation tries DPAPI with Local State or the legacy
+direct envelope. The Linux implementation reads Secret Service or an
+already-running KWallet daemon for `v11`, and accepts Chromium's `v10`
+basic-text wrapper for import into a protected native entry. Windows and Linux
+runtime migration and permission behavior still need platform runs. The native
+settings setter blanks incoming provider keys. The cloud session startup in
+030 can reuse `retire_provider_keys` to blank old values from both the
+`stt` and `lyrics` sections without disturbing unrelated settings.
+
+### 023 validation boundaries
+
+An absent bundled seed starts an empty Bible database with canonical books.
+An existing destination takes precedence, including across upgrades. Copy,
+open, schema, and worker failures are returned to callers. SQLite replays
+committed WAL frames on reopen and drops an interrupted transaction. A
+read-only pack is validated against fixed SQL, SQLite integrity checking and
+canonical verse numbering, including translation overrides. A nonempty WAL
+is rejected because an immutable connection would ignore those frames. The
+quote index uses an in-memory database and in-memory temporary storage.
+
+The layer owns schema and connection errors, seed installation, pack file and
+row validation, and cache table cleanup. Search fallback, API cache coverage
+and freshness, pack download and decompression, and lyrics folder and import
+operations remain with the consuming services. The TypeScript development
+seed, pack build and import tools stay in the Electron checkout.
+
+## 2026-11-09 — 021 — Settings store and migrations
+
+Decision: `kairo-store::json_store` is one electron-store-compatible store for every file; `kairo-store::settings` runs the `db/index.ts` launch repairs in order and gives `settings:get`, `settings:set` and `settings:getAll`.
+
+1. Files are compared with Electron as JSON values, not byte for byte. Values, number text and layout (`JSON.stringify(value, undefined, '\t')`) match; object key order may not. Electron keeps whatever key order its input had (`normalizePresentationSettings` spreads stored objects, built-in themes keep their literal's order), and typed Rust values cannot. Key order has no meaning to either app's reader, and the oracle already ignores it (011).
+2. Values stay in memory after opening; electron-store re-reads the file on every `get`. Only Kairo writes the file while it runs (single instance, 020).
+3. Writes run on a per-store background thread: a set updates memory and queues the newest snapshot; a burst becomes one write; `flush` waits. Each write is a temporary file in the same folder, `fsync`, rename and a folder `fsync` on Unix. Temporary files left by a killed write are removed when the store next opens.
+4. A file that is not valid JSON is kept as `<name>.corrupt-<time>.json` and the store starts from its defaults. Electron throws and does not start; refusing to start over a bad settings file is worse during a service.
+5. A failed write (full disk, read-only folder) is logged and kept in `last_write_error`; values stay in memory and the app runs. Electron throws. A read-only *file* in a writable folder saves in both apps, because a rename replaces it.
+6. Hostile shapes Electron crashes on (`stt: null` reads `null.llmProvider`) are read as empty objects (`{...value}` semantics), so the repair completes.
+7. `settings:set` returns `SettingsEffect`s (reconcile outputs, broadcast settings, sync the church profile, apply scripture, prune props) instead of calling services, which belong to later prompts. Secrets for `stt` and `lyrics` are merged with `clearKeys` and then stored blank, as Electron does; `secretsConfigured` is passed in from the licence (032).
+8. `kjvDefaultV1` is `SettingsStore::migrate_unreadable_nkjv_default`, taking a `PostOpenServices` that answers whether a Bible pack is installed. Prompt 067 calls it at app ready, before the window loads, where `src/main/index.ts` runs it. Not wired yet: no scripture service exists.
+9. `ui-state.json` is a plain store (no defaults) for view preferences Electron kept in `localStorage`; prompt 100 fills it.
+10. The oracle can now run the Electron app's real startup: `oracle:settings-launch.launch` runs `src/main/db/index.ts` in a child Node process with `electron` and `electron-log` stubbed (`tools/ts-oracle/modules/electron-launch/`) and `Date.now` and `crypto.randomUUID` pinned. The pinned ids match, which also proves the repairs call for ids in Electron's order (`normalizeThemeLibrary` makes a default id on every call).
+
+Affects prompts: 022 to 025, 032, 067, 100.
