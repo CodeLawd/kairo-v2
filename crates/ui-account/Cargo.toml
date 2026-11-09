@@ -1,0 +1,5 @@
+[package]
+name = "ui-account"
+version.workspace = true
+edition.workspace = true
+publish = false

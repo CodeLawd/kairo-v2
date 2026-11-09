@@ -1,0 +1,8 @@
+[package]
+name = "kairo"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+gpui-kit.workspace = true

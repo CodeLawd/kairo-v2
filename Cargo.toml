@@ -1,0 +1,51 @@
+[workspace]
+resolver = "2"
+members = [
+    "apps/kairo",
+    "apps/kairo-engine",
+    "crates/kairo-domain",
+    "crates/kairo-store",
+    "crates/kairo-net",
+    "crates/kairo-core",
+    "crates/kairo-core-gpui",
+    "crates/kairo-cloud",
+    "crates/kairo-scripture",
+    "crates/kairo-stt",
+    "crates/kairo-lyrics",
+    "crates/kairo-media",
+    "crates/kairo-documents",
+    "crates/kairo-audience",
+    "crates/kairo-transfer",
+    "crates/kairo-updater",
+    "crates/kairo-engine-proto",
+    "crates/kairo-scene",
+    "crates/kairo-compositor",
+    "crates/kairo-video",
+    "crates/kairo-audio",
+    "crates/kairo-camera",
+    "crates/kairo-sinks",
+    "crates/kairo-native-sys",
+    "crates/kairo-ui-kit",
+    "crates/ui-shell",
+    "crates/ui-operator",
+    "crates/ui-scripture",
+    "crates/ui-lyrics",
+    "crates/ui-media",
+    "crates/ui-documents",
+    "crates/ui-theme",
+    "crates/ui-screens",
+    "crates/ui-settings",
+    "crates/ui-audience",
+    "crates/ui-account",
+    "crates/ui-web",
+    "tools/ts-oracle",
+    "tools/golden-capture",
+    "tools/soak",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+gpui-kit = "=0.9.0"

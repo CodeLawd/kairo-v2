@@ -1,0 +1,5 @@
+[package]
+name = "kairo-audio"
+version.workspace = true
+edition.workspace = true
+publish = false

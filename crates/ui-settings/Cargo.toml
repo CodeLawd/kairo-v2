@@ -1,0 +1,5 @@
+[package]
+name = "ui-settings"
+version.workspace = true
+edition.workspace = true
+publish = false

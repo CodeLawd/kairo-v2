@@ -1,0 +1,5 @@
+[package]
+name = "kairo-engine-proto"
+version.workspace = true
+edition.workspace = true
+publish = false

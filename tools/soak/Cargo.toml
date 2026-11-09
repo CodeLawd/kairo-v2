@@ -1,0 +1,5 @@
+[package]
+name = "soak"
+version.workspace = true
+edition.workspace = true
+publish = false

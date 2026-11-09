@@ -1,0 +1,5 @@
+[package]
+name = "ui-media"
+version.workspace = true
+edition.workspace = true
+publish = false

@@ -1,0 +1,5 @@
+[package]
+name = "kairo-scripture"
+version.workspace = true
+edition.workspace = true
+publish = false

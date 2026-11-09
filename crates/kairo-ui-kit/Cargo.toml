@@ -1,0 +1,5 @@
+[package]
+name = "kairo-ui-kit"
+version.workspace = true
+edition.workspace = true
+publish = false

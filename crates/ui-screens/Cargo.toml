@@ -1,0 +1,5 @@
+[package]
+name = "ui-screens"
+version.workspace = true
+edition.workspace = true
+publish = false

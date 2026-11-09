@@ -1,0 +1,5 @@
+[package]
+name = "ts-oracle"
+version.workspace = true
+edition.workspace = true
+publish = false

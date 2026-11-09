@@ -3399,10 +3399,6 @@ name = "kairo-video"
 version = "0.1.0"
 
 [[package]]
-name = "kairo-web-host"
-version = "0.1.0"
-
-[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
