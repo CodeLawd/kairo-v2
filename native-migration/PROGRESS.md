@@ -2,7 +2,7 @@
 
 **Go / no-go:** not yet decided (set by prompt 008)
 **Planning baseline commit (kairo-presenter):** `de3bb54`
-**Current prompt:** 000
+**Current prompt:** 003
 
 Status values: `todo`, `in-progress`, `blocked`, `done`.
 
@@ -21,20 +21,31 @@ Append a line per session: date, prompt, outcome, next step.
 |---|---|---|---|
 | 2026-11-09 | 000 | Local gates passed, CI unverified | Push the native workflow and verify all three jobs |
 
+| 2026-11-09 | 000 | Hosted CI passed on all three platforms | Bootstrap complete |
+| 2026-11-09 | 001 | Baseline recorded with unmeasured cases and test failures | Use the same fixtures in prompt 107 |
+| 2026-11-09 | 002 | Spike report written; macOS single-display results pass, hardware checks open | Second display checked afterwards; see the 002 row |
+| 2026-11-09 | 005 | Done on macOS arm64; hardware and other platforms recorded as unverified | Test on an NDI receiver, a DeckLink card and other platforms before release |
+
+| 2026-11-09 | 004 | in-progress | Prototype FFmpeg decode and wgpu upload |
+
+| 2026-11-09 | 003 | Parley recommended; 99.75% exact breaks; raster p95 misses 16 ms | Decide the raster approach at prompt 008 |
+| 2026-11-09 | 007 | Spike report written; macOS interactions pass, performance and platforms open | Rerun off Low Power Mode, then test other platforms |
+| 2026-11-09 | 006 | Spike report written; local proofs pass, Slido sign-in and header decision open | Sign in to Slido or waive at prompt 008 |
+
 ## Prompts
 
 ### 0. Foundations and gating spikes
 
 | ID | Prompt | Status | Date | Branch | Notes |
 |---|---|---|---|---|---|
-| 000 | [Create the native workspace and agent tooling](./prompts/000-workspace-bootstrap.md) | blocked | 2026-11-09 | main | All 40 members resolved after removal of the dedicated web host. Local fmt, build, Clippy and test gates passed on macOS. Clean workspace build 153.02 s including downloads, unchanged app rebuild 1.02 s. Cargo launch and [window capture](./evidence/000/hello-world.png) verified using the built executable in a temporary app bundle for capture. Lockfile committed as `be7133a`. Electron status matched the initial snapshot. GitHub origin is configured. All three hosted CI results are pending verification. |
-| 001 | [Measure the Electron baseline](./prompts/001-electron-baseline.md) | todo | | | |
-| 002 | [Spike: separate engine process with output windows and preview](./prompts/002-spike-engine-process.md) | todo | | | |
-| 003 | [Spike: match Chromium slide text](./prompts/003-spike-text-fidelity.md) | todo | | | |
-| 004 | [Spike: video decode into wgpu](./prompts/004-spike-video.md) | todo | | | |
-| 005 | [Spike: NDI, DeckLink ring and macOS native code from Rust](./prompts/005-spike-sinks.md) | todo | | | |
-| 006 | [Spike: CEF web host for all browser needs](./prompts/006-spike-web-host.md) | todo | | | |
-| 007 | [Spike: operator UI on GPUI Kit](./prompts/007-spike-ui-platform.md) | todo | | | |
+| 000 | [Create the native workspace and agent tooling](./prompts/000-workspace-bootstrap.md) | done | 2026-11-09 | main | All 40 members resolved after removal of the dedicated web host. Local fmt, build, Clippy and test gates passed on macOS. Clean workspace build 153.02 s including downloads, unchanged app rebuild 1.02 s. Cargo launch and [window capture](./evidence/000/hello-world.png) verified using the built executable in a temporary app bundle for capture. Lockfile committed as `be7133a`. Electron status matched the initial snapshot. [Hosted CI](https://github.com/CodeLawd/kairo-v2/actions/runs/42571222400) passed on macOS, Windows and Ubuntu. |
+| 001 | [Measure the Electron baseline](./prompts/001-electron-baseline.md) | done | 2026-11-09 | main | [Baseline](./baseline.md): packaged startup median 3,661 ms (3,609–7,338), idle RSS 411,264 KiB (394,192–419,280), idle CPU 11.3% (9.4–13.7%) at onboarding with zero outputs. Measured bundle size, warm KJV SQL and synthetic verse scroll. Packaged operator and hardware metrics remain unverified. Source suite failures and skips are recorded. Native fmt, Clippy and tests passed. Electron Git status matched the initial snapshot. |
+| 002 | [Spike: separate engine process with output windows and preview](./prompts/002-spike-engine-process.md) | done | 2026-11-09 | main | [Report](./spikes/002-engine-process.md): macOS, including a real second display. Measured: control p99 0.0305 ms, kill-to-first-frame 217.1 ms, parent grace 3.02 s of 3 s, preview +3.95% of a core at 15 fps. 30-minute soak footprint 43.6 to 67.2 MB across overlapping 15 and 30 fps runs; without `drop_image`, 3,031.9 MB in 50 s. Fmt, Clippy and tests passed. Focus, menu-bar cover, cursor hiding and replug confirmed by hand. Finding: output flashes on the remaining screen for up to about 1 s at unplug; prompt 050 must fix it. Windows and Linux not run, no machines available. |
+| 003 | [Spike: match Chromium slide text](./prompts/003-spike-text-fidelity.md) | done | 2026-11-09 | main | [Report](./spikes/003-text-fidelity.md): parley + swash recommended. On 400 text cases (480 with empty cases), exact line breaks 399/400 (99.75%), fitted size 200/200 within 1 px. All 480: SSIM mean 0.98627, worst 0.81611, median raster 5.15 ms. **Raster p95 25.28 ms misses the 16 ms target** on a loaded M2 Pro. Every mismatch category explained in the report. Layout JSON and golden PNGs byte-identical across two captures; 3 of 480 working PNGs vary (117 channels at ±1 in the one quantified). Root fmt, Clippy and tests passed; spike fmt, Clippy and tests passed. Electron status unchanged. Not verified: Windows, Linux, idle-machine timing, themed backgrounds, custom fonts. |
+| 004 | [Spike: video decode into wgpu](./prompts/004-spike-video.md) | done | 2026-11-09 | main | macOS codec matrix and native gates passed. 30-minute soak completed 54,000 frames, 43.6 ms p99, 10.66% process CPU. Sampled RSS after warm-up 26,704–44,288 KiB. The 2× trimmed wrap hit 86.0 ms. Windows, Linux and native external texture imports remain unverified. |
+| 005 | [Spike: NDI, DeckLink ring and macOS native code from Rust](./prompts/005-spike-sinks.md) | done | 2026-11-09 | main | [Report](./spikes/005-sinks.md): macOS arm64 only. NDI 6.3.2 from Rust without Node passed 10 cycles, discovery and SDK loopback; `libloading` chosen over `grafton-ndi`. Ring: 600 of 600 frames, 0 torn. Golden colours match `uyvy.h` on both paths. `gpu_frames` runs through a C ABI. IOSurface 1080p UYVA p50 0.60 to 1.04 ms, p99 2.58 to 4.81 ms, under load 3.4 to 4.7; decision 008: 0.6, 1.5 to 2.2. Fmt, Clippy and tests passed. HARDWARE-UNVERIFIED: DeckLink card, third-party NDI receiver. Not run: Intel macOS, Windows, Linux. |
+| 006 | [Spike: CEF web host for all browser needs](./prompts/006-spike-web-host.md) | blocked | 2026-11-09 | main | [Report](./spikes/006-web-host.md): PARTIAL, on-demand component recommended. macOS arm64: web layer and preview PASS, PDF PASS, Slido PASS against a local fixture only. 20-minute soak 28.71 fps average, paint-to-upload p99 5.46 ms, all-process RSS idle 456–558 MB and peak 816 MB, exit 0 with no helpers left. Size 329 MB, 148 MB zipped. CPU paint streamed; shared textures fire but are not sent across processes. H.264 and HEVC unavailable in this CEF build. Root and spike fmt, Clippy and tests passed; Electron status unchanged. Blocked on a person for real Slido sign-in, and a decision that subframe header removal is unnecessary. Windows and Linux not run. |
+| 007 | [Spike: operator UI on GPUI Kit](./prompts/007-spike-ui-platform.md) | blocked | 2026-11-09 | main | [Report](./spikes/007-ui-platform.md): PARTIAL. macOS shell, 5,000-card grid, marquee, reorder, zoom, keyboard and `.kairo` open work; 14 tests and all gates pass. Draw p50 2.01 to 2.78 ms, max 10.42 ms. Low Power Mode capped frames at 33 ms; uncapped present p50 8.33 ms, but 416 of 1,151 frame callbacks over 16 ms, so 120 Hz is not proven. On AC power, one valid run at load 13: present p50 8.40 ms, 31 of 1,382 presents over 16 ms, draw max 9.49 ms; target not met under load. Minimum macOS declared 11.0, runtime unverified. Rich text: Kit does not cover it. Blocked on: idle-machine rerun, real IME, older macOS, Windows, Linux, Electron shell screenshot. |
 | 008 | [Human checkpoint: go or no-go](./prompts/008-go-no-go.md) | todo | | | |
 | 009 | [Electron-to-native sync process](./prompts/009-electron-sync.md) | todo | | | |
 

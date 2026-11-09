@@ -1,0 +1,10 @@
+[package]
+name = "sinks-grafton"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+grafton-ndi = "=2.0.0"

@@ -29,3 +29,6 @@ changing quickly. Prompt 008 confirms the cadence.
 
 | Path here | Electron path | Source commit | Notes |
 |---|---|---|---|
+| `spikes/sinks/native/ring.h` | `native/gpu-frames/ring.h` | `de3bb54` | Spike copy, unmodified |
+| `spikes/sinks/native/uyvy.h` | `native/decklink/uyvy.h` | `de3bb54` | Spike copy, unmodified |
+| `spikes/sinks/native/metal_core.inc` | `native/gpu-frames/gpu_frames.mm` | `de3bb54` | Shader and Metal section only, unmodified |

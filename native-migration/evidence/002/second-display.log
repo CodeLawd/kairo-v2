@@ -1,0 +1,64 @@
+[controller] engine pid 24233
+[controller] sample t=0s controller[10448 0:00.01] footprint=3.1MB engine[] load={ 4.47 3.82 6.50 }
+[controller] displays: [DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }, DisplayInfo { id: 3, label: "Monitor #27403", bounds: Rect { x: 3600, y: 0, width: 6016, height: 3384 }, scale_factor: 2.0 }]
+[engine     0.538s] output output-0 on Monitor #41038
+[engine     0.563s] output output-1 on Monitor #27403
+[controller] engine ready at 0.600s
+[controller] Report("rehearsal=true policy_accessory=true app_active=false isKey=false canBecomeKey=true level=0 frame=(450,331,900,539) visible=true")
+[controller] Report("rehearsal=false policy_accessory=true app_active=false isKey=false canBecomeKey=false level=1000 frame=(1800,-523,3008,1692) visible=true")
+[controller] frontmost_is_controller=true
+[controller] sample t=10s controller[102576 0:00.51] footprint=56.5MB engine[88192 0:00.87] load={ 4.34 3.81 6.47 }
+[controller] sample t=20s controller[102304 0:00.68] footprint=55.6MB engine[87968 0:01.30] load={ 4.78 3.93 6.48 }
+[controller] sample t=30s controller[102432 0:00.84] footprint=53.9MB engine[88032 0:01.70] load={ 4.44 3.89 6.43 }
+[controller] sample t=40s controller[92576 0:01.00] footprint=60.2MB engine[79808 0:02.11] load={ 4.00 3.81 6.37 }
+[controller] sample t=50s controller[93296 0:01.18] footprint=57.5MB engine[79760 0:02.55] load={ 3.92 3.80 6.34 }
+[controller] sample t=60s controller[93008 0:01.35] footprint=55.8MB engine[81072 0:03.00] load={ 3.62 3.74 6.29 }
+[controller] sample t=70s controller[93168 0:01.52] footprint=58.5MB engine[81088 0:03.42] load={ 3.68 3.74 6.26 }
+[controller] sample t=80s controller[94192 0:01.68] footprint=57.5MB engine[81168 0:03.82] load={ 3.43 3.69 6.21 }
+[controller] sample t=90s controller[94160 0:01.84] footprint=54.0MB engine[81600 0:04.21] load={ 3.05 3.60 6.15 }
+[controller] sample t=100s controller[93280 0:02.00] footprint=54.0MB engine[82256 0:04.63] load={ 2.88 3.54 6.10 }
+[controller] sample t=110s controller[94560 0:02.16] footprint=49.2MB engine[81856 0:05.02] load={ 2.67 3.48 6.04 }
+[controller] sample t=120s controller[93632 0:02.32] footprint=49.2MB engine[81728 0:05.41] load={ 2.80 3.48 6.01 }
+[controller] sample t=130s controller[94544 0:02.48] footprint=49.2MB engine[80864 0:05.81] load={ 2.44 3.38 5.95 }
+[controller] sample t=140s controller[95280 0:02.64] footprint=49.5MB engine[80848 0:06.21] load={ 2.14 3.28 5.89 }
+[controller] sample t=150s controller[95440 0:02.80] footprint=51.8MB engine[80816 0:06.60] load={ 2.11 3.24 5.84 }
+[controller] sample t=160s controller[93616 0:02.96] footprint=51.8MB engine[80832 0:06.99] load={ 2.02 3.18 5.79 }
+[controller] sample t=170s controller[93632 0:03.12] footprint=49.7MB engine[80832 0:07.38] load={ 1.78 3.09 5.73 }
+[controller] sample t=180s controller[94560 0:03.28] footprint=50.6MB engine[80816 0:07.76] load={ 1.81 3.06 5.68 }
+[controller] sample t=190s controller[94544 0:03.44] footprint=50.1MB engine[80816 0:08.15] load={ 1.54 2.96 5.62 }
+[controller] sample t=200s controller[93616 0:03.59] footprint=50.6MB engine[80784 0:08.54] load={ 2.01 3.01 5.60 }
+[controller] sample t=210s controller[93600 0:03.75] footprint=49.2MB engine[80784 0:08.94] load={ 2.32 3.04 5.58 }
+[controller] sample t=220s controller[92656 0:03.91] footprint=50.1MB engine[80720 0:09.34] load={ 2.11 2.97 5.53 }
+[controller] sample t=230s controller[92336 0:04.08] footprint=49.2MB engine[80592 0:09.76] load={ 1.79 2.87 5.46 }
+[controller] sample t=240s controller[93328 0:04.25] footprint=50.6MB engine[80576 0:10.19] load={ 2.21 2.93 5.45 }
+[controller] sample t=250s controller[93248 0:04.42] footprint=49.8MB engine[80544 0:10.60] load={ 2.11 2.88 5.40 }
+[engine   253.060s] displays changed: 1 now
+[controller] displays: [DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }]
+[engine   253.061s] output output-1 parked
+[controller] Parked("output-1")
+[controller] sample t=260s controller[95824 0:04.58] footprint=50.5MB engine[80672 0:10.81] load={ 12.03 5.05 6.15 }
+[controller] sample t=270s controller[97664 0:04.75] footprint=51.1MB engine[80128 0:10.90] load={ 10.34 4.92 6.09 }
+[engine   274.341s] displays changed: 2 now
+[controller] displays: [DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }, DisplayInfo { id: 3, label: "Monitor #27403", bounds: Rect { x: 3600, y: 0, width: 6016, height: 3384 }, scale_factor: 2.0 }]
+[engine   274.357s] output output-1 on Monitor #27403
+[controller] Restored("output-1")
+[controller] Report("rehearsal=false policy_accessory=true app_active=false isKey=false canBecomeKey=false level=1000 frame=(1800,-523,3008,1692) visible=true")
+[controller] sample t=280s controller[101168 0:04.92] footprint=62.2MB engine[85904 0:11.22] load={ 8.91 4.79 6.03 }
+[engine   282.418s] displays changed: 1 now
+[controller] displays: [DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }]
+[engine   [controller] Parked("output-1")
+282.420s] output output-1 parked
+[engine   283.434s] displays changed: 2 now
+[controller] displays: [DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }, DisplayInfo { id: 3, label: "Monitor #27403", bounds: Rect { x: 3600, y: 0, width: 6016, height: 3384 }, scale_factor: 2.0 }]
+[engine   283.445s] output output-1 on Monitor #27403
+[controller] Restored("output-1")
+[controller] Report("rehearsal=false policy_accessory=true app_active=false isKey=false canBecomeKey=false level=1000 frame=(1800,-523,3008,1692) visible=true")
+[controller] sample t=290s controller[71264 0:05.11] footprint=63.9MB engine[62384 0:11.62] load={ 7.69 4.67 5.97 }
+[controller] sample t=300s controller[70960 0:05.27] footprint=66.2MB engine[60800 0:11.96] load={ 6.82 4.58 5.92 }
+[controller] sample t=310s controller[70960 0:05.42] footprint=66.2MB engine[60736 0:12.30] load={ 6.16 4.51 5.88 }
+[controller] sample t=320s controller[70288 0:05.59] footprint=62.6MB engine[60480 0:12.64] load={ 5.37 4.39 5.83 }
+[controller] sample t=330s controller[67312 0:05.75] footprint=62.6MB engine[58560 0:12.99] load={ 4.62 4.26 5.76 }
+[controller] sample t=340s controller[66432 0:05.92] footprint=62.9MB engine[57728 0:13.37] load={ 4.21 4.19 5.72 }
+[controller] sample t=350s controller[65424 0:06.10] footprint=62.9MB engine[55776 0:13.76] load={ 3.80 4.10 5.67 }
+[engine   356.181s] controller gone; holding picture
+[engine   366.198s] grace period expired; exiting

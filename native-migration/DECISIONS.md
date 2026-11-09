@@ -91,3 +91,57 @@ Decision: Remove the `kairo-web-host` binary from the native workspace. The
 website remains a separate Next.js project. This supersedes the proposed CEF
 host and any instruction to add that binary. Prompts that depend on the host
 need a revised approach before implementation.
+
+## 2026-11-09 — 001 — Begin baseline during hosted CI
+
+Decision: The operator authorized starting the Electron baseline while the
+remaining bootstrap CI jobs finish.
+
+## 2026-11-09 — 002 — Engine spike structure and API differences
+
+Decision: `spikes/engine-window` declares its own `[workspace]`, so its throwaway `winit` and `interprocess` dependencies stay out of the app lockfile. The root workspace gates do not cover it, so its gates are run separately.
+Decision: Shared memory is a memory-mapped temporary file with three seqlocked frames. A SIGKILLed writer leaves no reader state to repair.
+Decision: The 15 and 30 fps soaks ran concurrently to fit one 30-minute window. CPU was measured in separate 60-second runs.
+API differences: `wgpu` 30 presents with `queue.present(frame)` and returns a `Result` from `get_mapped_range`. `interprocess` 2.4 deprecates `split`, so the stream is shared through `Arc` and `&Stream`. winit 0.30 has no non-focusable window, so the spike replaces `canBecomeKeyWindow` and `canBecomeMainWindow` for borderless windows through the Objective-C runtime.
+Why: Each was read from the pinned crate source. Prompts 008 and 050 must carry the focus override forward, or find a supported alternative.
+
+## 2026-11-09 — 005 — NDI binding and spike scope
+
+Decision: Recommend a thin `libloading` binding for NDI, loading the runtime from the app folder. This is a recommendation for prompt 061 and is subject to prompt 008.
+Why: `grafton-ndi` 2.0.0 links `libndi` at build time, so a missing library stops the process at launch. Decision 001 requires a broken NDI to disable only NDI.
+Alternatives rejected: `grandi`, which requires a Node runtime.
+Decision: The spike builds its C ABI in `spikes/sinks` and not in `kairo-native-sys`, because spike code stays out of app crates. The binding resolves exported symbols rather than the `NDIlib_v6` table.
+API difference: wgpu 30 exposes the import route as `Device::create_texture_from_hal` with `hal::metal::Device::texture_from_raw`.
+Affects prompts: 008, 061, 064.
+
+## 2026-11-09 — 003 — Text spike structure and results
+
+Decision: `spikes/003-text` declares its own `[workspace]`, so its comparison dependencies stay out of the app lockfile. Its gates are run separately.
+Decision: Recommend `parley` + `swash` for slide text. `cosmic-text` tied on line breaks but needed a spike-side family and nearest-weight lookup through `fontdb`.
+Decision: The corpus adds empty and blank-verse cases beyond the prompt's list, and capture runs with software compositing so output is repeatable.
+Open for 008: full-slide raster p95 is 25.28 ms against the 16 ms target.
+Affects prompts: 008, 052.
+
+## 2026-11-09 — 006 — Restore the browser component for spike 006
+
+Decision: The operator confirmed the native app needs an embedded browser for the live web layer, web preview, Slido and PPTX to PDF, and that CEF is acceptable. This corrects the 2026-11-09 prompt 000 decision "Remove the dedicated web host", which is superseded for the CEF host. That decision's statement that the website remains a separate Next.js project still stands.
+Decision: Spike 006 lives under `spikes/` with its own `[workspace]`. Adding `kairo-web-host` to the app workspace is left to prompts after the go/no-go at 008.
+Affects prompts: 006, 008, 045, 047, 059, 073, 089, 101.
+
+## 2026-11-09 — 007 — UI spike findings
+
+Decision: Measurements used GPUI's `frame_duration_snapshot`, the source `gpui-fps` reads, rather than its on-screen HUD.
+API difference: `KeyBinding::new` rejects `secondary-`, which only OS-aware parsing accepts.
+Decision: The side-by-side uses an isolated Electron profile, to keep personal data out of committed evidence. It only reaches onboarding.
+Recommendation for prompt 070: a focused rich text editor on `EntityInputHandler`, not Kit's `Editor` or `TextView`.
+Open question for the owner: whether Low Power Mode should keep GPUI's 30 fps default.
+Affects prompts: 008, 070.
+
+API differences (006): `cef` 156.4.0 names getters without `get_` (`view_rect`, `audio_parameters`). `PdfPrintSettings` takes inches where Electron takes microns. `execute_java_script` has no isolated world.
+
+## 2026-11-09 — 008 — Waive open spike items for the go/no-go
+
+Decision: The owner chose to start prompt 008 with prompts 006 and 007 still `blocked`, accepting their open items as known risks. Their tracker status is unchanged, because the work is not complete.
+Accepted for 006: no real Slido sign-in yet; subframe header removal not implemented; Windows and Linux not run.
+Accepted for 007: 120 Hz not proven; the Low Power Mode frame-rate question remains open.
+Carry forward: prompt 047 proves real sign-in; prompts 070 and 107 revisit UI frame pacing.

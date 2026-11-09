@@ -1,0 +1,18 @@
+metal error: None
+converter 1080p UYVA upload+convert+copy p50=4.37ms p99=8.31ms n=300
+converter 1080p UYVA GPU commit-to-complete p50=1.42ms p99=5.13ms
+iosurface 1080p UYVA convert+readback p50=0.97ms p99=4.80ms n=120 stats=(120, 0, 0)
+iosurface 1080p UYVA convert+readback p50=0.97ms p99=4.81ms n=120 stats=(120, 0, 0)
+iosurface 1080p UYVA convert+readback p50=1.04ms p99=4.46ms n=120 stats=(120, 0, 0)
+ring premature reader (no frames, quiet exit): {"read":0,"torn":0,"published":0}
+ring wrote 600 1080p frames in 3.00s
+ring stub reader: {"read":600,"torn":0,"published":600}
+ring wrong raster: {"error":"raster mismatch"}
+ring after close: {"error":"Frame ring not found"}
+helper --play-shm exit=Some(1) stdout= stderr=Device disconnected
+ndi version NDI SDK APPLE 12:49:17 Apr 13 2026 6.3.2.0
+ndi 10 load/send/destroy cycles ok
+ndi malformed frames rejected ok
+ndi discovery saw ["IP-10-8-0-18.EU-NORTH-1.COMPUTE.INTERNAL (Kairo Scripture)", "JOSHUAS-MACBOOK-PRO.LOCAL (Kairo Spike 70160)"]
+ndi loopback frame 1280x720 fourcc=BGRA stride=5120 centre=[2, 0, 255, 255]
+ndi loopback received=true

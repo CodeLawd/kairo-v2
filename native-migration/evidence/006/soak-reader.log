@@ -1,0 +1,20 @@
+t=60s fps=25.9
+t=120s fps=28.8
+t=180s fps=28.9
+t=240s fps=28.9
+t=300s fps=28.9
+t=360s fps=28.9
+t=420s fps=29.0
+t=480s fps=28.9
+t=540s fps=28.7
+t=600s fps=28.8
+t=660s fps=28.9
+t=720s fps=28.9
+t=780s fps=29.0
+t=840s fps=28.6
+t=900s fps=28.9
+t=960s fps=28.9
+t=1020s fps=28.9
+t=1080s fps=29.0
+t=1140s fps=28.5
+reader frames=34452 fps=28.71 torn=5 latency_ms p50=3.00 p99=5.46 gap_ms p50=33.37 p99=70.94 max=5974.06

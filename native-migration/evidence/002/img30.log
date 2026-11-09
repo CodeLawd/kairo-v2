@@ -1,0 +1,14 @@
+[controller] engine pid 97575
+[controller] sample t=0s controller[10512 0:00.01] footprint=3.0MB engine[] load={ 3.13 10.97 11.87 }
+[controller] displays: [DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }]
+[engine     0.271s] output output-0 on Monitor #41038
+[controller] engine ready at 0.301s
+[controller] Report("rehearsal=true policy_accessory=true app_active=false isKey=false canBecomeKey=true level=0 frame=(450,331,900,539) visible=true")
+[controller] frontmost_is_controller=true
+[controller] sample t=10s controller[111088 0:00.82] footprint=58.2MB engine[93392 0:01.25] load={ 3.18 10.72 11.77 }
+[controller] sample t=20s controller[111184 0:01.47] footprint=58.3MB engine[93408 0:02.44] load={ 2.93 10.42 11.65 }
+[controller] sample t=30s controller[111984 0:02.10] footprint=59.0MB engine[93424 0:03.55] load={ 2.70 10.12 11.53 }
+[controller] sample t=40s controller[111984 0:02.76] footprint=59.0MB engine[93424 0:04.77] load={ 2.58 9.86 11.42 }
+[controller] sample t=50s controller[111984 0:03.40] footprint=59.0MB engine[92400 0:05.93] load={ 2.65 9.63 11.32 }
+[controller] frontmost_is_controller=true
+[controller] done

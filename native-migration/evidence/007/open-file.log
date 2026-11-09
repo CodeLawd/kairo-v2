@@ -1,0 +1,10 @@
+open_urls ["file:///private/tmp/claude-501/-Users-codelawd--claude-spares-spare-pKs0Xd/74a6de83-b736-4f0d-956d-becb642b1e02/scratchpad/doc/My%20Song.kairo"]
+kairo files ["/private/tmp/claude-501/-Users-codelawd--claude-spares-spare-pKs0Xd/74a6de83-b736-4f0d-956d-becb642b1e02/scratchpad/doc/My Song.kairo"]
+open to first frame: 64.01 ms
+open_urls ["file:///private/tmp/claude-501/-Users-codelawd--claude-spares-spare-pKs0Xd/74a6de83-b736-4f0d-956d-becb642b1e02/scratchpad/doc/Second.kairo"]
+kairo files ["/private/tmp/claude-501/-Users-codelawd--claude-spares-spare-pKs0Xd/74a6de83-b736-4f0d-956d-becb642b1e02/scratchpad/doc/Second.kairo"]
+window active at end: true
+gpui draw: n=241 p50=1.47 p99=2.55 max=12.57
+gpui present interval: n=238 p50=33.31 p99=34.73 max=35.55 over16=238
+on_next_frame interval: n=240 p50=33.33 p95=33.39 p99=34.49 max=60.29 over8.4=240 over16=240
+thumbnail cache: 20

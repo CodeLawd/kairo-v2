@@ -1,0 +1,28 @@
+[package]
+name = "kairo-spike-web-host"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "host"
+path = "src/main.rs"
+
+[[bin]]
+name = "helper"
+path = "src/bin/helper.rs"
+
+[[bin]]
+name = "reader"
+path = "src/bin/reader.rs"
+
+[dependencies]
+cef = "=156.4.0"
+libc = "0.2"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSResponder"] }
+objc2-foundation = "0.3"
+wgpu = "30"
+pollster = "0.4"
