@@ -24,8 +24,8 @@ The reference every prompt assumes. A change to anything here is recorded in
 └──────────────┬──────────────┘                         └───┬─────────┬─────────┬───┘
                │ local socket                               │ shm ring│         │
         ┌──────▼────────────┐                     ┌─────────▼───┐  ┌──▼───┐ ┌───▼────┐
-        │ kairo-web-host    │ ══ shared frames ═▶ │decklink-    │  │ NDI  │ │Syphon, │
-        │ (CEF, on demand)  │                     │helper (C++) │  │      │ │recorder│
+        │ OS web views      │ ══ captured frames▶ │decklink-    │  │ NDI  │ │Syphon, │
+        │ (WebKit/WebView2) │                     │helper (C++) │  │      │ │recorder│
         └───────────────────┘                     └─────────────┘  └──────┘ └────────┘
 ```
 
@@ -33,7 +33,7 @@ The reference every prompt assumes. A change to anything here is recorded in
 |---|---|
 | `kairo` | Owns GPUI's single-threaded app, all business logic and persistence |
 | `kairo-engine` | Output keeps running through a UI stall or crash. `winit` and GPUI cannot share the macOS event loop. Native decoder or GPU faults stay contained |
-| `kairo-web-host` | CEF requires its own process tree. Launched only when web content is used |
+| OS web views | Not a Kairo binary. WKWebView, WebView2 and WebKitGTK run their own processes, managed by the OS |
 | `decklink-helper` | Existing and qualified. Its reasons are documented in decision 007 |
 
 **Engine lifecycle.** `kairo` launches and supervises the engine. If the engine dies,
@@ -192,17 +192,19 @@ which remains the reference. The golden tests already written against it are car
 
 ### 5.6 Web content
 
-One `kairo-web-host` process serves **all** browser needs:
+Web content uses the OS's engine: WKWebView, WebView2 or WebKitGTK. Nothing is downloaded
+or bundled. See DECISIONS.md, "Replace CEF with `gpui-webview`".
 
-- The live web layer: one page instance, its frames shared by every output.
-- The Web tab preview: the same frames, shown through the preview transport with pointer
-  and scroll input forwarded. Mirroring code disappears.
-- Slido: a real window with the scraper injected.
-- Built-in PPTX conversion: keeps the existing HTML generator and uses CEF `PrintToPDF`.
+- Web tab preview: `gpui-webview` in the operator window. GPUI overlays above the page
+  need the `gpui-fast` backend, on macOS and Linux only.
+- Slido: a separate GPUI window holding a `gpui-webview`, with the scraper as an init script.
+- Built-in PPTX conversion: keeps the existing HTML generator, printed by the platform's
+  PDF call through Wry's raw handle.
+- Live web layer: a Wry web view owned by `kairo-engine`. Display outputs show it as a
+  native child view. Capture-only sinks (NDI, DeckLink, Syphon, recorder) need platform
+  frame capture, which is unproven and is checked first in prompt 059.
 
-It installs as a signed, checksummed component, the same pattern as the existing LibreOffice
-download, and can also be pre-installed during onboarding. Prompt 006 measures size and
-confirms this. Avoiding `gpui-webview` is what keeps Wayland available on Linux.
+Linux requires X11 or XWayland for web content.
 
 ## 6. Previews in the operator UI
 
@@ -227,15 +229,15 @@ prompt 100.
 
 | Electron control | Native equivalent |
 |---|---|
-| `contextIsolation`, no node integration | Business logic is not reachable from web content. Only CEF runs remote code |
+| `contextIsolation`, no node integration | Business logic is not reachable from web content. Only the OS web views run remote code, and Wry IPC messages are untrusted |
 | `pa-media` allowlist | The engine accepts only paths in commands from `kairo`, which keep the same allowlist and realpath logic for anything originating outside Kairo |
-| Frame-ancestor stripping, scoped to subframes | Scoped CEF resource handling for the program page only |
-| Slido navigation allowlist, permission denial, sandbox | Same rules in the web host |
+| Frame-ancestor stripping, scoped to subframes | Not needed: the program page loads top-level |
+| Slido navigation allowlist, permission denial, sandbox | Same rules through Wry's navigation and new-window handlers. The OS web view process sandbox applies |
 | API cache fails closed; session store fails open | Same |
 | `.kairo` 50 MB cap, safe parsing | Same |
 
 The local socket is per-user, uses a random name passed to the child, and requires a
-handshake token. The web host is treated as untrusted input.
+handshake token. Web content is treated as untrusted input.
 
 ## 9. Observability
 
@@ -255,5 +257,5 @@ adding features, rewriting the DeckLink helper.
 ## Amendments from prompt 008 (2026-11-09)
 
 - Slide text uses `parley` + `swash`. Text is rasterised on change and cached, not per frame.
-- `kairo-web-host` is restored as an on-demand CEF component. The program page is top-level, so framing headers do not apply. Frames use CPU paint first; IOSurface transport is an optimisation.
+- ~~`kairo-web-host` is restored as an on-demand CEF component.~~ Superseded: web content uses `gpui-webview` and the OS web views (DECISIONS.md, "Replace CEF with `gpui-webview`").
 - Zero-copy video is deferred. Rich text is a custom editor on `EntityInputHandler`.

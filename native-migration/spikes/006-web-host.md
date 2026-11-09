@@ -1,5 +1,7 @@
 # Spike 006: CEF web host
 
+> **Superseded (2026-11-09):** the owner chose `gpui-webview` and the OS web views over CEF. See DECISIONS.md, "Replace CEF with `gpui-webview`". This report is kept for reference.
+
 **Result: PARTIAL, leaning GO.** All four browser uses work locally on macOS arm64 with `cef` 156.4.0. Open items: a real Slido sign-in needs a person, subframe header removal is not implemented, cross-process shared textures are not built, and this CEF build cannot play H.264 or HEVC.
 
 Measured 2026-11-09 on an Apple M2 Pro with other agent sessions running. Windows and Linux were not run.

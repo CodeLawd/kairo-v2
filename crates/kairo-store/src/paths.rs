@@ -11,6 +11,7 @@
 //! layout for each OS is tested on any machine. [`detect`] fills the inputs
 //! from the running system. Nothing here creates or writes a file.
 
+use crate::json_store::store_path;
 use kairo_domain::brand::PRODUCT_NAME;
 use kairo_domain::workspace::WORKSPACE_FOLDER_NAME;
 use std::fmt;
@@ -134,7 +135,7 @@ impl AppPaths {
 
     /// A store file in userData: `<userData>/<name>.json`.
     pub fn store_file(&self, name: &str) -> PathBuf {
-        self.user_data.join(format!("{name}.json"))
+        store_path(&self.user_data, name)
     }
 
     /// `WorkspaceService.defaultRoot`: `Documents/Kairo Presenter`, with home
@@ -278,8 +279,8 @@ pub fn detect() -> Result<AppPaths, PathsError> {
 /// an older build on the same profile still finds it. Never fails: on any
 /// error the store starts from its defaults, as on a fresh install. Returns `next`.
 pub fn renamed_store<'a>(user_data: &Path, legacy: &str, next: &'a str) -> &'a str {
-    let from = user_data.join(format!("{legacy}.json"));
-    let to = user_data.join(format!("{next}.json"));
+    let from = store_path(user_data, legacy);
+    let to = store_path(user_data, next);
     if !to.exists() && from.exists() {
         match std::fs::copy(&from, &to) {
             Ok(_) => tracing::info!(legacy, next, "[Store] Adopted legacy store file"),

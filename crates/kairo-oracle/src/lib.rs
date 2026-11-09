@@ -143,6 +143,16 @@ fn walk(path: &str, expected: &Value, actual: &Value, tolerance: f64, out: &mut 
     }
 }
 
+/// The ids `crypto.randomUUID()` gives under the oracle's pinning
+/// (`00000000-0000-4000-8000-000000000001`, then `…002`, …).
+pub fn pinned_uuids() -> impl FnMut() -> String {
+    let mut next = 0u64;
+    move || {
+        next += 1;
+        format!("00000000-0000-4000-8000-{next:012}")
+    }
+}
+
 /// `count` values from `strategy`. The same seed always gives the same values,
 /// which is what lets cached results be found again.
 pub fn generate<S: Strategy>(seed: u64, count: usize, strategy: S) -> Vec<S::Value> {

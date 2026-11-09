@@ -109,3 +109,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## Amendment from prompt 008
 
 Rich text is a focused editor on EntityInputHandler, not Kit Editor or TextView. Keep the 30 fps Low Power Mode default. Re-measure 120 Hz pacing.
+
+## Amendment: `gpui-webview` replaces CEF (2026-11-09)
+
+`gpui-webview` 0.9.1 requires `gpui-kit` 0.9.1. Bump the workspace pin from `=0.9.0` here, and decide whether the app runs on the `gpui-fast` backend. That backend is required for GPUI overlays above web pages on macOS and Linux. See DECISIONS.md, "Replace CEF with `gpui-webview`".

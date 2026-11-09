@@ -14,11 +14,11 @@
 
 ## 1. Objective and context
 
-Port Slido integration onto the web host.
+Port Slido integration onto a `gpui-webview` window.
 
 ## 2. Prerequisites
 
-- Prompt [006](./006-spike-web-host.md) is marked `done`.
+- Prompt 006 (CEF spike) is superseded by the `gpui-webview` decision in DECISIONS.md and is not a prerequisite.
 - Prompt [046](./046-audience-rooms.md) is marked `done`.
 
 ## 3. Relevant existing source files
@@ -87,3 +87,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## Amendment from prompt 008
 
 CEF has no isolated world for injected scripts: inject from the renderer's on_context_created and treat every page read as untrusted. Prove a real Slido sign-in here, as spike 006 could not. Port the close-hides-window behaviour.
+
+## Amendment: `gpui-webview` replaces CEF (2026-11-09)
+
+Superseding the 008 amendment: no CEF. Use a separate GPUI window holding a `gpui-webview`. Use Wry's init script (page world, so reads are untrusted), the navigation and new-window handlers for the allowlist, and a persistent data directory or data store per profile. Deny microphone and geolocation through platform calls on the raw handle where Wry has no API, and record what each OS allows. Prove a real Slido sign-in.

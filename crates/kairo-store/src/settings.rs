@@ -12,15 +12,17 @@ use crate::json_store::{JsonStore, ListenerId, OpenState};
 use crate::paths::renamed_store;
 use kairo_domain::cloud::SecretsConfigured;
 use kairo_domain::cloud::{LYRICS_SECRET_KEYS, STT_SECRET_KEYS, merge_secret_section};
-use kairo_domain::js::{trim, value_to_string};
+use kairo_domain::js::{trim, truthy, value_to_string};
 use kairo_domain::json::to_js_value;
+use kairo_domain::lyrics::style::DEFAULT_GLOSS_COLOR;
+use kairo_domain::normalize::{as_object, is_hex_color};
 use kairo_domain::overlay::{
     CustomOverlayTheme, OverlayContentKind, OverlayOutputKind, OverlayTheme,
 };
 use kairo_domain::overlay_defaults::{DEFAULT_OVERLAY_SETTINGS, normalize_overlay_settings};
 use kairo_domain::pp_retirement::retire_pro_presenter_settings;
 use kairo_domain::program::normalize_presentation_settings;
-use kairo_domain::settings::{AppSettings, DEFAULT_TRANSLATION_ID};
+use kairo_domain::settings::{AppSettings, DEFAULT_TRANSLATION_ID, SettingsSecretClearKey};
 use kairo_domain::theme_library::{
     assign_theme_to_output, is_untouched_theme_library, normalize_theme_library,
     seed_built_in_themes,
@@ -41,8 +43,8 @@ pub const MIGRATIONS_LEGACY_STORE: &str = "proautomate-migrations";
 
 /// The last release without the What's New sheet.
 pub const LAST_VERSION_BEFORE_WHATS_NEW: &str = "1.0.28";
-/// The lyric gloss palette colour, and the old gold default it replaced.
-pub const GLOSS_COLOR: &str = "#AABED7";
+/// The old gold gloss default that the palette colour
+/// ([`DEFAULT_GLOSS_COLOR`]) replaced.
 pub const OLD_GOLD_GLOSS_COLOR: &str = "#D4A017";
 
 /// Time and random ids for the repairs that create themes. Electron uses
@@ -63,58 +65,62 @@ pub fn now_ms() -> f64 {
 }
 
 /// `defaults` in `db/index.ts`, with its keys in the literal's order (the
-/// order a fresh `kairo-settings.json` has).
+/// order a fresh `kairo-settings.json` has, which `AppSettings` declares).
 pub fn settings_defaults() -> Data {
-    const ORDER: [&str; 18] = [
-        "whatsNew",
-        "audio",
-        "stt",
-        "scripture",
-        "lyrics",
-        "display",
-        "overlay",
-        "themeLibrary",
-        "workspace",
-        "media",
-        "tracks",
-        "church",
-        "documents",
-        "presentation",
-        "usage",
-        "themeDefaults",
-        "capture",
-        "web",
+    match to_js_value(&AppSettings::defaults(DEFAULT_OVERLAY_SETTINGS.clone()))
+        .expect("defaults serialize")
+    {
+        Value::Object(all) => all,
+        _ => unreachable!("settings serialize as an object"),
+    }
+}
+
+/// The one-time repairs recorded in `kairo-migrations.json`, in the order of
+/// its defaults literal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MigrationFlag {
+    NkjvDefault,
+    KjvDefault,
+    BuiltInThemes,
+    GlossPalette,
+    CustomThemeLibrary,
+    CloudOnboarding,
+    SongsFolderExport,
+    DeepseekDefault,
+}
+
+impl MigrationFlag {
+    pub const ALL: [MigrationFlag; 8] = [
+        MigrationFlag::NkjvDefault,
+        MigrationFlag::KjvDefault,
+        MigrationFlag::BuiltInThemes,
+        MigrationFlag::GlossPalette,
+        MigrationFlag::CustomThemeLibrary,
+        MigrationFlag::CloudOnboarding,
+        MigrationFlag::SongsFolderExport,
+        MigrationFlag::DeepseekDefault,
     ];
-    let all = to_js_value(&AppSettings::defaults(DEFAULT_OVERLAY_SETTINGS.clone()))
-        .expect("defaults serialize");
-    let Value::Object(mut all) = all else {
-        unreachable!("settings serialize as an object")
-    };
-    let mut ordered = Data::new();
-    for key in ORDER {
-        if let Some(value) = all.remove(key) {
-            ordered.insert(key.into(), value);
+
+    /// The flag's key in the file.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MigrationFlag::NkjvDefault => "nkjvDefaultV1",
+            MigrationFlag::KjvDefault => "kjvDefaultV1",
+            MigrationFlag::BuiltInThemes => "builtInThemesV1",
+            MigrationFlag::GlossPalette => "glossPaletteV1",
+            MigrationFlag::CustomThemeLibrary => "customThemeLibraryV1",
+            MigrationFlag::CloudOnboarding => "cloudOnboardingV1",
+            MigrationFlag::SongsFolderExport => "songsFolderExportV1",
+            MigrationFlag::DeepseekDefault => "deepseekDefaultV1",
         }
     }
-    ordered.extend(all);
-    ordered
 }
 
 /// The flags `migrations` starts with, in the literal's order.
 pub fn migration_defaults() -> Data {
-    let flags = [
-        "nkjvDefaultV1",
-        "kjvDefaultV1",
-        "builtInThemesV1",
-        "glossPaletteV1",
-        "customThemeLibraryV1",
-        "cloudOnboardingV1",
-        "songsFolderExportV1",
-        "deepseekDefaultV1",
-    ];
-    flags
+    MigrationFlag::ALL
         .into_iter()
-        .map(|flag| (flag.to_string(), Value::Bool(false)))
+        .map(|flag| (flag.as_str().to_string(), Value::Bool(false)))
         .collect()
 }
 
@@ -124,14 +130,25 @@ pub fn spread(value: Option<&Value>) -> Data {
 }
 
 fn prop<'a>(value: Option<&'a Value>, key: &str) -> Option<&'a Value> {
-    value.and_then(Value::as_object).and_then(|o| o.get(key))
+    as_object(value).get(key)
 }
 
-fn is_hex_color(text: &str) -> bool {
-    let t = trim(text);
-    t.strip_prefix('#').is_some_and(|hex| {
-        (3..=8).contains(&hex.len()) && hex.bytes().all(|b| b.is_ascii_hexdigit())
-    })
+/// The secret fields of `section` that never leave the store, if it has any.
+fn secret_keys(section: &str) -> Option<&'static [SettingsSecretClearKey]> {
+    match section {
+        "stt" => Some(STT_SECRET_KEYS),
+        "lyrics" => Some(LYRICS_SECRET_KEYS),
+        _ => None,
+    }
+}
+
+/// `section` with its secret fields blanked.
+fn redacted(section: Option<&Value>, keys: &[SettingsSecretClearKey]) -> Value {
+    let mut out = spread(section);
+    for key in keys {
+        out.insert(key.as_str().into(), json!(""));
+    }
+    Value::Object(out)
 }
 
 /// `upgradedFromBeforeWhatsNew`: a settings file that exists, parses and has
@@ -219,186 +236,51 @@ impl SettingsStore {
         settings
     }
 
-    fn flag(&self, name: &str) -> bool {
-        kairo_domain::js::truthy(self.migrations.get(name))
+    fn flag(&self, flag: MigrationFlag) -> bool {
+        truthy(self.migrations.get(flag.as_str()))
     }
 
-    fn set_flag(&mut self, name: &str) {
-        self.migrations.set(name, Value::Bool(true));
+    fn set_flag(&mut self, flag: MigrationFlag) {
+        self.migrations.set(flag.as_str(), Value::Bool(true));
+    }
+
+    /// Whether a one-time service migration has been recorded.
+    pub fn migration_done(&self, flag: MigrationFlag) -> bool {
+        self.flag(flag)
+    }
+
+    /// Record a service migration after its data has been saved.
+    pub fn mark_migration_done(&mut self, flag: MigrationFlag) {
+        self.set_flag(flag);
+    }
+
+    /// `store.set(section, { ...store.get(section), ...fields })`, for
+    /// services that update fields of a section and keep the rest as stored.
+    pub fn merge_fields<'k>(
+        &mut self,
+        section: &str,
+        fields: impl IntoIterator<Item = (&'k str, Value)>,
+    ) {
+        merge_fields(&mut self.store, section, fields);
+    }
+
+    /// `normalizeThemeLibrary(raw, theme, Date.now(), newId())`. The id is
+    /// made on every call, used or not, as the default argument is.
+    fn normalized_library(
+        &self,
+        raw: Option<&Value>,
+        theme: &OverlayTheme,
+        ctx: &mut LaunchContext<'_>,
+    ) -> Vec<CustomOverlayTheme> {
+        normalize_theme_library(raw, theme, ctx.now_ms, &(ctx.new_id)())
     }
 
     fn repair(&mut self, ctx: &mut LaunchContext<'_>) {
-        let store = &mut self.store;
-
-        // AI detection moved to DeepSeek, once; a model name from the old provider is cleared.
-        if !kairo_domain::js::truthy(self.migrations.get("deepseekDefaultV1")) {
-            let stt = store.get("stt");
-            let provider = prop(stt, "llmProvider");
-            if provider != Some(&json!("deepseek"))
-                || kairo_domain::js::truthy(prop(stt, "llmModel"))
-            {
-                let mut next = spread(stt);
-                next.insert("llmProvider".into(), json!("deepseek"));
-                next.insert("llmModel".into(), json!(""));
-                store.set("stt", Value::Object(next));
-            }
-            self.migrations.set("deepseekDefaultV1", Value::Bool(true));
-        }
-
-        if !kairo_domain::js::truthy(self.migrations.get("nkjvDefaultV1")) {
-            let mut next = spread(store.get("scripture"));
-            next.insert("defaultTranslation".into(), json!(DEFAULT_TRANSLATION_ID));
-            store.set("scripture", Value::Object(next));
-            self.migrations.set("nkjvDefaultV1", Value::Bool(true));
-        }
-
-        // Shallow-merge heal: scripture from before the offline cache.
-        if !prop(store.get("scripture"), "offlineDownloadBibleIds").is_some_and(Value::is_array) {
-            let mut next = spread(store.get("scripture"));
-            next.insert("offlineDownloadBibleIds".into(), json!([]));
-            store.set("scripture", Value::Object(next));
-        }
-
-        // Lyrics: a translate key that is not text, and a gloss colour that is not a hex colour.
-        {
-            let lyrics = store.get("lyrics");
-            let mut next = spread(lyrics);
-            let mut dirty = false;
-            if !prop(lyrics, "googleTranslateApiKey").is_some_and(Value::is_string) {
-                next.insert("googleTranslateApiKey".into(), json!(""));
-                dirty = true;
-            }
-            if !prop(lyrics, "glossColor")
-                .and_then(Value::as_str)
-                .is_some_and(is_hex_color)
-            {
-                next.insert("glossColor".into(), json!(GLOSS_COLOR));
-                dirty = true;
-            }
-            if dirty {
-                store.set("lyrics", Value::Object(next));
-            }
-        }
-
-        // Workspace from before the Songs folder: keep the default Documents location.
-        {
-            let workspace = store.get("workspace");
-            if !kairo_domain::js::truthy(workspace)
-                || !prop(workspace, "folder").is_some_and(Value::is_string)
-            {
-                store.set("workspace", json!({ "folder": "" }));
-            }
-        }
-
-        // Church from before the onboarding wizard.
-        {
-            let church = store.get("church");
-            let text = |key| {
-                prop(church, key)
-                    .filter(|v| v.is_string())
-                    .cloned()
-                    .unwrap_or(json!(""))
-            };
-            let times = prop(church, "serviceTimes").filter(|v| v.is_array());
-            if !kairo_domain::js::truthy(church)
-                || !prop(church, "name").is_some_and(Value::is_string)
-                || times.is_none()
-            {
-                let healed = json!({
-                    "name": text("name"),
-                    "timezone": text("timezone"),
-                    "role": text("role"),
-                    "serviceTimes": times.cloned().unwrap_or(json!([])),
-                });
-                store.set("church", healed);
-            }
-        }
-
-        // Retired ProPresenter settings, before any normaliser reads old destinations.
-        let retired = retire_pro_presenter_settings(Some(&Value::Object(store.data().clone())));
-        store.replace(retired);
-
-        let overlay = normalize_overlay_settings(store.get("overlay"));
-        store
-            .set_as("overlay", &overlay)
-            .expect("overlay serializes");
-        let presentation =
-            normalize_presentation_settings(store.get("presentation").unwrap_or(&Value::Null));
-        store
-            .set_as("presentation", &presentation)
-            .expect("presentation serializes");
-
-        // `normalizeThemeLibrary(raw, theme, now = Date.now(), legacyId = newId())`:
-        // the default id is made on every call, used or not.
-        let active = overlay.theme.clone();
-        let library_migrated =
-            kairo_domain::js::truthy(self.migrations.get("customThemeLibraryV1"));
-        let raw_library = if library_migrated {
-            store.get("themeLibrary").cloned()
-        } else {
-            None
-        };
-        let legacy_id = (ctx.new_id)();
-        let library =
-            normalize_theme_library(raw_library.as_ref(), &active, ctx.now_ms, &legacy_id);
-        store
-            .set_as("themeLibrary", &library)
-            .expect("library serializes");
-        if !library_migrated {
-            self.set_flag("customThemeLibraryV1");
-        }
-
-        // A new install gets every built-in theme, once; a shaped library is left alone.
-        if !self.flag("builtInThemesV1") {
-            let library: Vec<CustomOverlayTheme> =
-                self.store.get_as("themeLibrary").unwrap_or_default();
-            if is_untouched_theme_library(&library) {
-                let seeded = seed_built_in_themes(&library, ctx.now_ms, &mut *ctx.new_id);
-                let broadcast = seeded
-                    .iter()
-                    .find(|t| t.kind == OverlayContentKind::Scripture);
-                let stage_lyrics = seeded.iter().find(|t| t.kind == OverlayContentKind::Lyrics);
-                let mut overlay = normalize_overlay_settings(self.store.get("overlay"));
-                overlay.outputs = overlay
-                    .outputs
-                    .iter()
-                    .map(|output| {
-                        if output.kind != OverlayOutputKind::Screen {
-                            return output.clone();
-                        }
-                        let with_scripture = broadcast
-                            .map_or_else(|| output.clone(), |t| assign_theme_to_output(output, t));
-                        stage_lyrics.map_or(with_scripture.clone(), |t| {
-                            assign_theme_to_output(&with_scripture, t)
-                        })
-                    })
-                    .collect();
-                self.store
-                    .set_as("themeLibrary", &seeded)
-                    .expect("library serializes");
-                let raw = to_js_value(&overlay).expect("overlay serializes");
-                let normalized = normalize_overlay_settings(Some(&raw));
-                self.store
-                    .set_as("overlay", &normalized)
-                    .expect("overlay serializes");
-            }
-            self.set_flag("builtInThemesV1");
-        }
-
-        // The old gold gloss default moves to the palette blue; a picked colour stays.
-        if !self.flag("glossPaletteV1") {
-            let lyrics = self.store.get("lyrics");
-            let color = prop(lyrics, "glossColor")
-                .filter(|v| !v.is_null())
-                .map(value_to_string)
-                .unwrap_or_default();
-            if color.to_uppercase() == OLD_GOLD_GLOSS_COLOR {
-                let mut next = spread(lyrics);
-                next.insert("glossColor".into(), json!(GLOSS_COLOR));
-                self.store.set("lyrics", Value::Object(next));
-            }
-            self.set_flag("glossPaletteV1");
-        }
+        // Every repair lands in one write of each file.
+        let SettingsStore {
+            store, migrations, ..
+        } = self;
+        store.batch(|store| migrations.batch(|migrations| repair(store, migrations, ctx)));
     }
 
     /// `migrateUnreadableNkjvDefault` from `src/main/index.ts`, run once the
@@ -407,25 +289,20 @@ impl SettingsStore {
     /// API.Bible key moves to the bundled KJV. A failure is logged and the
     /// flag is still set, as in Electron.
     pub fn migrate_unreadable_nkjv_default(&mut self, services: &dyn PostOpenServices) {
-        if self.flag("kjvDefaultV1") {
+        if self.flag(MigrationFlag::KjvDefault) {
             return;
         }
         let result = (|| -> Result<(), String> {
             let scripture = self.store.get("scripture").cloned();
-            let bible_key = prop(
-                prop(Some(&Value::Object(self.store.data().clone())), "stt"),
-                "bibleApiKey",
-            )
-            .and_then(Value::as_str)
-            .is_some_and(|k| !trim(k).is_empty());
+            let bible_key = prop(self.store.get("stt"), "bibleApiKey")
+                .and_then(Value::as_str)
+                .is_some_and(|k| !trim(k).is_empty());
             let readable = services.bible_pack_installed("NKJV")? || bible_key;
             let translation = prop(scripture.as_ref(), "defaultTranslation")
                 .and_then(Value::as_str)
                 .ok_or("scripture.defaultTranslation is not text")?;
             if translation.to_uppercase() == "NKJV" && !readable {
-                let mut next = spread(scripture.as_ref());
-                next.insert("defaultTranslation".into(), json!("KJV"));
-                self.store.set("scripture", Value::Object(next));
+                self.merge_fields("scripture", [("defaultTranslation", json!("KJV"))]);
                 tracing::info!("[Scripture] Default moved from unreadable NKJV to bundled KJV");
             }
             Ok(())
@@ -433,7 +310,7 @@ impl SettingsStore {
         if let Err(error) = result {
             tracing::warn!(%error, "[Scripture] KJV default migration skipped");
         }
-        self.set_flag("kjvDefaultV1");
+        self.set_flag(MigrationFlag::KjvDefault);
     }
 
     /// Whether this launch upgraded a settings file from before What's New.
@@ -470,6 +347,12 @@ impl SettingsStore {
         self.store.set_as(key, value)
     }
 
+    /// `store.set(key, value)` with the JSON as given, for services that
+    /// update one field of a section and keep the rest as stored.
+    pub fn set_raw(&mut self, key: &str, value: Value) {
+        self.store.set(key, value);
+    }
+
     /// `store.onDidChange(section, callback)`.
     pub fn on_did_change(
         &mut self,
@@ -495,8 +378,8 @@ impl SettingsStore {
             .or_else(|| self.migrations.last_write_error())
     }
 
-    fn overlay_theme(&self) -> OverlayTheme {
-        normalize_overlay_settings(self.store.get("overlay")).theme
+    fn overlay(&self) -> kairo_domain::settings::OverlaySettings {
+        normalize_overlay_settings(self.store.get("overlay"))
     }
 
     /// `settingsForRenderer`: the stored settings with overlay, presentation
@@ -508,10 +391,9 @@ impl SettingsStore {
         ctx: &mut LaunchContext<'_>,
     ) -> Value {
         let mut raw = self.store.data().clone();
-        raw.insert(
-            "overlay".into(),
-            to_js_value(&normalize_overlay_settings(self.store.get("overlay"))).expect("overlay"),
-        );
+        let overlay = self.overlay();
+        let library = self.normalized_library(self.store.get("themeLibrary"), &overlay.theme, ctx);
+        raw.insert("overlay".into(), to_js_value(&overlay).expect("overlay"));
         raw.insert(
             "presentation".into(),
             to_js_value(&normalize_presentation_settings(
@@ -519,22 +401,13 @@ impl SettingsStore {
             ))
             .expect("presentation"),
         );
-        let library = normalize_theme_library(
-            self.store.get("themeLibrary"),
-            &self.overlay_theme(),
-            ctx.now_ms,
-            &(ctx.new_id)(),
-        );
         raw.insert(
             "themeLibrary".into(),
             to_js_value(&library).expect("library"),
         );
-        for (section, keys) in [("stt", STT_SECRET_KEYS), ("lyrics", LYRICS_SECRET_KEYS)] {
-            let mut redacted = spread(raw.get(section));
-            for key in keys {
-                redacted.insert(key.as_str().into(), json!(""));
-            }
-            raw.insert(section.into(), Value::Object(redacted));
+        for section in ["stt", "lyrics"] {
+            let keys = secret_keys(section).expect("a secret section");
+            raw.insert(section.into(), redacted(raw.get(section), keys));
         }
         raw.insert(
             "secretsConfigured".into(),
@@ -544,29 +417,20 @@ impl SettingsStore {
     }
 
     /// `settings:get`. Absent keys are `null`.
-    pub fn get_for_renderer(
-        &self,
-        key: &str,
-        secrets_configured: &SecretsConfigured,
-        ctx: &mut LaunchContext<'_>,
-    ) -> Value {
+    pub fn get_for_renderer(&self, key: &str, ctx: &mut LaunchContext<'_>) -> Value {
+        if let Some(keys) = secret_keys(key) {
+            return redacted(self.store.get(key), keys);
+        }
         match key {
-            "overlay" => to_js_value(&normalize_overlay_settings(self.store.get("overlay")))
-                .expect("overlay"),
+            "overlay" => to_js_value(&self.overlay()).expect("overlay"),
             "themeLibrary" => {
-                let library = normalize_theme_library(
+                let library = self.normalized_library(
                     self.store.get("themeLibrary"),
-                    &self.overlay_theme(),
-                    ctx.now_ms,
-                    &(ctx.new_id)(),
+                    &self.overlay().theme,
+                    ctx,
                 );
                 to_js_value(&library).expect("library")
             }
-            "stt" | "lyrics" => self
-                .for_renderer(secrets_configured, ctx)
-                .get(key)
-                .cloned()
-                .unwrap_or(Value::Null),
             _ => self.store.get(key).cloned().unwrap_or(Value::Null),
         }
     }
@@ -594,30 +458,18 @@ impl SettingsStore {
                 effects.push(SettingsEffect::ReconcileOutputs(Some(outputs)));
             }
             "themeLibrary" => {
-                let library = normalize_theme_library(
-                    Some(&value),
-                    &self.overlay_theme(),
-                    ctx.now_ms,
-                    &(ctx.new_id)(),
-                );
+                let library = self.normalized_library(Some(&value), &self.overlay().theme, ctx);
                 self.store
                     .set_as("themeLibrary", &library)
                     .expect("library");
             }
             "stt" | "lyrics" => {
-                let keys = if key == "stt" {
-                    STT_SECRET_KEYS
-                } else {
-                    LYRICS_SECRET_KEYS
-                };
+                let keys = secret_keys(key).expect("a secret section");
                 let merged =
                     merge_secret_section(&spread(self.store.get(key)), &spread(Some(&value)), keys);
                 // Provider keys live in the church account, never in this file.
-                let mut stored = merged;
-                for secret in keys {
-                    stored.insert(secret.as_str().into(), json!(""));
-                }
-                self.store.set(key, Value::Object(stored));
+                self.store
+                    .set(key, redacted(Some(&Value::Object(merged)), keys));
                 effects.push(SettingsEffect::BroadcastSettingsChanged);
             }
             "capture" => {
@@ -664,6 +516,179 @@ impl SettingsStore {
     }
 }
 
+/// `store.set(section, { ...store.get(section), ...fields })`.
+fn merge_fields<'k>(
+    store: &mut JsonStore,
+    section: &str,
+    fields: impl IntoIterator<Item = (&'k str, Value)>,
+) {
+    let mut next = spread(store.get(section));
+    for (field, value) in fields {
+        next.insert(field.into(), value);
+    }
+    store.set(section, Value::Object(next));
+}
+
+/// Every launch repair of `db/index.ts`, in order.
+fn repair(store: &mut JsonStore, migrations: &mut JsonStore, ctx: &mut LaunchContext<'_>) {
+    let flag = |migrations: &JsonStore, flag: MigrationFlag| truthy(migrations.get(flag.as_str()));
+    let set_flag = |migrations: &mut JsonStore, flag: MigrationFlag| {
+        migrations.set(flag.as_str(), Value::Bool(true))
+    };
+
+    // AI detection moved to DeepSeek, once; a model name from the old provider is cleared.
+    if !flag(migrations, MigrationFlag::DeepseekDefault) {
+        let stt = store.get("stt");
+        if prop(stt, "llmProvider") != Some(&json!("deepseek")) || truthy(prop(stt, "llmModel")) {
+            merge_fields(
+                store,
+                "stt",
+                [("llmProvider", json!("deepseek")), ("llmModel", json!(""))],
+            );
+        }
+        set_flag(migrations, MigrationFlag::DeepseekDefault);
+    }
+
+    if !flag(migrations, MigrationFlag::NkjvDefault) {
+        merge_fields(
+            store,
+            "scripture",
+            [("defaultTranslation", json!(DEFAULT_TRANSLATION_ID))],
+        );
+        set_flag(migrations, MigrationFlag::NkjvDefault);
+    }
+
+    // Shallow-merge heal: scripture from before the offline cache.
+    if !prop(store.get("scripture"), "offlineDownloadBibleIds").is_some_and(Value::is_array) {
+        merge_fields(store, "scripture", [("offlineDownloadBibleIds", json!([]))]);
+    }
+
+    // Lyrics: a translate key that is not text, and a gloss colour that is not a hex colour.
+    {
+        let lyrics = store.get("lyrics");
+        let mut fixes = Vec::new();
+        if !prop(lyrics, "googleTranslateApiKey").is_some_and(Value::is_string) {
+            fixes.push(("googleTranslateApiKey", json!("")));
+        }
+        if !prop(lyrics, "glossColor")
+            .and_then(Value::as_str)
+            .is_some_and(|color| is_hex_color(trim(color)))
+        {
+            fixes.push(("glossColor", json!(DEFAULT_GLOSS_COLOR)));
+        }
+        if !fixes.is_empty() {
+            merge_fields(store, "lyrics", fixes);
+        }
+    }
+
+    // Workspace from before the Songs folder: keep the default Documents location.
+    {
+        let workspace = store.get("workspace");
+        if !truthy(workspace) || !prop(workspace, "folder").is_some_and(Value::is_string) {
+            store.set("workspace", json!({ "folder": "" }));
+        }
+    }
+
+    // Church from before the onboarding wizard.
+    {
+        let church = store.get("church");
+        let text = |key| {
+            prop(church, key)
+                .filter(|v| v.is_string())
+                .cloned()
+                .unwrap_or(json!(""))
+        };
+        let times = prop(church, "serviceTimes").filter(|v| v.is_array());
+        if !truthy(church) || !prop(church, "name").is_some_and(Value::is_string) || times.is_none()
+        {
+            let healed = json!({
+                "name": text("name"),
+                "timezone": text("timezone"),
+                "role": text("role"),
+                "serviceTimes": times.cloned().unwrap_or(json!([])),
+            });
+            store.set("church", healed);
+        }
+    }
+
+    // Retired ProPresenter settings, before any normaliser reads old destinations.
+    let retired = retire_pro_presenter_settings(Some(&Value::Object(store.data().clone())));
+    store.replace(retired);
+
+    let mut overlay = normalize_overlay_settings(store.get("overlay"));
+    store
+        .set_as("overlay", &overlay)
+        .expect("overlay serializes");
+    let presentation =
+        normalize_presentation_settings(store.get("presentation").unwrap_or(&Value::Null));
+    store
+        .set_as("presentation", &presentation)
+        .expect("presentation serializes");
+
+    // `normalizeThemeLibrary(raw, theme, now = Date.now(), legacyId = newId())`:
+    // the default id is made on every call, used or not.
+    let library_migrated = flag(migrations, MigrationFlag::CustomThemeLibrary);
+    let raw_library = if library_migrated {
+        store.get("themeLibrary")
+    } else {
+        None
+    };
+    let legacy_id = (ctx.new_id)();
+    let library = normalize_theme_library(raw_library, &overlay.theme, ctx.now_ms, &legacy_id);
+    store
+        .set_as("themeLibrary", &library)
+        .expect("library serializes");
+    if !library_migrated {
+        set_flag(migrations, MigrationFlag::CustomThemeLibrary);
+    }
+
+    // A new install gets every built-in theme, once; a shaped library is left alone.
+    if !flag(migrations, MigrationFlag::BuiltInThemes) {
+        if is_untouched_theme_library(&library) {
+            let seeded = seed_built_in_themes(&library, ctx.now_ms, &mut *ctx.new_id);
+            let broadcast = seeded
+                .iter()
+                .find(|t| t.kind == OverlayContentKind::Scripture);
+            let stage_lyrics = seeded.iter().find(|t| t.kind == OverlayContentKind::Lyrics);
+            for output in &mut overlay.outputs {
+                if output.kind != OverlayOutputKind::Screen {
+                    continue;
+                }
+                if let Some(theme) = broadcast {
+                    *output = assign_theme_to_output(output, theme);
+                }
+                if let Some(theme) = stage_lyrics {
+                    *output = assign_theme_to_output(output, theme);
+                }
+            }
+            store
+                .set_as("themeLibrary", &seeded)
+                .expect("library serializes");
+            let raw = to_js_value(&overlay).expect("overlay serializes");
+            store
+                .set_as("overlay", &normalize_overlay_settings(Some(&raw)))
+                .expect("overlay serializes");
+        }
+        set_flag(migrations, MigrationFlag::BuiltInThemes);
+    }
+
+    // The old gold gloss default moves to the palette blue; a picked colour stays.
+    if !flag(migrations, MigrationFlag::GlossPalette) {
+        let color = prop(store.get("lyrics"), "glossColor")
+            .filter(|v| !v.is_null())
+            .map(value_to_string)
+            .unwrap_or_default();
+        if color.to_uppercase() == OLD_GOLD_GLOSS_COLOR {
+            merge_fields(
+                store,
+                "lyrics",
+                [("glossColor", json!(DEFAULT_GLOSS_COLOR))],
+            );
+        }
+        set_flag(migrations, MigrationFlag::GlossPalette);
+    }
+}
+
 /// A store file other than settings: its name, the name it had before the
 /// rename (copied once, see [`renamed_store`]) and its defaults.
 #[derive(Clone, Debug)]
@@ -671,6 +696,14 @@ pub struct StoreSpec {
     pub name: &'static str,
     pub legacy: Option<&'static str>,
     pub defaults: fn() -> Data,
+}
+
+const fn spec(name: &'static str, defaults: fn() -> Data) -> StoreSpec {
+    StoreSpec {
+        name,
+        legacy: None,
+        defaults,
+    }
 }
 
 fn object(value: Value) -> Data {
@@ -687,36 +720,16 @@ fn library_defaults() -> Data {
 
 /// Every electron-store file the Electron app keeps besides settings.
 pub const STORES: &[StoreSpec] = &[
-    StoreSpec {
-        name: "song-usage",
-        legacy: None,
-        defaults: || object(json!({ "entries": [] })),
-    },
-    StoreSpec {
-        name: "kairo-crash-reports",
-        legacy: None,
-        defaults: || object(json!({ "reports": [] })),
-    },
-    StoreSpec {
-        name: "kairo-libraries",
-        legacy: None,
-        defaults: library_defaults,
-    },
-    StoreSpec {
-        name: "kairo-usage",
-        legacy: None,
-        defaults: || object(json!({ "days": {} })),
-    },
-    StoreSpec {
-        name: "kairo-setlist",
-        legacy: None,
-        defaults: || object(json!({ "lists": [], "activeId": null })),
-    },
-    StoreSpec {
-        name: "kairo-services",
-        legacy: None,
-        defaults: || object(json!({ "activeId": null, "services": [] })),
-    },
+    spec("song-usage", || object(json!({ "entries": [] }))),
+    spec("kairo-crash-reports", || object(json!({ "reports": [] }))),
+    spec("kairo-libraries", library_defaults),
+    spec("kairo-usage", || object(json!({ "days": {} }))),
+    spec("kairo-setlist", || {
+        object(json!({ "lists": [], "activeId": null }))
+    }),
+    spec("kairo-services", || {
+        object(json!({ "activeId": null, "services": [] }))
+    }),
     StoreSpec {
         name: "kairo-onboarding",
         legacy: Some("proautomate-onboarding"),
@@ -731,11 +744,7 @@ pub const STORES: &[StoreSpec] = &[
         legacy: Some("proautomate-sermon-plans"),
         defaults: || object(json!({ "plans": [], "livePlanId": null })),
     },
-    StoreSpec {
-        name: "kairo-passages",
-        legacy: None,
-        defaults: || object(json!({ "passages": [] })),
-    },
+    spec("kairo-passages", || object(json!({ "passages": [] }))),
 ];
 
 /// The spec named `name`.
@@ -767,11 +776,7 @@ mod tests {
     use super::*;
 
     fn ctx_ids() -> impl FnMut() -> String {
-        let mut next = 0;
-        move || {
-            next += 1;
-            format!("00000000-0000-4000-8000-{next:012}")
-        }
+        kairo_oracle::pinned_uuids()
     }
 
     #[test]
@@ -782,12 +787,6 @@ mod tests {
             json!({ "a": 1 })
         );
         assert_eq!(Value::Object(spread(None)), json!({}));
-    }
-
-    #[test]
-    fn hex_colours() {
-        assert!(is_hex_color(" #abc "));
-        assert!(!is_hex_color("#ab") && !is_hex_color("blue") && !is_hex_color("#123456789"));
     }
 
     #[test]

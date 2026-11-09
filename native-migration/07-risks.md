@@ -16,8 +16,8 @@ this file with evidence.
 | R09 | JavaScript string and number semantics differ | H | Med | `kairo-domain::js` helpers, oracle fuzzing | 013 |
 | R10 | Electron secrets cannot be migrated | M | Med | Same fallback as today: sign in again, cache rebuilds | 022 |
 | R11 | Deployed updater will not accept the native package | M | High | Early proof, one-time Electron release as fallback | 048, 105 |
-| R12 | CEF adds size, signing complexity and security patching | H | Med | Isolated, on-demand component; regular version updates | 006, 059 |
-| R13 | `cef` crate lacks a needed API | M | Med | Spike; CPU paint path; C API directly if necessary | 006 |
+| R12 | OS web views cannot hand frames to capture-only outputs (NDI, DeckLink, Syphon, recorder) | H | High | Platform capture (ScreenCaptureKit, Windows.Graphics.Capture), measured first in 059; else drop web from those outputs or bring CEF back for the program layer only | 059 |
+| R13 | `gpui-webview` is experimental: no overlays above the page on Windows, X11 only on Linux, no PDF or permission API | M | Med | `gpui-fast` backend, overlays kept outside page bounds on Windows, platform calls through Wry raw handles | 047, 089, 045 |
 | R14 | Rich text editing is weaker than Tiptap | M | Low | Only one screen uses it; scoped decision | 007, 079 |
 | R15 | IME and combining marks fail in GPUI input (Yoruba matters) | M | High | Tested early with real text | 007, 014, 082 |
 | R16 | Replacing a preview image each frame grows GPUI's atlas | M | Med | `drop_image`, 30-minute spike; NV12 surface on macOS | 002, 066 |
@@ -60,8 +60,7 @@ Stop and return to the owner if any of the following occur:
 
 ## Updates from prompt 008 (2026-11-09)
 
-- R12: CEF measured at 329 MB installed and 148 MB zipped. Standard builds cannot play H.264 or HEVC, so a custom build may be needed. Shipped as an on-demand component.
-- R13: `cef` 156.4.0 covered every API used. `execute_java_script` has no isolated world, which affects Slido.
+- R12, R13: CEF was replaced by `gpui-webview` (DECISIONS.md). Spike 006's CEF figures (329 MB installed, 148 MB zipped, no H.264) no longer apply. The page-world init script still affects Slido.
 - New: Windows is untested across all spikes.
 - New: slide text raster p95 is 25.28 ms against 16 ms. Mitigation: cache and rasterise on change.
 - New: 120 Hz UI pacing is not proven (007).

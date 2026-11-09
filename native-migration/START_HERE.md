@@ -92,8 +92,8 @@ Thinking about these early will save time:
 - Lowest macOS version to support. GPUI's real floor is unknown until spike 007.
 - Whether Intel Macs and Linux stay supported, and at what level.
 - FFmpeg and H.264/HEVC licensing. This may deserve legal advice.
-- Whether the browser component (about the size of Chromium) ships in the installer or
-  downloads on first use.
+- Settled: web content uses the OS web views through `gpui-webview`, so nothing is shipped
+  or downloaded for it. Open: whether web on NDI and capture outputs is required (prompt 059).
 
 ## Agent protocol
 
@@ -146,7 +146,7 @@ are listed in `07-risks.md`.
 - **003** Spike: match Chromium slide text *(needs: 000)*
 - **004** Spike: video decode into wgpu *(needs: 000)*
 - **005** Spike: NDI, DeckLink ring and macOS native code from Rust *(needs: 000)*
-- **006** Spike: CEF web host for all browser needs *(needs: 000)*
+- **006** Spike: CEF web host for all browser needs *(needs: 000)*. Superseded by `gpui-webview`; see DECISIONS.md
 - **007** Spike: operator UI on GPUI Kit *(needs: 000)*
 - **008** Human checkpoint: go or no-go *(needs: 001, 002, 003, 004, 005, 006, 007)*
 - **009** Electron-to-native sync process *(needs: 000)*

@@ -3,3 +3,17 @@ name = "kairo-core"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+futures-util = "0.3"
+kairo-domain = { path = "../kairo-domain" }
+kairo-store = { path = "../kairo-store" }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "net"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+futures-lite = "2"
+tokio = { version = "1", features = ["test-util"] }

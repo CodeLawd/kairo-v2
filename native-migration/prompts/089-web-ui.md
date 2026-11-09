@@ -14,7 +14,7 @@
 
 ## 1. Objective and context
 
-Build the Web tab using the shared web-host page.
+Build the Web tab on `gpui-webview` (see DECISIONS.md, "Replace CEF with `gpui-webview`").
 
 ## 2. Prerequisites
 
@@ -81,3 +81,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 090.
+
+## Amendment: `gpui-webview` replaces CEF (2026-11-09)
+
+Embed the preview with `gpui-webview`, scaled with `set_zoom`. Menus, popovers and dialogs draw above the page only with the `gpui-fast` feature on macOS and Linux. On Windows, keep GPUI overlays outside the page bounds or use a separate window. The operator preview is its own page instance: send navigation and scroll to the program page in `kairo-engine` through commands. "Preview shows the same frames that go to air" becomes "preview follows the program page".

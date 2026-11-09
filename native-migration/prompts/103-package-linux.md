@@ -79,3 +79,18 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 104.
+
+## Amendment: `gpui-webview` replaces CEF (2026-11-09)
+
+Web content uses WebKitGTK 4.1 and needs X11 or XWayland. Declare the WebKitGTK and GTK 3 package dependencies, and start the app on X11 (`gpui_kit::platform::linux(WindowingModes::X11)`). See DECISIONS.md, "Replace CEF with `gpui-webview`".
+
+## Amendment from prompt 043: bundle FFmpeg
+
+Since 043, `kairo-media` links FFmpeg 9 dynamically through `ffmpeg-next =9.0.0` (DECISIONS.md, 043). Development builds load whatever FFmpeg the build machine has. On the development Mac that is Homebrew's copy under `/opt/homebrew/opt/ffmpeg/lib`. A package that does not bundle FFmpeg fails to start on any machine without that install. Users must not have to install FFmpeg.
+
+1. Build FFmpeg 9 from source as an LGPL shared build: `--enable-shared --disable-static --disable-gpl --disable-nonfree --disable-version3`, with decoders limited to the containers and codecs the media dock accepts (mp4, webm, m4v, mov, ogv). Spike 004's configure line (`spikes/004-video/README.md`) is the starting point. Pin the source version and the configure flags in the release job. The major versions of `libavcodec`, `libavformat`, `libavutil` and `libswscale` must match the ones `ffmpeg-next` was built against.
+2. Never ship a package-manager FFmpeg (Homebrew, vcpkg defaults, distro packages). Homebrew's is configured with `--enable-gpl --enable-libx264`, which would put the app under GPL terms.
+3. Ship the FFmpeg LGPL licence text and a written offer or link for the exact FFmpeg source and configure flags used.
+4. H.264 and HEVC decoding still need the legal review that DECISIONS.md requires before release. Record the outcome before the first public build.
+5. AppImage: put the `.so` files in `usr/lib` inside the image, with an `$ORIGIN/../lib` rpath on the app binary and on `kairo-engine`. deb: either ship the bundled libraries in `/usr/lib/kairo` with that rpath, or depend on distro FFmpeg packages only if the target distros ship FFmpeg 9 LGPL builds with matching major versions. Bundling is the default. Record the choice.
+6. In the verification step, run `ldd` on every binary and check that each FFmpeg library resolves inside the package. Launch on a clean Ubuntu LTS VM with no `libavcodec` installed, and check that a video thumbnail renders.

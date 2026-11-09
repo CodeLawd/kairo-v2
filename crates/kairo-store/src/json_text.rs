@@ -5,12 +5,19 @@
 //! one Electron writes from the same value.
 
 use kairo_domain::js::number_to_string;
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 /// `JSON.stringify(value, undefined, '\t')`.
 pub fn stringify_tabs(value: &Value) -> String {
     let mut out = String::new();
     write_value(&mut out, value, 0);
+    out
+}
+
+/// [`stringify_tabs`] of an object, without wrapping it in a [`Value`].
+pub fn stringify_tabs_object(map: &Map<String, Value>) -> String {
+    let mut out = String::new();
+    write_object(&mut out, map, 0);
     out
 }
 
@@ -53,25 +60,27 @@ fn write_value(out: &mut String, value: &Value, depth: usize) {
             indent(out, depth);
             out.push(']');
         }
-        Value::Object(map) => {
-            if map.is_empty() {
-                out.push_str("{}");
-                return;
-            }
-            out.push('{');
-            for (i, (key, item)) in map.iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                indent(out, depth + 1);
-                write_string(out, key);
-                out.push_str(": ");
-                write_value(out, item, depth + 1);
-            }
-            indent(out, depth);
-            out.push('}');
-        }
+        Value::Object(map) => write_object(out, map, depth),
     }
+}
+
+fn write_object(out: &mut String, map: &Map<String, Value>, depth: usize) {
+    if map.is_empty() {
+        out.push_str("{}");
+        return;
+    }
+    out.push('{');
+    for (i, (key, item)) in map.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        indent(out, depth + 1);
+        write_string(out, key);
+        out.push_str(": ");
+        write_value(out, item, depth + 1);
+    }
+    indent(out, depth);
+    out.push('}');
 }
 
 /// An integer as JavaScript prints the nearest double.
@@ -84,22 +93,9 @@ fn js_int(i: i128) -> String {
     }
 }
 
+/// `JSON.stringify` and serde_json escape strings the same way.
 fn write_string(out: &mut String, s: &str) {
-    out.push('"');
-    for c in s.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{08}' => out.push_str("\\b"),
-            '\u{0c}' => out.push_str("\\f"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"');
+    out.push_str(&serde_json::to_string(s).expect("a string serializes"));
 }
 
 #[cfg(test)]

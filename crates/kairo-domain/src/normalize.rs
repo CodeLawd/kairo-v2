@@ -6,10 +6,17 @@
 use crate::js;
 use serde_json::{Map, Value};
 
+/// The hex half of `COLOR_RE`: `/^#[0-9a-fA-F]{3,8}$/`.
+pub fn is_hex_color(s: &str) -> bool {
+    s.strip_prefix('#').is_some_and(|hex| {
+        (3..=8).contains(&hex.len()) && hex.bytes().all(|b| b.is_ascii_hexdigit())
+    })
+}
+
 /// `COLOR_RE`: `/^#[0-9a-fA-F]{3,8}$|^rgba?\([\d.,\s%]+\)$/`.
 pub fn is_color(s: &str) -> bool {
-    if let Some(hex) = s.strip_prefix('#') {
-        return (3..=8).contains(&hex.len()) && hex.bytes().all(|b| b.is_ascii_hexdigit());
+    if s.starts_with('#') {
+        return is_hex_color(s);
     }
     let inner = s
         .strip_prefix("rgba(")

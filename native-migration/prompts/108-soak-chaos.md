@@ -30,7 +30,7 @@ Read these before writing code. They are the specification.
 ## 4. Implementation requirements
 
 1. Build `tools/soak`: a scripted 4-hour service with video background, verses, lyrics, timers, messages, doc turns, on all outputs available.
-2. Chaos during the soak: kill the engine, web host and helper; block the UI thread; lose network; replug displays; disk nearly full; sleep and wake; Deepgram disconnect.
+2. Chaos during the soak: kill the engine, the OS web view content processes and the helper; block the UI thread; lose network; replug displays; disk nearly full; sleep and wake; Deepgram disconnect.
 3. Track memory, handles, GPU memory, dropped frames.
 
 Edge cases: list every error, empty and failure path you find in the source above, and handle each one. Add any that the source handles and this prompt does not name.

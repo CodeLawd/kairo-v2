@@ -4,6 +4,7 @@
 //! - [`secrets`]: protected data keys and Electron-compatible encrypted payloads.
 //! - [`paths`]: every folder Electron's `app.getPath` gives, for the same profile.
 //! - [`logging`]: `tracing` into electron-log's folder.
+//! - [`fs_atomic`]: crash-safe file writes.
 //! - [`crash`]: the panic hook, recovery snapshot and local crash ledger.
 //! - [`instance`]: one Kairo per profile, forwarding later launches.
 //! - [`launch`]: `.kairo` files from the command line and macOS open events.
@@ -13,6 +14,7 @@
 pub mod build_config;
 pub mod crash;
 pub mod db;
+pub mod fs_atomic;
 pub mod instance;
 pub mod json_store;
 pub mod json_text;
@@ -21,6 +23,7 @@ pub mod logging;
 pub mod paths;
 pub mod secrets;
 pub mod settings;
+pub mod workspace;
 
 /// `app.getLocale()`: the system's preferred locale as a BCP 47 tag, such as
 /// `en-US`. Falls back to `en-US`, Chromium's default, when the system says nothing.

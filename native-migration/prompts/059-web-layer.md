@@ -18,7 +18,7 @@ Put live web pages on outputs from a single shared browser instance.
 
 ## 2. Prerequisites
 
-- Prompt [006](./006-spike-web-host.md) is marked `done`.
+- Prompt 006 (CEF spike) is superseded by the `gpui-webview` decision in DECISIONS.md and is not a prerequisite.
 - Prompt [051](./051-compositor-core.md) is marked `done`.
 - Prompt [056](./056-audio-engine.md) is marked `done`.
 
@@ -34,16 +34,17 @@ Read these before writing code. They are the specification.
 
 ## 4. Implementation requirements
 
-1. Production `kairo-web-host`: one page per URL, frames in shm or shared texture, input forwarding, navigation events, audio routed to the audio engine, crash recovery, and clean helper shutdown.
+1. First, before building anything else: measure frame capture of a Wry web view owned by `kairo-engine` at 1920×1080, 30 fps. Use ScreenCaptureKit, or `takeSnapshot` as a fallback, on macOS, and Windows.Graphics.Capture on Windows. Target p99 under 50 ms. If it misses, set `blocked` and ask the owner (see DECISIONS.md, "Replace CEF with `gpui-webview`").
+1a. Web layer: one Wry page per URL in `kairo-engine`, shown as a native child view on display outputs and captured for NDI, DeckLink, Syphon and the recorder. It needs input forwarding, navigation events, renderer-crash recovery (reload the page) and clean teardown. Routing page audio to the audio engine is not available through public web view APIs: record what is possible per OS.
 2. Remove mirroring: scroll and pointer become direct input to the single page; draw the operator's pointer as an overlay above the page on outputs, as today.
-3. Only the program page has framing headers removed.
+3. The program page loads top-level, so framing headers need no removal.
 4. Enforce the iframe's sandbox: scripts, same-origin, forms and presentation only, so no popups, downloads, top navigation, camera or microphone. Allow autoplay, fullscreen, encrypted media and picture in picture; referrer policy strict-origin-when-cross-origin; white backdrop. Port `rememberWebScroll`, the 56 px pointer with its tip offset, and clamped coordinates. Web shows only on outputs that show backgrounds and follow the program.
 
 Edge cases: list every error, empty and failure path you find in the source above, and handle each one. Add any that the source handles and this prompt does not name.
 
 ## 5. Technical constraints
 
-- Treat all messages from the web host as untrusted; validate sizes and bounds.
+- Treat all messages from web content (Wry IPC) as untrusted; validate sizes and bounds.
 - `../kairo-presenter` is a read-only reference unless this prompt explicitly permits an edit. The owner is actively working there: never commit, stash, reset, pull, switch branches or overwrite anything in it.
 - `gpui-kit` stays pinned at the version in the root `Cargo.toml`. Do not bump it here.
 - Do not invent APIs. If an API named here differs in the pinned version, read the crate source under `~/.cargo/registry/src`, use what exists, and record the difference in `native-migration/DECISIONS.md`.
@@ -52,7 +53,7 @@ Edge cases: list every error, empty and failure path you find in the source abov
 
 ## 6. Expected deliverables
 
-- `kairo-web-host` and layer integration, tests.
+- Web layer in `kairo-engine` with platform capture, tests, and the capture measurements in PROGRESS.md.
 - Updated `native-migration/PROGRESS.md`, and `native-migration/api-inventory.md` for any API items this prompt finishes.
 
 ## 7. Testing and verification
@@ -73,7 +74,7 @@ If a gate fails, debug and fix the cause. Do not disable a test, weaken an asser
 
 ## 8. Performance considerations
 
-- Web host absent when no page is live.
+- No web view exists when no page is live.
 
 Record measured numbers in PROGRESS.md notes. Do not state a number you did not measure.
 
@@ -92,3 +93,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## Amendment from prompt 008
 
 Use CEF CPU paint first. The program page is top-level, so framing headers need no removal unless something frames it. Standard CEF has no H.264 or HEVC. Close the browser without holding a lock that on_before_close needs, and override terminate:. See spike 006.
+
+## Amendment: `gpui-webview` replaces CEF (2026-11-09)
+
+Superseding the 008 amendment above: no CEF. Use Wry in `kairo-engine` (winit), not `gpui-webview`, which needs a GPUI window. Fades and layers above the page cannot be composited into a native view: draw them over captured frames for capture outputs, and record any difference for display outputs. H.264 and HEVC follow the OS engine.

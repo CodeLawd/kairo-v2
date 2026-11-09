@@ -38,7 +38,7 @@ Read these before writing code. They are the specification.
 ## 4. Implementation requirements
 
 1. Port all steps, gating (`shouldOfferOnboarding`, `shouldOfferAccountGate`), device pairing, OTP, and tour highlights. Carefully recreate `TourSlides.tsx` animations.
-2. Add a web-host pre-install step if prompt 008 selected on-demand delivery.
+2. No web-host pre-install step: web content uses the OS web views (DECISIONS.md, "Replace CEF with `gpui-webview`").
 3. Coach tours are operator, scripture, lyrics and documents, anchored to specific controls. Give those controls stable anchors, so highlights land correctly.
 
 Edge cases: list every error, empty and failure path you find in the source above, and handle each one. Add any that the source handles and this prompt does not name.

@@ -45,4 +45,5 @@ keyring = { version = "3.6", features = ["sync-secret-service", "crypto-rust"] }
 [dev-dependencies]
 futures-lite = "2"
 kairo-oracle = { path = "../kairo-oracle" }
+proptest = "1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "registry"] }

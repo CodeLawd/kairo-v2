@@ -123,7 +123,12 @@ const _: () = {
 
 /// `API_FALLBACK_URL`: the second address of the production API.
 pub const fn api_fallback_url() -> Option<&'static str> {
-    if eq(API_URL, PRODUCTION_API_URL) {
+    api_fallback_for(API_URL)
+}
+
+/// The production backup, only when the configured API is the production origin.
+pub const fn api_fallback_for(api: &str) -> Option<&'static str> {
+    if eq(api, PRODUCTION_API_URL) {
         Some(PRODUCTION_API_FALLBACK_URL)
     } else {
         None

@@ -36,7 +36,7 @@ Read these before writing code. They are the specification.
 ## 4. Implementation requirements
 
 1. Build a universal or per-arch `.app` per prompt 008, keeping `com.kairo.app`, usage strings, `.kairo` document type, NSBonjourServices and local-network text, DMG layout, and zip for the updater.
-2. Include `kairo-engine` as an accessory helper; sign helpers inside-out. Drop JIT entitlements unless CEF needs them, and scope those to the web host.
+2. Include `kairo-engine` as an accessory helper; sign helpers inside-out. Drop JIT entitlements: WKWebView runs out of process and needs none in the app.
 3. Set `LSMinimumSystemVersion` from the decision in prompt 008.
 4. Port `verify-package`: bundle layout, signatures, hardened runtime, rpaths, NDI runtime and licence files.
 5. Keep unsigned ad-hoc builds (`KAIRO_ADHOC_SIGN`) until signing secrets exist, matching the current release fallback.
@@ -92,4 +92,15 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 
 ## Amendment from prompt 008
 
-CEF ships as an on-demand signed component with five helper apps. Developer ID signing and entitlements are unverified. Test on real macOS 11.
+No CEF: web content uses WKWebView (DECISIONS.md, "Replace CEF with `gpui-webview`"), so no helper apps ship for it. Developer ID signing and entitlements are unverified. Test on real macOS 11.
+
+## Amendment from prompt 043: bundle FFmpeg
+
+Since 043, `kairo-media` links FFmpeg 9 dynamically through `ffmpeg-next =9.0.0` (DECISIONS.md, 043). Development builds load whatever FFmpeg the build machine has. On the development Mac that is Homebrew's copy under `/opt/homebrew/opt/ffmpeg/lib`. A package that does not bundle FFmpeg fails to start on any machine without that install. Users must not have to install FFmpeg.
+
+1. Build FFmpeg 9 from source as an LGPL shared build: `--enable-shared --disable-static --disable-gpl --disable-nonfree --disable-version3`, with decoders limited to the containers and codecs the media dock accepts (mp4, webm, m4v, mov, ogv). Spike 004's configure line (`spikes/004-video/README.md`) is the starting point. Pin the source version and the configure flags in the release job. The major versions of `libavcodec`, `libavformat`, `libavutil` and `libswscale` must match the ones `ffmpeg-next` was built against.
+2. Never ship a package-manager FFmpeg (Homebrew, vcpkg defaults, distro packages). Homebrew's is configured with `--enable-gpl --enable-libx264`, which would put the app under GPL terms.
+3. Ship the FFmpeg LGPL licence text and a written offer or link for the exact FFmpeg source and configure flags used.
+4. H.264 and HEVC decoding still need the legal review that DECISIONS.md requires before release. Record the outcome before the first public build.
+5. Copy the dylibs into `Kairo.app/Contents/Frameworks`. Rewrite each install name to `@rpath/…` and add `@executable_path/../Frameworks` to the app's and `kairo-engine`'s rpaths. Sign each dylib inside-out with the hardened runtime.
+6. Extend `verify-package`: `otool -L` on every Mach-O in the bundle must show no `/opt/homebrew`, `/usr/local` or other absolute FFmpeg path. Launch the packaged app on a clean macOS VM with no Homebrew, and check that a video thumbnail renders.

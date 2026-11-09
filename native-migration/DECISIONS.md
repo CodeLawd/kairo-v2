@@ -379,3 +379,189 @@ Decision: `kairo-store::json_store` is one electron-store-compatible store for e
 10. The oracle can now run the Electron app's real startup: `oracle:settings-launch.launch` runs `src/main/db/index.ts` in a child Node process with `electron` and `electron-log` stubbed (`tools/ts-oracle/modules/electron-launch/`) and `Date.now` and `crypto.randomUUID` pinned. The pinned ids match, which also proves the repairs call for ids in Electron's order (`normalizeThemeLibrary` makes a default id on every call).
 
 Affects prompts: 022 to 025, 032, 067, 100.
+
+## 2026-11-09 — 025 — Core transport and GPUI verification
+
+Decision: Register one actor per service type, with a typed message and reply.
+A full mailbox rejects fire-and-forget sends. Calls wait asynchronously for
+capacity and skip cancelled queued work. Latest-value topics replace snapshots.
+Ordered topics retain 64 events per topic and report a gap to lagging subscribers.
+The GPUI bridge requests a display frame only when high-rate state arrives and
+samples the freshest state at that frame. The view owns the cancellable task.
+
+The pinned GPUI Kit 0.9.0 `test-support` feature caused Cargo to resolve GPUI
+Fast's exact Taffy 0.15.0 requirement against the workspace's locked 0.15.1.
+The verification view runs against the existing desktop backend as an example
+without that feature. The GPUI Kit pin and Taffy lock remain as they were.
+
+Bootstrap preserves completed resources when another loader errors, panics or
+runs past eight seconds. Its request-scoped progress reports the first pending
+label and ends with Ready. Timed-out loaders are dropped, so late results cannot
+change the returned snapshot. The app shell still supplies concrete loaders,
+applies the startup snapshot and handles window-scoped quit confirmation in 067
+and 071. Output dispatch and service restoration belong to 039.
+
+Quit finishes capture before closing audience and quote work, starts the NDI
+stop, and allows two seconds for output release. Actor mailboxes stop after
+that sequence. Queued and running async work is cancelled when actors stop.
+Filesystem work that already started may finish on a blocking worker.
+
+The resilience actor publishes health and recovers the existing
+`session-recovery.json` via the crash-safe store writer. Inactive services
+cannot restore a snapshot. Missing and corrupt snapshots are treated as absent
+at the actor boundary. Recovery monitoring runs only while requested by the
+session owner. Provider retries carry tickets so an old timer cannot end a new
+fallback, or override an offline transition or successful request. Probe
+scheduling and applying a validated recovery snapshot to the orchestrator
+remain with its service owner.
+
+## 2026-11-09 — 024 — Workspace folders and song files
+
+Decision: `kairo-store::workspace` holds the workspace service, song-file helpers and the path checks.
+
+1. Cross-volume moves copy each entry to a hidden `.<name>.kairo-moving` beside its destination, rename it into place, then delete the source. Electron copies straight to the final name, so an interrupted copy left a partial file that the next move then kept (the destination "wins"). Here an interruption leaves the source whole and the partial copy hidden; the next move clears it and retries. After the rename and before the delete both copies exist, which loses nothing.
+2. Song files are written atomically (temporary file, `fsync`, rename); Electron writes them in place. The name and bytes are identical to `serializeSongFile`.
+3. `is_inside_root` is lexical, as `isInsideRoot` is; `is_under_allowed_folder` resolves both sides through the filesystem first, as `isUnderAllowedFolder` in `src/main/index.ts` does, so a symlink pointing out of an allowed folder and a broken symlink are refused. Paths are compared by component, so a sibling sharing the prefix is outside.
+4. Services this module needs but does not own are left to their prompts: the folder picker for `workspace:chooseFolder` (settings UI), rebuilding SQLite from `Songs/` for `workspace:resyncSongs` and after a move (lyrics, 040), `mediaService.setFolder` after `workspace:adoptMedia` and the media rescan after a move (043), and opening a folder in Finder or Explorer for `workspace:reveal` and `workspace:revealSongs` (the UI; this module returns the folder to open). `listMediaFolders` and the rest of `tests/media-folders.test.ts` are the media service's (043).
+5. The workspace root is computed from settings each time (`workspace.folder`, trimmed and resolved), with `ensure` cached by root, as in Electron.
+
+Affects prompts: 040, 043, 070.
+
+## 2026-11-09 — web — Replace CEF with `gpui-webview` and platform web views
+
+Decision: The owner chose `gpui-webview` (GPUI Kit's Wry-based crate) over CEF. This supersedes item 5 of the 008 go decision and the 006 entry "Restore the browser component". There is no on-demand browser download: each OS supplies the engine. That is WKWebView on macOS, WebView2 on Windows, and WebKitGTK on Linux.
+
+What a source review of `gpui-webview` 0.9.1 (with `lb-wry` 0.53.3) found. Nothing was built or measured, so every point here is unverified on hardware:
+
+1. The crate wraps a native child view placed over the GPUI window. GPUI's renderer does not draw the page. Wry offers navigation, init scripts, script evaluation, an IPC handler, navigation and new-window handlers, transparency, zoom and a persistent data directory. It has no offscreen rendering and no frame callback.
+2. The crate needs `gpui-kit` 0.9.1. The workspace pins `=0.9.0`, so the first prompt that adds it bumps the pin.
+3. GPUI menus, popovers and dialogs draw above the page, and a partly scrolled page clips correctly, only with the `gpui-fast` feature on both `gpui-kit` and `gpui-webview`, and only on macOS and Linux. On Windows, and on gpui-pre, the page covers any GPUI content in its bounds.
+4. Linux needs X11 or XWayland (`gpui_kit::platform::linux(WindowingModes::X11)`). Wayland-only sessions are not supported.
+5. Init scripts run in the page's main world, as CEF's did. Slido reads are untrusted (no change from 006).
+6. Gain over CEF: H.264 and HEVC play wherever the OS supports them, which removes the 008 condition about H.264. It also drops about 148 MB zipped, the five CEF helper apps, and Kairo's own CEF security patching.
+
+How each use maps:
+
+| Use | Plan | Risk |
+|---|---|---|
+| Web tab preview (089) | `gpui-webview` embedded in the operator window | Needs `gpui-fast` for overlays and clipping. On Windows, keep GPUI overlays outside the page bounds |
+| Slido (047) | A separate GPUI window with a `gpui-webview`. Init script, navigation and new-window rules, and a persistent data directory per profile | Permission denial may need platform calls Wry does not expose |
+| PPTX to PDF (045) | Hidden web view. Print through the platform: `WKWebView.createPDF` or `printOperation` on macOS, `ICoreWebView2_7::PrintToPdf` on Windows, `WebKitPrintOperation` on Linux, through Wry's raw handles | Wry has no PDF call; this is about 3 small per-OS functions. Paged output must match 1440×810 pt slides |
+| Live web layer on outputs (059) | The program page runs in a Wry web view owned by `kairo-engine` (winit, not GPUI). Display outputs can show it as a native child view above the compositor surface. NDI, DeckLink, Syphon and the recorder need frames, which need platform capture. On macOS that is ScreenCaptureKit on the web view's window, or `takeSnapshot` as a fallback. On Windows it is Windows.Graphics.Capture on the WebView2 visual. On Linux it is WebKitGTK snapshot | **Unproven and the main risk.** Fades, transitions and layers above the page cannot be composited into a native view the way they could with CEF frames. Page audio cannot be routed to the audio engine through public APIs |
+
+Condition: prompt 059 starts with a measured capture check: 1920×1080, 30 fps, p99 latency under 50 ms, on macOS and Windows. If capture fails, stop and ask the owner. The options are dropping web from capture-only outputs, or bringing back CEF for the program layer only.
+
+Affects prompts: 045, 047, 059, 070, 071, 073, 089, 101, 102, 103.
+
+## 2026-11-09 — 030 — Desktop cloud transport
+
+Decision: Use reqwest 0.12.28 with rustls and the native trust store. Desktop
+requests retain `X-PA-Client: desktop`. Health checks choose a host before
+sending writes. Only reads can automatically move to the alternate host after
+a transport failure. HTTP failures retain the server's message, including the
+first Nest validation message. Redirects are disabled to keep credentials and
+writes on configured origins. A token retry cannot cross an account change.
+
+Axios 1.16.1's installed Node adapter uses `proxy-from-env` and Node's TLS
+configuration. Reqwest honors the proxy environment, including `NO_PROXY`,
+and can read static system proxy configuration on supported platforms. Native
+roots replace Node's root selection. Node-specific options such as
+`NODE_EXTRA_CA_CERTS` do not configure this Rust client. Electron `net` also
+supports Chromium PAC/WPAD and integrated proxy authentication. Those behaviors
+and Electron session certificate hooks are outside this transport. This
+comparison was made from the installed sources and upstream docs, with
+enterprise proxy and certificate fixtures still unverified.
+[Reqwest 0.12.28](https://docs.rs/reqwest/0.12.28/reqwest/)
+[Electron 33.4.11 net](https://github.com/electron/electron/blob/v33.4.11/docs/api/net.md)
+[Node TLS configuration](https://nodejs.org/docs/latest-v20.x/api/cli.html#node_extra_ca_certsfile)
+
+Decision: Keep rotating refresh tokens in memory as well as secure storage so
+keychain failure only affects persistence across launches. Finish an in-flight
+rotation even when the requesting view drops it. Stale sessions retain their
+account snapshot and back off. A resume or focus signal bypasses that backoff.
+While stale, a five-second wall-clock check detects long sleeps even if the
+runtime monotonic clock paused. The shell can also forward its native wake
+signal directly to `reconnect`. The compiled configuration launches the
+system browser for pairing and account links. Explicit test configurations
+emit a browser event for the embedding shell instead.
+
+Provider keys were retired in the Electron source. The legacy org-secret pull
+accepts the throttle flag and performs zero requests. The four account licence
+inventory items belong to prompt 031, which owns licence activation, status,
+refresh and notifications. The account focus command reconnects the session.
+The licence refresh on focus is wired with the licence service in 031.
+
+Local verification uses a scratch copy of the unchanged Nest app and an empty
+loopback MongoDB. The scratch Audience config uses a different development
+port when 8787 is occupied. The server's reuse grace deliberately permits a
+short race and an unused direct successor. The opt-in native test consumes
+successors and waits beyond the race window before asserting family revocation.
+
+## 2026-11-09 — 031 — Licence and onboarding
+
+Decision: Verify the server's Ed25519 signature over its UTF-8
+`JSON.stringify(claims)` envelope with ring. A compiled public key takes
+precedence over a protected pin established by a successful authenticated
+online lease. Cached snapshots never establish their own key. Keep the
+Electron grace ceiling of 14 days, the subscription expiration bound, and
+the 60-second rollback tolerance. Invalid, expired or differently bound
+leases cannot enable a feature. A transport failure leaves the valid
+offline lease in place. Licence activation and refresh preserve server form
+messages, and provider readiness comes from the licence snapshot.
+
+Startup wiring must migrate onboarding before the cloud session clears
+legacy provider fields. The migration uses their presence without copying
+the values. Persist the wizard snapshot before committing its migration flag.
+The native boot shell and real transcription provider grants are later
+integration checks.
+
+## 2026-11-09 — 032 — Reporting privacy and archive wiring
+
+Decision: Keep the current server crash and usage enums, which the server
+validates against allowlists. The native source of each crash is carried
+in `process`. Admin consumers can label `engine` as Engine, `web-host` as Web
+host, `ui-panic` as UI panic, and `window` as Window. The wire kinds are
+`child_process` for engine and web host and `renderer` for UI panic and window.
+Usage retains `child_process_gone` for helpers, `renderer_gone` for windows
+and `uncaught` for UI panic. No new wire enum values are required.
+
+Decision: `note_error` accepts bounded diagnostic categories. Native
+uploads omit raw console text, panic payloads and log tails. Legacy crash
+queues are sanitized before any upload. The local panic ledger stamps the
+privacy flags for each new entry once reporting is initialized, so re-enabling
+a setting does not retroactively authorize an opted-out panic. Settings
+changes discard unsent reports and cancel the corresponding HTTP wait.
+Cancellation cannot retract bytes already received by the server. Usage
+uploads only allowlisted event counters and setup metadata. Feedback and
+explicit sermon recap uploads use their own content-bearing contracts and
+are separate from diagnostic reporting.
+
+The service records worker subscribes to the shared AppCore publisher for
+transcripts, scripture suggestions, live plan and orchestrator state.
+The caller supplies stop and clear hooks. Untitled services use the local
+calendar and an English medium date format. Locale-sensitive title formatting
+and live orchestration with the production shell remain later integration
+checks.
+
+## 2026-11-09 — 043 — Media and tracks libraries
+
+Decision: FFmpeg is linked into the workspace through `ffmpeg-next =9.0.0`, against FFmpeg 9 shared libraries (Homebrew 9.0.2 on the development Mac). This replaces spike 004's `=8.1.0` pin, which does not compile against FFmpeg 9. Why: the owner chose to always link FFmpeg so every build has posters. Effect: every development and CI machine needs FFmpeg 9 development libraries and `pkg-config`, and the `kairo-media` poster tests need the `ffmpeg` command on PATH to make fixtures. Packaging (101–103) must bundle the matching FFmpeg 9 LGPL shared libraries, so users install nothing. The engine (050 onward) uses the same version.
+
+Decision: posters are the decoded frame at or after 0.1 s, or the last frame of a shorter clip. Frames wider than 640 px are scaled down to 640 px wide. Each poster is written as a PNG with a JSON sidecar that holds its size and the container duration. The cache key is the first 16 bytes of SHA-256 over the resolved path, the mtime in nanoseconds and the size. `prune_cache` removes keys that are no longer in the library.
+
+Decision: media delete stays an unlink, as in Electron (`fs.unlink`). Tracks remove moves the file to the OS Trash with the `trash` crate. A file already missing is treated as removed.
+
+Decision: file clipboard. On macOS it reads and writes `NSFilenamesPboardType` through `objc2-app-kit`, then falls back to reading `public.file-url` and plain text. On Windows (`CF_HDROP`) and Linux (`text/uri-list` on X11 and Wayland) it uses `arboard` 3.7 file lists, then falls back to plain text. Copy and Cut fill only the in-app clipboard, as in Electron.
+
+Decision: reveal (`media:revealItem`, `tracks:reveal`) returns the path. The UI opens the file manager, as decided for workspace in 024. Folder pickers (`chooseFolder`, `importFiles`, `addMediaToPlaylist`) are UI work (083, 084). `push`, `clear`, `seek`, and the surface half of `setPlayback` and `setPaused` belong to output and engine work. Their inventory rows stay `todo`.
+
+Decision: three differences from Electron.
+- Settings-era playlists migrate against the files of the scan in progress. Electron used the previous scan's items, which are empty at startup, so it emptied every migrated playlist.
+- The repair of moved entries also runs against the scan in progress.
+- Playlists are read leniently. Non-string item ids are dropped, and a missing `createdAt` reads as 0. Electron failed the whole manifest when an id was not a string.
+
+Decision: `localeCompare` uses `feruca`, the CLDR root collation with non-ignorable variable weighting. A test checks its order against Node 22. Tracks sorting (`sensitivity: 'base'`) folds case and Latin accents before collating.
+
+Decision: scans can run off the service. `scan_media_folder` is a pure function. `apply_scan` drops a result whose folder no longer matches the settings. Snapshot pushes are coalesced: each subscriber keeps only the newest snapshot. Error text for I/O failures is Rust's (`No such file or directory (os error 2)`), not Node's (`ENOENT: …`). The operator-facing prefixes match Electron.
+
+Affects prompts: 050, 083, 084, 101, 102, 103.

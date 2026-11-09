@@ -7,11 +7,10 @@
 use gpui_kit::component::ActiveTheme;
 use gpui_kit::*;
 use kairo_store::crash::{CrashConfig, install_panic_hook};
-use kairo_store::instance::{Forwarded, Instance, acquire};
-use kairo_store::launch::{LaunchQueue, kairo_paths_from_urls, kairo_paths_in};
+use kairo_store::instance::{Forwarded, Instance, PrimaryInstance, acquire};
+use kairo_store::launch::{LaunchQueue, kairo_paths_from_urls};
 use kairo_store::paths::{self, AppPaths, Os};
 use std::path::PathBuf;
-use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
 /// `.kairo` files the operating system handed over before the window opened.
@@ -73,17 +72,18 @@ fn start(paths: &AppPaths) -> Option<kairo_store::logging::LogGuard> {
 
 /// Collects, on the main thread, files opened after launch and launches
 /// forwarded by a second process. A forwarded launch with no files brings
-/// Kairo forward, as `second-instance` does.
-fn watch_incoming(received: Option<Receiver<Forwarded>>, cx: &mut App) {
+/// Kairo forward, as `second-instance` does. The task owns the instance, so
+/// the lock is held for the life of the app.
+fn watch_incoming(instance: Option<PrimaryInstance>, cx: &mut App) {
     cx.spawn(async move |cx| {
         loop {
             cx.background_executor()
                 .timer(Duration::from_millis(200))
                 .await;
             let late = std::mem::take(&mut *LATE_FILES.lock().unwrap_or_else(|e| e.into_inner()));
-            let launches: Vec<Forwarded> = received
+            let launches: Vec<Forwarded> = instance
                 .as_ref()
-                .map(|rx| rx.try_iter().collect())
+                .map(|primary| primary.forwarded().try_iter().collect())
                 .unwrap_or_default();
             if late.is_empty() && launches.is_empty() {
                 continue;
@@ -129,11 +129,7 @@ fn main() {
 
     // Windows and Linux pass files on the command line; macOS sends open events.
     if !cfg!(target_os = "macos") {
-        let args: Vec<String> = std::env::args().skip(1).collect();
-        LAUNCH_FILES.push(kairo_paths_in(
-            &args,
-            std::env::current_dir().ok().as_deref(),
-        ));
+        LAUNCH_FILES.push(Forwarded::current().kairo_paths());
     }
 
     let application = application().with_assets(assets::Assets);
@@ -152,19 +148,7 @@ fn main() {
             .expect("failed to open the Kairo bootstrap window");
 
         receive_files(LAUNCH_FILES.mark_ready(), cx);
-        let forwarded = instance.map(|primary| {
-            let (tx, rx) = std::sync::mpsc::channel();
-            // Holds the lock for the life of the process and relays launches.
-            std::thread::spawn(move || {
-                while let Ok(launch) = primary.forwarded().recv() {
-                    if tx.send(launch).is_err() {
-                        break;
-                    }
-                }
-            });
-            rx
-        });
-        watch_incoming(forwarded, cx);
+        watch_incoming(instance, cx);
         cx.activate(true);
     });
 }

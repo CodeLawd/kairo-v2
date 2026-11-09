@@ -15,13 +15,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-fn ids() -> impl FnMut() -> String {
-    let mut next = 0;
-    move || {
-        next += 1;
-        format!("00000000-0000-4000-8000-{next:012}")
-    }
-}
+use kairo_oracle::pinned_uuids as ids;
 
 fn open(dir: &Path) -> SettingsStore {
     let mut ids = ids();
@@ -196,15 +190,9 @@ fn the_renderer_never_sees_secrets() {
     assert_eq!(all["stt"]["bibleApiKey"], json!(""));
     assert_eq!(all["lyrics"]["braveApiKey"], json!(""));
     assert_eq!(all["secretsConfigured"]["deepgram"], json!(true));
-    assert_eq!(
-        store.get_for_renderer("stt", &no_secrets(), &mut ctx)["apiKey"],
-        json!("")
-    );
-    assert_eq!(
-        store.get_for_renderer("missing", &no_secrets(), &mut ctx),
-        Value::Null
-    );
-    assert!(store.get_for_renderer("overlay", &no_secrets(), &mut ctx)["outputs"].is_array());
+    assert_eq!(store.get_for_renderer("stt", &mut ctx)["apiKey"], json!(""));
+    assert_eq!(store.get_for_renderer("missing", &mut ctx), Value::Null);
+    assert!(store.get_for_renderer("overlay", &mut ctx)["outputs"].is_array());
     // The stored value itself still holds the key until the cloud owns it.
     assert_eq!(store.data()["stt"]["apiKey"], json!("dg"));
     // A complete store's view parses as the typed renderer settings.

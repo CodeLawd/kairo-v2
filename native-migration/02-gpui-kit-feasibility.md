@@ -103,7 +103,7 @@ Versions are the latest stable on crates.io on 2026-11-09. Prompts must re-check
 | Shared memory | `memmap2` + `shm_open` / file mapping | — | `shared_memory` crate is stale (2022). Mirrors `ring.h` |
 | SQLite | `rusqlite` (bundled, FTS5) | 0.41.1 | Same databases |
 | PDF | `pdfium-render` | 0.9.5 | Replaces pdf.js. Ships PDFium |
-| Web engine | `cef` (tauri-apps) | 156.4.0 | Off-screen capable. Only when web content is used |
+| Web engine | `gpui-webview` (Wry, OS web views) | 0.9.1 | Native view over the window, no offscreen frames. Needs `gpui-kit` 0.9.1; `gpui-fast` for overlays above the page |
 | Secrets | `keyring` | 4.2.0 | OS credential stores |
 | WebSocket | `tokio-tungstenite` | 0.30.0 | Deepgram, Audience |
 | NDI | Own thin FFI, or `grafton-ndi` | 2.0.0 | Prompt 005 decides on UYVA, FLTp and bundling needs |

@@ -1,6 +1,10 @@
 {
   "channels": {},
   "methods": {
+    "account.activateLicense": "031",
+    "account.getLicense": "031",
+    "account.onLicenseChange": "031",
+    "account.refreshLicense": "031",
     "lyrics.previewOnline": "041",
     "lyrics.searchOnline": "041",
     "lyrics.translateSections": "041",

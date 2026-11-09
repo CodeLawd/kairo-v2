@@ -20,8 +20,8 @@
 //! - A failed write (read-only file, full disk) is logged and remembered in
 //!   [`JsonStore::last_write_error`]; values stay in memory. electron-store throws.
 
-use crate::crash::write_atomic;
-use crate::json_text::stringify_tabs;
+use crate::fs_atomic::{remove_stale_temp_files, write_atomic};
+use crate::json_text::stringify_tabs_object;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
@@ -78,7 +78,6 @@ struct WriterState {
     pending: Option<Arc<Data>>,
     queued: u64,
     written: u64,
-    writing: bool,
     last_error: Option<String>,
     stop: bool,
 }
@@ -109,15 +108,10 @@ impl Writer {
                         let Some(data) = state.pending.take() else {
                             return;
                         };
-                        state.writing = true;
                         (data, state.queued)
                     };
-                    let result = write_atomic(
-                        &path,
-                        stringify_tabs(&Value::Object((*data).clone())).as_bytes(),
-                    );
+                    let result = write_atomic(&path, stringify_tabs_object(&data).as_bytes());
                     let mut state = lock.lock().unwrap_or_else(|e| e.into_inner());
-                    state.writing = false;
                     state.written = generation;
                     match result {
                         Ok(()) => state.last_error = None,
@@ -189,6 +183,8 @@ pub struct JsonStore {
     writer: Writer,
     listeners: Vec<(ListenerId, Option<String>, Listener)>,
     next_listener: u64,
+    /// Inside [`JsonStore::batch`]: changes are written once, at the end.
+    batching: bool,
 }
 
 /// The file for store `name` in `dir`.
@@ -196,21 +192,8 @@ pub fn store_path(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("{name}.json"))
 }
 
-/// Removes temporary files a killed write left for store `name` (named by
-/// [`write_atomic`]). Only one Kairo runs per profile, so none is in use.
-fn remove_stale_temp_files(dir: &Path, name: &str) {
-    let prefix = format!(".{name}.json.tmp-");
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        if entry.file_name().to_string_lossy().starts_with(&prefix) {
-            let _ = std::fs::remove_file(entry.path());
-        }
-    }
-}
-
-/// Reads a store file as conf does, before defaults. `None` data means "start empty".
+/// Reads a store file as conf does, before defaults. Anything but a parsed
+/// file reads as empty.
 pub fn read_file(path: &Path) -> (Data, OpenState) {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
@@ -242,12 +225,13 @@ impl JsonStore {
     /// Opens `<dir>/<name>.json` with `defaults` merged into its top level.
     pub fn open(dir: &Path, name: &str, defaults: Data) -> JsonStore {
         let path = store_path(dir, name);
-        remove_stale_temp_files(dir, name);
+        remove_stale_temp_files(dir, &format!("{name}.json"));
         let (file, opened) = read_file(&path);
+        // conf writes back only when the merge added a key. An unreadable
+        // file is never overwritten.
+        let added = defaults.keys().any(|key| !file.contains_key(key));
         let mut merged = defaults;
-        for (key, value) in file.iter() {
-            merged.insert(key.clone(), value.clone());
-        }
+        merged.extend(file);
         let writer = Writer::start(path.clone());
         let store = JsonStore {
             path,
@@ -256,10 +240,9 @@ impl JsonStore {
             writer,
             listeners: Vec::new(),
             next_listener: 0,
+            batching: false,
         };
-        // conf writes back only when the merge changed something. An unreadable
-        // file is never overwritten.
-        if *store.data != file && !matches!(store.opened, OpenState::Unreadable(_)) {
+        if added && !matches!(store.opened, OpenState::Unreadable(_)) {
             store.writer.submit(store.data.clone());
         }
         store
@@ -292,9 +275,28 @@ impl JsonStore {
 
     /// `store.set(key, value)`. A key keeps its place; a new key goes last.
     pub fn set(&mut self, key: &str, value: Value) {
-        let old = self.data.get(key).cloned().unwrap_or(Value::Null);
-        Arc::make_mut(&mut self.data).insert(key.to_string(), value);
-        self.changed(&[(key.to_string(), old)]);
+        let watched = self
+            .listeners
+            .iter()
+            .any(|(_, k, _)| k.as_deref() == Some(key));
+        let old = Arc::make_mut(&mut self.data).insert(key.to_string(), value);
+        let changes = if watched {
+            vec![(key.to_string(), old.unwrap_or(Value::Null))]
+        } else {
+            Vec::new()
+        };
+        self.changed(&changes);
+    }
+
+    /// Runs `f`, writing the file once at the end instead of after every change.
+    pub fn batch<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        let outer = std::mem::replace(&mut self.batching, true);
+        let result = f(self);
+        self.batching = outer;
+        if !outer {
+            self.writer.submit(self.data.clone());
+        }
+        result
     }
 
     /// `key` written from `value`, with whole floats as integers.
@@ -329,7 +331,9 @@ impl JsonStore {
     }
 
     fn changed(&mut self, keys: &[(String, Value)]) {
-        self.writer.submit(self.data.clone());
+        if !self.batching {
+            self.writer.submit(self.data.clone());
+        }
         for (changed, old) in keys {
             let new = self.data.get(changed).cloned().unwrap_or(Value::Null);
             if &new == old {
@@ -532,11 +536,6 @@ mod tests {
         let on_disk: Value = serde_json::from_str(&text(dir.path(), "s")).unwrap();
         assert_eq!(on_disk["a"], json!("last"));
     }
-}
-
-#[cfg(test)]
-mod temp_tests {
-    use super::*;
 
     #[test]
     fn opening_removes_temp_files_from_killed_writes() {

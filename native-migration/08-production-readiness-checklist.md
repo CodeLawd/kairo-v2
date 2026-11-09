@@ -34,7 +34,7 @@ Complete every item before prompt 112. Unverified means unchecked.
 ## Security and privacy
 
 - [ ] Secrets never logged. Fail-open and fail-closed behaviour verified.
-- [ ] Web host treated as untrusted; message bounds tested.
+- [ ] Web content and Wry IPC messages treated as untrusted; message bounds tested.
 - [ ] Local socket authenticated; engine protocol fuzzed.
 - [ ] Usage and crash opt-outs verified to send nothing.
 - [ ] `cargo audit` and `cargo deny` clean, or exceptions recorded.
@@ -44,7 +44,7 @@ Complete every item before prompt 112. Unverified means unchecked.
 - [ ] Signed and notarised macOS builds; signed Windows build if certificates exist.
 - [ ] Clean-machine install on each supported OS.
 - [ ] `.kairo` association, icons, permission strings correct.
-- [ ] Third-party notices shipped, covering FFmpeg, PDFium, CEF and NDI attribution.
+- [ ] Third-party notices shipped, covering FFmpeg, PDFium, Wry and NDI attribution.
 - [ ] NDI redistribution checklist from decision 001 complete.
 - [ ] FFmpeg and codec licensing reviewed by the owner.
 - [ ] Release job refuses localhost URLs and publishes only after all platforms pass.

@@ -19,7 +19,7 @@ Port PDF and PowerPoint import, which turns documents into page images.
 ## 2. Prerequisites
 
 - Prompt [025](./025-core-runtime.md) is marked `done`.
-- Prompt [006](./006-spike-web-host.md) is marked `done`.
+- Prompt 006 (CEF spike) is superseded by the `gpui-webview` decision in DECISIONS.md and is not a prerequisite.
 
 ## 3. Relevant existing source files
 
@@ -44,8 +44,8 @@ Read these before writing code. They are the specification.
 ## 4. Implementation requirements
 
 1. Replace `pdfjs-dist` rasterisation in `Documents.tsx` with `pdfium-render` at the same scale rule (fit in 3840×2160), the 500 page cap, cancellation and progress.
-2. Port PPTX parsing with an XML reader replacing `cheerio`, emitting identical HTML. Convert HTML to PDF through `kairo-web-host` `PrintToPDF`.
-3. If the web host component is absent, use the same consent prompt flow the converter dialog has today.
+2. Port PPTX parsing with an XML reader replacing `cheerio`, emitting identical HTML. Convert HTML to PDF in a hidden Wry web view, using the platform's PDF call through Wry's raw handle (`WKWebView` `createPDF`/`printOperation`, WebView2 `PrintToPdf`, WebKitGTK `WebKitPrintOperation`).
+3. The OS web view is always present on macOS. On Windows, check that the WebView2 runtime is installed and report clearly if it is missing.
 4. Port detection and invocation of PowerPoint, WPS, Keynote and LibreOffice per platform, with AppleScript text unchanged.
 5. Keep `prepare` options `resume` and `simplified`, the `preparing` push, atomic `document.json`, `KAIRO_PPT_SOURCE_B64` and `KAIRO_PPT_DEST_B64` for PowerPoint scripting, and page size lookup. Replace `jszip` with the `zip` crate and `nativeImage` with `image`.
 
@@ -99,4 +99,4 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 
 ## Amendment from prompt 008
 
-PPTX printing via CEF takes paper sizes in inches and must wait for images before printing, as spike 006 did not.
+PPTX printing must wait for images before printing, as spike 006 did not. Output must be one 1440×810 pt page per slide (superseded CEF note; see DECISIONS.md, "Replace CEF with `gpui-webview`").

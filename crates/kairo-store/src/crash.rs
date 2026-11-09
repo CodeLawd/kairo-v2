@@ -10,14 +10,18 @@
 //! Crashes are recorded locally only, as Electron does. Sending them is the
 //! crash-reports service (prompt 032), which can read the ledger.
 
+use crate::fs_atomic::write_atomic;
 use kairo_domain::cloud::scrub_home;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::cell::Cell;
-use std::io::Write;
 use std::panic::PanicHookInfo;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
+use std::{
+    cell::Cell,
+    collections::BTreeMap,
+    sync::atomic::{AtomicU8, Ordering},
+};
 
 /// Crashes kept in the ledger, newest last (`CRASH_MAX_REPORTS`).
 pub const MAX_LEDGER_ENTRIES: usize = kairo_domain::cloud::CRASH_MAX_REPORTS;
@@ -37,6 +41,25 @@ pub struct CrashEntry {
     pub app_version: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CrashConsent {
+    pub share_stats: bool,
+    pub send_crash_reports: bool,
+}
+
+const CONSENT_UNKNOWN: u8 = 4;
+static CONSENT: AtomicU8 = AtomicU8::new(CONSENT_UNKNOWN);
+
+/// Snapshot only the two privacy flags for the panic hook. The hook does not
+/// acquire a settings lock and always keeps its local diagnostic entry.
+pub fn set_crash_consent(consent: CrashConsent) {
+    CONSENT.store(
+        u8::from(consent.share_stats) | (u8::from(consent.send_crash_reports) << 1),
+        Ordering::Release,
+    );
+}
+
 /// The ledger file: a running count and the latest crashes.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,6 +67,8 @@ pub struct CrashLedger {
     /// Every crash recorded since the ledger was created.
     pub count: u64,
     pub crashes: Vec<CrashEntry>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub consent: BTreeMap<u64, CrashConsent>,
 }
 
 impl CrashLedger {
@@ -61,52 +86,35 @@ impl CrashLedger {
         self.crashes.push(entry);
         let excess = self.crashes.len().saturating_sub(MAX_LEDGER_ENTRIES);
         self.crashes.drain(..excess);
+        let first = self.count.saturating_sub(self.crashes.len() as u64);
+        self.consent.retain(|sequence, _| *sequence > first);
     }
-}
-
-/// Writes `bytes` to `path` crash-safely: a temporary file in the same
-/// folder, `fsync`, then a rename over the old file (and, on Unix, an `fsync`
-/// of the folder so the rename itself survives power loss). A failure at any
-/// point leaves the old file whole.
-pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let dir = path
-        .parent()
-        .filter(|d| !d.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
-    std::fs::create_dir_all(dir)?;
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
-    let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let tmp = dir.join(format!(".{name}.tmp-{}-{n}", std::process::id()));
-    let result = (|| {
-        let mut file = std::fs::File::create(&tmp)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        drop(file);
-        std::fs::rename(&tmp, path)?;
-        #[cfg(unix)]
-        if let Ok(folder) = std::fs::File::open(dir) {
-            let _ = folder.sync_all();
-        }
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&tmp);
-    }
-    result
 }
 
 /// Adds a crash to the ledger at `path`.
 pub fn record_crash(path: &Path, entry: CrashEntry) -> std::io::Result<()> {
     let mut ledger = CrashLedger::load(path);
     ledger.push(entry);
-    let text = serde_json::to_string_pretty(&ledger).map_err(std::io::Error::other)?;
-    write_atomic(path, text.as_bytes())
+    let consent = CONSENT.load(Ordering::Acquire);
+    if consent != CONSENT_UNKNOWN {
+        ledger.consent.insert(
+            ledger.count,
+            CrashConsent {
+                share_stats: consent & 1 != 0,
+                send_crash_reports: consent & 2 != 0,
+            },
+        );
+    }
+    write_pretty_json(path, &ledger)
 }
 
 /// `saveSessionState`: the snapshot as two-space JSON, as `JSON.stringify(state, null, 2)` writes it.
 pub fn save_recovery_state(path: &Path, state: &Value) -> std::io::Result<()> {
-    let text = serde_json::to_string_pretty(state).map_err(std::io::Error::other)?;
+    write_pretty_json(path, state)
+}
+
+fn write_pretty_json(path: &Path, value: &impl Serialize) -> std::io::Result<()> {
+    let text = serde_json::to_string_pretty(value).map_err(std::io::Error::other)?;
     write_atomic(path, text.as_bytes())
 }
 

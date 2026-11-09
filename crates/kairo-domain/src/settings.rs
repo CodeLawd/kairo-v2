@@ -408,10 +408,10 @@ macro_rules! settings_sections {
     };
 }
 
+// In the order of the `defaults` literal in `src/main/db/index.ts`, which is
+// the key order of a fresh `kairo-settings.json`.
 settings_sections! {
     whats_new: WhatsNewSettings = "whatsNew",
-    capture: CaptureSettings = "capture",
-    web: WebSettings = "web",
     audio: AudioSettings = "audio",
     stt: SttSettings = "stt",
     scripture: ScriptureSettings = "scripture",
@@ -419,14 +419,16 @@ settings_sections! {
     display: DisplaySettings = "display",
     overlay: OverlaySettings = "overlay",
     theme_library: Vec<CustomOverlayTheme> = "themeLibrary",
-    documents: DocumentsSettings = "documents",
     workspace: WorkspaceSettings = "workspace",
     media: MediaSettings = "media",
     tracks: TracksSettings = "tracks",
     church: ChurchProfile = "church",
+    documents: DocumentsSettings = "documents",
     presentation: PresentationSettings = "presentation",
     usage: UsageSettings = "usage",
     theme_defaults: ThemeDefaults = "themeDefaults",
+    capture: CaptureSettings = "capture",
+    web: WebSettings = "web",
 }
 
 impl AppSettings {

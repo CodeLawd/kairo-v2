@@ -3,3 +3,8 @@ name = "kairo-core-gpui"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+futures-channel = "0.3"
+gpui-kit.workspace = true
+kairo-core = { path = "../kairo-core" }

@@ -29,14 +29,7 @@ fn files(pairs: &[(&str, String)]) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// The ids `crypto.randomUUID()` gives under the oracle's pinning.
-fn pinned_ids() -> impl FnMut() -> String {
-    let mut next = 0;
-    move || {
-        next += 1;
-        format!("00000000-0000-4000-8000-{next:012}")
-    }
-}
+use kairo_oracle::pinned_uuids as pinned_ids;
 
 struct Launch {
     ok: bool,
