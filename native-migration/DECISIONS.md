@@ -222,3 +222,11 @@ test. Prompt 024 owns `workspace-song-file.test.ts`, prompt 040 owns
 `lyrics-usr-title.test.ts` and its file-import path, and prompts 040/041
 own the canonicalization and online-ranking assertions in
 `lyrics-multilingual-search.test.ts`.
+
+## 2026-11-09 — 015 — Keep scripture renderer initialization with its view
+
+The React static-render assertion in `scripture-initial-state.test.ts` checks
+that a missing-API-key warning stays hidden while translation options are
+loading. Prompt 078 owns the corresponding native scripture view test.
+The other scripture offline-state tests exercise domain behavior and are
+covered in prompt 015.

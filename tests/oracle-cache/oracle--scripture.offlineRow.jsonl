@@ -1,0 +1,225 @@
+{"electron_commit":"af978c5159","fn":"oracle:scripture.offlineRow","src_lib_dirty":false}
+{"k":"00d4723807c31d38","r":{"actions":["download"],"labels":["Download"],"percent":50,"status":"Not downloaded"}}
+{"k":"0172f9595d15cede","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"01e91ac4b7b492aa","r":{"actions":["download"],"labels":["Download"],"percent":33,"status":"Not downloaded"}}
+{"k":"027b7e46ab607956","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Partially cached"}}
+{"k":"02e4f308f12ac4d6","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"0515644191cc8d78","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Failed"}}
+{"k":"05987d56dd6cf5a3","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Paused at 1189 of 1189 chapters"}}
+{"k":"064974c8e9985989","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Paused at 1 of 200 chapters"}}
+{"k":"07946ebd2d6e761f","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"08e448206f0baaa4","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"0ade37702e2d1ed1","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"0b1ed72641954e66","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Downloaded"}}
+{"k":"0b78b289ef73886a","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading -5 of 10 chapters"}}
+{"k":"0bd5d77532118ead","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":33,"status":"Paused at 1 of 3 chapters"}}
+{"k":"0d465d6acddb1e85","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"115f74f2c77a35e6","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading -5 of 10 chapters"}}
+{"k":"12dd659c9dd33f24","r":{"actions":[],"labels":[],"percent":100,"status":"Not downloaded"}}
+{"k":"13be226742202e4c","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"1483af79dbfe4130","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"16015d7dbbb4bb55","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Failed"}}
+{"k":"1844821e93a445e8","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":100,"status":"Failed — network down"}}
+{"k":"18d2d68b81ef1a36","r":{"actions":[],"labels":[],"percent":1,"status":"Not downloaded"}}
+{"k":"1a444bf97a4d939b","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"1a5c76082f600344","r":{"actions":["pause"],"labels":["Pause"],"percent":33,"status":"Downloading 1 of 3 chapters"}}
+{"k":"1a8e24555353fedc","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Refresh required"}}
+{"k":"1f537482ff10bf81","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Downloaded"}}
+{"k":"1f74a4232d3074e7","r":{"actions":["pause"],"labels":["Pause"],"percent":1,"status":"Downloading 1 of 200 chapters"}}
+{"k":"216ae8714dc97fe8","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"219ccde29f042ef5","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"No longer licensed"}}
+{"k":"23010b82d069701e","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":1,"status":"Paused at 1 of 200 chapters"}}
+{"k":"232ff698057a9cbf","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Paused at -5 of 10 chapters"}}
+{"k":"240486c956f14c90","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"24377f9924eb6f87","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Paused at 5 of 0 chapters"}}
+{"k":"2c316d731fdc9162","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":50,"status":"Refresh required"}}
+{"k":"3063ec2d3d543be4","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"311ea418a6dd79ad","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 1189 of 1189 chapters"}}
+{"k":"327fd44f98ffb9a1","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":50,"status":"Paused at 594 of 1188 chapters"}}
+{"k":"330e259f08f84c55","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Refresh required"}}
+{"k":"341ac90b1bffe3e2","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Downloaded"}}
+{"k":"343e640d29700dfd","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":50,"status":"Paused at 594 of 1188 chapters"}}
+{"k":"345c6ea64feda3e8","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"No longer licensed"}}
+{"k":"357d754b8d78d7e0","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"36468b2678dd2da3","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"No longer licensed"}}
+{"k":"376f51a75b74374b","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"37a3810d4b694361","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"3829fc979ca20717","r":{"actions":[],"labels":[],"percent":33,"status":"Not downloaded"}}
+{"k":"3886f09c08631ed1","r":{"actions":[],"labels":[],"percent":33,"status":"Not downloaded"}}
+{"k":"38ef5372e2b5f930","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Downloaded"}}
+{"k":"394b199dfa98b92c","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"39fa66e06152f019","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"No longer licensed"}}
+{"k":"3dfa208607b6e969","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":0,"status":"Failed"}}
+{"k":"3e42392ec2db068a","r":{"actions":["download"],"labels":["Download"],"percent":100,"status":"Not downloaded"}}
+{"k":"3ee1757bee75bdb0","r":{"actions":["download"],"labels":["Download"],"percent":100,"status":"Not downloaded"}}
+{"k":"4042e50448105dac","r":{"actions":[],"labels":[],"percent":0,"status":"Not downloaded"}}
+{"k":"40febcdd55aed387","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"42d70d2df511a93d","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Failed"}}
+{"k":"45deefe4de6acb0e","r":{"actions":["pause"],"labels":["Pause"],"percent":50,"status":"Downloading 594 of 1188 chapters"}}
+{"k":"4619304bd864ebb5","r":{"actions":["pause"],"labels":["Pause"],"percent":1,"status":"Downloading 1 of 200 chapters"}}
+{"k":"478cac280840aba9","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Refresh required"}}
+{"k":"481de25db079b381","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"48ceb0793b200076","r":{"actions":["download"],"labels":["Download"],"percent":33,"status":"Not downloaded"}}
+{"k":"49c0bd83fd26719c","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"4ae0f8c181a77483","r":{"actions":["pause"],"labels":["Pause"],"percent":33,"status":"Downloading 1 of 3 chapters"}}
+{"k":"4dfa787cefce0c33","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"No longer licensed"}}
+{"k":"4f452c66825086ef","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Paused at -5 of 10 chapters"}}
+{"k":"4fbbecd4f41ed486","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"5068e1df0354299e","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Downloaded"}}
+{"k":"5085cc822adbada9","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Partially cached"}}
+{"k":"50ae7f7c1b2efa0e","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"5322c7ee17527d3a","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":100,"status":"Failed — network down"}}
+{"k":"54186112a2776f09","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Paused at 1189 of 1189 chapters"}}
+{"k":"55c49be90e713545","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Paused at 1189 of 1189 chapters"}}
+{"k":"57548ac7d7512b06","r":{"actions":["pause"],"labels":["Pause"],"percent":50,"status":"Downloading 594 of 1188 chapters"}}
+{"k":"57f83bf66d483149","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":0,"status":"Failed"}}
+{"k":"5878e0350ab1cb7f","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Downloaded"}}
+{"k":"58f907de9e54f97c","r":{"actions":[],"labels":[],"percent":0,"status":"Not downloaded"}}
+{"k":"59a87468794e478f","r":{"actions":["download"],"labels":["Download"],"percent":100,"status":"Not downloaded"}}
+{"k":"5b1d33241f62b9ca","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Paused at 2000 of 1189 chapters"}}
+{"k":"5c576e0be2023066","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Paused at 1 of 3 chapters"}}
+{"k":"5c97d89f9ed6cd40","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"No longer licensed"}}
+{"k":"5db5fb719c011edb","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":100,"status":"Failed"}}
+{"k":"5fc4666731fbf579","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Refresh required"}}
+{"k":"628c0ef74d01afef","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 1189 of 1189 chapters"}}
+{"k":"62cd1388062f9e1b","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Paused at 2000 of 1189 chapters"}}
+{"k":"6320cacb5e5191bb","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Paused at 5 of 0 chapters"}}
+{"k":"6343952fa4d00f90","r":{"actions":["pause"],"labels":["Pause"],"percent":33,"status":"Downloading 1 of 3 chapters"}}
+{"k":"65d0784eb597dd50","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"66878d0a1b2978de","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 2000 of 1189 chapters"}}
+{"k":"671334268c4b7c34","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":1,"status":"Paused at 1 of 200 chapters"}}
+{"k":"68a2ce74308389fe","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":100,"status":"Failed"}}
+{"k":"68ef7a73ff206bf1","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"69388fefdb5ad5ef","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading 5 of 0 chapters"}}
+{"k":"6c2c99963d59a434","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Paused at 594 of 1188 chapters"}}
+{"k":"6c76e11224b86cca","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"6d82d37e608e7061","r":{"actions":[],"labels":[],"percent":50,"status":"Not downloaded"}}
+{"k":"6dd18b5c67f06b0f","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Paused at 1189 of 1189 chapters"}}
+{"k":"6e35561db0e40fc7","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Downloaded"}}
+{"k":"6e5569c3f118650f","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":33,"status":"Paused at 1 of 3 chapters"}}
+{"k":"6ec7fe90b1bd4afa","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"6efd2a41ba83a4de","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Failed"}}
+{"k":"6f09b71c3a14ca6f","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":1,"status":"Refresh required"}}
+{"k":"7005d95f810f4938","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Paused at 5 of 0 chapters"}}
+{"k":"7105edeed830e19b","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Downloaded"}}
+{"k":"7488c8d9f277f012","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":100,"status":"Refresh required"}}
+{"k":"751680eb400374b4","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":100,"status":"Failed"}}
+{"k":"7710f4a26c8b896a","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":33,"status":"Partially cached"}}
+{"k":"77fde39fd2df67a5","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"7a6236a494132d23","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":1,"status":"Partially cached"}}
+{"k":"7ae881648a0fb1e1","r":{"actions":["pause"],"labels":["Pause"],"percent":33,"status":"Downloading 1 of 3 chapters"}}
+{"k":"7af9362984b9274d","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Failed"}}
+{"k":"7b0ba40b6d0fed25","r":{"actions":["pause"],"labels":["Pause"],"percent":50,"status":"Downloading 594 of 1188 chapters"}}
+{"k":"7ca7f71e20304108","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Paused at 594 of 1188 chapters"}}
+{"k":"7cb886d2e732b6d8","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Failed"}}
+{"k":"7e3d4e3245ee8235","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Refresh required"}}
+{"k":"7f4d7154782f1006","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":33,"status":"Partially cached"}}
+{"k":"7f55efee43feb5e4","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"7f6d9c2c4361678a","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":50,"status":"Partially cached"}}
+{"k":"801488fd7d6a0b11","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"8189548fd8ab4e2d","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading -5 of 10 chapters"}}
+{"k":"82c16837ee0e6b82","r":{"actions":[],"labels":[],"percent":1,"status":"Not downloaded"}}
+{"k":"8374cef725d56eed","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":0,"status":"Failed"}}
+{"k":"886e54df84854f56","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"88bae32d5634c84d","r":{"actions":["download"],"labels":["Download"],"percent":0,"status":"Not downloaded"}}
+{"k":"89530b5171e982f7","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"8abdc9ef94dd2c0a","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Refresh required"}}
+{"k":"8c1b5e83ec3ed2df","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":1,"status":"Partially cached"}}
+{"k":"8c43d0e62782136b","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Failed"}}
+{"k":"8d256bd08aa44bcc","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Refresh required"}}
+{"k":"8d5e56d90f1df33e","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 2000 of 1189 chapters"}}
+{"k":"8ee0ac08437d8448","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Failed"}}
+{"k":"8f8793ab72000811","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"8f8daf591923f0c4","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Paused at 2000 of 1189 chapters"}}
+{"k":"918bc1959c8ea14e","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":33,"status":"Failed"}}
+{"k":"93edf2f55d8be3de","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":33,"status":"Failed"}}
+{"k":"961868cd378f364c","r":{"actions":["download"],"labels":["Download"],"percent":100,"status":"Not downloaded"}}
+{"k":"99839f933e8673a7","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":1,"status":"Failed"}}
+{"k":"99de2e3b9bf2139d","r":{"actions":["download"],"labels":["Download"],"percent":0,"status":"Not downloaded"}}
+{"k":"9a3e88d7c4891ab9","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"No longer licensed"}}
+{"k":"9c2733ca1c37ceb9","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"9cbb5a7c54824ccf","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"No longer licensed"}}
+{"k":"9d63556df56958cd","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"9ea1318e9efdbee9","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"a05e02e0427e5899","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"a2f935a478ffd07e","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":50,"status":"Partially cached"}}
+{"k":"a45913c1dc6338ae","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"a6d1a63a6abefaf0","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"a8292ad082ffc010","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Failed"}}
+{"k":"a955ae1349ced5dc","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"a9ed88505032be26","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":50,"status":"Failed"}}
+{"k":"aa5d79560e61eebb","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"ab1309e5b7fa464e","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"ab5b3d1ecbca2916","r":{"actions":[],"labels":[],"percent":0,"status":"Not downloaded"}}
+{"k":"abd0a7d0e576312b","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"afa22a389757dfa6","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Downloaded"}}
+{"k":"b15216f8d71878af","r":{"actions":["download"],"labels":["Download"],"percent":1,"status":"Not downloaded"}}
+{"k":"b21d31a5757d8137","r":{"actions":["pause"],"labels":["Pause"],"percent":50,"status":"Downloading 594 of 1188 chapters"}}
+{"k":"b46978acd115242d","r":{"actions":[],"labels":[],"percent":50,"status":"Not downloaded"}}
+{"k":"b46979458e9c1aab","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":1,"status":"Refresh required"}}
+{"k":"b6051ea8d2014e96","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"No longer licensed"}}
+{"k":"b8542d7e8ecac5a1","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Downloaded"}}
+{"k":"b8727fd37a6028a2","r":{"actions":["pause"],"labels":["Pause"],"percent":1,"status":"Downloading 1 of 200 chapters"}}
+{"k":"b8e5c888543632b7","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":1,"status":"Failed"}}
+{"k":"b9307e3d6974e1f6","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Downloaded"}}
+{"k":"ba19a451e8ba2124","r":{"actions":[],"labels":[],"percent":0,"status":"Not downloaded"}}
+{"k":"be0205ab53ddae42","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"No longer licensed"}}
+{"k":"be754ff5a930f5e1","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 2000 of 1189 chapters"}}
+{"k":"be7f491cd7de18fd","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 1189 of 1189 chapters"}}
+{"k":"c2487c135c3c3140","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"c28b3dabbee7c36d","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Paused at 1 of 200 chapters"}}
+{"k":"c6e99beaf773b92d","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":100,"status":"Refresh required"}}
+{"k":"c838f002f64295c9","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"ca231dfc27b3ff61","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":100,"status":"Failed"}}
+{"k":"cad26f2b82b09f7b","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Paused at 2000 of 1189 chapters"}}
+{"k":"cc74b4dd372650cd","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Partially cached"}}
+{"k":"cd8fca8b908883b5","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":0,"status":"Refresh required"}}
+{"k":"cdba8ce677ed82d2","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":33,"status":"Refresh required"}}
+{"k":"cff4d9dc61979592","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Failed"}}
+{"k":"d0830a62fadd6c50","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Paused at -5 of 10 chapters"}}
+{"k":"d1b1e352a074bd9a","r":{"actions":[],"labels":[],"percent":100,"status":"Not downloaded"}}
+{"k":"d24cf6c520d0801a","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"d26262932697d1de","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading 5 of 0 chapters"}}
+{"k":"d458fc5082618f06","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":50,"status":"Refresh required"}}
+{"k":"d4b5fc5643c0f7ed","r":{"actions":["remove"],"labels":["Remove"],"percent":50,"status":"Downloaded"}}
+{"k":"d5b89e24c787aa24","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":100,"status":"Refresh required"}}
+{"k":"d60de0fd8d9c60db","r":{"actions":["download"],"labels":["Download"],"percent":0,"status":"Not downloaded"}}
+{"k":"d8aaae5a7ea152c8","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Partially cached"}}
+{"k":"da389a8352009f56","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"da68b0467570600c","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"da83613d3176058d","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 2000 of 1189 chapters"}}
+{"k":"daa71857bab4a0bb","r":{"actions":["remove"],"labels":["Remove"],"percent":0,"status":"No longer licensed"}}
+{"k":"dd8bc0eec043e41a","r":{"actions":["download"],"labels":["Download"],"percent":100,"status":"Not downloaded"}}
+{"k":"de4a2382525aa0b8","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Paused at 1 of 3 chapters"}}
+{"k":"dfb49f2ccff1b798","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":100,"status":"Refresh required"}}
+{"k":"e0d82d66203cbd6d","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"e1fe867e312eaa2b","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"e383e8b46cc0871a","r":{"actions":["download"],"labels":["Download"],"percent":50,"status":"Not downloaded"}}
+{"k":"e51d5ef74836998e","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Paused at 5 of 0 chapters"}}
+{"k":"e607ad22afc73215","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading -5 of 10 chapters"}}
+{"k":"e6c8a11ecbbc324d","r":{"actions":["download"],"labels":["Download"],"percent":100,"status":"Not downloaded"}}
+{"k":"e74314109109d14e","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Paused at -5 of 10 chapters"}}
+{"k":"e7a9052dbaaa01d2","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":100,"status":"Refresh required"}}
+{"k":"e7f361c9917d94f2","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"No longer licensed"}}
+{"k":"e960af13238d3a1e","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Failed"}}
+{"k":"ec1b484938c80a9c","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"No longer licensed"}}
+{"k":"ec6e10573a82df41","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Partially cached"}}
+{"k":"ecb632465efcdc36","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":33,"status":"Refresh required"}}
+{"k":"ed11fb2e9fcca7d5","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Downloaded"}}
+{"k":"eee8b07147f2972f","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":0,"status":"Failed"}}
+{"k":"f02b1fab836a06c8","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"f0fb91648e70e115","r":{"actions":["download"],"labels":["Download"],"percent":0,"status":"Not downloaded"}}
+{"k":"f2552ecbf63fade8","r":{"actions":["retry","remove"],"labels":["Retry","Remove"],"percent":50,"status":"Failed"}}
+{"k":"f34173ba66fbcac7","r":{"actions":["pause"],"labels":["Pause"],"percent":100,"status":"Downloading 1189 of 1189 chapters"}}
+{"k":"f3536e6e2fb7032d","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading 5 of 0 chapters"}}
+{"k":"f536d632b7f6104a","r":{"actions":["remove"],"labels":["Remove"],"percent":1,"status":"Failed"}}
+{"k":"f5c2bf41dbfe31e8","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"No longer licensed"}}
+{"k":"f64f3b602c10b21d","r":{"actions":["resume","remove"],"labels":["Resume","Remove"],"percent":0,"status":"Partially cached"}}
+{"k":"f8f173216db47598","r":{"actions":["pause"],"labels":["Pause"],"percent":1,"status":"Downloading 1 of 200 chapters"}}
+{"k":"f8ff8a9c1e792f68","r":{"actions":["pause"],"labels":["Pause"],"percent":0,"status":"Downloading 5 of 0 chapters"}}
+{"k":"fa2b1df87144daf6","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Downloaded"}}
+{"k":"fa50b1dfec76e9e3","r":{"actions":["download"],"labels":["Download"],"percent":1,"status":"Not downloaded"}}
+{"k":"fac65cf5262e3035","r":{"actions":["refresh","remove"],"labels":["Refresh","Remove"],"percent":100,"status":"Refresh required"}}
+{"k":"fb8b782666977f48","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Partially cached"}}
+{"k":"fbd0da0fe4241eb5","r":{"actions":["remove"],"labels":["Remove"],"percent":33,"status":"Partially cached"}}
+{"k":"ff7fd19e50a9f0ea","r":{"actions":["remove"],"labels":["Remove"],"percent":100,"status":"Refresh required"}}
