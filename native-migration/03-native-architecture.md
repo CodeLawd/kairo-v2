@@ -251,3 +251,9 @@ instance per web page.
 
 **Deliberately not taken during migration:** changing file formats, redesigning screens,
 adding features, rewriting the DeckLink helper.
+
+## Amendments from prompt 008 (2026-11-09)
+
+- Slide text uses `parley` + `swash`. Text is rasterised on change and cached, not per frame.
+- `kairo-web-host` is restored as an on-demand CEF component. The program page is top-level, so framing headers do not apply. Frames use CPU paint first; IOSurface transport is an optimisation.
+- Zero-copy video is deferred. Rich text is a custom editor on `EntityInputHandler`.

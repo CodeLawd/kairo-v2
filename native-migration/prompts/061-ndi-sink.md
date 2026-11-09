@@ -93,3 +93,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 065, 110.
+
+## Amendment from prompt 008
+
+Use libloading over the official NDI 6 SDK. Verify with a real receiver.

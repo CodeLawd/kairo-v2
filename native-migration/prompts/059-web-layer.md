@@ -88,3 +88,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 089.
+
+## Amendment from prompt 008
+
+Use CEF CPU paint first. The program page is top-level, so framing headers need no removal unless something frames it. Standard CEF has no H.264 or HEVC. Close the browser without holding a lock that on_before_close needs, and override terminate:. See spike 006.

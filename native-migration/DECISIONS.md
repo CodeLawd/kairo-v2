@@ -145,3 +145,21 @@ Decision: The owner chose to start prompt 008 with prompts 006 and 007 still `bl
 Accepted for 006: no real Slido sign-in yet; subframe header removal not implemented; Windows and Linux not run.
 Accepted for 007: 120 Hz not proven; the Low Power Mode frame-rate question remains open.
 Carry forward: prompt 047 proves real sign-in; prompts 070 and 107 revisit UI frame pacing.
+
+## 2026-11-09 — 008 — Go decision
+
+Decision: **GO**, given by the owner, who accepted every recommendation below as presented. Prompts 006 and 007 remain `blocked` under the waiver above.
+
+1. Minimum macOS: target 11, and test on real macOS 11 before release. Why: the binary declares 11.0, but no run on it exists.
+2. Text stack: `parley` + `swash`. Why: 399/400 exact breaks and no font-matching workaround. Raster p95 of 25.28 ms misses 16 ms, so slide text is cached and rasterised on change.
+3. Video: FFmpeg, dynamically linked LGPL build. H.264 and HEVC need legal review before release. Why: the soak passed; licensing is unsettled.
+4. NDI: `libloading` over the official NDI 6 SDK. Why: 10 cycles passed. A real receiver is still unverified.
+5. Web host: CEF as an on-demand signed component, offered during onboarding. Why: 148 MB zipped on macOS arm64, with its own security updates.
+6. Zero-copy video: later, only if profiling shows a need.
+7. Rich text: a focused editor on GPUI `EntityInputHandler` with marks as domain ranges. Not prototyped.
+8. Linux: best-effort, Vulkan required, after macOS and Windows. Why: not run in any spike.
+9. Intel Macs: remain supported until tested. Why: dropping them could strand existing churches.
+
+Sync: run `tools/electron-sync` before each phase and before prompts 100, 109 and 112, as `SYNC.md` states.
+Low Power Mode keeps GPUI's 30 fps default.
+Conditions: confirm whether H.264 in the web layer matters to churches, since standard CEF cannot play it and an unplayable required format is a stop condition. Windows is untested across the spikes and is the largest remaining risk.

@@ -57,3 +57,11 @@ Stop and return to the owner if any of the following occur:
 - Spike 003 stays well below the line-break target.
 - A format churches depend on cannot be played.
 - Existing users' data cannot be preserved.
+
+## Updates from prompt 008 (2026-11-09)
+
+- R12: CEF measured at 329 MB installed and 148 MB zipped. Standard builds cannot play H.264 or HEVC, so a custom build may be needed. Shipped as an on-demand component.
+- R13: `cef` 156.4.0 covered every API used. `execute_java_script` has no isolated world, which affects Slido.
+- New: Windows is untested across all spikes.
+- New: slide text raster p95 is 25.28 ms against 16 ms. Mitigation: cache and rasterise on change.
+- New: 120 Hz UI pacing is not proven (007).

@@ -89,3 +89,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 104.
+
+## Amendment from prompt 008
+
+CEF ships as an on-demand signed component with five helper apps. Developer ID signing and entitlements are unverified. Test on real macOS 11.

@@ -105,3 +105,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 
 - All UI prompts.
 - 067 does not depend on this prompt; all UI prompts do.
+
+## Amendment from prompt 008
+
+Rich text is a focused editor on EntityInputHandler, not Kit Editor or TextView. Keep the 30 fps Low Power Mode default. Re-measure 120 Hz pacing.

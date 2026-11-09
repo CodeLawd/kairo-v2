@@ -120,3 +120,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - All phase 2 prompts.
+
+## Amendment from prompt 009
+
+`electron-sync --apply-generated` runs `cargo run --package check-lib-coverage -- --regenerate`. Build `tools/check-lib-coverage` to accept that flag and add it to the workspace.

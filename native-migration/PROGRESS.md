@@ -1,8 +1,8 @@
 # Migration progress tracker
 
-**Go / no-go:** not yet decided (set by prompt 008)
+**Go / no-go:** GO (owner, 2026-11-09; prompts 006 and 007 waived, see DECISIONS.md)
 **Planning baseline commit (kairo-presenter):** `de3bb54`
-**Current prompt:** 003
+**Current prompt:** 011
 
 Status values: `todo`, `in-progress`, `blocked`, `done`.
 
@@ -31,6 +31,9 @@ Append a line per session: date, prompt, outcome, next step.
 | 2026-11-09 | 003 | Parley recommended; 99.75% exact breaks; raster p95 misses 16 ms | Decide the raster approach at prompt 008 |
 | 2026-11-09 | 007 | Spike report written; macOS interactions pass, performance and platforms open | Rerun off Low Power Mode, then test other platforms |
 | 2026-11-09 | 006 | Spike report written; local proofs pass, Slido sign-in and header decision open | Sign in to Slido or waive at prompt 008 |
+| 2026-11-09 | 008 | GO recorded by the owner | Run 009, then phase 1 from 010 |
+| 2026-11-09 | 009 | Sync tool built; first queue written | Review the open overlay.html row, then run 010 |
+| 2026-11-09 | 010 | API inventory generated and checked | Run 011 |
 
 ## Prompts
 
@@ -46,14 +49,14 @@ Append a line per session: date, prompt, outcome, next step.
 | 005 | [Spike: NDI, DeckLink ring and macOS native code from Rust](./prompts/005-spike-sinks.md) | done | 2026-11-09 | main | [Report](./spikes/005-sinks.md): macOS arm64 only. NDI 6.3.2 from Rust without Node passed 10 cycles, discovery and SDK loopback; `libloading` chosen over `grafton-ndi`. Ring: 600 of 600 frames, 0 torn. Golden colours match `uyvy.h` on both paths. `gpu_frames` runs through a C ABI. IOSurface 1080p UYVA p50 0.60 to 1.04 ms, p99 2.58 to 4.81 ms, under load 3.4 to 4.7; decision 008: 0.6, 1.5 to 2.2. Fmt, Clippy and tests passed. HARDWARE-UNVERIFIED: DeckLink card, third-party NDI receiver. Not run: Intel macOS, Windows, Linux. |
 | 006 | [Spike: CEF web host for all browser needs](./prompts/006-spike-web-host.md) | blocked | 2026-11-09 | main | [Report](./spikes/006-web-host.md): PARTIAL, on-demand component recommended. macOS arm64: web layer and preview PASS, PDF PASS, Slido PASS against a local fixture only. 20-minute soak 28.71 fps average, paint-to-upload p99 5.46 ms, all-process RSS idle 456–558 MB and peak 816 MB, exit 0 with no helpers left. Size 329 MB, 148 MB zipped. CPU paint streamed; shared textures fire but are not sent across processes. H.264 and HEVC unavailable in this CEF build. Root and spike fmt, Clippy and tests passed; Electron status unchanged. Blocked on a person for real Slido sign-in, and a decision that subframe header removal is unnecessary. Windows and Linux not run. |
 | 007 | [Spike: operator UI on GPUI Kit](./prompts/007-spike-ui-platform.md) | blocked | 2026-11-09 | main | [Report](./spikes/007-ui-platform.md): PARTIAL. macOS shell, 5,000-card grid, marquee, reorder, zoom, keyboard and `.kairo` open work; 14 tests and all gates pass. Draw p50 2.01 to 2.78 ms, max 10.42 ms. Low Power Mode capped frames at 33 ms; uncapped present p50 8.33 ms, but 416 of 1,151 frame callbacks over 16 ms, so 120 Hz is not proven. On AC power, one valid run at load 13: present p50 8.40 ms, 31 of 1,382 presents over 16 ms, draw max 9.49 ms; target not met under load. Minimum macOS declared 11.0, runtime unverified. Rich text: Kit does not cover it. Blocked on: idle-machine rerun, real IME, older macOS, Windows, Linux, Electron shell screenshot. |
-| 008 | [Human checkpoint: go or no-go](./prompts/008-go-no-go.md) | todo | | | |
-| 009 | [Electron-to-native sync process](./prompts/009-electron-sync.md) | todo | | | |
+| 008 | [Human checkpoint: go or no-go](./prompts/008-go-no-go.md) | done | 2026-11-09 | native-phase-0-spikes | GO by the owner; nine decisions in DECISIONS.md, [summary](./spikes/008-summary.md). 006 and 007 waived. Root fmt, Clippy and tests passed. Not verified: Windows, Linux, macOS 11, Intel, real NDI and DeckLink hardware. Whole-app gain over the baseline is unproven until 107. |
+| 009 | [Electron-to-native sync process](./prompts/009-electron-sync.md) | done | 2026-11-09 | native-phase-0-spikes | `tools/electron-sync` built. Real check took about 0.1 s against the 10 s target, and queued 6 files from Electron `af978c5`; copied native sources in sync. Scratch-repo test covers each class, an uncommitted edit, drift, idempotent writes and refusal to advance. Root fmt, Clippy and tests passed; Electron not edited. Not verified: `--apply-generated` running a real generator (none exists until 010, 011, 016, 071). Stored-format detection is by path only. |
 
 ### 1. Domain model
 
 | ID | Prompt | Status | Date | Branch | Notes |
 |---|---|---|---|---|---|
-| 010 | [Freeze the application API inventory](./prompts/010-api-inventory.md) | todo | | | |
+| 010 | [Freeze the application API inventory](./prompts/010-api-inventory.md) | done | 2026-11-09 | native-phase-0-spikes | [Inventory](./api-inventory.md): 257 calls generated from the TypeScript AST, all with owning prompts; `check-api-coverage` passes and two runs are byte-identical. Reconciled: 209 `ipcMain.handle` registrations in `src/main/ipc/index.ts` (120 direct, 89 through its `handle()` wrapper) against the audit's text count of 122; none elsewhere; 8 `on` or `once`. Review lists: 2 pushes with no detected sender, 23 exposed methods with no detected caller. Root fmt, Clippy and tests passed; Electron not edited. Not verified: the owner mapping is by namespace with method overrides, so some rows may move when the service prompts run; the 23 unused methods need a human decision before porting. |
 | 011 | [Differential test harness against the TypeScript originals](./prompts/011-ts-oracle.md) | todo | | | |
 | 012 | [Port the data types with on-disk compatibility](./prompts/012-domain-types.md) | todo | | | |
 | 013 | [Port settings and theme normalizers](./prompts/013-domain-normalizers.md) | todo | | | |

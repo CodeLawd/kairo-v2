@@ -38,6 +38,8 @@ members = [
     "crates/ui-audience",
     "crates/ui-account",
     "crates/ui-web",
+    "tools/check-api-coverage",
+    "tools/electron-sync",
     "tools/ts-oracle",
     "tools/golden-capture",
     "tools/soak",

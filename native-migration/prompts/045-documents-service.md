@@ -96,3 +96,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 058, 085.
+
+## Amendment from prompt 008
+
+PPTX printing via CEF takes paper sizes in inches and must wait for images before printing, as spike 006 did not.

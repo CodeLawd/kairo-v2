@@ -90,3 +90,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 053, 054, 076, 086.
+
+## Amendment from prompt 008
+
+Use parley + swash. Cache rasterised text and redraw on change. Read decoration metrics from the font and implement skip-ink. Check whether Chromium's shadow includes the stroke. See spike 003.

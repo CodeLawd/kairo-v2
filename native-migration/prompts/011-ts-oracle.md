@@ -86,3 +86,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 012 through 016, 035, 036.
+
+## Amendment from prompt 009
+
+`electron-sync --apply-generated` runs `cargo run --package ts-oracle -- --regenerate`. Build `tools/ts-oracle` to accept that flag and add it to the workspace.

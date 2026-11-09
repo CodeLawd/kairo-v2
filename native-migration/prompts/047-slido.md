@@ -83,3 +83,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 090.
+
+## Amendment from prompt 008
+
+CEF has no isolated world for injected scripts: inject from the renderer's on_context_created and treat every page read as untrusted. Prove a real Slido sign-in here, as spike 006 could not. Port the close-hides-window behaviour.

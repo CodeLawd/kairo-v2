@@ -104,3 +104,7 @@ Record measured numbers in PROGRESS.md notes. Do not state a number you did not 
 ## 10. Dependencies for subsequent tasks
 
 - 072 and all later UI prompts.
+
+## Amendment from prompt 009
+
+`electron-sync --apply-generated` runs `cargo run --package embed-changelog -- --regenerate`. Build `tools/embed-changelog` to accept that flag and add it to the workspace.
