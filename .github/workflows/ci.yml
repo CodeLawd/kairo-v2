@@ -27,7 +27,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc g++ clang libfontconfig-dev libwayland-dev \
             libwebkit2gtk-4.1-dev libxkbcommon-x11-dev libx11-xcb-dev \
-            libssl-dev libzstd-dev libasound2-dev vulkan-validationlayers libvulkan1
+            libssl-dev libzstd-dev libasound2-dev vulkan-validationlayers libvulkan1 \
+            mesa-vulkan-drivers
 
       - name: Select workspace Rust toolchain
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
@@ -39,4 +40,8 @@ jobs:
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
       - name: Test workspace
+        # Compositor goldens run on lavapipe (Linux) and WARP (Windows) and
+        # must not skip there. macOS runners may have no GPU.
+        env:
+          KAIRO_REQUIRE_GPU: ${{ runner.os != 'macOS' && '1' || '' }}
         run: cargo test --locked --workspace

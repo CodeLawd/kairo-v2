@@ -3,3 +3,18 @@ name = "kairo-compositor"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+# The engine's GPU compositor. Engine-side only: no settings, network or
+# database crates.
+[dependencies]
+bytemuck = { version = "1", features = ["derive"] }
+pollster = "0.4"
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+tracing = "0.1"
+wgpu = "30"
+
+[dev-dependencies]
+png = "0.18"
+
+[target.'cfg(unix)'.dev-dependencies]
+libc = "0.2"

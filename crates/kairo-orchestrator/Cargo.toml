@@ -8,6 +8,7 @@ publish = false
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 kairo-core = { path = "../kairo-core" }
 kairo-domain = { path = "../kairo-domain" }
+kairo-engine-proto = { path = "../kairo-engine-proto" }
 kairo-scripture = { path = "../kairo-scripture" }
 kairo-store = { path = "../kairo-store" }
 kairo-stt = { path = "../kairo-stt" }
