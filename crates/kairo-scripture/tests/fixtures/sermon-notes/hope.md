@@ -1,0 +1,11 @@
+### Living Hope
+
+1 Thessalonians 4:13-18, 5:1-2 and Revelation 21:4
+
+Jeremiah 29:11 (MSG) and Lamentations 3:22–23 ESV
+
+Romans 15:13; 8:24, 25 and Colossians 1:27.
+
+- Song of Solomon 2:11-12
+
+- 1 Corinthians 15:51-57 and Phil 1:21, 23

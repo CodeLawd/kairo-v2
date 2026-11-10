@@ -195,8 +195,10 @@ pub fn store_path(dir: &Path, name: &str) -> PathBuf {
 /// Reads a store file as conf does, before defaults. Anything but a parsed
 /// file reads as empty.
 pub fn read_file(path: &Path) -> (Data, OpenState) {
-    let text = match std::fs::read_to_string(path) {
-        Ok(text) => text,
+    // `readFileSync(path, 'utf8')`: invalid UTF-8 decodes to U+FFFD rather
+    // than failing, so a stray byte does not cost the user their settings.
+    let text = match std::fs::read(path) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return (Data::new(), OpenState::Missing);
         }
@@ -228,7 +230,7 @@ impl JsonStore {
         remove_stale_temp_files(dir, &format!("{name}.json"));
         let (file, opened) = read_file(&path);
         // conf writes back only when the merge added a key. An unreadable
-        // file is never overwritten.
+        // file is never overwritten (see `persist`).
         let added = defaults.keys().any(|key| !file.contains_key(key));
         let mut merged = defaults;
         merged.extend(file);
@@ -242,10 +244,18 @@ impl JsonStore {
             next_listener: 0,
             batching: false,
         };
-        if added && !matches!(store.opened, OpenState::Unreadable(_)) {
-            store.writer.submit(store.data.clone());
+        if added {
+            store.persist();
         }
         store
+    }
+
+    /// Queues the current data for writing, unless the file could not be
+    /// read at open: then it is never overwritten, and changes stay in memory.
+    fn persist(&self) {
+        if !matches!(self.opened, OpenState::Unreadable(_)) {
+            self.writer.submit(self.data.clone());
+        }
     }
 
     /// The file this store writes.
@@ -294,7 +304,7 @@ impl JsonStore {
         let result = f(self);
         self.batching = outer;
         if !outer {
-            self.writer.submit(self.data.clone());
+            self.persist();
         }
         result
     }
@@ -332,7 +342,7 @@ impl JsonStore {
 
     fn changed(&mut self, keys: &[(String, Value)]) {
         if !self.batching {
-            self.writer.submit(self.data.clone());
+            self.persist();
         }
         for (changed, old) in keys {
             let new = self.data.get(changed).cloned().unwrap_or(Value::Null);

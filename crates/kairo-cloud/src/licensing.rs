@@ -559,6 +559,20 @@ impl LicensingService {
         self.0.session.request_provider(request).await
     }
 
+    /// The account and church API.Bible requests speak for, or `None` when
+    /// signed out. A change means previously authorized Bible ids no longer
+    /// apply, as an API key change does in Electron.
+    pub async fn account_key(&self) -> Option<String> {
+        let (epoch, current) = self.0.session.account_identity().await;
+        if current.state == CloudSessionState::SignedOut {
+            return None;
+        }
+        current
+            .org
+            .filter(|org| !org.id.is_empty())
+            .map(|org| format!("{epoch}:{}", org.id))
+    }
+
     pub async fn transcription(&self) -> Result<TranscriptionGrant, ApiError> {
         self.assert_feature(LicensedFeature::Transcription).await?;
         self.0

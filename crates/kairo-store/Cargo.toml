@@ -15,7 +15,7 @@ dirs = "6"
 interprocess = "2.4"
 kairo-domain = { path = "../kairo-domain" }
 pbkdf2 = "0.12"
-rusqlite = { version = "0.37", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 sha1 = "0.10"

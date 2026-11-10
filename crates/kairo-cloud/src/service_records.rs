@@ -685,16 +685,7 @@ fn bank_pause(record: &mut ServiceRecord, now: f64) {
     }
 }
 
-fn cap(value: &str, max: usize) -> String {
-    let mut units = 0;
-    value
-        .chars()
-        .take_while(|character| {
-            units += character.len_utf16();
-            units <= max
-        })
-        .collect()
-}
+use kairo_domain::js::slice_utf16 as cap;
 
 fn format_created_at(timestamp: f64) -> String {
     chrono::DateTime::from_timestamp_millis(timestamp as i64)

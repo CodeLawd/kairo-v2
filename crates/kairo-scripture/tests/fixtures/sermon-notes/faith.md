@@ -1,0 +1,13 @@
+# Faith That Works
+
+Hebrews 11:1, 6 and James 2:17-26 (NIV/ESV).
+
+Genesis 15:6; Rom 4:3, 4:20-22 and Gal 3:6.
+
+Mark 11:22 KJV, Mark 9:23 and 2 Cor 5:7
+
+- 1 John 5:4
+
+- Habakkuk 2:4 and Romans 1:17; 10:17
+
+Chapter 12 has 29 verses; read it at home.

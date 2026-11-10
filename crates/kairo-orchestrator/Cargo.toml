@@ -1,0 +1,23 @@
+[package]
+name = "kairo-orchestrator"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+kairo-core = { path = "../kairo-core" }
+kairo-domain = { path = "../kairo-domain" }
+kairo-scripture = { path = "../kairo-scripture" }
+kairo-store = { path = "../kairo-store" }
+kairo-stt = { path = "../kairo-stt" }
+regex = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "test-util"] }

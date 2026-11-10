@@ -99,6 +99,8 @@ impl Write for RotatingFile {
                         .open(&self.path)?,
                 );
             }
+            // Try again after another `max_bytes`, not on every line.
+            self.size = 0;
         }
         let file = self
             .file

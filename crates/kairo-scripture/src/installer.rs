@@ -15,7 +15,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, LazyLock, Mutex, MutexGuard};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
@@ -122,11 +122,7 @@ impl Unsubscribe {
     }
 }
 
-fn lock(state: &Mutex<State>) -> MutexGuard<'_, State> {
-    state
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-}
+use kairo_domain::js::lock;
 
 #[derive(Clone)]
 pub struct LocalBibleInstaller {

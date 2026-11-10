@@ -6,6 +6,8 @@
     "account.onLicenseChange": "031",
     "account.refreshLicense": "031",
     "lyrics.previewOnline": "041",
+    "lyrics.pushSlide": "080",
+    "lyrics.readClipboard": "080",
     "lyrics.searchOnline": "041",
     "lyrics.translateSections": "041",
     "scripture.approve": "039",

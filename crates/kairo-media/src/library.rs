@@ -226,12 +226,12 @@ fn parse_playlists(value: Option<&Value>) -> Vec<MediaPlaylist> {
 /// The pre-manifest id: first 16 hex digits of SHA-1 over the resolved path.
 pub fn legacy_item_id(abs_path: &Path) -> String {
     use sha1::{Digest, Sha1};
-    let digest = Sha1::digest(resolve(abs_path).to_string_lossy().as_bytes());
-    digest
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect::<String>()[..16]
-        .to_owned()
+    let mut hex = format!(
+        "{:x}",
+        Sha1::digest(resolve(abs_path).to_string_lossy().as_bytes())
+    );
+    hex.truncate(16);
+    hex
 }
 
 fn new_playlist_id() -> String {
@@ -255,11 +255,7 @@ fn to_base36(mut n: u64) -> String {
     String::from_utf8(out).unwrap_or_default()
 }
 
-fn now_ms() -> f64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0.0, |d| d.as_millis() as f64)
-}
+use kairo_domain::js::now_ms;
 
 // ─── Scanning ───────────────────────────────────────────────────────────────
 

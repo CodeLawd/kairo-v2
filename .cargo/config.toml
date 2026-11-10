@@ -1,0 +1,4 @@
+[env]
+# Build the bundled SQLite as better-sqlite3 (Electron) does: no per-allocation
+# memory statistics. Measured in prompt 037: needed for quote search p95 parity.
+LIBSQLITE3_FLAGS = "-DSQLITE_DEFAULT_MEMSTATUS=0"

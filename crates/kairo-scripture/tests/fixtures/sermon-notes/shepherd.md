@@ -1,0 +1,13 @@
+## The Lord Is My Shepherd
+
+Psalm 23:1–6 is the text. Compare Ps 100:3 and John 10:11, 14-16.
+
+Isaiah 40:11 NLT — He tends his flock.
+
+1 Peter 5:4; 2:25 and Heb 13:20—21 [AMP]
+
+- Ezekiel 34:11, 12, 15
+
+- Luke 15:4-7 (NASB)
+
+Matthew 9 36 is written without a colon.

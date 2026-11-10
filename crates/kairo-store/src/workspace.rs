@@ -438,28 +438,66 @@ pub fn read_song_files(songs_dir: &Path, now_ms: f64) -> Vec<SongFileEntry> {
     entries
 }
 
-/// `findSongFile`: the file holding `song_id`, if any.
-pub fn find_song_file(songs_dir: &Path, song_id: &str) -> Option<PathBuf> {
-    std::fs::read_dir(songs_dir)
-        .ok()?
+fn matching_song_files(songs_dir: &Path, song_id: &str) -> Vec<PathBuf> {
+    let Ok(entries) = std::fs::read_dir(songs_dir) else {
+        return Vec::new();
+    };
+    entries
         .flatten()
-        .find_map(|entry| {
-            let name = entry.file_name().to_string_lossy().into_owned();
-            (is_song_file_name(&name) && song_id_from_file_name(&name) == Some(song_id))
-                .then(|| songs_dir.join(&name))
+        .filter_map(|entry| {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if !is_song_file_name(&name) || entry.file_type().ok()?.is_dir() {
+                return None;
+            }
+            let file = entry.path();
+            let filename_id = song_id_from_file_name(&name).unwrap_or("");
+            let embedded_id = std::fs::read_to_string(&file)
+                .ok()
+                .and_then(|raw| parse_song_file(&raw, filename_id, 0.0))
+                .map(|song| song.id);
+            (embedded_id.as_deref().unwrap_or(filename_id) == song_id).then_some(file)
         })
+        .collect()
+}
+
+/// The first file holding a song id, including an externally renamed file.
+pub fn find_song_file(songs_dir: &Path, song_id: &str) -> Option<PathBuf> {
+    matching_song_files(songs_dir, song_id).into_iter().next()
 }
 
 /// `writeSongFile`: writes `song` as `<slug>__<id>.song.json`, atomically,
 /// and removes its old file when the title (so the name) changed. `None` on failure.
 pub fn write_song_file(songs_dir: &Path, song: &LyricsSong) -> Option<PathBuf> {
-    let target = songs_dir.join(song_file_name(song));
+    let existing = matching_song_files(songs_dir, &song.id);
+    write_song_file_replacing(songs_dir, song, existing)
+}
+
+/// Exports a song whose absence from the folder was already checked by a scan.
+pub fn export_song_file(songs_dir: &Path, song: &LyricsSong) -> Option<PathBuf> {
+    write_song_file_replacing(songs_dir, song, Vec::new())
+}
+
+fn write_song_file_replacing(
+    songs_dir: &Path,
+    song: &LyricsSong,
+    existing: Vec<PathBuf>,
+) -> Option<PathBuf> {
+    let name = song_file_name(song);
+    let target = songs_dir.join(&name);
     let result = (|| -> std::io::Result<()> {
+        // The id comes from imported files: a separator or `..` in it must not
+        // place the file outside the songs folder.
+        if name.contains(['/', '\\']) || target.parent() != Some(songs_dir) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "song id is not a valid file name",
+            ));
+        }
         std::fs::create_dir_all(songs_dir)?;
-        let existing = find_song_file(songs_dir, &song.id);
         let text = serialize_song_file(song).map_err(std::io::Error::other)?;
         write_atomic(&target, text.as_bytes())?;
-        if let Some(existing) = existing.filter(|e| *e != target) {
+        for existing in existing.into_iter().filter(|e| *e != target) {
             remove_any(&existing)?;
         }
         Ok(())
@@ -475,16 +513,14 @@ pub fn write_song_file(songs_dir: &Path, song: &LyricsSong) -> Option<PathBuf> {
 
 /// `deleteSongFile`: removes the song's file. A missing file counts as success.
 pub fn delete_song_file(songs_dir: &Path, song_id: &str) -> bool {
-    let Some(file) = find_song_file(songs_dir, song_id) else {
-        return true;
-    };
-    match remove_any(&file) {
-        Ok(()) => true,
-        Err(error) => {
+    let mut removed = true;
+    for file in matching_song_files(songs_dir, song_id) {
+        if let Err(error) = remove_any(&file) {
             tracing::error!(file = %file.display(), %error, "[SongFiles] Could not delete song file");
-            false
+            removed = false;
         }
     }
+    removed
 }
 
 #[cfg(test)]

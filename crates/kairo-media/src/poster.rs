@@ -73,12 +73,9 @@ pub fn cache_key(path: &Path) -> std::io::Result<String> {
     hasher.update([0]);
     hasher.update(mtime.to_le_bytes());
     hasher.update(meta.len().to_le_bytes());
-    Ok(hasher
-        .finalize()
-        .iter()
-        .take(16)
-        .map(|b| format!("{b:02x}"))
-        .collect())
+    let mut hex = format!("{:x}", hasher.finalize());
+    hex.truncate(32);
+    Ok(hex)
 }
 
 /// The poster for `video`, from `cache_dir` when present, else decoded and cached.

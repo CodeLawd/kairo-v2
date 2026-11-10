@@ -60,9 +60,7 @@ pub fn random_uuid() -> String {
 }
 
 /// The current time in milliseconds, as `Date.now()`.
-pub fn now_ms() -> f64 {
-    chrono::Utc::now().timestamp_millis() as f64
-}
+pub use kairo_domain::js::now_ms;
 
 /// `defaults` in `db/index.ts`, with its keys in the literal's order (the
 /// order a fresh `kairo-settings.json` has, which `AppSettings` declares).

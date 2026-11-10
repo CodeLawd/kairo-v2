@@ -270,6 +270,9 @@ fn seed_bible_file(source: &Path, destination: &Path) -> io::Result<()> {
     }
 }
 
+/// The 66 canonical books (`BOOKS` in `bible-db.ts`): id, name, abbr, testament, aliases.
+pub const BOOKS_JSON: &str = include_str!("db/books.json");
+
 #[derive(Deserialize)]
 struct Book {
     id: u32,
@@ -282,7 +285,7 @@ struct Book {
 fn seed_books(conn: &Connection) -> Result<()> {
     let count: u32 = conn.query_row("SELECT count(*) FROM books", [], |row| row.get(0))?;
     if count != 66 {
-        let books: Vec<Book> = serde_json::from_str(include_str!("db/books.json"))?;
+        let books: Vec<Book> = serde_json::from_str(BOOKS_JSON)?;
         let mut insert = conn.prepare(
             "INSERT OR REPLACE INTO books (id, name, abbreviation, testament, aliases)
              VALUES (?1, ?2, ?3, ?4, ?5)",

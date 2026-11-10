@@ -282,8 +282,10 @@ pub fn renamed_store<'a>(user_data: &Path, legacy: &str, next: &'a str) -> &'a s
     let from = store_path(user_data, legacy);
     let to = store_path(user_data, next);
     if !to.exists() && from.exists() {
-        match std::fs::copy(&from, &to) {
-            Ok(_) => tracing::info!(legacy, next, "[Store] Adopted legacy store file"),
+        // Atomic, so a crash mid-copy cannot leave a truncated `<next>.json`
+        // that would block adoption for good.
+        match std::fs::read(&from).and_then(|bytes| crate::fs_atomic::write_atomic(&to, &bytes)) {
+            Ok(()) => tracing::info!(legacy, next, "[Store] Adopted legacy store file"),
             Err(error) => {
                 tracing::warn!(legacy, next, %error, "[Store] Could not adopt legacy store file")
             }

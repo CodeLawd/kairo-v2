@@ -70,10 +70,7 @@ pub(crate) fn has_text(s: &str) -> bool {
     !trim(s).is_empty()
 }
 
-/// `.length`: UTF-16 code units.
-pub(crate) fn len16(s: &str) -> usize {
-    s.chars().map(char::len_utf16).sum()
-}
+pub(crate) use crate::js::utf16_len as len16;
 
 /// `s.split(/\s+/)`, keeping the empty strings JavaScript keeps at the ends.
 pub(crate) fn split_ws(s: &str) -> Vec<&str> {

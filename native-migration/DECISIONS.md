@@ -580,3 +580,357 @@ Decision: `kairo-scripture` holds `ScriptureService` (search, lookups, translati
 8. The phrase search's two `LIKE` passes are answered from memory (`like_index`), not by SQLite. Electron's query can only scan every verse in rowid order, which measured 16–18 ms per pass on the bundled Bible and put a phrase search at 14–19 ms median in Electron itself, over the 10 ms budget. The index keeps each verse's ASCII-lower-cased text in rowid order (12.4 MB of text for the bundled 93,306 verses), applies SQLite's `LIKE` rules (`%`, `_` as one character, ASCII-only case folding, the 50,000-byte pattern limit) and then reads only the matching rows. It is built when the database opens (30.6 ms measured) and rebuilt when `BibleDb` writes or when a reader's `PRAGMA data_version` shows another connection committed and the table's largest rowid or row count changed. A generated-text test checks it against SQLite's own `LIKE`, and both oracle comparisons check the results end to end. FTS, ranking and every other query still run in SQLite with Electron's SQL.
 
 Affects prompts: 034, 035, 037, 039, 067, 078.
+
+## 035: Deterministic scripture detector source map
+
+- State (409–517, 800–856, 884–1174): pending input and origin, resolution generations, remembered book and chapter, pending chapter fallback, reading range, quote windows and provider revisions, last published translation context, deduplication and lifecycle.
+- Regex tables and normalization (1620–2188): canonical aliases, STT repairs, spoken numbers, citation boundaries and verse lists, fused-number disambiguation, teen correction and verse bounds.
+- Fast path (550–727, 765–799): resolve interim or final explicit citations, attach passage context, publish valid references and supersede stale model work. Window matching supplies another chance for split finals.
+- Debounce (518–548, 728–764, 1176–1215 and live wiring): a chapter-only final arms a 5 s fallback. Wiring coalesces interim quote requests over 250 ms, clears evidence on audio epoch changes and cancels interim work on a final. The model queue retains the latest pending text.
+- Dedupe (1049–1055, 1420–1536): expire old entries, suppress contained ranges, let broader ranges replace narrower ones, allow new translations, and let released entries be detected again locally.
+- Model boundary (1216–1420, 1537–1617 and live wiring): run local rules first, then pass unresolved scripture-like speech or a damaged citation to the model. Prompt 036 owns provider calls, parsing, retries and cancellation.
+
+The signal port combines the five boolean regex checks into one alternation. Its
+Rust regex uses ASCII word boundaries, digits and case folding, and explicitly
+expands JavaScript whitespace (including U+FEFF). The distinct-book branch
+reuses the canonical book names from the domain port.
+
+Chapter quote scoring reuses domain tokenization and spoken verse text. It
+computes exact and one-word-gap runs in one traversal and groups scores by verse
+before checking for ties. Empty candidates, short readings, insufficient runs
+and tied scores produce no match.
+
+## 2026-11-10 — 034 — API.Bible through the managed gateway
+
+Decision: `kairo-scripture::api_bible` owns the API.Bible client, encrypted
+cache, lookup and downloads behind a `BibleTransport` trait. Production uses
+`kairo-cloud::bible_gateway::BibleGateway`, which sends
+`{ provider: "bible", path: "/v1/...", method: "GET", query }` through
+`LicensingService::request`, as Electron's `managedJson('bible', ...)` does.
+The desktop never holds an API.Bible key.
+
+1. The account key (`LicensingService::account_key`, session epoch plus
+   church id) replaces Electron's API key for authorization. When it changes
+   or the user signs out, `ApiBibleSource::set_gateway` drops every
+   authorized id and the lookup, so a stale id cannot reach the server, come
+   back 403 and purge valid text. Call `BibleGateway::sync` at startup and on
+   each session change.
+2. Electron attaches API lookups even when the cache cannot open
+   (`NO_CACHE`). Native matches this with `ApiBibleSource::new(None, ..)`.
+   Startup must attach the source with `cache: None` when `ApiCacheCrypto`
+   fails, rather than calling 033's `init_offline_bibles` with an error,
+   which would detach API.Bible completely.
+3. When one download worker fails, the other worker is cancelled at its
+   next await. Electron's `Promise.all` rejects but leaves the other worker
+   running until its queue ends. Cancelling is safer for the rate limit and
+   does not change the stored result: the run is `failed` either way.
+4. A cache row that fails AES-GCM authentication is an error, never shown.
+   A lost key discards the database, as decided for 022.
+5. Electron does not throttle downloads while a service is live, so native
+   does not either. The 2-chapter concurrency and 429 back-off are the only
+   limits.
+
+Affects prompts: 036, 037 (quote corpus reads `read_quote_batch`), 070.
+
+## 035: Citation pattern review and failure paths
+
+The citation parser uses `fancy-regex` to preserve lookaheads and the repeated
+chapter backreference. Its string matcher does not support scoped ASCII
+mode, so the port spells out JavaScript ASCII digits and word boundaries.
+It expands JavaScript whitespace explicitly and rewrites the compound-number
+hyphen/space character class as an equivalent alternation. Case-insensitive
+citation rules scan ASCII-lowercased text while preserving the source text
+from the original spans. Regex runtime errors skip a failed substitution
+or stop a scan rather than panicking on transcript input.
+
+The replay checks references, order, origin, virtual emission time,
+translations, resolver, confidence and trigger text. General-corpus quote
+index search and provisional results belong to 037. The rules replay
+supplies deterministic chapter and damaged-citation lookup candidates and
+uses no model or general-corpus quote provider.
+
+Handled local rejection paths include empty and repeated interim speech,
+ordinary numbered prose, invalid or ambiguous fused numbers, unknown books
+and invalid verse bounds, unmatched remembered fragments, chapter timer
+cancellation, missing lookup candidates, ambiguous chapter quotes, invalid
+or uncorroborated damaged citations, reading-passage suppression, expired
+context and dedup entries, and duplicates without new translations. Local
+citation events advance synchronously on the caller's clock. The model
+boundary exposes unresolved final text and a resolution generation.
+
+## 036: Managed scripture model
+
+- `kairo-scripture` owns the latest-pending queue, the provider-neutral runner,
+  and model result validation. The `kairo-cloud` adapter uses
+  `LicensingService::request` and its existing reqwest transport to
+  `/v1/managed/request`. The gateway owns usage accounting. Model calls
+  always carry the scripture purpose and no credentials or streaming flag.
+- The Electron system and direct-only prompts are stored together as their
+  exact UTF-8 request value. The Electron SDK capture compares full gateway
+  envelopes for both providers, the default model, a named override and an
+  explicit empty override. The latter is different from an omitted override.
+- Retry handling keeps the installed SDKs' two retries for 408, 409, 429 and
+  server failures before the detector sees the error. The detector retries
+  malformed text immediately and rate limits with 1/2/4 s backoff. A missing
+  provider switches once per detector and resets its model to the other
+  provider's default. The gateway's user-visible reason is preserved.
+- A dropped or signalled cancellation owner cancels pending network/backoff
+  futures. The 15 s default deadline covers provider attempts and backoff.
+  Empty DeepSeek choices yield an empty result. Invalid provider envelopes
+  fail with a native error. An empty or malformed Anthropic text response
+  enters the parse-retry path. Malformed entries and invalid verse bounds
+  are skipped. Valid empty arrays count as success.
+- Model work takes place outside the synchronous local detector. On return,
+  model suggestions share the local reading suppression and dedup cache.
+  Non-citation claims require local quote evidence and paraphrases are
+  dropped. A later local resolution makes an older model result review-only
+  and drops its partial results. Model translations come from their own
+  source text. Prompt 039 owns application wiring and 037 owns general quote
+  evidence lookup. The model and citation replay commands are
+  `cargo test -p kairo-scripture --test model_detector --test detector_replay -- --include-ignored --nocapture`.
+
+## 2026-11-10 — 037 — Quotation worker and licensed index
+
+Decision: `kairo-scripture::quote` runs FTS retrieval and scoring on a
+dedicated `scripture-quotes` OS thread, which owns a read-only `bible.db`
+connection and an in-memory SQLite index of licensed text. Commands match
+Electron's worker: search, and versioned `cache-begin`, `cache-append` (with
+an acknowledgement) and `cache-commit`.
+
+1. A failed thread cannot be terminated mid-query as a Node worker can.
+   The client drops its command channel, so the thread exits after its
+   current command, and a new thread starts on the next request. Replies
+   from the old thread are ignored by generation.
+2. Failure listeners run before the in-flight searches are rejected, the
+   order Electron's synchronous `emit` gives.
+3. The worker connection sets `PRAGMA cache_size = -16000`, and the
+   workspace builds the bundled SQLite with `SQLITE_DEFAULT_MEMSTATUS=0`
+   (`.cargo/config.toml`). Both are better-sqlite3 build defaults. Measured,
+   they bring quote search p50 below Electron's.
+5. rusqlite is bumped from 0.37 to 0.41 in `kairo-store` and
+   `kairo-scripture`, moving the bundled SQLite from 3.50.2 to 3.54.1
+   (Electron's better-sqlite3 has 3.53.1). With it, quote search p95 is about
+   9% below Electron's. The only code change: `usize` no longer implements
+   `ToSql`, so one test fixture casts to `i64`. All workspace tests and the
+   1,000-query bundled FTS oracle still match.
+6. Startup wiring: create `QuoteCorpus` on AppCore's runtime, `open` it
+   with the profile `bible.db`, `attach_api_cache` with the 034 cache (or
+   `None`), and call `invalidate_quote_corpus` when local packs change
+   (`ScriptureService::on_corpus_change`). The detector (039) uses
+   `search_general_quote`, `is_general_quote_eligible` at publication and
+   `on_general_quote_corpus_change` to retract cards.
+
+Affects prompts: 039, 070.
+
+## 040: Local lyrics library
+
+- `LyricsService` uses the existing lyrics WAL schema and database workers.
+  Reads use a single SQLite snapshot for ranked ids and their sections.
+  A write replaces song metadata, section JSON and FTS rows in one transaction.
+  Song files are mirrored after commit on the same writer. Workspace paths
+  and the one-time export flag come from the shared settings store.
+- Search retains Electron's FTS query sanitization, rank and 50-row limit,
+  followed by the 50-row LIKE fallback over title, artist and serialized
+  sections. The two lists are deduplicated before stable Unicode title
+  sorting with ICU4X. Blank queries use the library's SQLite NOCASE ordering.
+- A differential run exposed a rank tie at the FTS limit. Electron's libuv
+  directory enumeration sorts filenames. The native sync now sorts the same
+  way before inserting. For bulk import, one FTS deletion scan removes the
+  replaced ids before inserts; repeated ids are still processed in order.
+- File and text preview has no persistence. It uses the shared duplicate
+  matcher. SongSelect imports strip BOM/CRLF, accept recognized colon
+  metadata and recover titles from filenames. Text imports preserve orphan
+  lines, markers and repeated choruses, then apply the shared slide breaks.
+  Local OpenLyrics XML parses titles, authors, copyright, CCLI and verse order.
+  Electron has no XML parser in this path, so local XML has independent tests.
+- Empty libraries, missing ids and empty search return normal empty results.
+  FTS syntax errors fall through to LIKE. Invalid section JSON uses the
+  existing section codec. Missing or unreadable song files follow the
+  workspace reader's skip behavior. External deletion removes the indexed
+  song after the one-time export. Mirroring is best effort as in Electron.
+  Malformed XML is rejected; empty text remains importable; duplicate CCLI
+  returns the existing song. Licensed CCLI and URL requests retain Electron's
+  explicit errors. Online provider preparation and review belong to 041.
+- The clipboard and slide-push IPC actions depend on the native window and
+  presentation runtime, so their inventory ownership moves to 080. The
+  local service closes the library, preview and local import operations and
+  the workspace song resync. No Electron service callback has a caller.
+
+## 2026-11-10 — 038 — Audio capture and Deepgram transcription
+
+Decision: capture moves into the core (`kairo-stt::capture`). The cpal callback only downmixes to mono and pushes into an `rtrb` SPSC ring: no allocation, locks or logging. A `kairo-audio-capture` thread drains the ring every 10 ms, resamples to 16 kHz with `rubato` 5 (`Fft`, 10 ms input chunks, FixedSync::Input), and passes the result through the worklet's chunker. The chunker emits 1600-sample PCM16 chunks and a level meter checked once per 128-sample render quantum at a 0.1 s audio clock, so levels keep Electron's ~10 Hz rate. `audio:pcmChunk` becomes an in-process `AudioRelay::feed`. The relay keeps the 5 s cap (`MAX_QUEUED_BYTES = 160000`) and drops the newest chunk when full.
+
+Decision: device ids are cpal `DeviceId` strings (`coreaudio:<uid>` and so on), with a synthetic `default` entry labelled `System Default`. Electron stored only the opaque Chromium `deviceId`, a per-origin hash that cannot be mapped to a device. A saved value that equals the label of exactly one present device (the pre-renderer CoreAudio-label era) is migrated to that device's id with `migrate_saved_device_id`. Any other stale value falls back to the default without changing settings, as `resolveCaptureDeviceId` does. When the saved device is unavailable at start, capture falls back to the default and reports `FellBackToDefault` (Electron's `OverconstrainedError`/`NotFoundError` retry). Unplugging a device reports `Audio input disconnected`. A stream invalidation rebuilds the stream on the same device. On macOS cpal follows default-device changes itself (`DeviceChanged`); other hosts poll the default every 2 s and rebuild when it changes.
+
+Decision: microphone permission uses `AVCaptureDevice` authorization. Not determined prompts once; denied and restricted return `false` without a prompt, as `getMediaAccessStatus`/`askForMediaAccess` did. The Info.plist purpose string stays "Kairo listens to the service audio so it can transcribe the sermon in real time." (`permission::MICROPHONE_PURPOSE`). Packaging (101) must set it. Other platforms report granted.
+
+Decision: Deepgram runs as one tokio actor over `tokio-tungstenite` 0.30 with rustls and native roots. The query string is byte-identical to what `@deepgram/sdk` 5.3.0 sends, captured from the SDK against a local socket server: `model=nova-3&language=…&punctuate=true&smart_format=true&interim_results=true&utterance_end_ms=1500&vad_events=true&encoding=linear16&sample_rate=16000&channels=1&no_delay=true` plus one `keyterm=` per term, encoded as `encodeURIComponent` encodes it. Authentication is `Authorization: Bearer <grant token>`. The SDK's `x-fern-*`, user-agent and `x-deepgram-session-id` headers are not sent. Keepalive (`{"type":"KeepAlive"}` every 10 s), `CloseStream` on close, the 30 s replay buffer that drops the oldest audio, connection generation as audio epoch, grant renewal (retry 5, 15, 30 s; one fresh session after a refusal; stop on a second refusal), release before each new grant, the session-limit wait (30 s, 8 tries) and reconnect backoff (1 to 30 s, 20 tries) follow `deepgram.ts`.
+
+Decision: one addition, a half-open check. Each keepalive also sends a WebSocket ping. If no frame (pong, result or other) arrives for 30 s, the socket is treated as closed and reconnects. Electron had no detection beyond a failed send. `SttEvent::Error` carries `fatal`: true when transcription has stopped (refusal, reconnects exhausted), false for transient socket errors. Electron used one `error` event for both.
+
+Decision: `KAIRO_STT_REPLAY_PATH` recording lives in `kairo-stt::recording` and is opened by `SttService`. The file is exclusive, mode 0600, written on its own thread, and marks dropped runs with a `gap` line that replay refuses. `replay::replay_pcm` is the core of `replay-audio.ts`: real-time pacing in 20 ms frames, then 150 silence frames. Running it as a command line needs the app's signed-in session, which bootstrap wiring (067) provides.
+
+Affects prompts: 039, 067, 077, 101.
+
+Two reviewed filesystem cases intentionally differ from Electron. If legacy
+export fails, the flag remains unset and the next sync retries the remaining
+songs. File replacement and deletion follow the same embedded-id rule used
+for folder import, including alternate filenames, so the next sync cannot
+restore a song solely because its file was renamed.
+
+## 2026-11-10 — 039 — Orchestrator, voice navigation and recovery
+
+Decision: the orchestrator lives in a new crate, `kairo-orchestrator`, not in `kairo-core` as the blueprint drew it. `kairo-core` cannot depend on `kairo-stt` or `kairo-scripture`, because both reach `kairo-core` through `kairo-cloud`. The crate sits above the service crates, and the UI composition root (067) wires it.
+
+Decision: the orchestrator is one actor. Every public call holds the state lock for its whole run, so calls are handled one at a time in arrival order. Auto-present countdowns are timer tasks that re-enter through the same lock. A countdown that was cancelled, dismissed or superseded before it fires finds its entry gone and does nothing. Voice navigation runs its own serialized worker (as `ScriptureVoiceNavigation`'s promise queue did) and presents through the actor.
+
+Decision: everything the orchestrator drives sits behind traits in `clients.rs`. `EngineClient` (surfaces: `show_slide`, `set_background`, `swap_document_page`, `show_document`, `clear_text`, `clear`, `live_targets`, `all_surfaces`), `ProgramClient`, `MediaClient`, `ScriptureClient`, `SttClient`, `SessionGate`, `SettingsClient` and `UsageClient`. Test fakes live only under `tests/`. Surface ids are output ids. Phase 4 implements `EngineClient` over the engine protocol, and 065 and 067 implement the others.
+
+Decision: 039 composes the detector, as 036 left it. `detector::LiveDetector` runs the deterministic `LiveCitationDetector` on each transcript in arrival order, with local chapter and quote evidence and the live plan index. Unresolved transcripts go to the `ModelQueue` and `ManagedModelDetector` (production transport: `kairo-cloud::scripture_gateway`). In fallback mode they go to the regex instead. A 50 ms ticker fires due chapter fallbacks and dispatches model work. Events mirror the `ScriptureDetector` facade: detection, quoteRetracted, planProgress, stats, error, requestSuccess. General-corpus quotes (`suggestionOnly`) are not produced by this composition yet, so `is_general_quote_current` treats every emitted reference as current. Wiring 037's global quote search into the facade is left for the integration prompt (067). `kairo_scripture::citation::canonical_book` became `pub` so references can be released and set as the reading passage. It expects lowercase input.
+
+Decision: scripture traces (`scriptureTrace` marks) are not recorded. They are diagnostics with no effect on what reaches a screen, and the trace sink belongs to the integration. Latency was measured with fake-engine timestamps instead.
+
+Decision: `start_from_ui` is `orchestrator:start`. It asserts the transcription licence, refuses with "Create a service in Operator before starting transcription." without an active service, and replaces the caller's credentials with `kairo-managed`, with provider Deepgram. `restore_session` needs an active service too, validates each part of the snapshot on its own, and wires the detector the same way as a cold start. The snapshot keeps the Electron keys and order (`session`, `pendingSuggestions`, `transcriptHistory`, `config`), and `spawn_monitoring` saves it every 30 s through `kairo-core::resilience::RecoveryFile`. The same task polls connectivity every 10 s, and going offline switches the detector to the local fallback. Two detector failures in a row start the fallback through `Resilience::detector_error`, and a probe 30 s later lets the model try again.
+
+Decision: the end-to-end oracle (`tools/ts-oracle/modules/orchestrator`) runs Electron's real `orchestrator.ts`, detector, live wiring, voice navigation and dispatch under Electron-as-Node. A `Module._resolveFilename` preload swaps every service singleton for a recording stub. Mocked timers give it a virtual clock.
+
+Decision: the Bible database handle the Electron orchestrator opened and never read is dropped; the scripture service owns the database. Sermon-plan reference extraction and document reading stay with 042. 039 ports the plan store and `LivePlanService`.
+
+Affects prompts: 042, 050, 065, 067, 077.
+
+## 2026-11-10 — 041 — Online lyric search and translation
+
+Decision: `kairo-lyrics::online` ports the online tier. HTML is parsed with `scraper` 0.24 in place of `cheerio`. Cheerio's `remove()` is reproduced by skipping the removed elements and their subtrees when selecting and reading text. `<br>` reads as a newline and `data-exclude-from-selection` nodes are skipped. HTTP goes through an `Http` trait (production: `reqwest` 0.12 with rustls and native roots). Managed calls go through a `ManagedGateway` trait, which `kairo-cloud` implements for `LicensingService` (`lyrics_gateway.rs`). Web search (DeepSeek, then Brave), page review (DeepSeek) and translation (Anthropic or DeepSeek, otherwise Google Translate) all use that gateway, and caller keys are ignored as in Electron.
+
+Decision: user agents, timeouts, caches and sources are unchanged:
+- LRCLIB identifies as Kairo. Genius, the lyric sites and the search engines get the stock Chrome 122 agent and browser headers.
+- The allowlist and the Blogger hymn hosts are the same; no source was added.
+- Genius requests stay 350 ms apart, the keyless engines 1.1 s, and managed search reserves slots (DeepSeek 250 ms, Brave 1.1 s).
+- One difference: Genius and the snippet resolver now reserve slots too. Electron's last-request check let concurrent callers wake together, so concurrent calls are now spaced, never faster than Electron.
+- The fan-out matches `Promise.allSettled`: every query variant is sent to Genius and LRCLIB, plus structured LRCLIB calls, at once. Candidate pages are capped at 2 Genius and 3 scraped pages per batch.
+
+Decision: fixtures under `crates/kairo-lyrics/tests/fixtures/online` hold only public-domain lyrics. DuckDuckGo, Mojeek, Brave and the Yoruba Hymns page were captured live with the code's own headers. The LRCLIB search response keeps its real structure and metadata, but its lyric bodies are replaced with public-domain "Amazing Grace" text so no copyrighted lyrics are committed. Genius returned 403 to both curl and Electron's own axios code on 2026-11-10 (the "rate limiting" message an operator would see), so `genius-medley.html` is a Genius-shaped page written for the test. The oracle (`tools/ts-oracle/modules/lyrics-online.ts`) runs Electron's code over the same bytes through a stubbed axios.
+
+Decision: three parts of `index.ts` land here, assigned by 040: `searchOnline` (marks songs the library already holds and warms the first two previews), `previewOnline`, and the online branch of `importSong`. They are `LyricsService::search_online`, `preview_online` and `import_online`, taking the `OnlineLyrics` service. `import_song` still refuses an online source, so callers use `import_online`. Online preview shows the import slide breaks, because the native text parser applies them while parsing (040). Electron previewed without them and applied them only on import.
+
+Decision: `reviewOnlineLyrics` and `OnlineLyricsPreparation` are ported as written. The model only selects source line ids and section starts. Any malformed reply leaves the text unreviewed. Snapshots are kept ten minutes, at most 50, keyed with a SHA-256 of the credential. A failed preparation is forgotten.
+
+Affects prompts: 067, 080, 084.
+## 2026-11-10 — 042 — Sermon notes import
+
+Decision: `kairo-scripture::sermon_notes` ports `analyzeScriptureReferences`, `readSermonDocument`, the `sermon-notes-review.ts` text helpers (`plainTextToEditorHtml`, `escapeHtml`, `normalizedReferenceLabel`; `mapTextRangeToPos` works on the TipTap document and stays with 079) and the `importSermonNotes`/`scanSermonNotes` handlers. The reference pattern is built from the same tables: `BOOKS` from `bible-db.ts` (now exported as `kairo_store::db::BOOKS_JSON`) and `build_translation_alias_map`. JavaScript semantics are kept: ASCII `\b` and `\d`, JavaScript's `\s` set, and the `i` flag as `[xX]` classes so only ASCII letters fold. The continuation pattern's sticky match and lookahead use `fancy-regex` anchored at the cursor. Match offsets are UTF-16 code units.
+
+Decision: `.docx` is read with `zip` 2 and `roxmltree` 0.21 in place of `mammoth`. Text follows `extractRawText` (each paragraph followed by a blank line, tabs and line breaks kept, deletions dropped). HTML follows `convertToHtml` with the default style map: `h1`–`h6` for Heading 1–6, nested `ul`/`ol` from `numbering.xml`, `strong`, `em`, `s`, `sup`, `sub`, links, tables and `<br />`, empty paragraphs omitted, adjacent runs merged. Parts over 256 MB are refused. Other mammoth style mappings (underline, small caps, footnotes, comments, images) are not reproduced; the corpus HTML matches mammoth byte for byte.
+
+Decision: PDF text uses `pdfium-render` 0.9.5 (`pdfium_latest`, `thread_safe`, dynamic binding), loaded once per process from `set_pdfium_library_dir`, then `PDFIUM_DYNAMIC_LIB_PATH`, then the executable's directory and `../Frameworks`, then the system path. A missing library is a `PdfiumUnavailable` error, not a panic. Pages are joined as `pdf-parse` joins them (`"\n\n"` before each page), and PDFium's CRLF line ends become LF. Reading reports per-page progress. Shipping the library is packaging's job (101–103). For development the prebuilt macOS arm64 build (bblanchon/pdfium-binaries latest release, VERSION 159.0.8138.0) sits in the git-ignored `.cache/pdfium`.
+
+Decision: error messages. The unsupported-extension message is Electron's exactly. Read failures name the file and the cause in the app's own words ("Could not read the Word document: ...", "Could not read the PDF: the document is password protected"), where Electron surfaced mammoth's or pdf.js's internal text. Text files decode as Node's `utf8` does: invalid bytes become U+FFFD and a BOM is kept.
+
+Decision: importing runs on `spawn_blocking` with `ImportProgress` (reading pages, then scanning), so a large document never holds an actor. The open dialog belongs to the shell (067): it filters on `ACCEPTED_EXTENSIONS` and passes `None` on cancel. The default translation is passed in from `settings.scripture.defaultTranslation`.
+
+Decision: list, save and delete go through `LivePlanService` (`list_plans`, `save_plan` then `refresh`, `delete_plan` then `handle_deleted`), so the single store instance the live index reads is the one written, as the IPC handlers did. `PlanSource` gained `list`, `save` and `delete`. The JSON store edits the raw `plans` array, so entries this build cannot parse are kept.
+
+Decision: the oracle (`tools/ts-oracle/modules/sermon-notes.ts`) runs Electron's real `sermon-plans.ts` in Electron as Node through tsx with `electron` and `electron-log` stubbed. `Date.now` is pinned only around the scan. Under plain Node 24 `pdf-parse` (pdf.js 1.10) rejected every PDF with "bad XRef entry". Under Electron's Node it also rejects PDFs of about 1 KB, so fixture PDFs are padded past 4 KB with a comment.
+
+Affects prompts: 067, 079, 101, 102, 103.
+
+
+## 2026-11-10 — 044 — Setlist, libraries, passages, usage and transfer
+
+Decision: the services live in `kairo-transfer` and write the same electron-store files as Electron (`kairo-setlist.json`, `kairo-libraries.json`, `kairo-passages.json`, `song-usage.json`) through `kairo_store::settings::open_store`. Every read normalises, as the TypeScript does, so a `select` of an unknown list returns `activeId: null` and the next read falls back to the first list.
+
+Decision: the `.kairo` round trip is checked against Electron's real `src/lib/kairo-bundle.ts` (`tools/ts-oracle/modules/kairo-bundle-roundtrip.ts`). Songs and setlist files re-export byte for byte. A scripture playlist does not, in Electron either: export writes the plan as stored, but reading drops fields the reader does not know (`sourceText`, a verse's `translation`) and replaces an empty item's `error` with "No verse text in the imported file". The tests therefore compare Rust's re-export with Electron's re-export, not with the file.
+
+Decision: the review keeps the parsed bundle in the service under a token; `commit` takes decisions only and reports `CommitProgress` per song. The dialogs are a `FileDialogs` trait owned by the shell. Files opened before the review screen is ready queue in `KairoOpenQueue` until `ready`; a file that fails to read is delivered as `{ error, fileName }`.
+
+Decision: release-mode timing needs non-local build URLs (prompt 024 decision 7). The 500-song measurement ran with `KAIRO_API_URL=https://api.example.com KAIRO_WEB_URL=https://example.com`.
+
+Affects prompts: 045, 067, 091.
+
+
+## 2026-11-10 — 045 — Document import pipeline
+
+Decision: `kairo-documents` renders pages itself. `DocumentsService::render` runs PDFium (`pdfium-render` 0.9.5, dynamic binding found as in 042: an explicit directory, `PDFIUM_DYNAMIC_LIB_PATH`, the executable's `../Frameworks` and folder, then the system) at Electron's rule: scale `min(3840 / w, 2160 / h)`, the canvas rounded up, a white background, PNG. It replaces the window's pdf.js loop of `documents:savePage` calls. `save_page` stays with Electron's checks (next page only, at most 40 MB, at most 3840 px a side) for a caller that rasterises elsewhere. PDFium calls are serialised by the binding, so pages render one at a time and PNG encoding runs on a pool of up to 4 threads. A cancel stops before the next page.
+
+Decision: the PPTX parser is a regex-for-regex port of `pptx-slides.ts`. `roxmltree` replaces cheerio where the TypeScript parses XML (relationships, slide order, videos), `zip` replaces jszip, and `fancy-regex` covers the one back-reference. A lookahead `<a:t(?=\s|>)` becomes `<a:t(?:\s[^>]*)?>`. The generated `slides.html` matches Electron byte for byte over a 9-deck corpus. The corpus covers text runs, a table, groups, a cropped picture, a line, a picture background, an inherited master and layout with a second theme and a `clrMap`, 4:3 with `showMasterSp="0"`, and three broken packages. The comparison runs through the oracle, which runs Electron's real `convertPptxBuiltin` up to its BrowserWindow (`tools/ts-oracle/modules/pptx-html.ts`).
+
+Decision: on macOS the HTML is printed by an offscreen `WKWebView` called through `objc2-web-kit` (`webkit::print_slides`), not through Wry. Wry 0.53 has no PDF call and needs a parent window, which a service does not have. Both drive the same WKWebView. The page loads with read access to the work folder, then the code waits for `readyState`, `document.fonts` and every image (prompt 008 amendment). At `pageZoom` 0.75 the 1920 px slides become 1440×810 pt. `createPDF` captures each slide's rect, and PDFium appends the captures into one PDF. PDFium's `FPDF_ImportNPagesToOne` with a 1×1 grid copies pages unscaled, so zoom does the scaling. WebKit needs the main thread: `WebKitPrinter` takes a dispatcher that runs the job there, and the job runs the run loop until it finishes or 120 s pass (`CONVERT_MS`).
+
+Decision: Windows (WebView2 `PrintToPdf`, runtime check) and Linux (`WebKitPrintOperation`) printers are not written. This machine has only the `aarch64-apple-darwin` toolchain, and `webview2-com` and `webkit2gtk-sys` need their targets and system libraries, so the code could not be compiled or run. The printer is a `SlidePrinter` trait, so each platform adds one implementation. Until then, the simplified renderer has no printer on those platforms.
+
+Decision: converter detection and invocation follow `converters.ts` and `office-apps.ts` through an `OfficeProbes` trait (directory listing, files, `mdfind`, `which`/`where`, environment). Tests therefore never depend on installed apps. The AppleScript and PowerShell text is Electron's. Paths reach PowerShell only as `KAIRO_PPT_SOURCE_B64` and `KAIRO_PPT_DEST_B64`. Child processes have Electron's time limits, and output past 1 MB is dropped where `maxBuffer` would fail.
+
+Decision: Electron behaviour kept as-is, though it may look wrong: resuming a `.ppt` with `simplified` fails with the message `simplified`, because the built-in renderer reads `.pptx` only. `slideSize` is in EMU, from `readPptxVideos`. A document's pages are listed as `<dir>/<i>.png` paths. The `pa-media` allowlist (`allowPickedOverlayMedia`) has no native counterpart and is dropped. Removing a document from libraries (`librariesService.forgetItem`) stays in the IPC handler, so the shell (067) calls `kairo_transfer::remove_document_from_libraries`.
+
+Decision: the slide converter keeps the pinned LibreOffice 26.2.7 URLs, checksums and sizes. It downloads with reqwest, checking SHA-256 while streaming, and unpacks with `hdiutil` and `ditto` or `msiexec /a`. Concurrent installs share one run through an async mutex, and status changes go out on a broadcast channel (`documents:converter:changed`).
+
+Decision: the page comparison renders the corpus with the app's pdfjs-dist 4.10.38 under Node on `@napi-rs/canvas` (`tools/ts-oracle/modules/pdf-pages.ts`), not in Chromium's canvas as the app does. Fonts are embedded (Liberation Sans, OFL, `tests/fixtures/fonts` with its licence), so neither renderer substitutes a font. The test fails below a mean 8×8-block SSIM of 0.95.
+
+Affects prompts: 058, 067, 085.
+
+## 2026-11-10 — 046 — Audience rooms and Engage
+
+Decision: `kairo-audience` holds `AudienceService` (queue and on-screen state), `KairoAudienceSource` (operator WebSocket on `tokio-tungstenite` 0.30), `SampleAudienceSource` and `EngageFlows` (list, create, resume with optional reopen, reopen, delete, invite, revoke, `audience:start`). Slido is 047; `audience:start` with `slido` reports "That audience source is not available." until then. Opening the join page in the browser (`shell.openExternal`) is the shell's; the service gives only the running room's URL.
+
+Decision: the source keeps Electron's rules: reconnect after `min(30 s, 1 s × 2^min(attempts, 5))` plus up to 500 ms, odd attempts on the fallback base; a 15 s ping, terminate when the previous ping got no pong; 10 s handshake timeout; message and frame cap `AUDIENCE_MAX_SNAPSHOT_BYTES`; 404/410 ends the session; 401/403 renews once, then asks to reopen; 8 s ack timeouts for commands, settings and end; moderation queued (latest per question) and resent after each snapshot. Incoming messages are parsed loosely from JSON on the socket task, field by field, as the TypeScript reads them: the strict `AudienceServerEvent` would reject the snapshots the recovery test and older rooms send. A snapshot without valid `settings` leaves the session's settings alone; Electron would have set them to `undefined`.
+
+Decision: output calls (show or clear the question and poll layers) run after the service lock is released, because the program service reports a clear back through `sync_cleared`. One change notification goes out per operation; Electron sometimes sent two or three in a row for one update (clear, clear poll, then the update), and `detachEngagement` sent its last one before the final changes. Listeners now see the final state once.
+
+Decision: QR codes reproduce `qrcode` 1.5.4 exactly, not only in what a phone scans. The `qrcode` crate 0.14 picks different segments and masks, so the encoder ports node-qrcode's segment graph (`buildGraph` with its `lastCount` quirk), `dijkstrajs` (a stably sorted queue, no visited set), version choice and mask penalties (N1 to N4), and uses the crate only for bit packing, error correction and drawing. Pixels follow `qrToImageData` (384 px, margin 2, level M). Checked against Electron's module grid and decoded PNG pixels for 50 URLs (`tools/ts-oracle/modules/audience-qr.ts`). PNG bytes differ (different compressor); pixels are identical.
+
+Decision: HTTP failures read as Node's `fetch` did: "The operation was aborted due to timeout" for the 90 s timeout, "fetch failed" otherwise. A failed `open` during resume reports the room's text, even when empty, as Electron did.
+
+Decision: the live test runs the Electron checkout's real `audience-routes.ts` and `AudienceRoom` Durable Object in Miniflare on a local port (`tools/audience-worker/serve.mjs`), with account checks and the engagement index answered locally as `scripts/test-engage-room.mjs` does. It is `#[ignore]` because it needs Node and the checkout's `server/node_modules`.
+
+Affects prompts: 047, 054, 067, 090.
+
+## 2026-11-10 — 044 — Setlist, libraries, passages, usage and transfer
+
+Decision: `kairo-transfer` holds `SetlistService`, `LibrariesService`, `PassagesService`, `SongUsageService`, `TransferService` and `KairoOpenQueue`. Each writes the same electron-store file as Electron (`kairo-setlist`, `kairo-libraries`, `kairo-passages`, `song-usage`) through `kairo_store::settings::open_store`, normalises on every read with the 015 domain functions, and replaces the whole store on write as `db.store = state` did. `on_changed` listeners stand in for the `*:changed` broadcasts. Time comes from an injected clock; ids are UUID v4.
+
+Decision: dialogs belong to the shell. `TransferService::export` and `pick_and_preview` take a `FileDialogs` implementation (save `.kairo`; open several `.kairo`/`.json`). `SongUsageService::export_csv` takes the chosen path, or `None` when cancelled, and a `chrono::TimeZone` from the caller. `song_usage_file_name` gives Electron's UTC-dated default name. Export builds the bundle, and raises its errors, before the dialog opens, as Electron does.
+
+Decision: the scripture playlist side of transfer goes through `LivePlanService` (new `plan(id)`; `save_plan` already refreshes the live index), so import writes the one store the live index reads.
+
+Decision: the delete clean-up is `delete_song` (lyrics delete, then setlist and song-library clean-up, skipped only if the delete itself errors) and `remove_document_from_libraries`, which the documents service (045) calls on remove. The `.kairo` open queue holds files until `ready` and delivers each as a preview or `{ error, fileName }`; `kairo_paths_in` filters argv as Electron does. Wiring `open-file`, second-instance argv and the window to the queue is 067's.
+
+Decision: a missing picked file reports Node's `ENOENT: no such file or directory, stat '<path>'`, since Electron stats before reading. Bundle text decodes as Node's `utf8` (invalid bytes become U+FFFD).
+
+Decision: gates ran excluding `kairo-stt`, `kairo-audience`, `ui-web` and `kairo-updater`, which other sessions (047, 048 and an in-progress `kairo-stt` edit) were changing and which failed fmt, Clippy or compilation at the time.
+
+Affects prompts: 045, 067, 091.
+
+## 2026-11-10 — 048 — Auto-update
+
+Decision: `kairo-updater` replaces electron-updater with one path on every platform: read the electron-builder feed, pick this machine's file, download through `reqwest` with `system-proxy` (the OS proxy, as `electron.net`), hash SHA-512 while streaming, compare with the feed's base64 value, and only then stage. Nothing downloads until the operator asks; the first check runs at start.
+
+Decision: the feed is `https://github.com/CodeLawd/kairo-presenter/releases/latest/download/<file>`, where `<file>` is `latest-mac.yml`, `latest.yml`, `latest-linux.yml` or, on ARM Linux, `latest-linux-arm64.yml`. GitHub's `latest` skips drafts and pre-releases, which is what `releaseType: release` asked of electron-updater. An update is offered only when its semver is greater than the running version. Release notes come from the release's Atom entry (`releases.atom`, entry linking to `tag/v<version>`), as electron-updater read them; a missing feed of notes is not an error. There is no YAML crate in the workspace, so a strict reader handles the subset electron-builder writes (top-level scalars, `files` list, quoted scalars, `releaseNotes` block); anything else is refused. `stagingPercentage` and `minimumSystemVersion` are not acted on; Kairo's releases do not set them.
+
+Decision: macOS always uses the self-update path from `mac-self-update.ts` (zip, `ditto`, bundle id match, `codesign --verify --deep --strict`, quarantine removed, detached swap script byte for byte). For a Developer ID signed build, the native equivalent of Squirrel.Mac's check is added: the new bundle must also pass `codesign --verify -R=<designated requirement of the running app>`, read with `codesign -d -r-`. An ad-hoc or unsigned build checks bundle id and seal only, as today.
+
+Decision: Windows runs the NSIS installer with electron-updater's arguments: `--updated --force-run` for an explicit install, `--updated /S` when installing on an ordinary quit. Linux AppImage stages the file and, after quit, a detached script copies it beside `$APPIMAGE`, marks it executable and renames it over. A Linux run without `$APPIMAGE` is a package install: it still hears about updates, and Download tells the operator to get the new version from the website.
+
+Decision: install is safer than Electron's in two places. With live output running it returns `NeedsConfirmation` until the operator confirms (Electron's before-install hook allowed the quit without asking). Replaceability is checked before the before-install hook runs, so hardware is not released for an install that cannot happen. A check while downloading or downloaded leaves the status alone. Stale `kairo-update-*` folders from an interrupted run are removed at start.
+
+Decision: progress is reported once per whole percent, capped at 99 until the checksum passes, as the self-update path did. Network failures are worded so `updateErrorMessage` recognises them ("network error", "timed out"); a transfer that ends short of the feed's `size` counts as a network failure.
+
+Affects prompts: 067, 101, 102, 103, 105.
+
+## 2026-11-10 — 047 — Slido source
+
+Decision: `gpui-kit` moves from `=0.9.0` to `=0.9.1`, the version `gpui-webview` 0.9.1 needs (owner's choice; see the web entry of 2026-11-09). `ui-web` depends on `gpui-webview =0.9.1` and `lb-wry =0.53.3`.
+
+Decision: the source logic (`kairo-audience`, `SlidoAudienceSource`) is free of any window toolkit and talks to a `SlidoWindowFactory`; `ui-web`'s `SlidoWebHost` implements it with a separate, initially hidden GPUI window holding one `gpui-webview`. Wry views are not `Send`, so the host owns them on the GPUI thread behind a command channel. `audience:start` with `slido` works once the shell gives `EngageFlows::with_slido` a host; without one it reports "That audience source is not available."
+
+Decision: `slido-selectors.ts` is compiled unchanged with esbuild into `crates/kairo-audience/src/slido/selectors.js` (`tools/slido-page/build.sh`; a rebuild is byte-identical). The preload becomes `bridge.js`, with `ipcRenderer.send` replaced by Wry's `window.ipc.postMessage`; both run as one init script. Wry's init script runs in the page's world, not an isolated one, so the page can forge messages: the source accepts a message only from a frame with the window's current origin, parses it as untrusted JSON, and applies Electron's checks (host, path, types, 5,000 questions, 200-character ids, safe-integer votes, normalised text, 80-character authors).
+
+Decision: what Wry lacks and how each gap is covered.
+- No in-page navigation event: the bridge reports a changed `location.href`, and the host copies the live URL every 250 ms.
+- No failed-load event: a page that never finishes loading within 30 s shows "Couldn’t reach Slido. Check your internet connection." No render-process-gone event: the watchdog's "Questions stopped coming in from Slido." covers a dead page, and "The Slido page stopped. Disconnect and connect again." is not shown.
+- The navigation handler also sees frames, so `about:blank` and `about:srcdoc` frames are allowed besides the Slido allowlist. New windows: moderator only, allowlisted addresses only; participants get none. Downloads are refused.
+- Persisted profile: a `WebContext` data directory per profile, plus on macOS 14 and later a `WKWebsiteDataStore` identifier derived from the profile path. A cookie survived a second process in the harness.
+- Hide on close: `on_window_should_close` returns false and hides. macOS hides with `orderOut:`; Windows and Linux minimise, because GPUI has no hide.
+
+Decision: permissions are denied in two layers. A main-frame init script makes `getUserMedia`, `getDisplayMedia`, geolocation and notification permission fail in the page. On macOS, the web view's UI delegate (Wry's, which grants camera and microphone) is moved to a subclass that answers deny, leaving other web views alone. Geolocation on macOS also needs app location access, which Kairo never requests. Windows (WebView2 `PermissionRequested`) and Linux (WebKitGTK `permission-request`) native denial are not written; only the script layer applies there.
+
+Affects prompts: 067, 089, 090.

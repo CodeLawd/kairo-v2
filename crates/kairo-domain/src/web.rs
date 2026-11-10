@@ -44,20 +44,9 @@ pub fn web_address(input: &str, search: bool) -> Option<String> {
     let http = matches!(scheme.as_deref(), Some("http" | "https"));
     let search_address = || {
         search.then(|| {
-            use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
-            const ENCODE: &AsciiSet = &NON_ALPHANUMERIC
-                .remove(b'-')
-                .remove(b'_')
-                .remove(b'.')
-                .remove(b'!')
-                .remove(b'~')
-                .remove(b'*')
-                .remove(b'\'')
-                .remove(b'(')
-                .remove(b')');
             format!(
                 "https://www.google.com/search?q={}",
-                utf8_percent_encode(text, ENCODE)
+                crate::js::encode_uri_component(text)
             )
         })
     };

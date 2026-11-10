@@ -18,6 +18,10 @@
 //! | `Boolean(v)`, `!!v`            | [`truthy`]              | no Rust equivalent                         |
 //! | `Number.isSafeInteger(n)`      | [`is_safe_integer`]     | no Rust equivalent                         |
 //! | `s.replaceAll(a, b)`           | [`replace_all`]         | `$&`, `$$`, `` $` ``, `$'` in `b` are patterns |
+//! | `s.length`                     | [`utf16_len`]           | `str::len` counts UTF-8 bytes              |
+//! | `s.slice(0, n)`                | [`slice_utf16`]         | as above; never splits a scalar here       |
+//! | `encodeURIComponent(s)`        | [`encode_uri_component`] | no Rust equivalent                        |
+//! | `Date.now()`                   | [`now_ms`]              | no Rust equivalent                         |
 //!
 //! JSON values never hold `NaN` or infinities, so helpers that read a
 //! `serde_json::Value` see only finite numbers.
@@ -555,6 +559,53 @@ pub fn value_to_number(value: Option<&Value>) -> f64 {
         Some(Value::Number(value)) => value.as_f64().unwrap_or(f64::NAN),
         Some(value) => string_to_number(&value_to_string(value)),
     }
+}
+
+/// `Date.now()`: wall-clock milliseconds since the Unix epoch.
+pub fn now_ms() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_millis() as f64)
+}
+
+/// `s.length`: UTF-16 code units.
+pub fn utf16_len(text: &str) -> usize {
+    text.encode_utf16().count()
+}
+
+/// `String(x).slice(0, n)` in UTF-16 units, never splitting a scalar: a
+/// surrogate pair that would straddle the limit is dropped whole.
+pub fn slice_utf16(text: &str, max: usize) -> String {
+    let mut units = 0;
+    text.chars()
+        .take_while(|c| {
+            units += c.len_utf16();
+            units <= max
+        })
+        .collect()
+}
+
+/// The set `encodeURIComponent` leaves unescaped, besides ASCII alphanumerics.
+pub const URI_COMPONENT: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'_')
+    .remove(b'.')
+    .remove(b'!')
+    .remove(b'~')
+    .remove(b'*')
+    .remove(b'\'')
+    .remove(b'(')
+    .remove(b')');
+
+/// `encodeURIComponent(s)`.
+pub fn encode_uri_component(value: &str) -> String {
+    percent_encoding::utf8_percent_encode(value, URI_COMPONENT).to_string()
+}
+
+/// `Mutex::lock` that ignores poisoning, as every service here does: a panic
+/// on another thread must not take the service down with it.
+pub fn lock<T>(m: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 #[cfg(test)]

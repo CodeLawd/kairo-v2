@@ -3,3 +3,20 @@ name = "kairo-updater"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+base64 = "0.22"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+kairo-domain = { path = "../kairo-domain" }
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-native-roots", "stream", "system-proxy"] }
+roxmltree = "0.20"
+semver = "1"
+sha2 = "0.10"
+thiserror = "2"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "time"] }

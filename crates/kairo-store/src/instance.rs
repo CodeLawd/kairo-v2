@@ -140,6 +140,10 @@ fn listen(name: &str, tx: Sender<Forwarded>) -> io::Result<()> {
         .spawn(move || {
             for connection in listener.incoming() {
                 let Ok(stream) = connection else { continue };
+                // A client that never sends a line must not hold up later
+                // launches. Timeouts are unsupported on Windows named pipes.
+                let _ = stream.set_recv_timeout(Some(CONNECT_TIMEOUT));
+                let _ = stream.set_send_timeout(Some(CONNECT_TIMEOUT));
                 let mut reader = BufReader::new(stream);
                 let mut line = String::new();
                 if reader.read_line(&mut line).is_err() {
@@ -169,6 +173,11 @@ pub fn forward(name: &str, launch: &Forwarded, timeout: Duration) -> io::Result<
             Err(_) => std::thread::sleep(Duration::from_millis(50)),
         }
     };
+    let remaining = deadline
+        .saturating_duration_since(Instant::now())
+        .max(Duration::from_secs(1));
+    let _ = stream.set_recv_timeout(Some(remaining));
+    let _ = stream.set_send_timeout(Some(remaining));
     let mut reader = BufReader::new(stream);
     let mut message = serde_json::to_string(launch).map_err(io::Error::other)?;
     message.push('\n');

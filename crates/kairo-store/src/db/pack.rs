@@ -221,7 +221,9 @@ mod tests {
                         _ => (last, &[]),
                     };
                     for verse in (1..=last).filter(|verse| !omitted.contains(verse)) {
-                        insert.execute(params![book, chapter, verse]).unwrap();
+                        insert
+                            .execute(params![book as i64, chapter as i64, verse])
+                            .unwrap();
                     }
                 }
             }

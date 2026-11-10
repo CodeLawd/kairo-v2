@@ -51,10 +51,7 @@ pub fn collapse_spaces(text: &str) -> String {
     out
 }
 
-/// `String.prototype.length`: UTF-16 code units.
-pub fn utf16_len(text: &str) -> usize {
-    text.encode_utf16().count()
-}
+pub use crate::js::utf16_len;
 
 /// `Math.max(a, b)`: `NaN` wins, unlike `f64::max`.
 pub fn max(a: f64, b: f64) -> f64 {

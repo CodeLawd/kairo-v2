@@ -1,0 +1,11 @@
+version: 1.0.27
+files:
+  - url: Kairo-1.0.27-arm64-mac.zip
+    sha512: y8itF2Pe5vZvpGwfixEat0FQAxUe9ABGe4D3tNCZbGGI0diP3dMjRvtAhEh9/fLos39f2oVNsao4QxOVvKZA6w==
+    size: 116433567
+  - url: Kairo-1.0.27-arm64.dmg
+    sha512: 3zTAUH2HvXcHupDuOfgb493dwqeCZxJur9RwQAauPm2Rsedk9B0YVRU/sIbAW/9b3X6C+pqjoKQ9OCBYyJCJCg==
+    size: 116643433
+path: Kairo-1.0.27-arm64-mac.zip
+sha512: y8itF2Pe5vZvpGwfixEat0FQAxUe9ABGe4D3tNCZbGGI0diP3dMjRvtAhEh9/fLos39f2oVNsao4QxOVvKZA6w==
+releaseDate: '2026-11-03T22:53:51.346Z'

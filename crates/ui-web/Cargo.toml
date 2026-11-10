@@ -3,3 +3,23 @@ name = "ui-web"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+gpui-kit.workspace = true
+gpui-webview = "=0.9.1"
+kairo-audience = { path = "../kairo-audience" }
+raw-window-handle = "0.6"
+tracing = "0.1"
+uuid = { version = "1", features = ["v5"] }
+wry = { package = "lb-wry", version = "=0.53.3" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+
+[dev-dependencies]
+kairo-domain = { path = "../kairo-domain" }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }

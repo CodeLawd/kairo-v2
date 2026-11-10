@@ -9,7 +9,9 @@ base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 kairo-core = { path = "../kairo-core" }
 kairo-domain = { path = "../kairo-domain" }
+kairo-lyrics = { path = "../kairo-lyrics" }
 kairo-net = { path = "../kairo-net" }
+kairo-scripture = { path = "../kairo-scripture" }
 kairo-store = { path = "../kairo-store" }
 open = "5"
 ring = "0.17"

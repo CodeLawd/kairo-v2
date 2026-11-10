@@ -1,34 +1,9 @@
 //! Path helpers shared by the media and tracks libraries, matching Node's
 //! `path` functions as `src/main/services/media/index.ts` uses them.
 
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 
-/// Node's `path.resolve(p)`: absolute against the working directory, with `.`
-/// and `..` removed lexically. Symlinks are not followed.
-pub fn resolve(path: &Path) -> PathBuf {
-    let absolute = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir().unwrap_or_default().join(path)
-    };
-    let mut out = PathBuf::new();
-    for component in absolute.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                out.pop();
-            }
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
-}
-
-/// `isInsideRoot`: true when `file_path` is `root` or sits below it.
-/// Component-wise, so `/media/backgrounds-secret` is not inside `/media/backgrounds`.
-pub fn is_inside_root(file_path: &Path, root: &Path) -> bool {
-    resolve(file_path).starts_with(resolve(root))
-}
+pub use kairo_store::workspace::{is_inside_root, resolve};
 
 /// `itemIdFor`: the path relative to the root, in posix form.
 pub fn item_id_for(root: &Path, abs_path: &Path) -> String {
