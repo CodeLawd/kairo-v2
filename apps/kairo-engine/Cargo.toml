@@ -3,3 +3,28 @@ name = "kairo-engine"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+# The output engine. It draws what `kairo` sends and nothing else: no
+# settings, network or database crates belong here.
+[dependencies]
+interprocess = "2.4"
+kairo-compositor = { path = "../../crates/kairo-compositor" }
+kairo-engine-proto = { path = "../../crates/kairo-engine-proto" }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "ansi"] }
+winit = "0.30"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSGeometry", "NSThread"] }
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSWindow", "NSResponder", "NSView", "NSRunningApplication"] }
+
+[dev-dependencies]
+kairo-core = { path = "../../crates/kairo-core" }
+kairo-domain = { path = "../../crates/kairo-domain" }
+kairo-orchestrator = { path = "../../crates/kairo-orchestrator" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+
+[target.'cfg(unix)'.dev-dependencies]
+libc = "0.2"

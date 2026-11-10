@@ -4,6 +4,7 @@ mod runtime;
 mod topic;
 
 pub mod bootstrap;
+pub mod engine;
 pub mod listeners;
 pub mod quit;
 pub mod resilience;

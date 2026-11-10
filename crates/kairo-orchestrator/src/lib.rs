@@ -8,6 +8,7 @@
 pub mod clients;
 pub mod detector;
 pub mod dispatch;
+pub mod engine;
 pub mod live_plan;
 pub mod orchestrator;
 pub(crate) mod suggestion;
