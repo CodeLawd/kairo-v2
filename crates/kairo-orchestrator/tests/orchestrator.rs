@@ -184,6 +184,8 @@ impl MediaClient for Media {
 struct Scripture {
     cards: Mutex<Vec<ScriptureSuggestion>>,
     dismissed: Mutex<Vec<String>>,
+    /// When set, searches wait for it, like a slow network.
+    gate: Mutex<Option<Arc<tokio::sync::Notify>>>,
 }
 
 impl ScriptureClient for Scripture {
@@ -219,7 +221,13 @@ impl ScriptureClient for Scripture {
             r.verses = verses;
             r
         });
-        Box::pin(async move { Ok(vec![result.unwrap()]) })
+        let gate = self.gate.lock().unwrap().clone();
+        Box::pin(async move {
+            if let Some(gate) = gate {
+                gate.notified().await;
+            }
+            Ok(vec![result.unwrap()])
+        })
     }
     fn receive_suggestion(&self, s: ScriptureSuggestion) {
         self.cards.lock().unwrap().push(s);
@@ -236,6 +244,8 @@ impl ScriptureClient for Scripture {
 struct Stt {
     log: Arc<Log>,
     history: Mutex<Vec<TranscriptResult>>,
+    /// When set, `start` waits for it, like a stalled socket connect.
+    gate: Mutex<Option<Arc<tokio::sync::Notify>>>,
 }
 
 impl SttClient for Stt {
@@ -247,7 +257,13 @@ impl SttClient for Stt {
     }
     fn start(&self) -> BoxFuture<'_, Result<(), String>> {
         self.log.push("Stt start".into());
-        Box::pin(async { Ok(()) })
+        let gate = self.gate.lock().unwrap().clone();
+        Box::pin(async move {
+            if let Some(gate) = gate {
+                gate.notified().await;
+            }
+            Ok(())
+        })
     }
     fn stop(&self) {
         self.log.push("Stt stop".into());
@@ -347,6 +363,7 @@ fn harness(service: bool) -> Harness {
     let stt = Arc::new(Stt {
         log: stt_log.clone(),
         history: Mutex::default(),
+        gate: Mutex::default(),
     });
     let usage = Arc::new(Usage::default());
     let shown_at = Arc::new(Mutex::new(Vec::new()));
@@ -480,6 +497,62 @@ async fn starting_needs_an_active_service_and_ignores_caller_credentials() {
         ]
     );
     assert!(h.orchestrator.status().await.running);
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_stalled_stt_start_does_not_block_status_or_stop() {
+    let h = harness(true);
+    let gate = Arc::new(tokio::sync::Notify::new());
+    *h.stt.gate.lock().unwrap() = Some(gate.clone());
+    let orchestrator = h.orchestrator.clone();
+    let start = tokio::spawn(async move { orchestrator.start_from_ui(config(false)).await });
+    settle().await;
+    let within = Duration::from_secs(1);
+    let status = tokio::time::timeout(within, h.orchestrator.status()).await;
+    assert!(!status.expect("status waits on STT").running);
+    tokio::time::timeout(within, h.orchestrator.stop())
+        .await
+        .expect("stop waits on STT");
+
+    // The connect finishing late must not revive the stopped session.
+    gate.notify_one();
+    start.await.unwrap().unwrap();
+    assert!(!h.orchestrator.status().await.running);
+    assert_eq!(
+        h.stt_log.take(),
+        ["Stt configure Deepgram en-US 31", "Stt start", "Stt stop"]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_lookup_finishing_after_stop_adds_no_card() {
+    let h = harness(true);
+    h.orchestrator.start_from_ui(config(false)).await.unwrap();
+    let gate = Arc::new(tokio::sync::Notify::new());
+    *h.scripture.gate.lock().unwrap() = Some(gate.clone());
+    h.say("Turn with me to John 3:16").await;
+    tokio::time::timeout(Duration::from_secs(1), h.orchestrator.stop())
+        .await
+        .expect("stop waits on the lookup");
+    gate.notify_waiters();
+    settle().await;
+    assert!(h.cards().is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn cards_for_several_translations_arrive_in_request_order() {
+    let h = harness(true);
+    h.orchestrator.start_from_ui(config(false)).await.unwrap();
+    h.say("John 3:16 in the ESV and the NIV").await;
+    let translations: Vec<String> = h
+        .scripture
+        .cards
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|c| c.translation.clone())
+        .collect();
+    assert_eq!(translations, ["ESV", "NIV"]);
 }
 
 #[tokio::test(start_paused = true)]

@@ -26,7 +26,7 @@ impl PassagesService {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 store: open(user_data, "kairo-passages"),
-                listeners: Vec::new(),
+                listeners: Listeners::default(),
             })),
             libraries,
             clock,
@@ -52,17 +52,15 @@ impl PassagesService {
         Self::read(&lock(&self.inner))
     }
 
-    pub fn on_changed(&self, listener: impl Fn(&Vec<SavedPassage>) + Send + 'static) {
-        lock(&self.inner).listeners.push(Box::new(listener));
+    pub fn on_changed(&self, listener: impl Fn(&Vec<SavedPassage>) + Send + Sync + 'static) {
+        lock(&self.inner).listeners.add(listener);
     }
 
     fn write(inner: &mut Inner, passages: Vec<SavedPassage>) -> Vec<SavedPassage> {
         if let Ok(value) = kairo_domain::json::to_js_value(&passages) {
             inner.store.set("passages", value);
         }
-        for listener in &inner.listeners {
-            listener(&passages);
-        }
+        inner.listeners.notify(&passages);
         passages
     }
 

@@ -146,7 +146,7 @@ pub trait SlidoWindowFactory: Send + Sync {
     ) -> BoxFuture<'_, Result<Arc<dyn SlidoWindow>>>;
 }
 
-type Clock = Arc<dyn Fn() -> f64 + Send + Sync>;
+use kairo_domain::time::Clock;
 
 #[derive(Default)]
 struct State {

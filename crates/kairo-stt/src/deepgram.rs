@@ -296,11 +296,7 @@ fn stopped_message(reason: &str) -> String {
     format!("Transcription stopped: {why}Your presentation is still live.")
 }
 
-fn now_ms() -> f64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0.0, |d| d.as_millis() as f64)
-}
+use kairo_domain::js::now_ms;
 
 fn result_id(now: f64) -> String {
     let random: String = uuid::Uuid::new_v4()
@@ -818,12 +814,11 @@ impl Actor {
             self.reply_connect();
             return;
         }
-        let factor = 2u32.saturating_pow(self.reconnect_attempt);
-        let delay = self
-            .timings
-            .reconnect_base
-            .saturating_mul(factor)
-            .min(self.timings.reconnect_max);
+        let delay = kairo_domain::time::Backoff::Exponential {
+            base: self.timings.reconnect_base,
+            max: self.timings.reconnect_max,
+        }
+        .delay(self.reconnect_attempt);
         self.reconnect_attempt += 1;
         tracing::info!(
             attempt = self.reconnect_attempt,

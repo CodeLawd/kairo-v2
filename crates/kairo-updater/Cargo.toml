@@ -5,6 +5,8 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+kairo-core = { path = "../kairo-core" }
+kairo-net = { path = "../kairo-net" }
 base64 = "0.22"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 kairo-domain = { path = "../kairo-domain" }

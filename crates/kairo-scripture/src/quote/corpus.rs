@@ -19,8 +19,6 @@ const BATCH: i64 = 128;
 /// Crash rebuilds per worker, so a failing worker is not rebuilt per query.
 const MAX_CACHE_RESTARTS: u32 = 2;
 
-type Listener = Arc<dyn Fn() + Send + Sync>;
-
 #[derive(Default)]
 struct State {
     worker: Option<QuoteWorkerClient>,
@@ -31,7 +29,7 @@ struct State {
     cache_generation: u64,
     cache_timer: Option<AbortHandle>,
     expiry_timer: Option<AbortHandle>,
-    listeners: Vec<Listener>,
+    listeners: kairo_core::Listeners<()>,
     stopped: bool,
 }
 
@@ -45,7 +43,7 @@ struct Inner {
 pub struct QuoteCorpus(Arc<Inner>);
 
 fn now_ms() -> i64 {
-    kairo_store::settings::now_ms() as i64
+    kairo_domain::js::now_ms() as i64
 }
 
 impl QuoteCorpus {
@@ -160,7 +158,7 @@ impl QuoteCorpus {
     }
 
     pub fn on_general_quote_corpus_change(&self, listener: impl Fn() + Send + Sync + 'static) {
-        self.state().listeners.push(Arc::new(listener));
+        self.state().listeners.add(move |()| listener());
     }
 
     /// Local packs changed: restart the worker and rebuild.
@@ -192,11 +190,10 @@ impl QuoteCorpus {
     }
 
     fn notify(&self) {
+        // Diagnostics never interrupt a pack or cache change: a panicking
+        // listener is logged and skipped.
         let listeners = self.state().listeners.clone();
-        for listener in listeners {
-            // Diagnostics never interrupt a pack or cache change.
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| listener()));
-        }
+        listeners.notify(&());
     }
 
     /// Removed, revoked or expired text: old results stop being eligible.

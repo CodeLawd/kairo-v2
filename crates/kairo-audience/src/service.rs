@@ -44,13 +44,10 @@ impl Entry {
     }
 }
 
-type Listener = Arc<dyn Fn(&AudienceState) + Send + Sync>;
-
 struct Inner {
     state: AudienceState,
     sources: HashMap<String, Entry>,
-    listeners: Vec<(u64, Listener)>,
-    next_listener: u64,
+    listeners: kairo_core::Listeners<AudienceState>,
 }
 
 /// What a locked step leaves to do once the lock is gone.
@@ -94,8 +91,7 @@ impl AudienceService {
                     session: None,
                 },
                 sources: HashMap::new(),
-                listeners: Vec::new(),
-                next_listener: 0,
+                listeners: kairo_core::Listeners::default(),
             })),
             output,
         }
@@ -108,15 +104,13 @@ impl AudienceService {
 
     /// Returns an id for [`Self::remove_listener`].
     pub fn on_changed(&self, listener: impl Fn(&AudienceState) + Send + Sync + 'static) -> u64 {
-        let mut inner = lock(&self.inner);
-        inner.next_listener += 1;
-        let id = inner.next_listener;
-        inner.listeners.push((id, Arc::new(listener)));
-        id
+        lock(&self.inner).listeners.add(listener).0
     }
 
     pub fn remove_listener(&self, id: u64) {
-        lock(&self.inner).listeners.retain(|(i, _)| *i != id);
+        lock(&self.inner)
+            .listeners
+            .remove(kairo_core::ListenerId(id));
     }
 
     fn finish(&self, after: After) -> AudienceState {
@@ -130,13 +124,10 @@ impl AudienceService {
         }
         let (state, listeners) = {
             let inner = lock(&self.inner);
-            let listeners: Vec<Listener> = inner.listeners.iter().map(|(_, l)| l.clone()).collect();
-            (inner.state.clone(), listeners)
+            (inner.state.clone(), inner.listeners.clone())
         };
         if after.emit {
-            for listener in listeners {
-                listener(&state);
-            }
+            listeners.notify(&state);
         }
         state
     }

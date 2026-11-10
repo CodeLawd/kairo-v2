@@ -48,3 +48,21 @@ fn leaves_unsettled_fused_numbers_and_damaged_citations_unresolved() {
     ));
     assert!(!has_corrupted_scripture_citation("Psalm twenty4"));
 }
+
+/// ASCII and non-ASCII transcripts take different compiled patterns; both
+/// keep JavaScript's ASCII-only word boundary.
+#[test]
+fn non_ascii_text_matches_like_ascii_text() {
+    let refs = |text: &str| -> Vec<(String, f64, f64)> {
+        match_explicit_scriptures(text, false)
+            .into_iter()
+            .map(|c| (c.book.to_string(), c.chapter, c.verse_start))
+            .collect()
+    };
+    let expected = vec![("John".to_string(), 3.0, 16.0)];
+    assert_eq!(refs("as José said, John 3:16"), expected);
+    assert_eq!(refs("as Jose said, John 3:16"), expected);
+    // `é` is a word character to Unicode but not to JavaScript, so "éjohn"
+    // still starts a word at "john" exactly as Electron sees it.
+    assert_eq!(refs("éjohn 3:16"), refs("-john 3:16"));
+}

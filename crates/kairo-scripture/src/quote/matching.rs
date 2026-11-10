@@ -120,10 +120,36 @@ pub fn quote_tokens(text: &str) -> Vec<String> {
 }
 
 pub fn evidence_tokens(text: &str) -> Vec<String> {
-    quote_tokens(text)
-        .into_iter()
+    evidence_of(&quote_tokens(text))
+}
+
+fn evidence_of(tokens: &[String]) -> Vec<String> {
+    tokens
+        .iter()
         .filter(|t| !STOP.contains(&t.as_str()))
+        .cloned()
         .collect()
+}
+
+/// A candidate verse tokenized once per search.
+struct VerseTokens {
+    all: Vec<String>,
+    evidence: Vec<String>,
+}
+
+impl VerseTokens {
+    fn of(candidates: &[GlobalQuoteCandidate]) -> Vec<Self> {
+        candidates
+            .iter()
+            .map(|c| {
+                let all = quote_tokens(&c.text);
+                Self {
+                    evidence: evidence_of(&all),
+                    all,
+                }
+            })
+            .collect()
+    }
 }
 
 /// "garments" and "garment" are the same evidence in a paraphrase.
@@ -185,20 +211,18 @@ fn rank(mut grouped: Vec<GlobalQuoteMatch>) -> Vec<GlobalQuoteMatch> {
 }
 
 fn possible_matches(
-    text: &str,
+    heard_evidence: &[String],
     candidates: &[GlobalQuoteCandidate],
+    tokens: &[VerseTokens],
     rarity: WordRarity<'_>,
 ) -> Vec<GlobalQuoteMatch> {
-    let heard = rare_words(&tail(&evidence_tokens(text), 24), rarity);
+    let heard = rare_words(&tail(heard_evidence, 24), rarity);
     if heard.len() < POSSIBLE_MIN_SHARED {
         return Vec::new();
     }
     let (mut grouped, mut index) = (Vec::new(), HashMap::new());
-    for candidate in candidates {
-        let verse: HashSet<String> = evidence_tokens(&candidate.text)
-            .iter()
-            .map(|t| stem(t).to_owned())
-            .collect();
+    for (candidate, tokens) in candidates.iter().zip(tokens) {
+        let verse: HashSet<String> = tokens.evidence.iter().map(|t| stem(t).to_owned()).collect();
         let score = heard.iter().filter(|t| verse.contains(*t)).count();
         if score < POSSIBLE_MIN_SHARED {
             continue;
@@ -314,11 +338,14 @@ pub fn match_global_quote(
     candidates: &[GlobalQuoteCandidate],
     rarity: Option<WordRarity<'_>>,
 ) -> Vec<GlobalQuoteMatch> {
-    let heard = tail(&evidence_tokens(text), 40);
+    let heard_tokens = quote_tokens(text);
+    let heard_evidence = evidence_of(&heard_tokens);
+    let heard = tail(&heard_evidence, 40);
     if heard.len() < 3 {
         return Vec::new();
     }
-    let heard_all = tail(&quote_tokens(text), 60);
+    let heard_all = tail(&heard_tokens, 60);
+    let tokens = VerseTokens::of(candidates);
     let vocabulary = Vocabulary::new(heard.iter().chain(&heard_all));
     let (heard_ids, heard_all_ids) = (vocabulary.ids(&heard), vocabulary.ids(&heard_all));
     let anchors = unique(
@@ -328,9 +355,8 @@ pub fn match_global_quote(
             .cloned(),
     );
     let (mut grouped, mut index) = (Vec::new(), HashMap::new());
-    for candidate in candidates {
-        let mut verse = evidence_tokens(&candidate.text);
-        verse.truncate(180);
+    for (candidate, tokens) in candidates.iter().zip(&tokens) {
+        let verse = &tokens.evidence[..tokens.evidence.len().min(180)];
         let words: HashSet<&str> = verse.iter().map(String::as_str).collect();
         if anchors
             .iter()
@@ -340,14 +366,13 @@ pub fn match_global_quote(
         {
             continue;
         }
-        let verse_ids = vocabulary.ids(&verse);
+        let verse_ids = vocabulary.ids(verse);
         let content = aligned_run(&heard_ids, &verse_ids);
         if negated_before(&heard_ids, &verse_ids, content) {
             continue;
         }
-        let mut all = quote_tokens(&candidate.text);
-        all.truncate(240);
-        let full_run = aligned_run(&heard_all_ids, &vocabulary.ids(&all)).run;
+        let all = &tokens.all[..tokens.all.len().min(240)];
+        let full_run = aligned_run(&heard_all_ids, &vocabulary.ids(all)).run;
         // Verses of short common words have little content to run on; an
         // exact run that is most of what was said counts.
         let exact =
@@ -376,7 +401,7 @@ pub fn match_global_quote(
     let ranked = rank(grouped);
     let Some(top) = ranked.first().map(|r| r.score) else {
         return match rarity {
-            Some(rarity) => possible_matches(text, candidates, rarity),
+            Some(rarity) => possible_matches(&heard_evidence, candidates, &tokens, rarity),
             None => Vec::new(),
         };
     };

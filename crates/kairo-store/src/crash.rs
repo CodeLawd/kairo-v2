@@ -93,6 +93,10 @@ impl CrashLedger {
 
 /// Adds a crash to the ledger at `path`.
 pub fn record_crash(path: &Path, entry: CrashEntry) -> std::io::Result<()> {
+    // Panics on two threads at once must not each read the old ledger and
+    // overwrite the other's crash.
+    static LEDGER: Mutex<()> = Mutex::new(());
+    let _ledger = LEDGER.lock().unwrap_or_else(|e| e.into_inner());
     let mut ledger = CrashLedger::load(path);
     ledger.push(entry);
     let consent = CONSENT.load(Ordering::Acquire);
@@ -271,6 +275,32 @@ mod tests {
         assert_eq!(ledger.count, 15);
         assert_eq!(ledger.crashes.len(), MAX_LEDGER_ENTRIES);
         assert_eq!(ledger.crashes[0].at, "5");
+    }
+
+    #[test]
+    fn crashes_recorded_at_once_are_all_counted() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ledger.json");
+        let threads: Vec<_> = (0..8)
+            .map(|i| {
+                let path = path.clone();
+                std::thread::spawn(move || {
+                    record_crash(
+                        &path,
+                        CrashEntry {
+                            at: i.to_string(),
+                            thread: "t".into(),
+                            message: "m".into(),
+                            location: None,
+                            app_version: "1".into(),
+                        },
+                    )
+                    .unwrap()
+                })
+            })
+            .collect();
+        threads.into_iter().for_each(|t| t.join().unwrap());
+        assert_eq!(CrashLedger::load(&path).count, 8);
     }
 
     #[test]

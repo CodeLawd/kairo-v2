@@ -17,7 +17,7 @@ use kairo_domain::{
 use kairo_store::{
     db::{Database, Schema},
     settings::{MigrationFlag, SettingsStore},
-    workspace::{Workspace, delete_song_file, export_song_file, read_song_files, write_song_file},
+    workspace::{Workspace, delete_song_file, read_song_files, write_song_file},
 };
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
@@ -288,7 +288,7 @@ impl LyricsService {
                     }
                     if first_export {
                         if let Some(song) = get(&tx, &id)? {
-                            if export_song_file(&dir, &song).is_some() {
+                            if write_song_file(&dir, &song).is_some() {
                                 summary.exported += 1.0;
                             } else {
                                 export_complete = false;

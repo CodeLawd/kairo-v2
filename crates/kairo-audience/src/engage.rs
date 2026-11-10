@@ -96,7 +96,7 @@ impl EngageFlows {
             fallback_url,
             sample_available,
             slido: None,
-            http: reqwest::Client::new(),
+            http: kairo_net::transport::client(),
         }
     }
 

@@ -35,7 +35,7 @@ impl LibrariesService {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 store: open(user_data, "kairo-libraries"),
-                listeners: Vec::new(),
+                listeners: Listeners::default(),
             })),
             clock,
         }
@@ -50,15 +50,13 @@ impl LibrariesService {
         Self::read(&lock(&self.inner))
     }
 
-    pub fn on_changed(&self, listener: impl Fn(&LibrariesState) + Send + 'static) {
-        lock(&self.inner).listeners.push(Box::new(listener));
+    pub fn on_changed(&self, listener: impl Fn(&LibrariesState) + Send + Sync + 'static) {
+        lock(&self.inner).listeners.add(listener);
     }
 
     fn write(inner: &mut Inner, state: LibrariesState) -> LibrariesState {
         replace_store(&mut inner.store, &state);
-        for listener in &inner.listeners {
-            listener(&state);
-        }
+        inner.listeners.notify(&state);
         state
     }
 

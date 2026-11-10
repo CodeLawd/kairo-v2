@@ -43,6 +43,26 @@ pub struct CommitProgress {
 struct Pending {
     bundle: KairoBundle,
     file_name: String,
+    opened_at: f64,
+}
+
+/// A preview the operator never committed or discarded is dropped after
+/// this long, and only the newest few are kept, so bundles do not pile up.
+const PREVIEW_TTL_MS: f64 = 60.0 * 60.0 * 1000.0;
+const MAX_PREVIEWS: usize = 8;
+
+fn prune_previews(pending: &mut HashMap<String, Pending>, now: f64) {
+    pending.retain(|_, p| now - p.opened_at < PREVIEW_TTL_MS);
+    while pending.len() > MAX_PREVIEWS {
+        let Some(oldest) = pending
+            .iter()
+            .min_by(|a, b| a.1.opened_at.total_cmp(&b.1.opened_at))
+            .map(|(token, _)| token.clone())
+        else {
+            break;
+        };
+        pending.remove(&oldest);
+    }
 }
 
 #[derive(Clone)]
@@ -292,7 +312,18 @@ impl TransferService {
             }),
             skipped_files: (!skipped.is_empty()).then_some(skipped),
         };
-        lock(&self.pending).insert(preview.token.clone(), Pending { bundle, file_name });
+        let now = (self.clock)();
+        let mut pending = lock(&self.pending);
+        pending.insert(
+            preview.token.clone(),
+            Pending {
+                bundle,
+                file_name,
+                opened_at: now,
+            },
+        );
+        prune_previews(&mut pending, now);
+        drop(pending);
         Ok(preview)
     }
 
@@ -308,9 +339,12 @@ impl TransferService {
         request: TransferCommitRequest,
         mut progress: impl FnMut(CommitProgress) + Send,
     ) -> Result<TransferCommitResult> {
-        let entry = lock(&self.pending)
-            .remove(&request.token)
-            .ok_or(Error::User("This import has expired. Open the file again."))?;
+        let entry = {
+            let mut pending = lock(&self.pending);
+            prune_previews(&mut pending, (self.clock)());
+            pending.remove(&request.token)
+        }
+        .ok_or(Error::User("This import has expired. Open the file again."))?;
         let bundle = entry.bundle;
         let library = self.lyrics.get_library().await?;
         let by_id: HashMap<&str, &LyricsSong> =
@@ -418,5 +452,32 @@ fn io_message(error: &std::io::Error, path: &Path) -> String {
             )
         }
         _ => error.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn preview(opened_at: f64) -> Pending {
+        Pending {
+            bundle: kairo_domain::kairo_bundle::songs_bundle("b".into(), Vec::new(), None, 0.0),
+            file_name: "b.kairo".into(),
+            opened_at,
+        }
+    }
+
+    #[test]
+    fn stale_and_surplus_previews_are_dropped() {
+        let mut pending = HashMap::new();
+        pending.insert("stale".to_owned(), preview(0.0));
+        for n in 0..MAX_PREVIEWS + 2 {
+            pending.insert(format!("p{n}"), preview(PREVIEW_TTL_MS + n as f64));
+        }
+        prune_previews(&mut pending, PREVIEW_TTL_MS + 100.0);
+        assert_eq!(pending.len(), MAX_PREVIEWS);
+        assert!(!pending.contains_key("stale"));
+        assert!(!pending.contains_key("p0") && !pending.contains_key("p1"));
+        assert!(pending.contains_key(&format!("p{}", MAX_PREVIEWS + 1)));
     }
 }

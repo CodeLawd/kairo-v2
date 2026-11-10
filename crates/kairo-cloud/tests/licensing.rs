@@ -99,6 +99,7 @@ fn verifier_rejects_bad_key_and_enforces_grace_and_clock_limits() {
         let signature = key.sign(to_js_string(&claims).unwrap().as_bytes());
         SignedLicenseLease {
             claims,
+            raw_claims: None,
             signature: STANDARD.encode(signature.as_ref()),
             public_key: pem.clone(),
         }
@@ -145,6 +146,112 @@ fn verifier_rejects_bad_key_and_enforces_grace_and_clock_limits() {
         issued_at: now + 61.0,
         ..claims
     })));
+}
+
+/// A key pair and its SPKI PEM, and a lease signed over `claims` exactly as given.
+struct Signer {
+    key: ring::signature::Ed25519KeyPair,
+    pem: String,
+}
+
+impl Signer {
+    fn new() -> Self {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use ring::signature::{Ed25519KeyPair, KeyPair as _};
+        let pkcs8 = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new()).unwrap();
+        let key = Ed25519KeyPair::from_pkcs8(pkcs8.as_ref()).unwrap();
+        let mut der = vec![0x30, 0x2a, 0x30, 5, 6, 3, 0x2b, 0x65, 0x70, 3, 0x21, 0];
+        der.extend(key.public_key().as_ref());
+        let pem = format!(
+            "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----\n",
+            STANDARD.encode(der)
+        );
+        Self { key, pem }
+    }
+
+    /// The lease JSON a server signing `claims` with `JSON.stringify` sends.
+    fn lease_json(&self, claims: &str) -> String {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        let signature = STANDARD.encode(self.key.sign(claims.as_bytes()).as_ref());
+        format!(
+            r#"{{"claims":{claims},"signature":{},"publicKey":{}}}"#,
+            serde_json::to_string(&signature).unwrap(),
+            serde_json::to_string(&self.pem).unwrap()
+        )
+    }
+
+    fn valid(&self, lease: &SignedLicenseLease, feature: Option<LicensedFeature>) -> bool {
+        valid_license_lease(
+            Some(lease),
+            Some(&self.pem),
+            "church",
+            "booth",
+            feature,
+            NOW,
+        )
+    }
+}
+
+const NOW: f64 = 1_700_000_000.0;
+
+fn claims_text(extra: &str, features: &str) -> String {
+    format!(
+        r#"{{"orgId":"church",{extra}"deviceId":"booth","features":{features},"issuedAt":1700000000,"refreshAfter":1700086400,"expiresAt":1701209600,"licenseExpiresAt":null}}"#
+    )
+}
+
+#[test]
+fn a_claim_field_this_build_does_not_know_still_verifies() {
+    let signer = Signer::new();
+    let json = signer.lease_json(&claims_text(r#""plan":"pro","#, r#"["scripture"]"#));
+    let lease: SignedLicenseLease = serde_json::from_str(&json).unwrap();
+    assert!(signer.valid(&lease, Some(LicensedFeature::Scripture)));
+}
+
+#[test]
+fn a_feature_this_build_does_not_know_is_ignored() {
+    let signer = Signer::new();
+    let json = signer.lease_json(&claims_text("", r#"["scripture","lyrics"]"#));
+    let lease: SignedLicenseLease = serde_json::from_str(&json).unwrap();
+    assert_eq!(lease.claims.features, [LicensedFeature::Scripture]);
+    assert!(signer.valid(&lease, Some(LicensedFeature::Scripture)));
+    assert!(!signer.valid(&lease, Some(LicensedFeature::Transcription)));
+}
+
+#[test]
+fn tampered_claims_do_not_verify() {
+    let signer = Signer::new();
+    let json = signer.lease_json(&claims_text("", r#"["scripture"]"#));
+    let forged = json.replace(r#""deviceId":"booth""#, r#""deviceId":"other""#);
+    let lease: SignedLicenseLease = serde_json::from_str(&forged).unwrap();
+    assert!(!valid_license_lease(
+        Some(&lease),
+        Some(&signer.pem),
+        "church",
+        "other",
+        None,
+        NOW
+    ));
+    // Editing the typed view after receipt does not verify either.
+    let mut lease: SignedLicenseLease = serde_json::from_str(&json).unwrap();
+    lease.claims.features.push(LicensedFeature::Transcription);
+    assert!(!signer.valid(&lease, None));
+}
+
+#[test]
+fn a_saved_lease_round_trips_and_still_verifies() {
+    let signer = Signer::new();
+    let claims = claims_text(r#""plan":"pro","#, r#"["scripture","lyrics"]"#);
+    let json = signer.lease_json(&claims);
+    let lease: SignedLicenseLease = serde_json::from_str(&json).unwrap();
+    let saved = serde_json::to_string(&lease).unwrap();
+    assert_eq!(saved, json, "the saved lease is byte-identical");
+    let restored: SignedLicenseLease = serde_json::from_str(&saved).unwrap();
+    assert!(signer.valid(&restored, Some(LicensedFeature::Scripture)));
+    // Whitespace the server did not sign over is not part of the payload.
+    let spaced = json.replace(&claims, &claims.replace(',', ", "));
+    let lease: SignedLicenseLease = serde_json::from_str(&spaced).unwrap();
+    assert!(signer.valid(&lease, None));
 }
 
 #[tokio::test]

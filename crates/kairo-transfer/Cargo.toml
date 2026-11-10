@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+kairo-core = { path = "../kairo-core" }
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 kairo-domain = { path = "../kairo-domain" }
 kairo-lyrics = { path = "../kairo-lyrics" }

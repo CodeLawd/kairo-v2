@@ -3,10 +3,10 @@ use std::{
     path::PathBuf,
     pin::Pin,
     sync::{Arc, Weak},
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
-use kairo_core::Publisher;
+use kairo_core::{PowerEvent, Publisher};
 use kairo_domain::{
     audience::audience_api_base_url,
     cloud::{
@@ -37,7 +37,15 @@ use crate::{
     profile::{Device, Profile, Settings},
 };
 
-const RETRY: [u64; 6] = [5, 15, 30, 60, 120, 300];
+/// Waits after each failed refresh while offline.
+const RETRY: kairo_domain::time::Backoff = kairo_domain::time::Backoff::Steps(&[
+    Duration::from_secs(5),
+    Duration::from_secs(15),
+    Duration::from_secs(30),
+    Duration::from_secs(60),
+    Duration::from_secs(120),
+    Duration::from_secs(300),
+]);
 const COLD_REQUEST: Duration = Duration::from_secs(90);
 const ANONYMOUS: RequestOptions = RequestOptions {
     authenticated: false,
@@ -685,9 +693,9 @@ impl CloudSession {
                 None
             }
             Err(_) => {
-                let wait = RETRY[state.failures.min(RETRY.len() - 1)];
+                let wait = RETRY.delay(u32::try_from(state.failures).unwrap_or(u32::MAX));
                 state.failures = state.failures.saturating_add(1);
-                let at = Instant::now() + Duration::from_secs(wait);
+                let at = Instant::now() + wait;
                 state.retry_at = Some(at);
                 abort(&mut state.retry);
                 if state.running {
@@ -1064,20 +1072,17 @@ enum Adoption {
 }
 
 async fn retry(weak: Weak<Inner>, epoch: u64, at: Instant) {
-    // A suspended monotonic clock can delay a Tokio timer after wake.
-    // While offline only, check for a wall-clock gap as a fallback when the
-    // shell cannot supply an immediate platform resume event.
-    while Instant::now() < at {
-        let check = (Instant::now() + Duration::from_secs(5)).min(at);
-        let wall = SystemTime::now();
-        let elapsed = check.saturating_duration_since(Instant::now());
-        sleep_until(check).await;
-        if wall
-            .elapsed()
-            .is_ok_and(|gap| gap > elapsed + Duration::from_secs(3))
-        {
-            break;
-        }
+    // A suspended monotonic clock can delay a Tokio timer after wake, so a
+    // platform resume or window focus retries at once.
+    let Some(mut power) = weak
+        .upgrade()
+        .map(|inner| inner.topics.stream::<PowerEvent>())
+    else {
+        return;
+    };
+    tokio::select! {
+        () = sleep_until(at) => {}
+        _ = power.next() => {}
     }
     if let Some(session) = weak.upgrade().map(CloudSession) {
         let mut state = session.0.state.lock().await;

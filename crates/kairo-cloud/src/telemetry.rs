@@ -598,6 +598,15 @@ impl Telemetry {
                 }
             },
             async {
+                // Window focus is a flush opportunity.
+                let mut power = self.cloud.topics().stream::<kairo_core::PowerEvent>();
+                while let Some(event) = power.next().await {
+                    if matches!(event.as_deref(), Ok(kairo_core::PowerEvent::Focus)) {
+                        self.wake().await;
+                    }
+                }
+            },
+            async {
                 loop {
                     self.privacy.changed.notified().await;
                     self.local.lock().await.enforce(&self.privacy);

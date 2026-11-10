@@ -294,6 +294,11 @@ impl LiveCitationDetector {
         }
     }
 
+    /// When the pending chapter fallback is due, if one is waiting.
+    pub fn next_due_ms(&self) -> Option<u64> {
+        self.fallback.as_ref().map(|pending| pending.emitted_at_ms)
+    }
+
     /// Fires a due chapter fallback at its scheduled time.
     pub fn advance_to(&mut self, now: u64) -> Vec<CitationEmission> {
         let mut out = Vec::new();

@@ -32,6 +32,15 @@ fn topic<T: 'static, S: Clone + Send + Sync + 'static>(
         .clone()
 }
 
+/// The platform woke from sleep or the app window gained focus. The shell
+/// emits this once; services that back off while offline or idle listen for
+/// it instead of each exposing a wake call or polling the wall clock.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PowerEvent {
+    Resume,
+    Focus,
+}
+
 impl Publisher {
     fn state_topic<T: Send + Sync + 'static>(&self) -> watch::Sender<Option<Arc<T>>> {
         topic::<T, _>(&self.state, || watch::channel(None).0)

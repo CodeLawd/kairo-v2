@@ -108,7 +108,7 @@ pub struct ReqwestHttp {
 impl Default for ReqwestHttp {
     fn default() -> Self {
         Self {
-            client: reqwest::Client::builder()
+            client: kairo_net::transport::client_builder()
                 .redirect(reqwest::redirect::Policy::limited(5))
                 .build()
                 .unwrap_or_default(),
@@ -144,16 +144,14 @@ impl Http for ReqwestHttp {
 }
 
 fn classify(error: reqwest::Error) -> HttpError {
-    if error.is_timeout() {
-        return HttpError::Timeout;
+    use kairo_net::transport::TransportError;
+    match TransportError::from(&error) {
+        TransportError::Timeout(_) => HttpError::Timeout,
+        TransportError::Offline(_) => HttpError::Offline,
+        TransportError::Status { .. } | TransportError::Other(_) => {
+            HttpError::Other(error.to_string())
+        }
     }
-    let text = format!("{error:?}").to_lowercase();
-    if error.is_connect()
-        && (text.contains("dns") || text.contains("failed to lookup") || text.contains("nodename"))
-    {
-        return HttpError::Offline;
-    }
-    HttpError::Other(error.to_string())
 }
 
 /// A managed gateway failure: the server's status (when it answered) and words.

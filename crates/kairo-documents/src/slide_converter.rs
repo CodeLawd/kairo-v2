@@ -5,12 +5,11 @@
 
 use crate::process::run_ok;
 use kairo_domain::documents::{PowerpointConverterId, SlideConverterState, SlideConverterStatus};
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex as AsyncMutex, broadcast};
 use tokio_util::sync::CancellationToken;
 
@@ -388,36 +387,30 @@ impl SlideConverter {
     }
 
     async fn download(&self, build: &Build, dest: &Path) -> Result<(), InstallError> {
-        let mut response = self
-            .http
-            .get(&build.url)
-            .send()
-            .await
-            .map_err(|e| InstallError::Network(e.to_string()))?;
-        if !response.status().is_success() {
-            return Err(InstallError::Network(format!(
-                "Download failed ({}).",
-                response.status().as_u16()
-            )));
-        }
-        let mut hash = Sha256::new();
-        let mut file = tokio::fs::File::create(dest).await?;
+        use kairo_net::transport::{DownloadError, TransportError, download_to_file};
         let mut last_emit = Instant::now();
-        while let Some(chunk) = response
-            .chunk()
+        let done =
+            download_to_file::<Sha256>(&self.http, &build.url, dest, None, None, |received, _| {
+                self.lock().received = received;
+                if last_emit.elapsed() > Duration::from_millis(250) {
+                    last_emit = Instant::now();
+                    self.emit();
+                }
+            })
             .await
-            .map_err(|e| InstallError::Network(e.to_string()))?
-        {
-            hash.update(&chunk);
-            file.write_all(&chunk).await?;
-            self.lock().received += chunk.len() as u64;
-            if last_emit.elapsed() > Duration::from_millis(250) {
-                last_emit = Instant::now();
-                self.emit();
-            }
-        }
-        file.flush().await?;
-        let digest = format!("{:x}", hash.finalize());
+            .map_err(|error| match error {
+                DownloadError::Status(status) => {
+                    InstallError::Network(format!("Download failed ({status})."))
+                }
+                DownloadError::Io(error) => InstallError::from(error),
+                DownloadError::Transport(
+                    TransportError::Timeout(m)
+                    | TransportError::Offline(m)
+                    | TransportError::Other(m),
+                ) => InstallError::Network(m),
+                other => InstallError::Network(other.to_string()),
+            })?;
+        let digest: String = done.digest.iter().map(|b| format!("{b:02x}")).collect();
         if digest != build.sha256 {
             return Err(InstallError::Checksum);
         }

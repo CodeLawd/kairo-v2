@@ -25,7 +25,7 @@ impl SetlistService {
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 store: open(user_data, "kairo-setlist"),
-                listeners: Vec::new(),
+                listeners: Listeners::default(),
             })),
             clock,
         }
@@ -41,15 +41,13 @@ impl SetlistService {
         migrate_setlist_state(&Value::Object(inner.store.data().clone()), now)
     }
 
-    pub fn on_changed(&self, listener: impl Fn(&SetlistState) + Send + 'static) {
-        lock(&self.inner).listeners.push(Box::new(listener));
+    pub fn on_changed(&self, listener: impl Fn(&SetlistState) + Send + Sync + 'static) {
+        lock(&self.inner).listeners.add(listener);
     }
 
     fn write(inner: &mut Inner, state: SetlistState) -> SetlistState {
         replace_store(&mut inner.store, &state);
-        for listener in &inner.listeners {
-            listener(&state);
-        }
+        inner.listeners.notify(&state);
         state
     }
 

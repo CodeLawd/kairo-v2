@@ -186,10 +186,15 @@ impl Archive {
     }
 }
 
+/// How long transcript segments are gathered before one persist.
+const TRANSCRIPT_PERSIST_DELAY: std::time::Duration = std::time::Duration::from_millis(1_000);
+
 struct Inner<S> {
     archive: Mutex<Archive>,
     command: Mutex<()>,
     workers: AtomicBool,
+    /// A transcript change is waiting for the debounced persist.
+    persist_pending: AtomicBool,
     analysis: Notify,
     pub(crate) uploads: UploadSchedule,
     services: S,
@@ -224,6 +229,7 @@ impl<S: RecordServices> ServiceRecords<S> {
             archive: Mutex::new(archive),
             command: Mutex::new(()),
             workers: AtomicBool::new(false),
+            persist_pending: AtomicBool::new(false),
             analysis: Notify::new(),
             uploads: UploadSchedule::default(),
             services,
@@ -422,9 +428,30 @@ impl<S: RecordServices> ServiceRecords<S> {
             {
                 self.0.analysis.notify_one();
             }
-            self.persist(&mut archive)?;
+            drop(archive);
+            self.persist_soon();
         }
         Ok(())
+    }
+
+    /// Transcript segments arrive several times a second. Serializing the
+    /// whole archive for each one is O(archive) per word, so they are folded
+    /// into one persist a moment later; any other change persists them at once.
+    fn persist_soon(&self) {
+        if self.0.persist_pending.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let records = self.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(TRANSCRIPT_PERSIST_DELAY).await;
+            let mut archive = records.0.archive.lock().await;
+            if records.0.persist_pending.load(Ordering::Acquire)
+                && records.persist(&mut archive).is_err()
+            {
+                // Avoid attaching transcript text to diagnostics.
+                eprintln!("Kairo could not record a live service update.");
+            }
+        });
     }
 
     pub async fn scripture(&self, suggestion: ScriptureSuggestion) -> Result<(), String> {
@@ -500,6 +527,7 @@ impl<S: RecordServices> ServiceRecords<S> {
         let mut plans = topics.watch::<LivePlanState>();
         let mut orchestrator = topics.watch::<OrchestratorStatus>();
         let mut account = topics.watch::<kairo_domain::cloud::SessionSnapshot>();
+        let mut power = topics.stream::<kairo_core::PowerEvent>();
         loop {
             let result = tokio::select! {
                 Some(event) = transcripts.next() => match event {
@@ -515,6 +543,11 @@ impl<S: RecordServices> ServiceRecords<S> {
                     None => Ok(()),
                 },
                 Some(status) = orchestrator.next() => self.set_running(status.running).await,
+                Some(_) = power.next() => {
+                    // Resume or focus: a sleeping upload retry tries now.
+                    self.wake_uploads();
+                    Ok(())
+                },
                 Some(snapshot) = account.next() => {
                     if snapshot.state == kairo_domain::cloud::CloudSessionState::Active
                         && snapshot.user.as_ref().is_some_and(|user| user.email_verified)
@@ -651,6 +684,8 @@ impl<S: RecordServices> ServiceRecords<S> {
     }
 
     fn persist(&self, archive: &mut Archive) -> Result<(), String> {
+        // This write includes any transcript waiting on `persist_soon`.
+        self.0.persist_pending.store(false, Ordering::Release);
         let Value::Object(data) =
             serde_json::to_value(&archive.snapshot).map_err(|error| error.to_string())?
         else {

@@ -71,7 +71,7 @@ pub struct HttpPackFetcher {
 
 impl HttpPackFetcher {
     pub fn new() -> Result<Self, DownloadError> {
-        let client = reqwest::Client::builder()
+        let client = kairo_net::transport::client_builder()
             .timeout(DOWNLOAD_TIMEOUT)
             .build()
             .map_err(|error| DownloadError::Network(error.to_string()))?;
@@ -80,7 +80,7 @@ impl HttpPackFetcher {
 }
 
 fn transport_error(error: reqwest::Error) -> DownloadError {
-    if error.is_timeout() {
+    if kairo_net::transport::TransportError::from(&error).is_timeout() {
         DownloadError::Timeout(error.to_string())
     } else {
         DownloadError::Network(error.to_string())

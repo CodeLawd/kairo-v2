@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+kairo-net = { path = "../kairo-net" }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 icu_collator = "2.4.0"
 kairo-domain = { path = "../kairo-domain" }

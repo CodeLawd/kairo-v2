@@ -7,18 +7,75 @@ use kairo_domain::js::{is_whitespace, string_to_number};
 
 use crate::verse_bounds::is_valid_scripture_reference;
 
-macro_rules! pattern {
-    ($pattern:expr) => {
-        LazyLock::new(|| {
-            let pattern = $pattern.to_ascii_lowercase().replace(r"\d", "[0-9]").replace(
-                r"\b",
-                r"(?:(?<![a-z0-9_])(?=[a-z0-9_])|(?<=[a-z0-9_])(?![a-z0-9_]))",
-            ).replace(
+/// One citation pattern compiled twice. JavaScript's `\b` is ASCII-only;
+/// spelled with lookaround it forces fancy-regex's backtracking engine. On
+/// ASCII text Unicode `\b` gives the same answer, so ASCII text (nearly every
+/// transcript) uses that compile and only other text pays for lookaround.
+struct Pattern {
+    ascii: Regex,
+    any: Regex,
+}
+
+impl Pattern {
+    fn new(source: &str) -> Self {
+        let base = source
+            .to_ascii_lowercase()
+            .replace(r"\d", "[0-9]")
+            .replace(
                 r"\s",
                 r"(?u:[\x09-\x0D\x20\u{00A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}])",
             );
-            Regex::new(&pattern).expect("valid citation pattern")
-        })
+        let ascii_boundary = base.replace(
+            r"\b",
+            r"(?:(?<![a-z0-9_])(?=[a-z0-9_])|(?<=[a-z0-9_])(?![a-z0-9_]))",
+        );
+        Self {
+            ascii: Regex::new(&base).expect("valid citation pattern"),
+            any: Regex::new(&ascii_boundary).expect("valid citation pattern"),
+        }
+    }
+
+    fn on(&self, text: &str) -> &Regex {
+        if text.is_ascii() {
+            &self.ascii
+        } else {
+            &self.any
+        }
+    }
+
+    fn try_replacen<'t, R: fancy_regex::Replacer>(
+        &self,
+        text: &'t str,
+        limit: usize,
+        rep: R,
+    ) -> fancy_regex::Result<Cow<'t, str>> {
+        self.on(text).try_replacen(text, limit, rep)
+    }
+
+    fn is_match(&self, text: &str) -> fancy_regex::Result<bool> {
+        self.on(text).is_match(text)
+    }
+
+    fn find<'t>(&self, text: &'t str) -> fancy_regex::Result<Option<fancy_regex::Match<'t>>> {
+        self.on(text).find(text)
+    }
+
+    fn captures<'t>(&self, text: &'t str) -> fancy_regex::Result<Option<Captures<'t, str>>> {
+        self.on(text).captures(text)
+    }
+
+    fn captures_from_pos<'t>(
+        &self,
+        text: &'t str,
+        pos: usize,
+    ) -> fancy_regex::Result<Option<Captures<'t, str>>> {
+        self.on(text).captures_from_pos(text, pos)
+    }
+}
+
+macro_rules! pattern {
+    ($pattern:expr) => {
+        LazyLock::new(|| Pattern::new($pattern))
     };
 }
 const CANONICAL_BOOKS: &[(&str, &str)] = &[
@@ -226,74 +283,74 @@ const NUMBER_WORDS: &[(&str, u32)] = &[
     ("eighty", 80),
     ("ninety", 90),
 ];
-static CORRUPTED_CITATION_RE: LazyLock<Regex> = pattern!(
+static CORRUPTED_CITATION_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b(?:song of solomon|1 thessalonians|2 thessalonians|1 corinthians|2 corinthians|1 chronicles|2 chronicles|ecclesiastes|lamentations|deuteronomy|philippians|revelations|colossians|revelation|leviticus|zephaniah|zechariah|galatians|ephesians|1 timothy|2 timothy|1 samuel|2 samuel|nehemiah|proverbs|jeremiah|habakkuk|philemon|genesis|numbers|1 kings|2 kings|ezekiel|obadiah|malachi|matthew|1 thess|2 thess|hebrews|1 peter|2 peter|exodus|joshua|judges|1 king|2 king|esther|psalms|isaiah|daniel|haggai|romans|1thess|2thess|1 john|2 john|3 john|1 sam|2 sam|1 chr|2 chr|psalm|hosea|jonah|micah|nahum|1 cor|2 cor|1 tim|2 tim|titus|james|1 pet|2 pet|exod|deut|josh|judg|ruth|1sam|2sam|1kgs|2kgs|1chr|2chr|ezra|esth|prov|eccl|song|ezek|joel|amos|obad|zeph|zech|matt|mark|luke|john|acts|1cor|2cor|phil|1tim|2tim|phlm|1pet|2pet|jude|gen|lev|num|jdg|1sa|2sa|1ki|2ki|neh|job|psa|pro|prv|ecc|sos|isa|jer|lam|eze|dan|hos|jon|mic|nah|hab|zep|hag|zec|mal|mrk|luk|jhn|rom|1co|2co|gal|eph|php|col|1th|2th|1ti|2ti|tit|phm|heb|jas|1pe|2pe|1jn|2jn|3jn|rev|gn|ex|nu|dt|ps|ob|mt|mk|lk|jn|rv)\b\s+(?:chapter\s+)?(?=[a-z0-9]*[a-z])(?=[a-z0-9]*\d)[a-z0-9]+\b)"
 );
-static CITATION_RE: LazyLock<Regex> = pattern!(
+static CITATION_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b((?:Gen(?:esis)?|Exo(?:dus)?|Lev(?:iticus)?|Num(?:bers)?|Deut(?:eronomy)?|Josh(?:ua)?|Judg(?:es)?|Ruth|1\s*Sam(?:uel)?|2\s*Sam(?:uel)?|1\s*Kings?|2\s*Kings?|1\s*Chr(?:onicles)?|2\s*Chr(?:onicles)?|Ezra|Neh(?:emiah)?|Esth(?:er)?|Job|Psa?(?:lms?)?|Prov(?:erbs)?|Eccl(?:esiastes)?|Song(?:\s+of\s+Solomon)?|Isa(?:iah)?|Jer(?:emiah)?|Lam(?:entations)?|Eze(?:kiel)?|Dan(?:iel)?|Hos(?:ea)?|Joel|Amos|Obad(?:iah)?|Jon(?:ah)?|Mic(?:ah)?|Nah(?:um)?|Hab(?:akkuk)?|Zeph(?:aniah)?|Hag(?:gai)?|Zech(?:ariah)?|Mal(?:achi)?|Matt(?:hew)?|Mark|Luke|John|Acts|Rom(?:ans)?|1\s*Cor(?:inthians)?|2\s*Cor(?:inthians)?|Gal(?:atians)?|Eph(?:esians)?|Phil(?:ippians)?|Col(?:ossians)?|1\s*Thess?(?:alonians)?|2\s*Thess?(?:alonians)?|1\s*Tim(?:othy)?|2\s*Tim(?:othy)?|Tit(?:us)?|Phlm|Philemon|Heb(?:rews)?|Jas|James|1\s*Pet(?:er)?|2\s*Pet(?:er)?|1\s*Jn|1\s*John|2\s*Jn|2\s*John|3\s*Jn|3\s*John|Jude|Rev(?:elation)?s?))\b(?:,(?=\s*(?:chapter\s+)?\d+\s*[:,\s]\s*(?:verses?\s+)?\d+))?\s*(?:chapter\s+)?(\d+)\b(?:\s+\2(?=\s+(?:verses?\s+)?\d+\s*(?:-|thru|through|to|and)))?(?:\s*[:,\s]\s*(?:verses?\s+)?(\d+)(?:(\s*,\s*|\s*(?:-|thru|through|to|and)\s*|\s+)(\d+))?)?)"
 );
-static SINGLE_NUMBER_WORD_RE: LazyLock<Regex> = pattern!(
+static SINGLE_NUMBER_WORD_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b)"
 );
-static VERSE_LEAD_IN_RE: LazyLock<Regex> = pattern!(
+static VERSE_LEAD_IN_RE: LazyLock<Pattern> = pattern!(
     r"(?:(?:[,.;]\s*|\s+)(?:(?:and|so|now|okay|ok),?\s+)?(?:(?:let's|let\s+us|we(?:'ll|\s+will|\s+shall|\s+are\s+going\s+to)?|i\s+want\s+us\s+to)\s+)?(?:(?:begin|start)(?:ning|ing)?\s+(?:to\s+)?)?(?:(?:look(?:ing)?\s+at|read(?:ing)?|go(?:ing)?\s+to|turn(?:ing)?\s+to|see)\s+)?(?:(?:the\s+bible|it|he|she|paul|jesus|scripture)\s+(?:says|said)\s+)?(?:(?:at|from|with|in|on)\s+)?(?=verses?\s+\d))"
 );
-static VERSUS_BETWEEN_NUMBERS_RE: LazyLock<Regex> = pattern!(r"(?:(\d+[,.]?\s+)versus(?=\s+\d))");
-static DICTATED_CITATION_RE: LazyLock<Regex> = pattern!(
+static VERSUS_BETWEEN_NUMBERS_RE: LazyLock<Pattern> = pattern!(r"(?:(\d+[,.]?\s+)versus(?=\s+\d))");
+static DICTATED_CITATION_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b((?:Gen(?:esis)?|Exo(?:dus)?|Lev(?:iticus)?|Num(?:bers)?|Deut(?:eronomy)?|Josh(?:ua)?|Judg(?:es)?|Ruth|1\s*Sam(?:uel)?|2\s*Sam(?:uel)?|1\s*Kings?|2\s*Kings?|1\s*Chr(?:onicles)?|2\s*Chr(?:onicles)?|Ezra|Neh(?:emiah)?|Esth(?:er)?|Job|Psa?(?:lms?)?|Prov(?:erbs)?|Eccl(?:esiastes)?|Song(?:\s+of\s+Solomon)?|Isa(?:iah)?|Jer(?:emiah)?|Lam(?:entations)?|Eze(?:kiel)?|Dan(?:iel)?|Hos(?:ea)?|Joel|Amos|Obad(?:iah)?|Jon(?:ah)?|Mic(?:ah)?|Nah(?:um)?|Hab(?:akkuk)?|Zeph(?:aniah)?|Hag(?:gai)?|Zech(?:ariah)?|Mal(?:achi)?|Matt(?:hew)?|Mark|Luke|John|Acts|Rom(?:ans)?|1\s*Cor(?:inthians)?|2\s*Cor(?:inthians)?|Gal(?:atians)?|Eph(?:esians)?|Phil(?:ippians)?|Col(?:ossians)?|1\s*Thess?(?:alonians)?|2\s*Thess?(?:alonians)?|1\s*Tim(?:othy)?|2\s*Tim(?:othy)?|Tit(?:us)?|Phlm|Philemon|Heb(?:rews)?|Jas|James|1\s*Pet(?:er)?|2\s*Pet(?:er)?|1\s*Jn|1\s*John|2\s*Jn|2\s*John|3\s*Jn|3\s*John|Jude|Rev(?:elation)?s?))\.\s+(\d+)\.?\s+(\d+)\b)"
 );
-static SPOKEN_CHAPTER_VERSE_RE: LazyLock<Regex> = pattern!(
+static SPOKEN_CHAPTER_VERSE_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b((?:Gen(?:esis)?|Exo(?:dus)?|Lev(?:iticus)?|Num(?:bers)?|Deut(?:eronomy)?|Josh(?:ua)?|Judg(?:es)?|Ruth|1\s*Sam(?:uel)?|2\s*Sam(?:uel)?|1\s*Kings?|2\s*Kings?|1\s*Chr(?:onicles)?|2\s*Chr(?:onicles)?|Ezra|Neh(?:emiah)?|Esth(?:er)?|Job|Psa?(?:lms?)?|Prov(?:erbs)?|Eccl(?:esiastes)?|Song(?:\s+of\s+Solomon)?|Isa(?:iah)?|Jer(?:emiah)?|Lam(?:entations)?|Eze(?:kiel)?|Dan(?:iel)?|Hos(?:ea)?|Joel|Amos|Obad(?:iah)?|Jon(?:ah)?|Mic(?:ah)?|Nah(?:um)?|Hab(?:akkuk)?|Zeph(?:aniah)?|Hag(?:gai)?|Zech(?:ariah)?|Mal(?:achi)?|Matt(?:hew)?|Mark|Luke|John|Acts|Rom(?:ans)?|1\s*Cor(?:inthians)?|2\s*Cor(?:inthians)?|Gal(?:atians)?|Eph(?:esians)?|Phil(?:ippians)?|Col(?:ossians)?|1\s*Thess?(?:alonians)?|2\s*Thess?(?:alonians)?|1\s*Tim(?:othy)?|2\s*Tim(?:othy)?|Tit(?:us)?|Phlm|Philemon|Heb(?:rews)?|Jas|James|1\s*Pet(?:er)?|2\s*Pet(?:er)?|1\s*Jn|1\s*John|2\s*Jn|2\s*John|3\s*Jn|3\s*John|Jude|Rev(?:elation)?s?))\s+(?:chapter\s+)?(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-|\s)(one|two|three|four|five|six|seven|eight|nine)\b(?!\s+(?:verses?\b|\d|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b)))"
 );
-static VERSE_OF_BOOK_RE: LazyLock<Regex> = pattern!(
+static VERSE_OF_BOOK_RE: LazyLock<Pattern> = pattern!(
     r"(?:\bverses?\s+(\d+(?:\s*(?:-|to|through|thru|and)\s*\d+)?)\s+(?:of|in|from)\s+(?:the\s+book\s+of\s+)?((?:Gen(?:esis)?|Exo(?:dus)?|Lev(?:iticus)?|Num(?:bers)?|Deut(?:eronomy)?|Josh(?:ua)?|Judg(?:es)?|Ruth|1\s*Sam(?:uel)?|2\s*Sam(?:uel)?|1\s*Kings?|2\s*Kings?|1\s*Chr(?:onicles)?|2\s*Chr(?:onicles)?|Ezra|Neh(?:emiah)?|Esth(?:er)?|Job|Psa?(?:lms?)?|Prov(?:erbs)?|Eccl(?:esiastes)?|Song(?:\s+of\s+Solomon)?|Isa(?:iah)?|Jer(?:emiah)?|Lam(?:entations)?|Eze(?:kiel)?|Dan(?:iel)?|Hos(?:ea)?|Joel|Amos|Obad(?:iah)?|Jon(?:ah)?|Mic(?:ah)?|Nah(?:um)?|Hab(?:akkuk)?|Zeph(?:aniah)?|Hag(?:gai)?|Zech(?:ariah)?|Mal(?:achi)?|Matt(?:hew)?|Mark|Luke|John|Acts|Rom(?:ans)?|1\s*Cor(?:inthians)?|2\s*Cor(?:inthians)?|Gal(?:atians)?|Eph(?:esians)?|Phil(?:ippians)?|Col(?:ossians)?|1\s*Thess?(?:alonians)?|2\s*Thess?(?:alonians)?|1\s*Tim(?:othy)?|2\s*Tim(?:othy)?|Tit(?:us)?|Phlm|Philemon|Heb(?:rews)?|Jas|James|1\s*Pet(?:er)?|2\s*Pet(?:er)?|1\s*Jn|1\s*John|2\s*Jn|2\s*John|3\s*Jn|3\s*John|Jude|Rev(?:elation)?s?))\s+(?:chapter\s+)?(\d+)\b)"
 );
-static FILLER_WORD_RE: LazyLock<Regex> = pattern!(r"(?:[,.]?\s*\b(?:uh|um|uhm|erm|er)\b[,.]?)");
-static POSSESSIVE_BEFORE_NUMBER_RE: LazyLock<Regex> = pattern!(
+static FILLER_WORD_RE: LazyLock<Pattern> = pattern!(r"(?:[,.]?\s*\b(?:uh|um|uhm|erm|er)\b[,.]?)");
+static POSSESSIVE_BEFORE_NUMBER_RE: LazyLock<Pattern> = pattern!(
     r"(?:['’]s(?=\s+(?:chapter\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b))"
 );
-static PHILIPPIANS_MISSPELLING_RE: LazyLock<Regex> =
+static PHILIPPIANS_MISSPELLING_RE: LazyLock<Pattern> =
     pattern!(r"(?:\b(?:phill?ipp?ians?|filipp?ians?)\b)");
-static SONG_OF_SONGS_RE: LazyLock<Regex> = pattern!(r"(?:\bsongs?\s+of\s+(?:songs|solomon)\b)");
-static PSALMS_MISSPELLING_RE: LazyLock<Regex> = pattern!(
+static SONG_OF_SONGS_RE: LazyLock<Pattern> = pattern!(r"(?:\bsongs?\s+of\s+(?:songs|solomon)\b)");
+static PSALMS_MISSPELLING_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b(?:pslams?|salms?(?=\s+(?:chapter\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b)))"
 );
-static PHILIPPINES_RE: LazyLock<Regex> = pattern!(
+static PHILIPPINES_RE: LazyLock<Pattern> = pattern!(
     r"(?:\bphilippines(?=\s+(?:chapter\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b))"
 );
-static SINGULAR_BOOK_RE: LazyLock<Regex> = pattern!(
+static SINGULAR_BOOK_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b(roman|hebrew|galatian|ephesian|colossian|corinthian|thessalonian)(?=\s+(?:chapter\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b))"
 );
-static ORDINAL_PREFIX_RE: LazyLock<Regex> = pattern!(
+static ORDINAL_PREFIX_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b(first|second|third|1st|2nd|3rd)\s+(?=(?:samuel|kings?|chronicles|corinthians|thessalonians|timothy|peter|john)\b))"
 );
-static ROMAN_PREFIX_RE: LazyLock<Regex> = pattern!(
+static ROMAN_PREFIX_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b(i{1,3})\s+(?=(?:samuel|kings?|chronicles|corinthians|thessalonians|timothy|peter|john)(?=\s+(?:chapter\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)\b)))"
 );
 
-static DASH: LazyLock<Regex> = pattern!(r"[–—]");
-static NUMBER_CUE: LazyLock<Regex> = pattern!(r"(?:\b(chapter|verses?)\s+number\s+)");
-static ACTS: LazyLock<Regex> = pattern!(r"(?:\bacts\s+of\s+the\s+apostles?\b)");
-static MIXED_DIGIT_FIRST: LazyLock<Regex> =
+static DASH: LazyLock<Pattern> = pattern!(r"[–—]");
+static NUMBER_CUE: LazyLock<Pattern> = pattern!(r"(?:\b(chapter|verses?)\s+number\s+)");
+static ACTS: LazyLock<Pattern> = pattern!(r"(?:\bacts\s+of\s+the\s+apostles?\b)");
+static MIXED_DIGIT_FIRST: LazyLock<Pattern> =
     pattern!(r"(?:\b([2-9])(one|two|three|four|five|six|seven|eight|nine)\b)");
-static MIXED_WORD_FIRST: LazyLock<Regex> =
+static MIXED_WORD_FIRST: LazyLock<Pattern> =
     pattern!(r"(?:\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)([1-9])\b)");
-static PSALM_HUNDREDS: LazyLock<Regex> = pattern!(
+static PSALM_HUNDREDS: LazyLock<Pattern> = pattern!(
     r"(?:\b(psalms?)\s+one(?:\s+hundred(?:\s+and)?)?\s+(?:(ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen)|(twenty|thirty|forty|fifty)(?:(?:-|\s)(one|two|three|four|five|six|seven|eight|nine))?)\b)"
 );
-static COMPOUND: LazyLock<Regex> = pattern!(
+static COMPOUND: LazyLock<Pattern> = pattern!(
     r"(?:\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-|\s)(one|two|three|four|five|six|seven|eight|nine)\b)"
 );
-static HUNDREDS: LazyLock<Regex> = pattern!(r"(?:\b([1-9])\s+hundred(?:\s+and)?\s+(\d{1,2})\b)");
-static ROUND_HUNDREDS: LazyLock<Regex> = pattern!(r"(?:\b([1-9])\s+hundred\b)");
-static ORDINAL_VERSE: LazyLock<Regex> = pattern!(r"(?:\bthe\s+(\d+)(?:st|nd|rd|th)\s+verse\b)");
-static SINGLE_CHAPTER: LazyLock<Regex> =
+static HUNDREDS: LazyLock<Pattern> = pattern!(r"(?:\b([1-9])\s+hundred(?:\s+and)?\s+(\d{1,2})\b)");
+static ROUND_HUNDREDS: LazyLock<Pattern> = pattern!(r"(?:\b([1-9])\s+hundred\b)");
+static ORDINAL_VERSE: LazyLock<Pattern> = pattern!(r"(?:\bthe\s+(\d+)(?:st|nd|rd|th)\s+verse\b)");
+static SINGLE_CHAPTER: LazyLock<Pattern> =
     pattern!(r"(?:\b(jude|obadiah|philemon|2 john|3 john)\s+(?=verses?\s+\d+))");
-static CORRECTION: LazyLock<Regex> = pattern!(
+static CORRECTION: LazyLock<Pattern> = pattern!(
     r"(?:(\bverse\s+|:\s*)\d+\s*[,.;-]?\s*(?:sorry|i mean|rather|make that)\s*[,.;-]?\s*(?:verse\s+)?(\d+))"
 );
-static VERSE_CUE: LazyLock<Regex> = pattern!(r"(?:\bverses?\s+)");
-static VERSE_LIST: LazyLock<Regex> =
+static VERSE_CUE: LazyLock<Pattern> = pattern!(r"(?:\bverses?\s+)");
+static VERSE_LIST: LazyLock<Pattern> =
     pattern!(r"(?:^verses?\s+(\d+(?:(?:,\s*(?:and\s+)?|\s+and\s+)\d+)+))");
 static DIGITS: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"[0-9]+").expect("valid digit pattern"));
@@ -522,10 +579,10 @@ pub(crate) fn match_normalized(
     });
     results
 }
-static NAMED_CITATION_RE: LazyLock<Regex> = pattern!(
+static NAMED_CITATION_RE: LazyLock<Pattern> = pattern!(
     r"(?:\b(?:song of solomon|1 thessalonians|2 thessalonians|1 corinthians|2 corinthians|1 chronicles|2 chronicles|ecclesiastes|lamentations|deuteronomy|philippians|revelations|colossians|revelation|leviticus|zephaniah|zechariah|galatians|ephesians|1 timothy|2 timothy|1 samuel|2 samuel|nehemiah|proverbs|jeremiah|habakkuk|philemon|genesis|numbers|1 kings|2 kings|ezekiel|obadiah|malachi|matthew|1 thess|2 thess|hebrews|1 peter|2 peter|exodus|joshua|judges|1 king|2 king|esther|psalms|isaiah|daniel|haggai|romans|1thess|2thess|1 john|2 john|3 john|1 sam|2 sam|1 chr|2 chr|psalm|hosea|jonah|micah|nahum|1 cor|2 cor|1 tim|2 tim|titus|james|1 pet|2 pet|exod|deut|josh|judg|ruth|1sam|2sam|1kgs|2kgs|1chr|2chr|ezra|esth|prov|eccl|song|ezek|joel|amos|obad|zeph|zech|matt|mark|luke|john|acts|1cor|2cor|phil|1tim|2tim|phlm|1pet|2pet|jude|gen|lev|num|jdg|1sa|2sa|1ki|2ki|neh|job|psa|pro|prv|ecc|sos|isa|jer|lam|eze|dan|hos|jon|mic|nah|hab|zep|hag|zec|mal|mrk|luk|jhn|rom|1co|2co|gal|eph|php|col|1th|2th|1ti|2ti|tit|phm|heb|jas|1pe|2pe|1jn|2jn|3jn|rev|gn|ex|nu|dt|ps|ob|mt|mk|lk|jn|rv)\b\s+(?:chapter\b|\d+\b))"
 );
-static BOOK_ONLY_LEAD_IN: LazyLock<Regex> = pattern!(
+static BOOK_ONLY_LEAD_IN: LazyLock<Pattern> = pattern!(
     r"(?:^(?:(?:and|so|now|okay|ok),?\s+)?(?:(?:let's|let\s+us|we're\s+going\s+to|we\s+are\s+going\s+to|i\s+want\s+you\s+to|please)\s+)?(?:(?:go|turn|open|flip|come)\s+(?:with\s+me\s+)?(?:(?:your|our)\s+bibles?\s+)?(?:with\s+me\s+)?(?:to|in(?:to)?)\s+)?(?:the\s+(?:book|gospel|epistle|letter)\s+of\s+)?)"
 );
 

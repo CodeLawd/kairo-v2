@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+kairo-net = { path = "../kairo-net" }
 base64 = "0.22"
 fancy-regex = "0.20.1"
 feruca = "0.13"

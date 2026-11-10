@@ -10,10 +10,10 @@ starting, honor its STOP conditions, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | [Verify licence leases over the claims as received](001-lease-signature-raw-claims.md) | P1 | M | — | TODO |
-| 002 | [Release the orchestrator state lock across network awaits](002-orchestrator-release-state-lock.md) | P1 | M | — | TODO |
-| 003 | [Write song files without parsing the whole folder](003-song-file-write-without-full-scan.md) | P2 | S | — | TODO |
-| 004 | [Time out the updater's child processes](004-updater-process-timeout.md) | P2 | S | — | TODO |
+| 001 | [Verify licence leases over the claims as received](001-lease-signature-raw-claims.md) | P1 | M | — | DONE |
+| 002 | [Release the orchestrator state lock across network awaits](002-orchestrator-release-state-lock.md) | P1 | M | — | DONE |
+| 003 | [Write song files without parsing the whole folder](003-song-file-write-without-full-scan.md) | P2 | S | — | DONE |
+| 004 | [Time out the updater's child processes](004-updater-process-timeout.md) | P2 | S | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

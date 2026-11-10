@@ -74,6 +74,18 @@ pub fn valid_license_lease(
     let (Some(lease), Some(key)) = (lease, trusted_key.and_then(parse_public_key)) else {
         return false;
     };
+    // The received text is the source of truth when there is one; a typed
+    // view that no longer matches it was edited after receipt.
+    let payload = match &lease.raw_claims {
+        Some(raw) => {
+            let received = serde_json::from_str::<kairo_domain::cloud::LicenseLeaseClaims>(raw);
+            if received.ok().as_ref() != Some(&lease.claims) {
+                return false;
+            }
+            js_stringify(raw)
+        }
+        None => to_js_string(&lease.claims).ok(),
+    };
     let claims = &lease.claims;
     if org_id.is_empty()
         || device_id.is_empty()
@@ -98,13 +110,161 @@ pub fn valid_license_lease(
     {
         return false;
     }
-    let (Ok(payload), Ok(signature)) = (to_js_string(claims), STANDARD.decode(&lease.signature))
-    else {
+    let (Some(payload), Ok(signature)) = (payload, STANDARD.decode(&lease.signature)) else {
         return false;
     };
     UnparsedPublicKey::new(&ED25519, key)
         .verify(payload.as_bytes(), &signature)
         .is_ok()
+}
+
+/// A JSON value with object keys in the order they arrived, as `JSON.parse`
+/// keeps them.
+enum OrderedJson {
+    Null,
+    Bool(bool),
+    Number(f64),
+    String(String),
+    Array(Vec<OrderedJson>),
+    Object(Vec<(String, OrderedJson)>),
+}
+
+impl<'de> serde::Deserialize<'de> for OrderedJson {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Visitor;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = OrderedJson;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("JSON")
+            }
+            fn visit_unit<E>(self) -> Result<OrderedJson, E> {
+                Ok(OrderedJson::Null)
+            }
+            fn visit_bool<E>(self, v: bool) -> Result<OrderedJson, E> {
+                Ok(OrderedJson::Bool(v))
+            }
+            fn visit_i64<E>(self, v: i64) -> Result<OrderedJson, E> {
+                Ok(OrderedJson::Number(v as f64))
+            }
+            fn visit_u64<E>(self, v: u64) -> Result<OrderedJson, E> {
+                Ok(OrderedJson::Number(v as f64))
+            }
+            fn visit_f64<E>(self, v: f64) -> Result<OrderedJson, E> {
+                Ok(OrderedJson::Number(v))
+            }
+            fn visit_str<E>(self, v: &str) -> Result<OrderedJson, E> {
+                Ok(OrderedJson::String(v.to_owned()))
+            }
+            fn visit_string<E>(self, v: String) -> Result<OrderedJson, E> {
+                Ok(OrderedJson::String(v))
+            }
+            fn visit_seq<A: serde::de::SeqAccess<'de>>(
+                self,
+                mut seq: A,
+            ) -> Result<OrderedJson, A::Error> {
+                let mut items = Vec::new();
+                while let Some(item) = seq.next_element()? {
+                    items.push(item);
+                }
+                Ok(OrderedJson::Array(items))
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<OrderedJson, A::Error> {
+                let mut entries: Vec<(String, OrderedJson)> = Vec::new();
+                while let Some((key, value)) = map.next_entry::<String, OrderedJson>()? {
+                    // `JSON.parse` keeps a repeated key where it first appeared,
+                    // with the last value.
+                    match entries.iter_mut().find(|(k, _)| *k == key) {
+                        Some(entry) => entry.1 = value,
+                        None => entries.push((key, value)),
+                    }
+                }
+                Ok(OrderedJson::Object(entries))
+            }
+        }
+        deserializer.deserialize_any(Visitor)
+    }
+}
+
+impl OrderedJson {
+    fn write(&self, out: &mut String) -> Option<()> {
+        match self {
+            Self::Null => out.push_str("null"),
+            Self::Bool(v) => out.push_str(if *v { "true" } else { "false" }),
+            // `JSON.stringify` writes non-finite numbers as null.
+            Self::Number(v) if !v.is_finite() => out.push_str("null"),
+            Self::Number(v) => out.push_str(&js_number(*v)),
+            Self::String(v) => out.push_str(&serde_json::to_string(v).ok()?),
+            Self::Array(items) => {
+                out.push('[');
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    item.write(out)?;
+                }
+                out.push(']');
+            }
+            Self::Object(entries) => {
+                out.push('{');
+                for (i, (key, value)) in entries.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    out.push_str(&serde_json::to_string(key).ok()?);
+                    out.push(':');
+                    value.write(out)?;
+                }
+                out.push('}');
+            }
+        }
+        Some(())
+    }
+}
+
+/// `Number.prototype.toString` for a finite number (ECMA-262
+/// Number::toString), so large and tiny claims format as the server's did.
+fn js_number(value: f64) -> String {
+    if value == 0.0 {
+        return "0".into();
+    }
+    // Rust's `{:e}` gives the shortest round-trip digits, as JavaScript does.
+    let scientific = format!("{:e}", value.abs());
+    let (mantissa, exponent) = scientific.split_once('e').expect("scientific notation");
+    let digits: String = mantissa.chars().filter(char::is_ascii_digit).collect();
+    let k = digits.len() as i64;
+    let n = exponent.parse::<i64>().expect("exponent") + 1;
+    let body = if k <= n && n <= 21 {
+        format!("{digits}{}", "0".repeat((n - k) as usize))
+    } else if 0 < n && n <= 21 {
+        format!("{}.{}", &digits[..n as usize], &digits[n as usize..])
+    } else if -6 < n && n <= 0 {
+        format!("0.{}{digits}", "0".repeat((-n) as usize))
+    } else {
+        let sign = if n - 1 < 0 { '-' } else { '+' };
+        let fraction = if k > 1 {
+            format!(".{}", &digits[1..])
+        } else {
+            String::new()
+        };
+        format!("{}{fraction}e{sign}{}", &digits[..1], (n - 1).abs())
+    };
+    if value < 0.0 {
+        format!("-{body}")
+    } else {
+        body
+    }
+}
+
+/// `JSON.stringify(JSON.parse(raw))`: what the server signed, whatever
+/// whitespace or fields the received text holds.
+fn js_stringify(raw: &str) -> Option<String> {
+    let value: OrderedJson = serde_json::from_str(raw).ok()?;
+    let mut out = String::with_capacity(raw.len());
+    value.write(&mut out)?;
+    Some(out)
 }
 
 /// Feature gates for all providers. LLM calls share a gateway and use the
@@ -697,4 +857,29 @@ fn refresh_background(service: LicensingService) {
             service.emit().await;
         }
     });
+}
+
+#[cfg(test)]
+mod js_number_tests {
+    use super::js_number;
+
+    #[test]
+    fn numbers_format_as_javascript_does() {
+        for (value, text) in [
+            (0.0, "0"),
+            (-0.0, "0"),
+            (1_700_000_000.0, "1700000000"),
+            (1.5, "1.5"),
+            (-2.25, "-2.25"),
+            (0.000001, "0.000001"),
+            (1e-7, "1e-7"),
+            (1.5e-7, "1.5e-7"),
+            (1e21, "1e+21"),
+            (1.5e21, "1.5e+21"),
+            (123456789012345680000.0, "123456789012345680000"),
+            (0.1 + 0.2, "0.30000000000000004"),
+        ] {
+            assert_eq!(js_number(value), text, "{value}");
+        }
+    }
 }

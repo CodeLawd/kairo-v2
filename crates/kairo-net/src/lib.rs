@@ -1,5 +1,7 @@
 //! HTTP transport for the Kairo cloud API.
 
+pub mod transport;
+
 use std::{
     future::Future,
     sync::{Arc, Mutex},
@@ -106,7 +108,7 @@ impl CloudApiClient {
                 .ok_or_else(|| ApiError::new("Invalid Kairo API address."))
         }
 
-        let http = Client::builder()
+        let http = transport::client_builder()
             .timeout(REQUEST_TIMEOUT)
             // A redirected POST can be replayed by the HTTP stack. API routes
             // have no redirects, and credentials must stay on configured hosts.

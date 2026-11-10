@@ -107,11 +107,13 @@ fn request_id() -> String {
 
 /// `fetch`'s rejection text, so messages match what Electron showed.
 fn fetch_error(error: &reqwest::Error) -> AudienceError {
-    AudienceError::new(if error.is_timeout() {
-        "The operation was aborted due to timeout"
-    } else {
-        "fetch failed"
-    })
+    AudienceError::new(
+        if kairo_net::transport::TransportError::from(error).is_timeout() {
+            "The operation was aborted due to timeout"
+        } else {
+            "fetch failed"
+        },
+    )
 }
 
 /// `POST {base}/v1/engage/{code}/{action}` with the operator token and a
@@ -153,7 +155,7 @@ impl KairoAudienceSource {
             fallback_base_url,
             create_room,
             refresh_room,
-            http: reqwest::Client::new(),
+            http: kairo_net::transport::client(),
             sinks: Sinks::default(),
             state: Mutex::new(State::default()),
         }))

@@ -65,7 +65,7 @@ fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
 }
 
 fn now_ms() -> i64 {
-    kairo_store::settings::now_ms() as i64
+    kairo_domain::js::now_ms() as i64
 }
 
 /// The worker thread body. Returns when the command channel closes.

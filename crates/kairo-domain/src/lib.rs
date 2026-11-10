@@ -54,6 +54,7 @@ pub mod services;
 pub mod settings;
 pub mod status;
 pub mod theme_library;
+pub mod time;
 pub mod transcript;
 pub mod usage;
 pub mod video_devices;

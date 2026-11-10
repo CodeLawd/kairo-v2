@@ -115,13 +115,11 @@ impl PlanSource for SermonPlanStore {
     }
 }
 
-type Listener = Box<dyn Fn(&LivePlanState) + Send>;
-
 struct Inner {
     source: Box<dyn PlanSource>,
     plan: Option<SermonPlan>,
     index: Option<SermonPlanIndex>,
-    listeners: Vec<Listener>,
+    listeners: kairo_core::Listeners<LivePlanState>,
 }
 
 #[derive(Clone)]
@@ -147,7 +145,7 @@ impl LivePlanService {
                 source,
                 plan: None,
                 index: None,
-                listeners: Vec::new(),
+                listeners: kairo_core::Listeners::default(),
             })),
         }
     }
@@ -224,17 +222,15 @@ impl LivePlanService {
             return;
         }
         let state = state_of(&inner);
-        for listener in &inner.listeners {
-            listener(&state);
-        }
+        inner.listeners.notify(&state);
     }
 
     pub fn state(&self) -> LivePlanState {
         state_of(&self.lock())
     }
 
-    pub fn on_change(&self, listener: impl Fn(&LivePlanState) + Send + 'static) {
-        self.lock().listeners.push(Box::new(listener));
+    pub fn on_change(&self, listener: impl Fn(&LivePlanState) + Send + Sync + 'static) {
+        self.lock().listeners.add(listener);
     }
 
     fn load(&self, plan_id: Option<String>, notify: bool) -> LivePlanState {
@@ -245,9 +241,7 @@ impl LivePlanService {
         let state = state_of(&inner);
         tracing::info!(plan = ?state.plan_id, "reference playlist updated");
         if notify {
-            for listener in &inner.listeners {
-                listener(&state);
-            }
+            inner.listeners.notify(&state);
         }
         state
     }

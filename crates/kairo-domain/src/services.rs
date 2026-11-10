@@ -235,8 +235,18 @@ pub fn should_retry_upload(status: Option<u16>) -> bool {
     status.is_none_or(|status| matches!(status, 408 | 429) || status >= 500)
 }
 
+/// Waits after the 1st, 2nd, … failed upload: 30 s, 2 min, 10 min, 30 min, then hourly.
+pub const UPLOAD_BACKOFF: crate::time::Backoff = crate::time::Backoff::Steps(&[
+    std::time::Duration::from_secs(30),
+    std::time::Duration::from_secs(120),
+    std::time::Duration::from_secs(600),
+    std::time::Duration::from_secs(1_800),
+    std::time::Duration::from_secs(3_600),
+]);
+
 pub fn next_upload_backoff_ms(attempts: usize) -> u64 {
-    [30_000, 120_000, 600_000, 1_800_000, 3_600_000][attempts.saturating_sub(1).min(4)]
+    let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
+    UPLOAD_BACKOFF.delay(retry).as_millis() as u64
 }
 
 pub fn service_talk_time_ms(record: &ServiceRecord, now_ms: f64) -> f64 {

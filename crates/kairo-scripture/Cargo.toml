@@ -5,6 +5,8 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+kairo-core = { path = "../kairo-core" }
+kairo-net = { path = "../kairo-net" }
 fancy-regex = "0.20.1"
 flate2 = "1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }

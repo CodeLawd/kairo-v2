@@ -633,6 +633,9 @@ pub struct AdminChurchLicense {
 pub struct LicenseLeaseClaims {
     pub org_id: String,
     pub device_id: String,
+    /// Features this build does not know are dropped, so a server that grants
+    /// a newer feature does not invalidate the whole lease.
+    #[serde(deserialize_with = "known_features")]
     pub features: Vec<LicensedFeature>,
     pub issued_at: f64,
     pub refresh_after: f64,
@@ -641,12 +644,65 @@ pub struct LicenseLeaseClaims {
     pub license_expires_at: Option<f64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+fn known_features<'de, D>(deserializer: D) -> Result<Vec<LicensedFeature>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Ok(Vec::<String>::deserialize(deserializer)?
+        .iter()
+        .filter_map(|name| LicensedFeature::from_name(name))
+        .collect())
+}
+
+/// A lease as the server sent it. The signature covers `JSON.stringify` of
+/// the claims object as received, so the received text is kept alongside the
+/// typed view: fields this build does not know still count towards it.
+#[derive(Clone, Debug, PartialEq)]
 pub struct SignedLicenseLease {
     pub claims: LicenseLeaseClaims,
+    /// The claims JSON exactly as received. `None` for a lease built in code.
+    pub raw_claims: Option<String>,
     pub signature: String,
     pub public_key: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SignedLicenseLeaseWire {
+    claims: Box<serde_json::value::RawValue>,
+    signature: String,
+    public_key: String,
+}
+
+impl<'de> Deserialize<'de> for SignedLicenseLease {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let wire = SignedLicenseLeaseWire::deserialize(deserializer)?;
+        let claims = serde_json::from_str(wire.claims.get()).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            claims,
+            raw_claims: Some(wire.claims.get().to_owned()),
+            signature: wire.signature,
+            public_key: wire.public_key,
+        })
+    }
+}
+
+impl Serialize for SignedLicenseLease {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::{Error as _, SerializeStruct as _};
+        let mut lease = serializer.serialize_struct("SignedLicenseLease", 3)?;
+        match &self.raw_claims {
+            // Written back verbatim so a saved lease still verifies.
+            Some(raw) => lease.serialize_field(
+                "claims",
+                &serde_json::value::RawValue::from_string(raw.clone()).map_err(S::Error::custom)?,
+            )?,
+            None => lease.serialize_field("claims", &self.claims)?,
+        }
+        lease.serialize_field("signature", &self.signature)?;
+        lease.serialize_field("publicKey", &self.public_key)?;
+        lease.end()
+    }
 }
 
 /// `Record<'deepgram' | 'bible' | 'anthropic' | 'deepseek' | 'brave' | 'googleTranslate', T>`.

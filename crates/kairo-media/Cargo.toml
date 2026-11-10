@@ -31,4 +31,5 @@ arboard = { version = "3.7", default-features = false }
 arboard = { version = "3.7", default-features = false, features = ["wayland-data-control"] }
 
 [dev-dependencies]
+futures-lite = "2"
 tempfile = "3"

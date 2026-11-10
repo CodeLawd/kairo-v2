@@ -5,14 +5,18 @@
 
 use std::sync::{Arc, Mutex};
 
+type Slot<T> = Arc<Mutex<Option<T>>>;
+
+/// Only the publisher holds the wake senders, so every subscription (clones
+/// included) sees the channel close when the publisher is dropped.
 pub struct Publisher<T> {
-    subscribers: Vec<Subscription<T>>,
+    subscribers: Vec<(Slot<T>, async_channel::Sender<()>)>,
 }
 
-/// One receiving end. `next` waits for a change and returns the newest snapshot.
+/// One receiving end. `next` waits for a change and returns the newest
+/// snapshot. Clones share one pending snapshot.
 pub struct Subscription<T> {
-    latest: Arc<Mutex<Option<T>>>,
-    signal: async_channel::Sender<()>,
+    latest: Slot<T>,
     wake: async_channel::Receiver<()>,
 }
 
@@ -20,7 +24,6 @@ impl<T> Clone for Subscription<T> {
     fn clone(&self) -> Self {
         Self {
             latest: self.latest.clone(),
-            signal: self.signal.clone(),
             wake: self.wake.clone(),
         }
     }
@@ -37,22 +40,20 @@ impl<T> Default for Publisher<T> {
 impl<T: Clone> Publisher<T> {
     pub fn subscribe(&mut self) -> Subscription<T> {
         let (signal, wake) = async_channel::bounded(1);
-        let subscription = Subscription {
-            latest: Arc::new(Mutex::new(None)),
-            signal,
-            wake,
-        };
-        self.subscribers.push(subscription.clone());
-        subscription
+        let latest = Slot::default();
+        self.subscribers.push((latest.clone(), signal));
+        Subscription { latest, wake }
     }
 
-    /// Replace each subscriber's pending snapshot. Dropped subscribers are pruned.
+    /// Replace each subscriber's pending snapshot. Subscriptions whose every
+    /// clone was dropped are pruned.
     pub fn publish(&mut self, snapshot: &T) {
-        self.subscribers.retain(|s| s.wake.receiver_count() > 1);
-        for subscriber in &self.subscribers {
-            *subscriber.latest.lock().unwrap_or_else(|e| e.into_inner()) = Some(snapshot.clone());
+        self.subscribers
+            .retain(|(_, signal)| signal.receiver_count() > 0);
+        for (latest, signal) in &self.subscribers {
+            *latest.lock().unwrap_or_else(|e| e.into_inner()) = Some(snapshot.clone());
             // Full means a wake is already pending; that wake will see this snapshot.
-            let _ = subscriber.signal.try_send(());
+            let _ = signal.try_send(());
         }
     }
 }
@@ -64,9 +65,7 @@ impl<T> Subscription<T> {
             if let Some(value) = self.take() {
                 return Some(value);
             }
-            if self.wake.sender_count() <= 1 && self.wake.is_empty() {
-                return None;
-            }
+            // Fails once the publisher (the only sender) is dropped.
             self.wake.recv().await.ok()?;
         }
     }
@@ -91,6 +90,19 @@ mod tests {
         }
         assert_eq!(sub.take(), Some(99));
         assert_eq!(sub.take(), None);
+    }
+
+    #[test]
+    fn cloned_subscriptions_close_with_the_publisher() {
+        let mut publisher = Publisher::<u32>::default();
+        let sub = publisher.subscribe();
+        let clone = sub.clone();
+        publisher.publish(&1);
+        drop(publisher);
+        let next = futures_lite::future::block_on(sub.next());
+        assert_eq!(next, Some(1), "a pending snapshot is still delivered");
+        assert_eq!(futures_lite::future::block_on(clone.next()), None);
+        assert_eq!(futures_lite::future::block_on(sub.next()), None);
     }
 
     #[test]

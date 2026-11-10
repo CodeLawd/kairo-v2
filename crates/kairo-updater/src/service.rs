@@ -46,9 +46,10 @@ pub struct UpdaterConfig {
     /// The website named when Kairo cannot replace itself.
     pub web_url: Option<String>,
     pub source: ReleaseSource,
-    /// How long the simulated check and download steps take.
-    pub sim_step: Duration,
 }
+
+/// How long each simulated check and download step takes.
+const SIM_STEP: Duration = Duration::from_millis(150);
 
 impl UpdaterConfig {
     /// This process, publishing to [`crate::feed::RELEASE_REPO`].
@@ -71,7 +72,6 @@ impl UpdaterConfig {
                 .filter(|p| !p.as_os_str().is_empty()),
             web_url: web_url.filter(|u| !u.is_empty()),
             source: ReleaseSource::github(crate::feed::RELEASE_REPO),
-            sim_step: Duration::from_millis(150),
         }
     }
 }
@@ -100,7 +100,6 @@ struct Pending {
     notes: Option<String>,
 }
 
-type Listener = Arc<dyn Fn(&UpdateStatus) + Send + Sync>;
 type Hook = Arc<dyn Fn() -> BoxFuture<()> + Send + Sync>;
 
 struct Inner {
@@ -110,7 +109,6 @@ struct Inner {
     installing: bool,
     busy: bool,
     signing: MacSigning,
-    listeners: Vec<Listener>,
     before_install: Option<Hook>,
     live_output: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     quit: Option<Arc<dyn Fn() + Send + Sync>>,
@@ -121,6 +119,7 @@ pub struct UpdaterService {
     config: Arc<UpdaterConfig>,
     http: reqwest::Client,
     inner: Arc<Mutex<Inner>>,
+    listeners: kairo_core::Listeners<UpdateStatus>,
 }
 
 use kairo_domain::js::lock;
@@ -162,11 +161,11 @@ impl UpdaterService {
                 installing: false,
                 busy: false,
                 signing: MacSigning::Adhoc,
-                listeners: Vec::new(),
                 before_install: None,
                 live_output: None,
                 quit: None,
             })),
+            listeners: kairo_core::Listeners::default(),
         }
     }
 
@@ -175,7 +174,7 @@ impl UpdaterService {
     }
 
     pub fn on_change(&self, listener: impl Fn(&UpdateStatus) + Send + Sync + 'static) {
-        lock(&self.inner).listeners.push(Arc::new(listener));
+        self.listeners.add(listener);
     }
 
     /// `setBeforeInstall`: release hardware and finish recording.
@@ -198,18 +197,9 @@ impl UpdaterService {
     }
 
     fn set(&self, status: UpdateStatus) {
-        let listeners = {
-            let mut inner = lock(&self.inner);
-            inner.status = status.clone();
-            inner.listeners.clone()
-        };
-        for listener in listeners {
-            // A listener that panics must not stop the updater.
-            if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| listener(&status))).is_err()
-            {
-                tracing::error!("[Updater] listener panicked");
-            }
-        }
+        lock(&self.inner).status = status.clone();
+        // A listener that panics must not stop the updater.
+        self.listeners.notify(&status);
     }
 
     /// The running version is shown only while nothing is pending.
@@ -272,7 +262,7 @@ impl UpdaterService {
     pub async fn check(&self) -> UpdateStatus {
         if self.config.simulate {
             self.set(UpdateStatus::Checking);
-            tokio::time::sleep(self.config.sim_step * 6).await;
+            tokio::time::sleep(SIM_STEP * 6).await;
             self.set(UpdateStatus::Available {
                 version: fake_next_version(&self.config.current_version),
                 notes: Some("Simulated release notes.".into()),
@@ -369,7 +359,7 @@ impl UpdaterService {
                     notes: notes.clone(),
                     percent: Some(f64::from(percent)),
                 });
-                tokio::time::sleep(self.config.sim_step).await;
+                tokio::time::sleep(SIM_STEP).await;
             }
             self.set(UpdateStatus::Downloaded { version, notes });
             return self.status();

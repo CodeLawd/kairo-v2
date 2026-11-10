@@ -11,6 +11,7 @@ use regex::Regex;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::OnceLock;
+use std::time::Duration;
 
 /// `bundleFromExecutable`: the `.app` that holds `<bundle>/Contents/MacOS/<name>`.
 pub fn bundle_from_executable(exe: &Path) -> Option<PathBuf> {
@@ -45,15 +46,34 @@ pub enum MacSigning {
     Designated(String),
 }
 
+/// Longest a child process may run before it is killed.
+const PROCESS_TIMEOUT: Duration = Duration::from_secs(120);
+
 pub(crate) async fn run(
     program: &str,
     args: &[&std::ffi::OsStr],
 ) -> Result<(String, String), String> {
-    let output = tokio::process::Command::new(program)
+    run_with_timeout(program, args, PROCESS_TIMEOUT).await
+}
+
+/// Runs `program`, killing it if it outlives `timeout` (a stuck
+/// `hdiutil attach` must not leave the update installing forever).
+async fn run_with_timeout(
+    program: &str,
+    args: &[&std::ffi::OsStr],
+    timeout: Duration,
+) -> Result<(String, String), String> {
+    let child = tokio::process::Command::new(program)
         .args(args)
         .stdin(Stdio::null())
-        .output()
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| format!("{program}: {e}"))?;
+    let output = tokio::time::timeout(timeout, child.wait_with_output())
         .await
+        .map_err(|_| format!("{program} timed out"))?
         .map_err(|e| format!("{program}: {e}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -272,4 +292,17 @@ pub fn spawn_detached(
         command.process_group(0);
     }
     command.spawn().map(drop)
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn kills_a_child_that_outlives_the_timeout() {
+        let started = std::time::Instant::now();
+        let result = run_with_timeout("sleep", &["5".as_ref()], Duration::from_millis(100)).await;
+        assert!(result.unwrap_err().contains("timed out"));
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
 }

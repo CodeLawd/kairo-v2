@@ -4,8 +4,8 @@
 //! `live-detection-wiring.ts`.
 //!
 //! Transcripts are processed synchronously, in arrival order, on the
-//! caller's task. A 50 ms ticker fires due chapter fallbacks and dispatches
-//! queued model work; in fallback mode (offline or the provider refusing)
+//! caller's task. A timer task sleeps until the next chapter fallback or
+//! queued model work is due (or until woken by new work) and dispatches it; in fallback mode (offline or the provider refusing)
 //! queued work goes through the local regex instead.
 
 use futures_util::future::BoxFuture as ModelFuture;
@@ -178,13 +178,11 @@ pub struct LiveDetector {
     epoch_ms: f64,
     started: tokio::time::Instant,
     cancel: watch::Sender<bool>,
+    /// Wakes the timer task when work may have become due sooner.
+    wake: Arc<tokio::sync::Notify>,
 }
 
-fn now_epoch_ms() -> f64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0.0, |d| d.as_millis() as f64)
-}
+use kairo_domain::js::now_ms as now_epoch_ms;
 
 impl LiveDetector {
     /// Spawns the ticker on the current runtime. Without `transport` the model
@@ -211,6 +209,7 @@ impl LiveDetector {
             epoch_ms: now_epoch_ms(),
             started: tokio::time::Instant::now(),
             cancel,
+            wake: Arc::new(tokio::sync::Notify::new()),
         });
         let model = transport.map(|t| {
             Arc::new(tokio::sync::Mutex::new(ManagedModelDetector::new(
@@ -219,20 +218,47 @@ impl LiveDetector {
             )))
         });
         let weak = Arc::downgrade(&detector);
+        let (wake, started) = (detector.wake.clone(), detector.started);
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval(Duration::from_millis(50));
             loop {
-                tick.tick().await;
-                let Some(detector) = weak.upgrade() else {
-                    return;
+                // Registered before the work is checked, so a wake between
+                // the check and the wait is not lost.
+                let woken = wake.notified();
+                let deadline = {
+                    let Some(detector) = weak.upgrade() else {
+                        return;
+                    };
+                    if detector.lock().destroyed {
+                        return;
+                    }
+                    detector.tick(model.clone(), cancel_rx.clone());
+                    detector.next_due_ms(model.is_some())
                 };
-                if detector.lock().destroyed {
-                    return;
+                match deadline {
+                    Some(due) => tokio::select! {
+                        () = tokio::time::sleep_until(started + Duration::from_millis(due)) => {}
+                        () = woken => {}
+                    },
+                    None => woken.await,
                 }
-                detector.tick(model.clone(), cancel_rx.clone());
             }
         });
         detector
+    }
+
+    /// When the timer must next run: a due chapter fallback, or queued work
+    /// the model (or the regex fallback) can take.
+    fn next_due_ms(&self, has_model: bool) -> Option<u64> {
+        let state = self.lock();
+        let queued = if !state.fallback_mode && has_model && state.model_busy {
+            None
+        } else {
+            state.queue.next_due_ms()
+        };
+        match (state.live.next_due_ms(), queued) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
@@ -289,6 +315,7 @@ impl LiveDetector {
         let events = self.events.clone();
         let epoch = self.epoch_ms;
         let started = self.started;
+        let wake = self.wake.clone();
         tokio::spawn(async move {
             let mut model = model.lock().await;
             let outcome = model.run(&work, cancel).await;
@@ -298,6 +325,7 @@ impl LiveDetector {
             let mut s = state.lock().unwrap_or_else(|e| e.into_inner());
             s.model_busy = false;
             s.queue.complete();
+            wake.notify_one();
             let _ = events.send(DetectorEvent::Stats {
                 total_calls: stats.total_calls,
                 average_latency_ms: stats.average_latency_ms() as f64,
@@ -380,6 +408,7 @@ impl LiveDetector {
             (found, progress, unresolved)
         };
         let _ = unresolved;
+        self.wake.notify_one();
         if let Some((reference, item_id)) = progress {
             let _ = self
                 .events
@@ -423,6 +452,7 @@ impl Detector for LiveDetector {
             })
         });
         self.lock().live.set_reading_passage(citation, now);
+        self.wake.notify_one();
     }
 
     /// General-corpus quotes are not produced by this composition, so any
@@ -433,6 +463,7 @@ impl Detector for LiveDetector {
 
     fn set_fallback_mode(&self, on: bool) {
         self.lock().fallback_mode = on;
+        self.wake.notify_one();
     }
 
     fn subscribe(&self) -> broadcast::Receiver<DetectorEvent> {
@@ -444,5 +475,6 @@ impl Detector for LiveDetector {
         let mut state = self.lock();
         state.destroyed = true;
         state.queue.clear();
+        self.wake.notify_one();
     }
 }

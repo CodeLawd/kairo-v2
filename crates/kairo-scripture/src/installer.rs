@@ -91,14 +91,11 @@ pub fn recovery_message(failure: &InstallFailure) -> &'static str {
     }
 }
 
-type Listener = Arc<dyn Fn(&LocalBibleInstallProgress) + Send + Sync>;
-
 #[derive(Default)]
 struct State {
     progress: HashMap<String, LocalBibleInstallProgress>,
     pending: HashMap<String, InstallFuture>,
-    listeners: Vec<(u64, Listener)>,
-    next_listener: u64,
+    listeners: kairo_core::Listeners<LocalBibleInstallProgress>,
     revision: f64,
     last_notification: HashMap<String, Instant>,
 }
@@ -112,13 +109,13 @@ enum Change {
 
 /// Ends a [`LocalBibleInstaller::subscribe`] subscription.
 pub struct Unsubscribe {
-    state: Arc<Mutex<State>>,
-    id: u64,
+    listeners: kairo_core::Listeners<LocalBibleInstallProgress>,
+    id: kairo_core::ListenerId,
 }
 
 impl Unsubscribe {
     pub fn unsubscribe(self) {
-        lock(&self.state).listeners.retain(|(id, _)| *id != self.id);
+        self.listeners.remove(self.id);
     }
 }
 
@@ -155,13 +152,10 @@ impl LocalBibleInstaller {
         &self,
         listener: impl Fn(&LocalBibleInstallProgress) + Send + Sync + 'static,
     ) -> Unsubscribe {
-        let mut state = lock(&self.state);
-        state.next_listener += 1;
-        let id = state.next_listener;
-        state.listeners.push((id, Arc::new(listener)));
+        let listeners = lock(&self.state).listeners.clone();
         Unsubscribe {
-            state: self.state.clone(),
-            id,
+            id: listeners.add(listener),
+            listeners,
         }
     }
 
@@ -213,13 +207,10 @@ impl LocalBibleInstaller {
                 return;
             }
             state.last_notification.insert(translation.to_owned(), now);
-            let listeners: Vec<Listener> = state.listeners.iter().map(|(_, l)| l.clone()).collect();
-            (progress, listeners)
+            (progress, state.listeners.clone())
         };
         // Outside the lock, so a listener may read progress.
-        for listener in listeners {
-            listener(&progress);
-        }
+        listeners.notify(&progress);
     }
 
     /// Download and install `translation`. A second request while one runs

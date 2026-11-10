@@ -27,7 +27,7 @@ pub use transfer::{CommitProgress, FileDialogs, TransferService};
 use std::sync::Arc;
 
 /// Epoch milliseconds. Injected so tests can pin time.
-pub type Clock = Arc<dyn Fn() -> f64 + Send + Sync>;
+pub use kairo_domain::time::Clock;
 
 pub fn system_clock() -> Clock {
     Arc::new(|| {
@@ -52,7 +52,7 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-type Listeners<T> = Vec<Box<dyn Fn(&T) + Send>>;
+type Listeners<T> = kairo_core::Listeners<T>;
 
 fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()

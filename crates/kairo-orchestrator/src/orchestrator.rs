@@ -97,8 +97,9 @@ pub struct Services {
     pub usage: Arc<dyn UsageClient>,
     pub live_plan: LivePlanService,
     pub detector: DetectorFactory,
-    /// Health and detector fallback (`resilienceManager`).
-    pub resilience: Option<Arc<Mutex<kairo_core::resilience::Resilience>>>,
+    /// The app core whose resilience actor owns health and detector
+    /// fallback (`resilienceManager`).
+    pub resilience: Option<kairo_core::AppCore>,
 }
 
 struct State {
@@ -113,6 +114,11 @@ struct State {
     session: Option<Session>,
     detector: Option<Arc<dyn Detector>>,
     pumps: Vec<JoinHandle<()>>,
+    /// Bumped by every `start` and `stop`, so a start that awaited STT
+    /// without the lock can tell it was superseded.
+    start_generation: u64,
+    /// A `start` is awaiting STT.
+    starting: bool,
 }
 
 impl State {
@@ -163,6 +169,9 @@ struct Quick {
 struct Inner {
     services: Services,
     state: tokio::sync::Mutex<State>,
+    /// Serializes pushes to the engine so screens see them in order. Held
+    /// across engine awaits instead of `state`, which must never be.
+    present: tokio::sync::Mutex<()>,
     quick: Mutex<Quick>,
     status: broadcast::Sender<OrchestratorStatus>,
     pending_auto: broadcast::Sender<PendingAutoPresent>,
@@ -233,10 +242,7 @@ impl VoiceDeps for VoiceHost {
         Box::pin(async move {
             if let Some(inner) = self.0.upgrade() {
                 let orchestrator = Orchestrator { inner };
-                let mut state = orchestrator.inner.state.lock().await;
-                orchestrator
-                    .present_scripture(&mut state, suggestion, None)
-                    .await;
+                orchestrator.present_scripture(suggestion, None).await;
             }
         })
     }
@@ -358,7 +364,10 @@ impl Orchestrator {
                 session: None,
                 detector: None,
                 pumps: Vec::new(),
+                start_generation: 0,
+                starting: false,
             }),
+            present: tokio::sync::Mutex::new(()),
             quick: Mutex::new(Quick::default()),
             status,
             pending_auto,
@@ -474,7 +483,23 @@ impl Orchestrator {
             state.update_health(ServiceName::Detector, HealthStatus::Ok, None);
         }
         self.configure_stt(&config);
-        self.start_stt(&mut state).await;
+        state.start_generation += 1;
+        state.starting = true;
+        let generation = state.start_generation;
+        // Connecting STT can take seconds on bad Wi-Fi: stop, status and
+        // approvals must not wait for it.
+        drop(state);
+        let started = self.inner.services.stt.start().await;
+        let mut state = self.inner.state.lock().await;
+        if state.start_generation != generation {
+            // A newer start owns STT now; a stop wants it stopped.
+            if !state.starting && started.is_ok() {
+                self.inner.services.stt.stop();
+            }
+            return;
+        }
+        state.starting = false;
+        Self::apply_stt_start(&mut state, started);
         self.attach_audio(&mut state);
         state.session = Some(Session {
             session_id: format!("session-{}", now_ms()),
@@ -491,8 +516,8 @@ impl Orchestrator {
         tracing::info!(session = ?state.session.as_ref().map(|s| &s.session_id), "orchestrator started");
     }
 
-    async fn start_stt(&self, state: &mut State) {
-        match self.inner.services.stt.start().await {
+    fn apply_stt_start(state: &mut State, started: Result<(), String>) {
+        match started {
             Ok(()) => state.update_health(ServiceName::Stt, HealthStatus::Ok, None),
             Err(error) => {
                 tracing::error!(error, "stt start failed");
@@ -531,6 +556,18 @@ impl Orchestrator {
 
     pub async fn stop(&self) {
         let mut state = self.inner.state.lock().await;
+        if state.starting {
+            // The pending start sees the new generation and stops STT itself.
+            state.starting = false;
+            state.start_generation += 1;
+            for pump in state.pumps.drain(..) {
+                pump.abort();
+            }
+            if let Some(detector) = state.detector.take() {
+                detector.destroy();
+            }
+            return;
+        }
         self.stop_locked(&mut state);
     }
 
@@ -540,6 +577,7 @@ impl Orchestrator {
         }
         tracing::info!("orchestrator stopping");
         state.running = false;
+        state.start_generation += 1;
         {
             let mut quick = self.quick();
             quick.running = false;
@@ -599,6 +637,19 @@ impl Orchestrator {
                 Orchestrator { inner }.on_detector_event(event).await;
             }
         }));
+
+        // Offline or the model refused twice: detect locally until a probe.
+        if let Some(core) = self.inner.services.resilience.clone() {
+            let detector = detector.clone();
+            let mut status = core.watch::<kairo_domain::status::ResilienceStatus>();
+            state.pumps.push(tokio::spawn(async move {
+                while let Some(status) = status.next().await {
+                    detector.set_fallback_mode(
+                        !status.internet_connected || status.claude_fallback_active,
+                    );
+                }
+            }));
+        }
 
         // Finals drive analysis directly; commands are claimed first.
         let weak = Arc::downgrade(&self.inner);
@@ -671,92 +722,60 @@ impl Orchestrator {
                     Some(message.clone()),
                 );
                 self.emit_status(&state);
-                let detector = state.detector.clone();
                 drop(state);
-                self.detector_failed(&message, detector);
+                self.detector_failed(&message);
             }
             DetectorEvent::RequestSuccess => {
-                let detector = self.inner.state.lock().await.detector.clone();
-                if let Some(resilience) = &self.inner.services.resilience {
-                    resilience
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner())
-                        .detector_success(now_ms());
-                    if let Some(d) = detector {
-                        d.set_fallback_mode(false);
-                    }
+                if let Some(core) = &self.inner.services.resilience
+                    && let Err(error) = core
+                        .call(kairo_core::resilience::DetectorStateChange::Succeeded)
+                        .await
+                {
+                    tracing::warn!(%error, "could not report detector success");
                 }
             }
         }
     }
 
     /// Two failures in a row switch detection to the local fallback; a probe
-    /// 30 s later lets the model try again.
-    fn detector_failed(&self, message: &str, detector: Option<Arc<dyn Detector>>) {
-        let Some(resilience) = self.inner.services.resilience.clone() else {
+    /// 30 s later lets the model try again. The fallback itself follows the
+    /// published `ResilienceStatus` (see `create_detector`).
+    fn detector_failed(&self, message: &str) {
+        let Some(core) = self.inner.services.resilience.clone() else {
             return;
         };
-        let ticket = resilience
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .detector_error(message, now_ms());
-        let Some(ticket) = ticket else { return };
-        if let Some(d) = &detector {
-            d.set_fallback_mode(true);
-        }
-        let weak = Arc::downgrade(&self.inner);
+        let message = message.to_owned();
         tokio::spawn(async move {
-            tokio::time::sleep(kairo_core::resilience::RECOVERY_INTERVAL).await;
-            if weak.upgrade().is_none() {
-                return;
-            }
-            let probing = resilience
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .begin_detector_probe(ticket, now_ms());
-            if probing && let Some(d) = detector {
-                d.set_fallback_mode(false);
+            use kairo_core::resilience::{DetectorFailed, probe_after_delay};
+            match core.call(DetectorFailed(message)).await {
+                Ok(Some(ticket)) => {
+                    if let Err(error) = probe_after_delay(&core, ticket).await {
+                        tracing::warn!(%error, "detector probe failed");
+                    }
+                }
+                Ok(None) => {}
+                Err(error) => tracing::warn!(%error, "could not report detector failure"),
             }
         });
     }
 
-    /// The 10 s connectivity poll and the 30 s recovery save, until the
-    /// returned task is aborted. Offline switches detection to the local fallback.
-    pub fn spawn_monitoring(
-        &self,
-        recovery: kairo_core::resilience::RecoveryFile,
-        online: Arc<dyn Fn() -> BoxFuture<'static, bool> + Send + Sync>,
-    ) -> JoinHandle<()> {
+    /// The connectivity poll and the periodic recovery save
+    /// (`kairo_core::resilience::monitor`), until the returned task is aborted.
+    pub fn spawn_monitoring(&self) -> Option<JoinHandle<()>> {
+        let core = self.inner.services.resilience.clone()?;
         let weak = Arc::downgrade(&self.inner);
-        tokio::spawn(async move {
-            let mut poll = tokio::time::interval(Duration::from_secs(10));
-            let start = tokio::time::Instant::now() + kairo_core::resilience::RECOVERY_INTERVAL;
-            let mut save =
-                tokio::time::interval_at(start, kairo_core::resilience::RECOVERY_INTERVAL);
-            loop {
-                tokio::select! {
-                    _ = poll.tick() => {
-                        let connected = online().await;
-                        let Some(inner) = weak.upgrade() else { return };
-                        let orchestrator = Orchestrator { inner };
-                        let Some(resilience) = orchestrator.inner.services.resilience.clone() else { continue };
-                        let changed = resilience.lock().unwrap_or_else(|e| e.into_inner()).set_internet_connected(connected, now_ms());
-                        if changed && let Some(d) = orchestrator.detector().await {
-                            d.set_fallback_mode(!connected);
-                        }
-                    }
-                    _ = save.tick() => {
-                        let Some(inner) = weak.upgrade() else { return };
-                        let orchestrator = Orchestrator { inner };
-                        if let Some(snapshot) = orchestrator.recovery_snapshot().await
-                            && let Err(error) = recovery.save(snapshot).await
-                        {
-                            tracing::error!(%error, "failed to save session state");
-                        }
-                    }
+        Some(tokio::spawn(async move {
+            let snapshot = move || {
+                let weak = weak.clone();
+                async move {
+                    let inner = weak.upgrade().ok_or("orchestrator dropped")?;
+                    Ok(Orchestrator { inner }.recovery_snapshot().await)
                 }
+            };
+            if let Err(error) = kairo_core::resilience::monitor(&core, snapshot).await {
+                tracing::warn!(%error, "resilience monitoring stopped");
             }
-        })
+        }))
     }
 
     fn note_follow_up(&self, suggestion: &ScriptureSuggestion) {
@@ -787,14 +806,16 @@ impl Orchestrator {
         if let Some(suggestion) = state.pending(id).cloned() {
             Self::cancel_auto(&mut state, id);
             state.take_pending(id);
+            drop(state);
             self.inner.services.usage.track("scripture_manual");
-            self.present_scripture(&mut state, suggestion, None).await;
+            self.present_scripture(suggestion, None).await;
             return;
         }
+        drop(state);
         // A manual search card from the scripture service.
         if let Some(manual) = self.inner.services.scripture.pending_suggestion(id) {
             self.inner.services.usage.track("scripture_manual");
-            self.present_scripture(&mut state, manual, None).await;
+            self.present_scripture(manual, None).await;
         }
     }
 
@@ -905,6 +926,8 @@ impl Orchestrator {
             let mut verses: Vec<ScriptureVerse> =
                 plan_entries.iter().map(|e| e.verse.clone()).collect();
             if verses.is_empty() {
+                // Lookups go to the network: never hold the state across them.
+                drop(state);
                 let scripture = self.inner.services.scripture.clone();
                 let lookup_ref = reference.clone();
                 let quiet = requested
@@ -942,6 +965,7 @@ impl Orchestrator {
                         &cfg.scripture_translation,
                     )
                     .await;
+                state = self.inner.state.lock().await;
                 if let Ok(found) = found {
                     verses = found.verses;
                     translation = found.translation;
@@ -1094,10 +1118,9 @@ impl Orchestrator {
                 return;
             }
             state.take_pending(&fired.id);
+            drop(state);
             orchestrator.inner.services.usage.track("scripture_auto");
-            orchestrator
-                .present_scripture(&mut state, fired, Some(content))
-                .await;
+            orchestrator.present_scripture(fired, Some(content)).await;
         });
         state.auto_timers.insert(id.clone(), timer);
         let _ = self.inner.pending_auto.send(PendingAutoPresent {
@@ -1144,16 +1167,15 @@ impl Orchestrator {
 
     pub async fn present_scripture_directly(&self, suggestion: ScriptureSuggestion) {
         self.inner.services.usage.track("scripture_manual");
-        let mut state = self.inner.state.lock().await;
-        self.present_scripture(&mut state, suggestion, None).await;
+        self.present_scripture(suggestion, None).await;
     }
 
     async fn present_scripture(
         &self,
-        state: &mut State,
         suggestion: ScriptureSuggestion,
         prepared: Option<PushContent>,
     ) {
+        let _present = self.inner.present.lock().await;
         let suggestion = single_verse_suggestion(&suggestion);
         let content = prepared.or_else(|| self.prepare_projection(&suggestion));
         let results = match &content {
@@ -1163,6 +1185,8 @@ impl Orchestrator {
             }
             None => Vec::new(),
         };
+        let mut state = self.inner.state.lock().await;
+        let state = &mut *state;
         self.record_dispatch_health(state, &results);
         // Live in the program whether or not a screen took it.
         if !results.iter().any(|r| r.ok) {
@@ -1217,7 +1241,7 @@ impl Orchestrator {
         if kairo_domain::js::trim(text).is_empty() {
             return Err("Slide is empty — nothing to push.".into());
         }
-        let mut state = self.inner.state.lock().await;
+        let _present = self.inner.present.lock().await;
         let content = PushContent {
             reference: reference.into(),
             text: text.into(),
@@ -1226,6 +1250,7 @@ impl Orchestrator {
         let results = self
             .dispatch_content(&content, OverlayContentKind::Lyrics)
             .await;
+        let mut state = self.inner.state.lock().await;
         self.record_dispatch_health(&mut state, &results);
         if !results.iter().any(|r| r.ok) {
             tracing::warn!(reference, "lyric slide is live but no screen took it");
@@ -1362,7 +1387,7 @@ impl Orchestrator {
         media_path: &str,
         slide: Option<DocumentSlide>,
     ) -> bool {
-        let _state = self.inner.state.lock().await;
+        let _present = self.inner.present.lock().await;
         let engine = &self.inner.services.engine;
         let targets = engine.live_targets(Some(ShowKind::Documents));
         if targets.is_empty() {
@@ -1399,7 +1424,7 @@ impl Orchestrator {
     }
 
     pub async fn present_live_background(&self) -> bool {
-        let _state = self.inner.state.lock().await;
+        let _present = self.inner.present.lock().await;
         if self.inner.services.media.live_item().is_none() {
             return false;
         }
@@ -1453,7 +1478,7 @@ impl Orchestrator {
         let Some(content) = self.prepare_projection(&sample) else {
             return false;
         };
-        let _state = self.inner.state.lock().await;
+        let _present = self.inner.present.lock().await;
         self.dispatch_content(&content, OverlayContentKind::Scripture)
             .await
             .iter()
@@ -1463,9 +1488,9 @@ impl Orchestrator {
     /// Clears the text; where nothing was painted, the dock background goes up
     /// instead, or the surface is blanked.
     pub async fn clear_text(&self) -> bool {
-        let state = self.inner.state.lock().await;
+        let _present = self.inner.present.lock().await;
         self.inner.services.program.clear_current();
-        if let Some(detector) = &state.detector {
+        if let Some(detector) = self.inner.state.lock().await.detector.clone() {
             detector.set_reading_passage(None);
         }
         let engine = &self.inner.services.engine;
@@ -1500,7 +1525,7 @@ impl Orchestrator {
 
     /// Blank every screen and feed and reset the live program.
     pub async fn clear_overlay(&self) -> bool {
-        let _state = self.inner.state.lock().await;
+        let _present = self.inner.present.lock().await;
         for surface in self.inner.services.engine.all_surfaces() {
             self.inner.services.engine.clear(surface).await;
         }
@@ -1570,7 +1595,19 @@ impl Orchestrator {
             // Same wiring as a cold start, key or no key.
             self.create_detector(&mut state, &cfg);
             self.configure_stt(&cfg);
-            self.start_stt(&mut state).await;
+            state.start_generation += 1;
+            let generation = state.start_generation;
+            drop(state);
+            let started = self.inner.services.stt.start().await;
+            state = self.inner.state.lock().await;
+            if state.start_generation != generation {
+                // Stopped (or started afresh) while STT connected.
+                if !state.starting && started.is_ok() {
+                    self.inner.services.stt.stop();
+                }
+                return Ok(());
+            }
+            Self::apply_stt_start(&mut state, started);
             self.attach_audio(&mut state);
         }
         self.emit_status(&state);

@@ -424,7 +424,10 @@ pub fn read_song_files(songs_dir: &Path, now_ms: f64) -> Vec<SongFileEntry> {
         match std::fs::read_to_string(&file) {
             Ok(raw) => {
                 match parse_song_file(&raw, song_id_from_file_name(&name).unwrap_or(""), now_ms) {
-                    Some(song) => entries.push(SongFileEntry { song, file }),
+                    Some(song) => {
+                        remember_embedded_id(&file, Some(song.id.clone()));
+                        entries.push(SongFileEntry { song, file })
+                    }
                     None => {
                         tracing::warn!(file = %file.display(), "[SongFiles] Skipped unreadable song file")
                     }
@@ -438,6 +441,81 @@ pub fn read_song_files(songs_dir: &Path, now_ms: f64) -> Vec<SongFileEntry> {
     entries
 }
 
+/// What a song file's metadata looked like when its embedded id was read.
+#[derive(Clone, PartialEq)]
+struct FileStamp {
+    modified: Option<std::time::SystemTime>,
+    len: u64,
+    /// Inode and change time on Unix: an atomic replace gets a new inode and
+    /// any write moves the change time, even at the same size and mtime.
+    #[cfg(unix)]
+    identity: (u64, i64, i64),
+}
+
+impl FileStamp {
+    fn of(metadata: &std::fs::Metadata) -> Self {
+        #[cfg(unix)]
+        use std::os::unix::fs::MetadataExt;
+        Self {
+            modified: metadata.modified().ok(),
+            len: metadata.len(),
+            #[cfg(unix)]
+            identity: (metadata.ino(), metadata.ctime(), metadata.ctime_nsec()),
+        }
+    }
+}
+
+/// Embedded song ids by file, so finding a song's files only parses files
+/// that are new or changed since they were last read. `None` means the file
+/// did not parse and is matched by its file-name id.
+type EmbeddedIds = std::collections::HashMap<PathBuf, (FileStamp, Option<String>)>;
+static EMBEDDED_IDS: std::sync::Mutex<Option<EmbeddedIds>> = std::sync::Mutex::new(None);
+
+fn remember_embedded_id(file: &Path, id: Option<String>) {
+    let Ok(metadata) = std::fs::metadata(file) else {
+        return;
+    };
+    let mut cache = EMBEDDED_IDS.lock().unwrap_or_else(|e| e.into_inner());
+    cache
+        .get_or_insert_with(Default::default)
+        .insert(file.to_owned(), (FileStamp::of(&metadata), id));
+}
+
+fn forget_embedded_id(file: &Path) {
+    let mut cache = EMBEDDED_IDS.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(cache) = cache.as_mut() {
+        cache.remove(file);
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static SONG_FILE_PARSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+fn embedded_id(file: &Path, metadata: &std::fs::Metadata, filename_id: &str) -> Option<String> {
+    let stamp = FileStamp::of(metadata);
+    {
+        let cache = EMBEDDED_IDS.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((cached, id)) = cache.as_ref().and_then(|c| c.get(file))
+            && *cached == stamp
+        {
+            return id.clone();
+        }
+    }
+    #[cfg(test)]
+    SONG_FILE_PARSES.with(|n| n.set(n.get() + 1));
+    let id = std::fs::read_to_string(file)
+        .ok()
+        .and_then(|raw| parse_song_file(&raw, filename_id, 0.0))
+        .map(|song| song.id);
+    let mut cache = EMBEDDED_IDS.lock().unwrap_or_else(|e| e.into_inner());
+    cache
+        .get_or_insert_with(Default::default)
+        .insert(file.to_owned(), (stamp, id.clone()));
+    id
+}
+
 fn matching_song_files(songs_dir: &Path, song_id: &str) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(songs_dir) else {
         return Vec::new();
@@ -447,15 +525,16 @@ fn matching_song_files(songs_dir: &Path, song_id: &str) -> Vec<PathBuf> {
         .filter_map(|entry| {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            if !is_song_file_name(&name) || entry.file_type().ok()?.is_dir() {
+            if !is_song_file_name(&name) {
+                return None;
+            }
+            let metadata = entry.metadata().ok()?;
+            if metadata.is_dir() {
                 return None;
             }
             let file = entry.path();
             let filename_id = song_id_from_file_name(&name).unwrap_or("");
-            let embedded_id = std::fs::read_to_string(&file)
-                .ok()
-                .and_then(|raw| parse_song_file(&raw, filename_id, 0.0))
-                .map(|song| song.id);
+            let embedded_id = embedded_id(&file, &metadata, filename_id);
             (embedded_id.as_deref().unwrap_or(filename_id) == song_id).then_some(file)
         })
         .collect()
@@ -471,11 +550,6 @@ pub fn find_song_file(songs_dir: &Path, song_id: &str) -> Option<PathBuf> {
 pub fn write_song_file(songs_dir: &Path, song: &LyricsSong) -> Option<PathBuf> {
     let existing = matching_song_files(songs_dir, &song.id);
     write_song_file_replacing(songs_dir, song, existing)
-}
-
-/// Exports a song whose absence from the folder was already checked by a scan.
-pub fn export_song_file(songs_dir: &Path, song: &LyricsSong) -> Option<PathBuf> {
-    write_song_file_replacing(songs_dir, song, Vec::new())
 }
 
 fn write_song_file_replacing(
@@ -497,8 +571,10 @@ fn write_song_file_replacing(
         std::fs::create_dir_all(songs_dir)?;
         let text = serialize_song_file(song).map_err(std::io::Error::other)?;
         write_atomic(&target, text.as_bytes())?;
+        remember_embedded_id(&target, Some(song.id.clone()));
         for existing in existing.into_iter().filter(|e| *e != target) {
             remove_any(&existing)?;
+            forget_embedded_id(&existing);
         }
         Ok(())
     })();
@@ -518,9 +594,82 @@ pub fn delete_song_file(songs_dir: &Path, song_id: &str) -> bool {
         if let Err(error) = remove_any(&file) {
             tracing::error!(file = %file.display(), %error, "[SongFiles] Could not delete song file");
             removed = false;
+        } else {
+            forget_embedded_id(&file);
         }
     }
     removed
+}
+
+#[cfg(test)]
+mod song_file_lookup_tests {
+    use super::*;
+
+    fn song(id: &str, title: &str) -> LyricsSong {
+        serde_json::from_value(json!({
+            "id": id, "title": title, "artist": "", "copyright": "", "ccliNumber": "",
+            "isFavorite": false, "source": "text", "createdAt": 1, "updatedAt": 2,
+            "sections": [{ "type": "verse", "label": "Verse 1", "lines": ["Line"] }]
+        }))
+        .unwrap()
+    }
+
+    fn parses() -> usize {
+        SONG_FILE_PARSES.with(|n| n.get())
+    }
+
+    fn song_files(dir: &Path) -> usize {
+        std::fs::read_dir(dir).unwrap().count()
+    }
+
+    #[test]
+    fn an_externally_renamed_file_is_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        let songs = dir.path().join("Songs");
+        let file = write_song_file(&songs, &song("song-1", "Grace")).unwrap();
+        let renamed = songs.join("Renamed__other.song.json");
+        std::fs::rename(&file, &renamed).unwrap();
+        let written = write_song_file(&songs, &song("song-1", "Grace")).unwrap();
+        assert!(!renamed.exists());
+        assert!(written.exists());
+        assert_eq!(song_files(&songs), 1);
+    }
+
+    #[test]
+    fn files_added_or_edited_by_another_process_are_found() {
+        let dir = tempfile::tempdir().unwrap();
+        let songs = dir.path().join("Songs");
+        write_song_file(&songs, &song("song-1", "One")).unwrap();
+        assert_eq!(find_song_file(&songs, "song-2"), None);
+
+        // Added after the cache was built.
+        let added = songs.join("Added__x.song.json");
+        std::fs::write(&added, serialize_song_file(&song("song-2", "Two")).unwrap()).unwrap();
+        assert_eq!(find_song_file(&songs, "song-2"), Some(added.clone()));
+
+        // Edited in place to hold another id.
+        std::fs::write(
+            &added,
+            serialize_song_file(&song("song-three", "Three")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(find_song_file(&songs, "song-2"), None);
+        assert_eq!(find_song_file(&songs, "song-three"), Some(added));
+    }
+
+    #[test]
+    fn updating_one_song_does_not_parse_the_whole_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        let songs = dir.path().join("Songs");
+        for n in 0..200 {
+            write_song_file(&songs, &song(&format!("song-{n}"), &format!("Song {n}"))).unwrap();
+        }
+        let before = parses();
+        write_song_file(&songs, &song("song-7", "Renamed seven")).unwrap();
+        assert!(delete_song_file(&songs, "song-8"));
+        assert_eq!(parses() - before, 0, "every file was already known");
+        assert_eq!(song_files(&songs), 199);
+    }
 }
 
 #[cfg(test)]

@@ -147,7 +147,6 @@ async fn rig(platform: Platform, arch: Arch, appimage: bool) -> Rig {
         source: ReleaseSource {
             releases: format!("{base}{RELEASES}"),
         },
-        sim_step: Duration::from_millis(1),
     };
     let service = UpdaterService::new(config);
     let statuses: Arc<Mutex<Vec<UpdateStatus>>> = Arc::default();
@@ -477,7 +476,6 @@ fn base_config(rig: &Rig) -> UpdaterConfig {
         source: ReleaseSource {
             releases: rig.releases.clone(),
         },
-        sim_step: Duration::from_millis(1),
     }
 }
 
