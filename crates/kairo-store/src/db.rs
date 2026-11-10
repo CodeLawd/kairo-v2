@@ -8,6 +8,7 @@ mod pack;
 mod verse_counts;
 
 pub use pack::{PackVerse, ValidatedPack, validate_bible_pack};
+pub use verse_counts::BIBLE_VERSE_COUNTS;
 
 use async_channel::{Receiver, Sender};
 use rusqlite::{Connection, OpenFlags};

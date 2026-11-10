@@ -1,0 +1,70 @@
+{"fn":"oracle:scripture-service.parseReference","electron_commit":"af978c5159","src_lib_dirty":false}
+{"k":"0029e9dc9d584057","r":{"book":"Revelation","chapter":22,"verseStart":21,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"00fdfb4b7ac8b9e9","r":null}
+{"k":"05f003af7bcdea24","r":{"book":"Jude","chapter":1,"isChapter":true}}
+{"k":"064ea8609244da16","r":{"book":"1 Corinthians","chapter":13,"verseStart":4,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"06f06eaf596da090","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":14}}
+{"k":"0f50bdef00cfc420","r":{"book":"Psalms","chapter":23,"isChapter":true}}
+{"k":"123bf42d26809cba","r":{"book":"Philippians","chapter":1,"verseStart":1,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"13a6ad9f1e33fd03","r":{"book":"Book","chapter":3,"verseStart":4,"verseEnd":5}}
+{"k":"13c10a577c78c599","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":0}}
+{"k":"19efdeca9bd4949b","r":{"book":"1 Thessalonians","chapter":4,"verseStart":13,"verseEnd":18}}
+{"k":"210224bdc0644b43","r":{"book":"John","chapter":3,"verseStart":1e+20,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"23560f8332803d59","r":{"book":"Genesis","chapter":1,"verseStart":1,"verseEnd":3}}
+{"k":"25aff916031ed708","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"2ae7bb4fda3fc741","r":{"book":"Mark","chapter":9,"verseStart":43,"verseEnd":48}}
+{"k":"2b220b861fed5a26","r":{"book":"Romans","chapter":8,"verseStart":28,"verseEnd":30}}
+{"k":"2cb6804f5b790d6d","r":{"book":"a","chapter":1,"verseStart":2,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"2f9e5b88f6050f31","r":{"book":"Psalms","chapter":119,"verseStart":105,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"2fef419068b4d8cb","r":{"book":"Song of Solomon","chapter":2,"isChapter":true}}
+{"k":"39cdca6d9b177eb9","r":{"book":"j","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"3b03509a43ffc925","r":null}
+{"k":"3bbc1f1c2ddb2c11","r":{"book":"Philemon","chapter":1,"verseStart":2,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"3f4da0f1c612760b","r":{"book":"Foo","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"4400013a537e626d","r":{"book":"First Peter","chapter":5,"verseStart":7,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"45f206eef75a1f74","r":{"book":"Psalms","chapter":117,"verseStart":1,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"474de208e22437d9","r":null}
+{"k":"487493eeae86309b","r":null}
+{"k":"4a754d7cef9b56a2","r":{"book":"Jo","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"55d5a295455e9071","r":{"book":"Rev.","chapter":21,"verseStart":4,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"57040d029b29ae26","r":null}
+{"k":"6735389de1742d75","r":null}
+{"k":"6d513571c38cbca5","r":{"book":"Psalms","chapter":117,"isChapter":true}}
+{"k":"6db0cdb42a7461cc","r":{"book":"Psalms","chapter":23,"verseStart":1,"verseEnd":6}}
+{"k":"6e42b506d407c8fe","r":{"book":"Song of Solomon","chapter":1,"verseStart":1,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"731453d75562772b","r":{"book":"Psalms","chapter":23,"isChapter":true}}
+{"k":"77a369e964149189","r":null}
+{"k":"7cddde3acde34c3a","r":{"book":"x","chapter":1,"verseStart":2,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"82ab9fa463005dee","r":{"book":"gen.","chapter":1,"verseStart":2,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"8875b88966669e09","r":{"book":"Foo","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"8c4b1e643073a3bb","r":{"book":"Jude","chapter":1,"verseStart":3,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"8f79b2ecdf77dad7","r":{"book":"Book","chapter":3,"verseStart":4,"verseEnd":5}}
+{"k":"8f84b8006f99b320","r":{"book":"phi","chapter":1,"verseStart":1,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"90815c822e0befb3","r":{"book":"Mark","chapter":9,"isChapter":true}}
+{"k":"9849463a9df69d55","r":{"book":"Mark","chapter":9,"verseStart":44,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"a02d8874cf7bee60","r":{"book":"Psalms","chapter":23,"isChapter":true}}
+{"k":"a12d7892d0f27710","r":{"book":"I Corinthians","chapter":13,"verseStart":4,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"a148919edd1f047f","r":{"book":"Foo","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"a421f6faf1d7ad08","r":{"book":"Genesis","chapter":1,"isChapter":true}}
+{"k":"a42d1d66f21d7781","r":{"book":"Psalms","chapter":23,"isChapter":true}}
+{"k":"ae1a380689187575","r":{"book":"zzz","chapter":1,"verseStart":1,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"afec20648d57db9b","r":{"book":"1","chapter":2,"verseStart":3,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"b0e58b684610e120","r":{"book":"Genesis","chapter":21,"verseStart":1,"verseEnd":2}}
+{"k":"b266c5346f0065ae","r":{"book":"1st John","chapter":1,"verseStart":9,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"b4db72ff9f8daa1c","r":null}
+{"k":"b54b21b95a2dc906","r":{"book":"Joshua","chapter":1,"verseStart":5,"verseEnd":9}}
+{"k":"b7a24b3e092225ba","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"c7b97641993fa60b","r":{"book":"1 Corinthians","chapter":13,"verseStart":4,"verseEnd":7}}
+{"k":"d14decbeeeaf1d34","r":{"book":"Joshua","chapter":1,"verseStart":9,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"dcdfe7e5e39224d5","r":{"book":"Ezra","chapter":1,"isChapter":true}}
+{"k":"de9564912147be38","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"e14461c2c1cf95dd","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":18}}
+{"k":"e20697fea434924d","r":{"book":"3 John","chapter":1,"verseStart":14,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"e7de3ab6c1f297a5","r":{"book":"Book","chapter":3,"verseStart":4,"verseEnd":5}}
+{"k":"eaa1c0fea90fc846","r":{"book":"3 John","chapter":1,"verseStart":15,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"eec16066295540f9","r":null}
+{"k":"f52d9d1acbd12f5b","r":{"book":"John","chapter":3,"verseStart":0,"verseEnd":{"$oracle":"undefined"}}}
+{"k":"f76b426276635370","r":{"book":"Obadiah","chapter":1,"isChapter":true}}
+{"k":"f82de3983376ca09","r":null}
+{"k":"f918ded5aca17ad1","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":18}}
+{"k":"fb40033f30277995","r":{"book":"John","chapter":3,"verseStart":16,"verseEnd":18}}

@@ -5,7 +5,7 @@ use kairo_domain::scripture::{
 use rusqlite::{Connection, OpenFlags};
 use std::{fs, io::ErrorKind, path::Path, thread};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PackVerse {
     pub book_id: u32,
     pub chapter: u32,
