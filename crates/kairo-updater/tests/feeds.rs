@@ -631,6 +631,8 @@ async fn windows_stages_the_verified_installer() {
         .unwrap()
         .flat_map(|d| std::fs::read_dir(d.unwrap().path()).unwrap())
         .map(|e| e.unwrap().path())
+        // The folder's lock file marks it in use; it is not staged content.
+        .filter(|p| p.file_name().unwrap() != ".lock")
         .collect();
     assert_eq!(staged.len(), 1);
     assert_eq!(staged[0].file_name().unwrap(), "Kairo-Setup-1.0.34.exe");

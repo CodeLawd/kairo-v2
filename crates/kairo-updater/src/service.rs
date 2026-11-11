@@ -106,6 +106,9 @@ struct Inner {
     status: UpdateStatus,
     pending: Option<Pending>,
     staged: Option<(Staged, PathBuf)>,
+    /// Held while the staged download's folder is in use, so another
+    /// Kairo starting up does not take it for a stale one.
+    staged_lock: Option<std::fs::File>,
     installing: bool,
     busy: bool,
     signing: MacSigning,
@@ -158,6 +161,7 @@ impl UpdaterService {
                 },
                 pending: None,
                 staged: None,
+                staged_lock: None,
                 installing: false,
                 busy: false,
                 signing: MacSigning::Adhoc,
@@ -242,6 +246,7 @@ impl UpdaterService {
     }
 
     /// An interrupted download from an earlier run leaves its folder behind.
+    /// A folder whose lock another running Kairo holds is in use, not stale.
     async fn remove_stale_downloads(&self) {
         let Ok(mut entries) = tokio::fs::read_dir(&self.config.temp_dir).await else {
             return;
@@ -251,6 +256,7 @@ impl UpdaterService {
                 .file_name()
                 .to_string_lossy()
                 .starts_with("kairo-update-")
+                && !download_in_use(&entry.path())
             {
                 let _ = tokio::fs::remove_dir_all(entry.path()).await;
             }
@@ -434,10 +440,12 @@ impl UpdaterService {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |d| d.as_nanos())
         ));
+        let mut held = None;
         let staged = async {
             tokio::fs::create_dir_all(&dir)
                 .await
                 .map_err(|e| e.to_string())?;
+            held = Some(lock_download(&dir).map_err(|e| e.to_string())?);
             let name = match config.platform {
                 Platform::Mac => "update.zip".to_owned(),
                 _ => Path::new(&file.url)
@@ -487,10 +495,13 @@ impl UpdaterService {
         .await;
         match staged {
             Ok(staged) => {
-                lock(&self.inner).staged = Some((staged, dir));
+                let mut inner = lock(&self.inner);
+                inner.staged = Some((staged, dir));
+                inner.staged_lock = held;
                 Ok(())
             }
             Err(error) => {
+                drop(held);
                 let _ = tokio::fs::remove_dir_all(&dir).await;
                 Err(Failure::Raw(error))
             }
@@ -681,9 +692,41 @@ fn spawn_installer(installer: &Path, explicit: bool) -> std::io::Result<()> {
     command.spawn().map(drop)
 }
 
+/// The lock file inside a download folder.
+const DOWNLOAD_LOCK: &str = ".lock";
+
+/// Takes the exclusive lock on a new download folder for this process.
+fn lock_download(dir: &Path) -> std::io::Result<std::fs::File> {
+    let file = std::fs::File::create(dir.join(DOWNLOAD_LOCK))?;
+    file.try_lock().map_err(std::io::Error::from)?;
+    Ok(file)
+}
+
+/// Whether a running Kairo holds `dir`'s download lock. A folder without a
+/// lock file, or one whose lock is free, belongs to a process that is gone.
+fn download_in_use(dir: &Path) -> bool {
+    let Ok(file) = std::fs::File::open(dir.join(DOWNLOAD_LOCK)) else {
+        return false;
+    };
+    matches!(file.try_lock(), Err(std::fs::TryLockError::WouldBlock))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_download_folder_is_stale_only_once_its_lock_is_free() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("kairo-update-1-2");
+        std::fs::create_dir_all(&dir).unwrap();
+        // An earlier run's folder without a lock file is stale.
+        assert!(!download_in_use(&dir));
+        let held = lock_download(&dir).unwrap();
+        assert!(download_in_use(&dir), "another Kairo is downloading here");
+        drop(held);
+        assert!(!download_in_use(&dir));
+    }
 
     #[test]
     fn fake_next_version_bumps_the_patch() {

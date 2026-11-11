@@ -1016,11 +1016,14 @@ async fn connect_socket(url: &str, token: &str) -> Result<Socket, String> {
         .parse()
         .map_err(|_| "invalid transcription token".to_string())?;
     request.headers_mut().insert("Authorization", auth);
-    let (socket, _) =
-        tokio::time::timeout(CONNECT_TIMEOUT, tokio_tungstenite::connect_async(request))
-            .await
-            .map_err(|_| "connection timed out".to_string())?
-            .map_err(|e| e.to_string())?;
+    // Audio goes out in small frames as it is captured: Nagle's algorithm
+    // would hold one back until the previous is acknowledged, and a delayed
+    // ACK makes that about 40 ms on Linux.
+    let connect = tokio_tungstenite::connect_async_with_config(request, None, true);
+    let (socket, _) = tokio::time::timeout(CONNECT_TIMEOUT, connect)
+        .await
+        .map_err(|_| "connection timed out".to_string())?
+        .map_err(|e| e.to_string())?;
     Ok(socket)
 }
 

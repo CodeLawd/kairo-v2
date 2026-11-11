@@ -111,7 +111,10 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
         }],
     );
     committed(&rx, fade_seq);
-    std::thread::sleep(Duration::from_millis(500));
+    // The fade, then time for the frame at rest after it: a slow GPU
+    // (WARP draws a frame in about 250 ms) is still drawing at 500 ms.
+    let settle = (Duration::from_millis(300) + frame_cost * 3).max(Duration::from_millis(500));
+    std::thread::sleep(settle);
     let after_fade = compositor.frames("out").unwrap();
     let drawn = after_fade - settled;
     // Frames all through the fade: about 60 a second (18 in 300 ms) where
@@ -123,7 +126,7 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
         (least..=40).contains(&drawn),
         "{drawn} frames for a 300 ms fade (a frame costs {frame_cost:?}, at least {least} expected)"
     );
-    std::thread::sleep(Duration::from_millis(300));
+    std::thread::sleep((frame_cost * 2).max(Duration::from_millis(300)));
     assert_eq!(
         compositor.frames("out").unwrap(),
         after_fade,
