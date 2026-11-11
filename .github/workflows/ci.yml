@@ -84,4 +84,4 @@ jobs:
         # must not skip there. macOS runners may have no GPU.
         env:
           KAIRO_REQUIRE_GPU: ${{ runner.os != 'macOS' && '1' || '' }}
-        run: cargo test --locked --workspace
+        run: cargo test --locked --workspace --no-fail-fast

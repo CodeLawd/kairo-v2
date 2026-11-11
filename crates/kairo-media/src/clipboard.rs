@@ -209,16 +209,28 @@ mod tests {
         assert_eq!(parse_plist_paths(&plist_for_paths(&paths)), paths);
     }
 
+    /// A file URL and the path it names on this platform: a URL without a
+    /// drive letter is not a local path on Windows.
+    #[cfg(not(windows))]
+    const LOOP_URL: (&str, &str) = ("file:///Users/x/My%20Loop.mp4", "/Users/x/My Loop.mp4");
+    #[cfg(windows)]
+    const LOOP_URL: (&str, &str) = ("file:///C:/x/My%20Loop.mp4", "C:\\x\\My Loop.mp4");
+
     #[test]
     fn plain_text_accepts_urls_and_absolute_paths_only() {
-        let text = "file:///Users/x/My%20Loop.mp4\r\n  /tmp/a.png \nnotes.txt\nC:\\m\\b.mov\n\n";
-        let paths = parse_text_paths(text);
-        assert_eq!(paths[0], PathBuf::from("/Users/x/My Loop.mp4"));
+        let text = format!(
+            "{}\r\n  /tmp/a.png \nnotes.txt\nC:\\m\\b.mov\n\n",
+            LOOP_URL.0
+        );
+        let paths = parse_text_paths(&text);
+        assert_eq!(paths[0], PathBuf::from(LOOP_URL.1));
         assert_eq!(paths[1], PathBuf::from("/tmp/a.png"));
         assert_eq!(paths[2], PathBuf::from("C:\\m\\b.mov"));
         assert_eq!(paths.len(), 3);
     }
 
+    /// `public.file-url` is a macOS pasteboard type; its bare paths are Unix.
+    #[cfg(unix)]
     #[test]
     fn a_bare_file_url_path_gets_a_scheme() {
         assert_eq!(
