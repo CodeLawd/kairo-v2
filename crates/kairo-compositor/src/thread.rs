@@ -33,6 +33,14 @@ pub enum Op {
         content: Option<(Content, String)>,
         ms: u32,
     },
+    /// The pixels of a keyed node that was made before they were ready
+    /// (an image decoded off-thread). Ignored when the key is no longer the
+    /// slot's current one.
+    Update {
+        slot: Slot,
+        key: String,
+        content: Content,
+    },
     /// `program.style.background`.
     ProgramBackground(Option<[f32; 4]>),
     /// `config.video`, normalised once.
@@ -118,6 +126,8 @@ struct Output {
     /// A frame is due at this time.
     due: Option<Instant>,
     last_frame: Option<Instant>,
+    /// A fade was running when the loop last looked.
+    animated: bool,
     /// Frames drawn since the output opened.
     frames: u64,
 }
@@ -272,7 +282,13 @@ fn run(
         let now = Instant::now();
         let wake = outputs
             .values()
-            .filter_map(|o| o.due.or_else(|| o.scene.stack.next_change(now)))
+            .filter_map(|o| {
+                o.due
+                    .or_else(|| o.scene.stack.next_change(now))
+                    // A fade that ended while a slow frame was drawing still
+                    // owes its frame at rest; nothing else would wake for it.
+                    .or_else(|| o.animated.then_some(now))
+            })
             .min();
         let first = match wake {
             None => match rx.recv() {
@@ -295,21 +311,48 @@ fn run(
         let now = Instant::now();
         for (name, output) in &mut outputs {
             output.scene.stack.prune(now);
-            let animating = output.scene.stack.animating(now);
-            if animating && output.due.is_none() {
-                // Windows pace themselves on vsync; offscreen frames on a timer.
-                let next = match (output.window.is_some(), output.last_frame) {
-                    (false, Some(last)) => (last + OFFSCREEN_FRAME).max(now),
-                    _ => now,
-                };
-                output.due = Some(next);
+            // Both run every pass: a changed frame must be seen even while a fade runs.
+            let fading = output.scene.stack.animating(now);
+            let frames = output.scene.stack.frames_changed(now);
+            let animating = fading || frames;
+            if output.due.is_none() {
+                output.due = next_frame(
+                    animating,
+                    output.animated,
+                    output.window.is_some(),
+                    output.last_frame,
+                    now,
+                );
             }
+            output.animated = animating;
             if output.due.is_some_and(|at| at <= now) {
                 output.due = None;
                 draw(&mut renderer, name, output, now, &events);
             }
         }
     }
+}
+
+/// When the next frame is due, if one is, for an output with none pending.
+///
+/// A running fade wants a frame now: windows pace themselves on vsync,
+/// offscreen frames on a timer. The loop after a fade ends wants one more:
+/// the last frame inside the fade was drawn up to a vsync before its end,
+/// so without it a window keeps the old node faintly on screen.
+fn next_frame(
+    animating: bool,
+    was_animating: bool,
+    window: bool,
+    last_frame: Option<Instant>,
+    now: Instant,
+) -> Option<Instant> {
+    if !animating && !was_animating {
+        return None;
+    }
+    Some(match (window, last_frame) {
+        (false, Some(last)) => (last + OFFSCREEN_FRAME).max(now),
+        _ => now,
+    })
 }
 
 /// Handles one message. False when the thread should stop.
@@ -367,6 +410,7 @@ fn handle(
                     committed: 0,
                     due: Some(now),
                     last_frame: None,
+                    animated: false,
                     frames: 0,
                 },
             );
@@ -452,6 +496,9 @@ pub(crate) fn apply(scene: &mut Scene, op: Op, frame_height: u32, now: Instant) 
         Op::Keyed { slot, content, ms } => {
             scene.stack.set_keyed(slot, content, ms, now);
         }
+        Op::Update { slot, key, content } => {
+            scene.stack.update_keyed(slot, &key, content, now);
+        }
         Op::ProgramBackground(color) => scene.program_background = color,
         Op::Layout(layout) => {
             scene.layout = layout;
@@ -529,5 +576,27 @@ fn draw(
             output: name.into(),
             seq: output.seq,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_fade_that_ends_gets_one_frame_at_rest() {
+        let now = Instant::now();
+        let last = Some(now - Duration::from_millis(5));
+        // Running: a window draws now, offscreen on the frame timer.
+        assert_eq!(next_frame(true, true, true, last, now), Some(now));
+        assert_eq!(
+            next_frame(true, true, false, last, now),
+            Some(now - Duration::from_millis(5) + OFFSCREEN_FRAME)
+        );
+        // Just ended: one more frame, so the fade's end is what shows.
+        assert_eq!(next_frame(false, true, true, last, now), Some(now));
+        // Still: nothing.
+        assert_eq!(next_frame(false, false, true, last, now), None);
+        assert_eq!(next_frame(false, false, false, None, now), None);
     }
 }

@@ -3,3 +3,24 @@ name = "kairo-scene"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+# Slide scenes and their CPU raster. Used by the engine and by the UI
+# process (thumbnails). Reads no settings, network or database: it takes a
+# theme and text and returns pixels.
+[dependencies]
+avif-decode = { version = "3", default-features = false }
+image = { version = "0.25", default-features = false, features = ["gif", "webp", "bmp", "png", "jpeg"] }
+kairo-domain = { path = "../kairo-domain" }
+kurbo = "0.12"
+parley = "0.10"
+resvg = "0.46"
+serde_json = { version = "1", features = ["float_roundtrip"] }
+swash = "0.2"
+tiny-skia = "0.11"
+tracing = "0.1"
+unicode-segmentation = "1"
+usvg = "0.46"
+
+[dev-dependencies]
+png = "0.18"
+image = { version = "0.25", default-features = false, features = ["avif", "gif", "webp", "bmp", "png", "jpeg"] }

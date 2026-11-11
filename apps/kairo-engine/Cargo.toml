@@ -9,7 +9,9 @@ publish = false
 [dependencies]
 interprocess = "2.4"
 kairo-compositor = { path = "../../crates/kairo-compositor" }
+kairo-domain = { path = "../../crates/kairo-domain" }
 kairo-engine-proto = { path = "../../crates/kairo-engine-proto" }
+kairo-scene = { path = "../../crates/kairo-scene" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "ansi"] }
@@ -21,10 +23,11 @@ objc2-foundation = { version = "0.3", features = ["NSGeometry", "NSThread"] }
 objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSWindow", "NSResponder", "NSView", "NSRunningApplication"] }
 
 [dev-dependencies]
+png = "0.18"
 kairo-core = { path = "../../crates/kairo-core" }
-kairo-domain = { path = "../../crates/kairo-domain" }
 kairo-orchestrator = { path = "../../crates/kairo-orchestrator" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+image = { version = "0.25", default-features = false, features = ["gif"] }
 
 [target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"

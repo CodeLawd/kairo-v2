@@ -1,11 +1,13 @@
 //! The engine's winit loop: surfaces, their windows, and the client.
 
 use crate::display;
-use crate::program::Shell;
+use crate::program::{Planned, Shell};
 use crate::server::{Message, Outbox};
+use crate::text::{Ordered, TextWork, Timing, Wait, text_slot};
+use crate::visuals::{Output, VisualWork};
 use kairo_compositor::thread::{Compositor, CompositorEvent, Sink};
 use kairo_engine_proto::*;
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use winit::application::ApplicationHandler;
@@ -37,6 +39,10 @@ struct EngineSurface {
     stats: SinkStats,
     /// The `overlay.html` shell state of the open window.
     shell: Shell,
+    /// Commands for this surface, in order, some waiting for slide text.
+    queue: Ordered,
+    /// Slides applied and not yet reported committed: for the trace line.
+    traces: VecDeque<(u64, Instant, Timing)>,
 }
 
 impl EngineSurface {
@@ -55,6 +61,11 @@ pub struct Engine {
     /// Set when the engine must exit with a failure status.
     pub exit_code: Option<u8>,
     surfaces: Vec<EngineSurface>,
+    /// Draws slide text off the winit and compositor threads.
+    text: TextWork,
+    /// Reads pictures and draws vector elements off the winit thread.
+    visuals: VisualWork,
+    next_job: u64,
     displays: Vec<DisplayInfo>,
     next_scan: Instant,
     next_report: Instant,
@@ -74,6 +85,9 @@ impl Engine {
             gpu_error: None,
             exit_code: None,
             surfaces: Vec::new(),
+            text: TextWork::new(),
+            visuals: VisualWork::new(),
+            next_job: 0,
             displays: Vec::new(),
             next_scan: now,
             next_report: now + REPORT_EVERY,
@@ -125,6 +139,8 @@ impl Engine {
                         ..SinkStats::default()
                     },
                     shell: Shell::new(&spec.output, frame_height_of(&spec.sink)),
+                    queue: Ordered::default(),
+                    traces: VecDeque::new(),
                 }),
             },
             Command::CloseSurface {
@@ -143,13 +159,11 @@ impl Engine {
                 let before = surface.state.clone();
                 surface.state.apply(&command, true);
                 surface.seq = seq;
-                let ops = surface.shell.command(&command, &before, &surface.state);
+                let planned = surface.shell.command(&command, &before, &surface.state);
                 // Every applied command gets a frame, so `FrameCommitted`
                 // follows even when no pixels change.
-                if surface.window.is_some()
-                    && let Some(compositor) = self.compositor.as_ref()
-                {
-                    compositor.apply(&output, seq, ops);
+                if surface.window.is_some() {
+                    self.dispatch(&output, seq, planned);
                 }
                 if !matches!(
                     command,
@@ -160,6 +174,135 @@ impl Engine {
             }
         }
         self.reconcile(event_loop);
+    }
+
+    /// Hand a command's operations to the compositor, after the words of any
+    /// slide in it have been drawn and every earlier command for the surface
+    /// has been applied.
+    fn dispatch(&mut self, output: &str, seq: u64, planned: Planned) {
+        let received = Instant::now();
+        let mut waits = Vec::new();
+        if let Some(request) = planned.text
+            && let Some(slot) = text_slot(&planned.ops)
+        {
+            let job = self.next_job;
+            self.next_job += 1;
+            let proxy = self.proxy.clone();
+            let owner = output.to_owned();
+            self.text.submit(request, move |done| {
+                let _ = proxy.send_event(Message::Text {
+                    output: owner,
+                    job,
+                    done,
+                });
+            });
+            waits.push(Wait::Text(job, slot));
+        }
+        for request in planned.visuals {
+            let job = self.next_job;
+            self.next_job += 1;
+            let send = |proxy: winit::event_loop::EventLoopProxy<Message>,
+                        owner: String,
+                        slot,
+                        key: String,
+                        generation| {
+                move |o: Output| {
+                    let _ = proxy.send_event(Message::Visual {
+                        output: owner,
+                        job,
+                        slot,
+                        key,
+                        generation,
+                        output_kind: o,
+                    });
+                }
+            };
+            let make = |this: &Self| {
+                send(
+                    this.proxy.clone(),
+                    output.to_owned(),
+                    request.slot,
+                    request.key.clone(),
+                    request.generation,
+                )
+            };
+            if request.blocking {
+                waits.push(Wait::Visual(job, request.op));
+                self.visuals.submit(
+                    request.job,
+                    Some(Box::new(make(self))),
+                    Box::new(make(self)),
+                );
+            } else {
+                self.visuals.submit(request.job, None, Box::new(make(self)));
+            }
+        }
+        if let Some(surface) = self.surface_mut(output) {
+            surface
+                .queue
+                .push_waiting(seq, planned.ops, waits, received);
+        }
+        self.flush(output);
+    }
+
+    /// A worker finished a layer's pixels.
+    fn visual_done(
+        &mut self,
+        output: &str,
+        job: u64,
+        slot: kairo_compositor::Slot,
+        key: String,
+        generation: u64,
+        result: Output,
+    ) {
+        let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
+            return;
+        };
+        match result {
+            // The first stage of an elements layer, which the slide waits for.
+            Output::Fast(content) if surface.queue.complete_visual(job, content.clone()) => {}
+            Output::Fast(_) => {}
+            // Pictures: an update to the node, unless a newer request replaced it.
+            Output::Full(content) | Output::Image(Some(content)) => {
+                if surface.shell.is_current(slot, generation) {
+                    surface.queue.push_waiting(
+                        0,
+                        vec![kairo_compositor::thread::Op::Update { slot, key, content }],
+                        Vec::new(),
+                        Instant::now(),
+                    );
+                }
+            }
+            Output::Image(None) => {
+                tracing::warn!(output, "a background picture could not be shown");
+            }
+        }
+        self.flush(output);
+    }
+
+    /// Apply what is ready, in order.
+    fn flush(&mut self, output: &str) {
+        let Some(compositor) = self.compositor.as_ref() else {
+            return;
+        };
+        let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
+            return;
+        };
+        for ready in surface.queue.ready() {
+            if let Some(timing) = ready.text {
+                if timing.failed {
+                    tracing::error!(
+                        output,
+                        seq = ready.seq,
+                        "slide text could not be built; showing none"
+                    );
+                }
+                surface
+                    .traces
+                    .push_back((ready.seq, ready.received, timing));
+            }
+            compositor.apply(output, ready.seq, ready.ops);
+        }
     }
 
     fn query(&self, id: u64, query: Query) {
@@ -267,6 +410,8 @@ impl Engine {
 
     fn close_window(&mut self, index: usize) {
         let surface = &mut self.surfaces[index];
+        surface.queue.clear();
+        surface.traces.clear();
         if surface.window.take().is_some()
             && let Some(compositor) = self.compositor.as_ref()
         {
@@ -339,12 +484,11 @@ impl Engine {
         );
         let surface = &mut self.surfaces[index];
         surface.shell = Shell::new(&output, sink.frame_height);
-        let ops = surface.shell.rebuild(&surface.state);
+        surface.queue.clear();
+        surface.traces.clear();
+        let planned = surface.shell.rebuild(&surface.state);
         let seq = surface.seq;
-        self.compositor
-            .as_ref()
-            .expect("started above")
-            .apply(&output, seq, ops);
+        self.dispatch(&output, seq, planned);
         if !sink.rehearsal {
             window.set_cursor_visible(false);
             #[cfg(target_os = "macos")]
@@ -371,6 +515,25 @@ impl Engine {
     fn compositor_event(&mut self, event_loop: &ActiveEventLoop, event: CompositorEvent) {
         match event {
             CompositorEvent::Committed { output, seq } => {
+                if let Some(surface) = self.surface_mut(&output) {
+                    while let Some(&(slide, received, t)) = surface.traces.front()
+                        && slide <= seq
+                    {
+                        surface.traces.pop_front();
+                        // The measure of push to commit: from the command
+                        // reaching the engine to its frame being presented.
+                        tracing::info!(
+                            output,
+                            seq = slide,
+                            push_to_commit_ms =
+                                format!("{:.2}", received.elapsed().as_secs_f64() * 1000.0),
+                            build_ms = format!("{:.2}", t.build_ms),
+                            raster_ms = format!("{:.2}", t.raster_ms),
+                            cached = t.cached,
+                            "slide text committed"
+                        );
+                    }
+                }
                 self.send_event(Event::FrameCommitted { output, seq });
             }
             CompositorEvent::Dropped { output, why } => {
@@ -464,6 +627,20 @@ impl ApplicationHandler<Message> for Engine {
             Message::Query { id, query } => self.query(id, query),
             Message::Command { seq, command } => self.command(event_loop, seq, command),
             Message::Compositor(event) => self.compositor_event(event_loop, event),
+            Message::Visual {
+                output,
+                job,
+                slot,
+                key,
+                generation,
+                output_kind,
+            } => self.visual_done(&output, job, slot, key, generation, output_kind),
+            Message::Text { output, job, done } => {
+                if let Some(surface) = self.surface_mut(&output) {
+                    surface.queue.complete(job, &done);
+                }
+                self.flush(&output);
+            }
         }
     }
 

@@ -1,4 +1,5 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, protocol, net } = require('electron')
+const { pathToFileURL } = require('node:url')
 const { createRequire } = require('node:module')
 const { mkdtemp, mkdir, realpath, writeFile, rm } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
@@ -15,6 +16,7 @@ const samples = new Set([
   'lyrics-stage-yoruba-original-fit',
   'lyrics-lower-yoruba-original-fit',
 ])
+protocol.registerSchemesAsPrivileged([{ scheme: 'pa-media', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true } }])
 app.disableHardwareAcceleration()
 app.commandLine.appendSwitch('force-device-scale-factor', '1')
 app.on('window-all-closed', () => {})
@@ -149,8 +151,50 @@ async function run(window, source, output) {
   console.log(`Captured ${layouts.length} cases with Chromium ${process.versions.chrome}`)
 }
 
+async function runVisuals(window, source, output, fixtures) {
+  const { build } = createRequire(join(source, 'package.json'))('esbuild')
+  const entrySource = [
+    `export { renderOverlayHTML } from ${JSON.stringify(join(source, 'src/lib/overlay-template.ts'))}`,
+    `export { DEFAULT_OVERLAY_THEME, normalizeOverlayTheme } from ${JSON.stringify(join(source, 'src/lib/overlay-defaults.ts'))}`,
+    `export { createOverlayElement } from ${JSON.stringify(join(source, 'src/lib/overlay-elements.ts'))}`,
+    `export { OVERLAY_SHAPE_GROUPS } from ${JSON.stringify(join(source, 'src/lib/overlay-shapes.ts'))}`,
+  ].join('\n')
+  const bundle = await build({ stdin: { contents: entrySource, resolveDir: source, loader: 'ts' },
+    bundle: true, write: false, platform: 'node', format: 'cjs' })
+  const entry = { exports: {} }
+  new Function('module', 'exports', bundle.outputFiles[0].text)(entry, entry.exports)
+  const cases = require('./visuals.cjs')(entry.exports)
+  await mkdir(join(output, 'visuals'), { recursive: true })
+  await window.loadFile(join(source, 'src/main/services/output/overlay.html'))
+  const session = window.webContents.debugger
+  session.attach('1.3')
+  await session.sendCommand('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
+  const gray = await window.webContents.insertCSS('html,body{background:#808080!important}')
+  const written = []
+  for (const item of cases) {
+    const theme = JSON.parse(JSON.stringify(item.theme).replaceAll('@FIX@', fixtures))
+    const html = entry.exports.renderOverlayHTML(theme, '', '', width, height)
+    await window.webContents.executeJavaScript(`(async () => {
+      window.__setContent('', true)
+      window.__setContent(${JSON.stringify(html)}, true)
+      const media = [...document.querySelectorAll('img, video')]
+      await Promise.all(media.map(m => m.decode ? m.decode().catch(() => {}) : null))
+      await window.__nextFrame()
+    })()`)
+    const { data } = await session.sendCommand('Page.captureScreenshot', {
+      format: 'png', fromSurface: true, clip: { x: 0, y: 0, width, height, scale: 1 },
+    })
+    const png = Buffer.from(data, 'base64')
+    await writeFile(join(output, 'visuals', item.id + '.png'), png)
+    written.push({ id: item.id, group: item.group, theme: item.theme })
+  }
+  await window.webContents.removeInsertedCSS(gray)
+  await writeFile(join(output, 'visuals', 'cases.json'), JSON.stringify(written) + '\n')
+  console.log(`Captured ${written.length} visual cases with Chromium ${process.versions.chrome}`)
+}
+
 async function main() {
-  const [, , source, output] = process.argv
+  const [, , source, output, mode, fixtures] = process.argv
   if (!source || !output) throw new Error('Usage: electron capture.cjs ELECTRON_CHECKOUT OUTPUT')
   const sourceRoot = await realpath(source)
   const outputRoot = await canonicalDestination(resolve(output))
@@ -163,11 +207,17 @@ async function main() {
   let window
   try {
     await app.whenReady()
+    protocol.handle('pa-media', (request) => {
+      const path = decodeURIComponent(new URL(request.url).pathname.slice(1))
+      return net.fetch(pathToFileURL(path).toString())
+    })
     window = new BrowserWindow({
       width, height, useContentSize: true, show: false, transparent: true,
-      webPreferences: { backgroundThrottling: false, sandbox: true, contextIsolation: true },
+      webPreferences: { backgroundThrottling: false, sandbox: true, contextIsolation: true, // Off-screen, so colours are not converted to the display's profile.
+      offscreen: mode === 'visuals' },
     })
-    await run(window, sourceRoot, outputRoot)
+    if (mode === 'visuals') await runVisuals(window, sourceRoot, outputRoot, resolve(fixtures))
+    else await run(window, sourceRoot, outputRoot)
   } finally {
     window?.destroy()
     await rm(profile, { recursive: true, force: true, maxRetries: 3 })

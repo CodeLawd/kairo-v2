@@ -54,3 +54,61 @@ edition = "2024"
 
 [workspace.dependencies]
 gpui-kit = "=0.9.1"
+
+# Slide text is shaped and rasterised on the CPU. Unoptimised, the 480-case
+# corpus (prompt 052) takes minutes in `cargo test`, so the crates that do
+# that work are optimised in dev and test builds. Nothing else changes.
+[profile.dev.package.kairo-scene]
+opt-level = 3
+[profile.dev.package.parley]
+opt-level = 3
+[profile.dev.package.harfrust]
+opt-level = 3
+[profile.dev.package.fontique]
+opt-level = 3
+[profile.dev.package.swash]
+opt-level = 3
+[profile.dev.package.zeno]
+opt-level = 3
+[profile.dev.package.tiny-skia]
+opt-level = 3
+[profile.dev.package.tiny-skia-path]
+opt-level = 3
+[profile.dev.package.skrifa]
+opt-level = 3
+[profile.dev.package.read-fonts]
+opt-level = 3
+[profile.dev.package.icu_segmenter]
+opt-level = 3
+[profile.dev.package.icu_properties]
+opt-level = 3
+[profile.dev.package.icu_normalizer]
+opt-level = 3
+[profile.dev.package.rav1d]
+opt-level = 3
+[profile.dev.package.avif-decode]
+opt-level = 3
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.image-webp]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.gif]
+opt-level = 3
+[profile.dev.package.resvg]
+opt-level = 3
+[profile.dev.package.usvg]
+opt-level = 3
+[profile.dev.package.kurbo]
+opt-level = 3
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+[profile.dev.package.fdeflate]
+opt-level = 3
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+[profile.dev.package.weezl]
+opt-level = 3
+[profile.dev.package.kairo-compositor]
+opt-level = 3

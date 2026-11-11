@@ -103,9 +103,191 @@ impl Raster {
     }
 }
 
+/// The frames of an animated image, as a browser plays them: each frame
+/// holds for its delay, the whole loop repeats as the file says, and the
+/// last frame stays once the plays are done.
+#[derive(Debug)]
+pub struct Frames {
+    pub rasters: Vec<Arc<Raster>>,
+    /// Milliseconds each frame shows for; never zero.
+    pub delays_ms: Vec<u32>,
+    /// `None`: forever.
+    pub plays: Option<u32>,
+}
+
+impl Frames {
+    fn loop_ms(&self) -> u64 {
+        self.delays_ms
+            .iter()
+            .map(|d| u64::from(*d))
+            .sum::<u64>()
+            .max(1)
+    }
+
+    /// The frame showing `elapsed` after the image started.
+    pub fn index_at(&self, elapsed: Duration) -> usize {
+        let total = self.loop_ms();
+        let ms = elapsed.as_millis().min(u128::from(u64::MAX)) as u64;
+        let ms = match self.plays {
+            None => ms % total,
+            Some(plays) => {
+                let span = total.saturating_mul(u64::from(plays.max(1)));
+                if ms >= span {
+                    return self.rasters.len().saturating_sub(1);
+                }
+                ms % total
+            }
+        };
+        let mut at = 0u64;
+        for (i, d) in self.delays_ms.iter().enumerate() {
+            at += u64::from(*d);
+            if ms < at {
+                return i;
+            }
+        }
+        self.rasters.len().saturating_sub(1)
+    }
+
+    /// How long after the image started the frame after the one showing at
+    /// `elapsed` begins, or `None` when the animation is over.
+    pub fn next_after(&self, elapsed: Duration) -> Option<Duration> {
+        if self.rasters.len() < 2 {
+            return None;
+        }
+        let total = self.loop_ms();
+        let ms = elapsed.as_millis().min(u128::from(u64::MAX)) as u64;
+        if let Some(plays) = self.plays
+            && ms >= total.saturating_mul(u64::from(plays.max(1)))
+        {
+            return None;
+        }
+        let in_loop = ms % total;
+        let base = ms - in_loop;
+        let mut at = 0u64;
+        for d in &self.delays_ms {
+            at += u64::from(*d);
+            if in_loop < at {
+                return Some(Duration::from_millis(base + at));
+            }
+        }
+        None
+    }
+}
+
+/// `object-fit` of an image or video inside its box.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Fit {
+    /// Stretched to the box (`fill`, and every raster that already is the
+    /// box's size).
+    #[default]
+    Fill,
+    Contain,
+    Cover,
+}
+
+/// The four CSS colour filters of `mediaFilterCss`, applied in that order:
+/// `hue-rotate`, `saturate`, `brightness`, `contrast`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ColorFilter {
+    pub hue_deg: f32,
+    pub saturation: f32,
+    pub brightness: f32,
+    pub contrast: f32,
+}
+
+impl ColorFilter {
+    pub const IDENTITY: Self = Self {
+        hue_deg: 0.0,
+        saturation: 1.0,
+        brightness: 1.0,
+        contrast: 1.0,
+    };
+
+    pub fn is_identity(&self) -> bool {
+        *self == Self::IDENTITY
+    }
+}
+
+impl Default for ColorFilter {
+    fn default() -> Self {
+        Self::IDENTITY
+    }
+}
+
+/// How a node's pixels are placed and filtered on the way to the frame.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Look {
+    pub fit: Fit,
+    /// Clockwise about the box centre, then mirrored axes (flips come first).
+    pub rotation_deg: f32,
+    pub flip_x: bool,
+    pub flip_y: bool,
+    pub filter: ColorFilter,
+    /// CSS `blur()` radius, which is the Gaussian's standard deviation.
+    pub blur_px: f32,
+    /// `true`: blur, then the colour filter (a background, whose wrapper
+    /// carries the colour filter over a blurred picture). `false`: colour
+    /// filter, then blur (an element's `filter: hue-rotate() blur()`).
+    pub blur_first: bool,
+    /// Uniform scale about the box centre, clipped to the box; the
+    /// background's `1 + blur * 4 / 1080` edge cover.
+    pub scale: f32,
+}
+
+impl Default for Look {
+    fn default() -> Self {
+        Self {
+            fit: Fit::Fill,
+            rotation_deg: 0.0,
+            flip_x: false,
+            flip_y: false,
+            filter: ColorFilter::IDENTITY,
+            blur_px: 0.0,
+            blur_first: false,
+            scale: 1.0,
+        }
+    }
+}
+
+impl Look {
+    pub fn is_plain(&self) -> bool {
+        *self == Self::default()
+    }
+}
+
+/// What a video node asks of the playback layer (prompt 055). The compositor
+/// only carries it: a keyed node that is kept takes the new values, so a
+/// background that is the same file and cue keeps playing and just changes
+/// loop and the rest.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct MediaParams {
+    pub looped: bool,
+    pub start_seconds: Option<f64>,
+    pub end_seconds: Option<f64>,
+    pub rate: f64,
+    /// Element videos are decoration: muted, and deaf to the transport.
+    pub element: bool,
+}
+
 /// What fills a node's box.
 #[derive(Clone, Debug)]
 pub enum Fill {
+    /// Pixels on their way (a picture still being decoded). Draws nothing;
+    /// a keyed node that is kept while its new content is `Pending` keeps the
+    /// pixels it has and takes everything else.
+    Pending,
+    /// A linear gradient across the box at a CSS angle, colours
+    /// premultiplied, interpolated premultiplied as CSS does.
+    Gradient {
+        from: [f32; 4],
+        to: [f32; 4],
+        angle_deg: f32,
+    },
+    /// An animated image.
+    Frames(Arc<Frames>),
+    /// Several contents drawn in order, in frame coordinates, faded as one
+    /// layer (`.pa-elements-below`).
+    Group(Arc<Vec<Content>>),
     /// The node exists (it can be retired, it blocks nothing) but has no
     /// pixels of its own yet.
     Empty,
@@ -145,6 +327,9 @@ pub struct Content {
     pub shadow: Option<Shadow>,
     /// The node's own CSS opacity, times the fade.
     pub opacity: f32,
+    pub look: Look,
+    /// Set for video nodes.
+    pub media: Option<MediaParams>,
 }
 
 impl Content {
@@ -155,6 +340,8 @@ impl Content {
             radius: 0.0,
             shadow: None,
             opacity: 1.0,
+            look: Look::default(),
+            media: None,
         }
     }
 
@@ -180,6 +367,11 @@ pub struct Node {
     entered: Instant,
     enter_ms: u32,
     leaving: Option<Leaving>,
+    /// The animated frames last drawn, to tell when the picture changed.
+    frame_sig: u64,
+    /// When its pictures started playing: when the node was made, or when
+    /// its pixels arrived (an image animates once it is decoded).
+    anim_start: Instant,
 }
 
 fn progress(since: Instant, ms: u32, now: Instant) -> f32 {
@@ -193,6 +385,35 @@ fn progress(since: Instant, ms: u32, now: Instant) -> f32 {
 impl Node {
     pub fn is_leaving(&self) -> bool {
         self.leaving.is_some()
+    }
+
+    /// Time since its pictures started playing.
+    pub fn age(&self, now: Instant) -> Duration {
+        now.saturating_duration_since(self.anim_start)
+    }
+
+    /// The animated images this node draws, directly or in a group.
+    fn frames(&self) -> Vec<&Arc<Frames>> {
+        fn walk<'a>(content: &'a Content, out: &mut Vec<&'a Arc<Frames>>) {
+            match &content.fill {
+                Fill::Frames(f) => out.push(f),
+                Fill::Group(children) => children.iter().for_each(|c| walk(c, out)),
+                _ => {}
+            }
+        }
+        let mut out = Vec::new();
+        walk(&self.content, &mut out);
+        out
+    }
+
+    /// The soonest moment an animated frame of this node changes.
+    fn next_frame(&self, now: Instant) -> Option<Instant> {
+        let age = self.age(now);
+        self.frames()
+            .iter()
+            .filter_map(|f| f.next_after(age))
+            .min()
+            .map(|d| self.anim_start + d)
     }
 
     /// The fade alone, 0 to 1.
@@ -268,6 +489,8 @@ impl Stack {
             entered: now,
             enter_ms: ms,
             leaving: None,
+            frame_sig: 0,
+            anim_start: now,
         });
     }
 
@@ -319,13 +542,37 @@ impl Stack {
         if let Some(current) = self.current_mut(slot)
             && current.key.as_deref() == Some(key.as_str())
         {
-            current.content = content;
+            current.content = if matches!(content.fill, Fill::Pending) {
+                // Same file, new opacity, filter, fit or loop: the picture
+                // (or the playing video) stays.
+                Content {
+                    fill: current.content.fill.clone(),
+                    rect: content.rect.or(current.content.rect),
+                    ..content
+                }
+            } else {
+                content
+            };
             return true;
         }
         self.enter(slot, content, Some(key), ms, now);
         let newest = self.slots[slot.index()].last().map(|n| n.id);
         self.retire_all(slot, ms, now, newest);
         false
+    }
+
+    /// The pixels of a keyed node arrive after the node was made. Applies
+    /// only while that node is still the slot's current one; returns whether
+    /// it did.
+    pub fn update_keyed(&mut self, slot: Slot, key: &str, content: Content, now: Instant) -> bool {
+        match self.current_mut(slot) {
+            Some(current) if current.key.as_deref() == Some(key) => {
+                current.content = content;
+                current.anim_start = now;
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Drops retired nodes whose removal time has passed.
@@ -344,12 +591,32 @@ impl Stack {
             .filter_map(|n| {
                 let fade = n.animating_until(now);
                 let removal = n.removed_at().filter(|at| *at > now);
-                match (fade, removal) {
+                let frame = n.next_frame(now);
+                let own = match (fade, removal) {
                     (Some(_), _) => Some(now),
                     (None, removal) => removal,
-                }
+                };
+                [own, frame].into_iter().flatten().min()
             })
             .min()
+    }
+
+    /// True when an animated image has moved to another frame since the
+    /// last call: the picture changed with nothing else happening.
+    pub fn frames_changed(&mut self, now: Instant) -> bool {
+        let mut changed = false;
+        for node in self.slots.iter_mut().flatten() {
+            let age = node.age(now);
+            let sig = node.frames().iter().fold(0u64, |acc, f| {
+                acc.wrapping_mul(1_000_003)
+                    .wrapping_add(f.index_at(age) as u64 + 1)
+            });
+            if sig != node.frame_sig {
+                node.frame_sig = sig;
+                changed = true;
+            }
+        }
+        changed
     }
 
     /// True while any fade runs: each frame differs from the last.
@@ -362,12 +629,17 @@ impl Stack {
 
     /// The live source ids any node draws, so their frames mark it dirty.
     pub fn sources(&self) -> impl Iterator<Item = u64> + '_ {
-        self.slots
-            .iter()
-            .flatten()
-            .filter_map(|n| match n.content.fill {
-                Fill::Source { id, .. } => Some(id),
-                _ => None,
-            })
+        self.slots.iter().flatten().flat_map(|n| {
+            fn ids(content: &Content, out: &mut Vec<u64>) {
+                match &content.fill {
+                    Fill::Source { id, .. } => out.push(*id),
+                    Fill::Group(children) => children.iter().for_each(|c| ids(c, out)),
+                    _ => {}
+                }
+            }
+            let mut out = Vec::new();
+            ids(&n.content, &mut out);
+            out
+        })
     }
 }
