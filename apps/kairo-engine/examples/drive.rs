@@ -4,8 +4,13 @@
 //! ```text
 //! cargo run -p kairo-engine --example drive -- [--display N] [--full] [--secs S]
 //!     [--kill-after S] [--fade MS] [--frame-height H] [--theme ID] [--case ID]
-//!     [--text TEXT] [--reference REF]
+//!     [--text TEXT] [--reference REF] [--program ID] [--live]
 //! ```
+//!
+//! `--program ID` also puts up the layers of a prompt 054 corpus case
+//! (`tests/golden/054-programs/cases.json`). `--live` puts up a running
+//! countdown in a prop, the timer design, a ticker message and the info
+//! clock, so ticking and scrolling can be watched.
 //!
 //! Opens one output on display N (default 0): a rehearsal window, or the
 //! whole display with `--full`. Shows a red slide carrying a verse in the
@@ -145,6 +150,83 @@ async fn main() {
             .wait_frame("main", sent.seq, Duration::from_secs(2))
             .await
     );
+
+    if let Some(id) = value::<String>("--program") {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let fixtures = root
+            .join("tests/fixtures/visuals")
+            .canonicalize()
+            .expect("fixtures");
+        let text = std::fs::read_to_string(root.join("tests/golden/054-programs/cases.json"))
+            .expect("cases.json")
+            .replace("@FIX@", fixtures.to_str().unwrap());
+        let cases: Vec<serde_json::Value> = serde_json::from_str(&text).expect("cases json");
+        let case = cases
+            .into_iter()
+            .find(|c| c["id"] == id.as_str())
+            .unwrap_or_else(|| panic!("no program case {id}"));
+        for (name, layer) in case["layers"].as_object().into_iter().flatten() {
+            let kind = match name.as_str() {
+                "message" => LayerKind::Message,
+                "props" => LayerKind::Props,
+                "timer" => LayerKind::Timer,
+                "poll" => LayerKind::Poll,
+                "question" => LayerKind::Question,
+                _ => LayerKind::Logo,
+            };
+            engine.command(Command::SetLayer {
+                output: "main".into(),
+                kind,
+                layer: Some(Json::from_value(layer)),
+            });
+        }
+        if !case["info"].is_null() {
+            engine.command(Command::SetInfo {
+                output: "main".into(),
+                info: Some(Json::from_value(&case["info"])),
+            });
+        }
+    }
+    if std::env::args().any(|a| a == "--live") {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as f64;
+        let run = serde_json::json!({"durationSec": 75, "endsAt": now + 65_000.0,
+            "remainingSec": 75, "rollover": true, "now": now});
+        let readout = |x: f64, y: f64| {
+            serde_json::json!({"id": "r", "kind": "timer", "x": x, "y": y,
+            "w": 0.3, "h": 0.1, "opacity": 1, "fontSizePx": 80, "color": "#5eead4",
+            "overrunColor": "#f87171", "bold": true, "align": "center"})
+        };
+        engine.command(Command::SetLayer {
+            output: "main".into(),
+            kind: LayerKind::Props,
+            layer: Some(Json::from_value(
+                &serde_json::json!({"kind": "props", "timer": run,
+                "props": [{"id": "p", "name": "Bug", "background": null, "objects": [
+                    {"id": "s", "kind": "shape", "x": 0.68, "y": 0.04, "w": 0.3, "h": 0.12,
+                     "opacity": 0.8, "shape": "rectangle", "fill": "#101820", "radiusPx": 24},
+                    readout(0.68, 0.05)]}]}),
+            )),
+        });
+        engine.command(Command::SetLayer {
+            output: "main".into(),
+            kind: LayerKind::Message,
+            layer: Some(Json::from_value(&serde_json::json!({"kind": "message",
+                "text": "Parents of child 42, please come to the nursery   ·   Cars in the red zone, please move them",
+                "style": {"position": "bottom", "fontSizePx": 44, "color": "#ffffff",
+                          "background": "rgba(0,0,0,0.72)", "scroll": true}}))),
+        });
+        engine.command(Command::SetInfo {
+            output: "main".into(),
+            info: Some(Json::from_value(&serde_json::json!({"clock": true,
+                "stageMessage": "Two minutes left",
+                "layout": {"position": "top", "size": "medium"},
+                "sizes": {"barPx": 72, "messagePx": 60},
+                "style": {"rollover": true, "color": "#5eead4", "overrunColor": "#f87171", "backdrop": false}}))),
+        });
+    }
 
     let mut faded = fade.is_none();
     #[cfg_attr(not(unix), allow(unused_mut, unused_variables))]

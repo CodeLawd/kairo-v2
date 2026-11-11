@@ -287,11 +287,12 @@ pub enum Command {
         command: Json,
     },
     /// `__setPoll`, `__setQuestion`, `__setMessage`, `__setProps`,
-    /// `__setTimerDesign`, `__setLogo`.
+    /// `__setTimerDesign`, `__setLogo`: the layer as data (`ProgramLayer`
+    /// from `programLayersFor`), `None` to clear it.
     SetLayer {
         output: String,
         kind: LayerKind,
-        markup: String,
+        layer: Option<Json>,
     },
     /// `__setInfo`. `ConfidenceInfo`.
     SetInfo { output: String, info: Option<Json> },

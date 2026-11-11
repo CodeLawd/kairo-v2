@@ -13,30 +13,31 @@ use serde_json::{Map, Value};
 /// The program layers above the slide (`SurfaceLayers`).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Layers {
-    pub poll: String,
-    pub question: String,
-    pub message: String,
-    pub props: String,
-    pub timer: String,
-    pub logo: String,
+    /// `ProgramLayer` each; `None` is the empty markup that clears it.
+    pub poll: Option<Json>,
+    pub question: Option<Json>,
+    pub message: Option<Json>,
+    pub props: Option<Json>,
+    pub timer: Option<Json>,
+    pub logo: Option<Json>,
     pub camera: Option<CameraLayer>,
     pub web: Option<WebLayer>,
     pub info: Option<Json>,
 }
 
 impl Layers {
-    pub fn markup(&self, kind: LayerKind) -> &str {
+    pub fn layer(&self, kind: LayerKind) -> Option<&Json> {
         match kind {
-            LayerKind::Poll => &self.poll,
-            LayerKind::Question => &self.question,
-            LayerKind::Message => &self.message,
-            LayerKind::Props => &self.props,
-            LayerKind::Timer => &self.timer,
-            LayerKind::Logo => &self.logo,
+            LayerKind::Poll => self.poll.as_ref(),
+            LayerKind::Question => self.question.as_ref(),
+            LayerKind::Message => self.message.as_ref(),
+            LayerKind::Props => self.props.as_ref(),
+            LayerKind::Timer => self.timer.as_ref(),
+            LayerKind::Logo => self.logo.as_ref(),
         }
     }
 
-    fn markup_mut(&mut self, kind: LayerKind) -> &mut String {
+    fn layer_mut(&mut self, kind: LayerKind) -> &mut Option<Json> {
         match kind {
             LayerKind::Poll => &mut self.poll,
             LayerKind::Question => &mut self.question,
@@ -49,7 +50,7 @@ impl Layers {
 
     /// `hasAnyLayer`.
     pub fn any(&self) -> bool {
-        LayerKind::ALL.iter().any(|k| !self.markup(*k).is_empty())
+        LayerKind::ALL.iter().any(|k| self.layer(*k).is_some())
             || self.camera.is_some()
             || self.web.is_some()
             || self.info.is_some()
@@ -228,8 +229,8 @@ impl SurfaceState {
             Command::ControlDocumentVideo {
                 id, page, video, ..
             } => self.controls_video(id, *page, *video),
-            Command::SetLayer { kind, markup, .. } => {
-                *self.layers.markup_mut(*kind) = markup.clone();
+            Command::SetLayer { kind, layer, .. } => {
+                *self.layers.layer_mut(*kind) = layer.clone();
                 true
             }
             Command::SetInfo { info, .. } => {
@@ -301,12 +302,11 @@ impl SurfaceState {
             });
         }
         for kind in LayerKind::ALL {
-            let markup = self.layers.markup(kind);
-            if !markup.is_empty() {
+            if let Some(layer) = self.layers.layer(kind) {
                 commands.push(Command::SetLayer {
                     output: output.clone(),
                     kind,
-                    markup: markup.to_owned(),
+                    layer: Some(layer.clone()),
                 });
             }
         }

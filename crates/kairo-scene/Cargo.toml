@@ -8,6 +8,7 @@ publish = false
 # process (thumbnails). Reads no settings, network or database: it takes a
 # theme and text and returns pixels.
 [dependencies]
+base64 = "0.22"
 avif-decode = { version = "3", default-features = false }
 image = { version = "0.25", default-features = false, features = ["gif", "webp", "bmp", "png", "jpeg"] }
 kairo-domain = { path = "../kairo-domain" }

@@ -7,6 +7,7 @@ publish = false
 # The output engine. It draws what `kairo` sends and nothing else: no
 # settings, network or database crates belong here.
 [dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 interprocess = "2.4"
 kairo-compositor = { path = "../../crates/kairo-compositor" }
 kairo-domain = { path = "../../crates/kairo-domain" }

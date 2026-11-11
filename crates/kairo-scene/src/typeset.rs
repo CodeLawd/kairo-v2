@@ -169,7 +169,13 @@ impl Typesetter {
     pub fn shape(&mut self, b: &TextBox, size: f32, width: f32, glyphs: bool) -> Shaped {
         let mut out = Shaped::default();
         let style = &b.style;
-        let line_height = style.line_height * size;
+        let normal = style.line_height < 0.0;
+        // A blank line under `normal` is about the font's own spacing.
+        let line_height = if normal {
+            1.2 * size
+        } else {
+            style.line_height * size
+        };
         let chain = family_chain(&style.family);
         for paragraph in &b.paragraphs {
             if paragraph.text.is_empty() {
@@ -209,29 +215,27 @@ impl Typesetter {
         let force_ltr = paragraph.text.chars().any(is_rtl);
         let prefix = if force_ltr { "\u{200E}" } else { "" };
         let text = format!("{prefix}{}", paragraph.text);
-        let mut builder = self
-            .layout
-            .ranged_builder(&mut self.fonts, &text, 1.0, true);
-        builder.push_default(StyleProperty::FontFamily(FontFamily::List(
-            chain.to_vec().into(),
-        )));
-        builder.push_default(StyleProperty::FontSize(size));
-        builder.push_default(StyleProperty::FontWeight(FontWeight::new(style.weight)));
-        builder.push_default(StyleProperty::LineHeight(LineHeight::Absolute(line_height)));
-        builder.push_default(StyleProperty::LetterSpacing(style.letter_spacing));
-        builder.push_default(StyleProperty::OverflowWrap(OverflowWrap::BreakWord));
-        if style.letter_spacing != 0.0 {
-            // Cursive scripts join their letters, so letter-spacing is off
-            // for them (CSS Text 3); the browser skips the whole run.
-            for range in cursive_ranges(&text) {
-                builder.push(StyleProperty::LetterSpacing(0.0), range);
-            }
-            // The direction mark takes no spacing either.
-            if !prefix.is_empty() {
-                builder.push(StyleProperty::LetterSpacing(0.0), 0..prefix.len());
+        // `line-height: normal` is the font's ascent, descent and gap, each
+        // rounded to a whole pixel as Chromium (Skia) rounds them: lay out
+        // once to find the font, then again at that exact height.
+        let mut height = if style.line_height < 0.0 {
+            LineHeight::MetricsRelative(1.0)
+        } else {
+            LineHeight::Absolute(line_height)
+        };
+        let mut layout = self.build(&text, prefix.len(), chain, size, style, height);
+        if style.line_height < 0.0 {
+            layout.break_all_lines(Some(width));
+            let rounded = layout.lines().next().map(|line| {
+                let m = line.metrics();
+                let gap = (m.line_height - m.ascent - m.descent).max(0.0);
+                (m.ascent + m.descent + gap).round()
+            });
+            if let Some(rounded) = rounded {
+                height = LineHeight::Absolute(rounded);
+                layout = self.build(&text, prefix.len(), chain, size, style, height);
             }
         }
-        let mut layout = builder.build(&text);
         layout.break_all_lines(Some(width));
         layout.align(
             match style.align {
@@ -301,6 +305,44 @@ impl Typesetter {
         }
         out.height += layout.height();
         out.width = out.width.max(layout.width());
+    }
+}
+
+impl Typesetter {
+    /// One paragraph's layout, not yet broken into lines.
+    fn build(
+        &mut self,
+        text: &str,
+        prefix: usize,
+        chain: &[FontFamilyName<'static>],
+        size: f32,
+        style: &crate::scene::TextStyle,
+        height: LineHeight,
+    ) -> parley::Layout<()> {
+        let mut builder = self.layout.ranged_builder(&mut self.fonts, text, 1.0, true);
+        builder.push_default(StyleProperty::FontFamily(FontFamily::List(
+            chain.to_vec().into(),
+        )));
+        builder.push_default(StyleProperty::FontSize(size));
+        builder.push_default(StyleProperty::FontWeight(FontWeight::new(style.weight)));
+        builder.push_default(StyleProperty::LineHeight(height));
+        if style.tabular {
+            builder.push_default(StyleProperty::FontFeatures("\"tnum\" 1".into()));
+        }
+        builder.push_default(StyleProperty::LetterSpacing(style.letter_spacing));
+        builder.push_default(StyleProperty::OverflowWrap(OverflowWrap::BreakWord));
+        if style.letter_spacing != 0.0 {
+            // Cursive scripts join their letters, so letter-spacing is off
+            // for them (CSS Text 3); the browser skips the whole run.
+            for range in cursive_ranges(text) {
+                builder.push(StyleProperty::LetterSpacing(0.0), range);
+            }
+            // The direction mark takes no spacing either.
+            if prefix > 0 {
+                builder.push(StyleProperty::LetterSpacing(0.0), 0..prefix);
+            }
+        }
+        builder.build(text)
     }
 }
 

@@ -289,7 +289,7 @@ pub fn elements(theme: &Value, above_text: bool, frame: (u32, u32)) -> Option<El
 
 /// A decoded picture as the compositor holds it.
 #[derive(Clone)]
-enum Decoded {
+pub(crate) enum Decoded {
     Still(Arc<Raster>),
     Animated(Arc<Frames>),
 }
@@ -312,7 +312,7 @@ impl Decoded {
         }
     }
 
-    fn fill(&self) -> Fill {
+    pub(crate) fn fill(&self) -> Fill {
         match self {
             Decoded::Still(r) => Fill::Image(r.clone()),
             Decoded::Animated(f) => Fill::Frames(f.clone()),
@@ -371,14 +371,14 @@ impl<K: PartialEq + Clone, V: Clone> Lru<K, V> {
 /// A vector element's pixels and where they sit.
 type Tile = (Arc<Raster>, i32, i32);
 
-struct Shared {
+pub(crate) struct Shared {
     pictures: Mutex<Lru<FileKey, Option<Decoded>>>,
     tiles: Mutex<Lru<u64, Option<Tile>>>,
 }
 
 impl Shared {
     /// The picture at `path` for `target`, read and decoded once.
-    fn picture(&self, path: &str, target: BoxFit) -> Option<Decoded> {
+    pub(crate) fn picture(&self, path: &str, target: BoxFit) -> Option<Decoded> {
         let meta = match std::fs::metadata(path) {
             Ok(meta) if meta.is_file() => meta,
             Ok(_) => {
@@ -549,14 +549,22 @@ pub enum Output {
     Full(Content),
     /// The decoded background; `None` when it could not be shown.
     Image(Option<Content>),
+    /// A program layer's pieces, without (`full: false`) or with its pictures.
+    Layer(crate::layers::LayerOut),
+    /// A redrawn readout.
+    Live(Box<crate::layers::LiveOut>),
 }
 
 pub enum Job {
     Elements(ElementsPlan),
     Image(ImageJob),
+    /// A program layer, the info layer or a test pattern.
+    Layer(crate::layers::LayerJob),
+    /// One countdown or clock readout, redrawn on a tick.
+    Live(crate::layers::LiveJob),
 }
 
-type Callback = Box<dyn FnOnce(Output) + Send>;
+pub(crate) type Callback = Box<dyn FnOnce(Output) + Send>;
 
 struct Task {
     job: Job,
@@ -621,6 +629,8 @@ impl Default for VisualWork {
 
 fn run(shared: &Shared, task: Task) {
     match task.job {
+        Job::Layer(job) => crate::layers::run_layer(shared, job, task.fast, task.done),
+        Job::Live(job) => (task.done)(Output::Live(Box::new(crate::layers::run_live(job)))),
         Job::Image(job) => {
             let content = shared
                 .picture(&job.path, job.target)

@@ -4,9 +4,12 @@
 
 mod app;
 mod display;
+mod layers;
 #[cfg(target_os = "macos")]
 mod mac;
 mod program;
+#[cfg(test)]
+mod program_corpus;
 mod server;
 mod text;
 #[cfg(test)]

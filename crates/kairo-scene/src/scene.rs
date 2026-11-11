@@ -82,11 +82,17 @@ pub enum Fit {
     Auto { cap: f32 },
 }
 
+/// `line-height: normal`: the font's own ascent, descent and gap.
+pub const LINE_HEIGHT_NORMAL: f32 = -1.0;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextStyle {
     pub family: String,
     pub weight: f32,
+    /// A multiple of the size, or [`LINE_HEIGHT_NORMAL`].
     pub line_height: f32,
+    /// `font-variant-numeric: tabular-nums`.
+    pub tabular: bool,
     pub letter_spacing: f32,
     pub align: Align,
     pub decoration: Decoration,
@@ -193,7 +199,7 @@ impl SlideScene {
             for v in [s.weight, s.line_height, s.letter_spacing] {
                 v.to_bits().hash(&mut h);
             }
-            (s.align, s.decoration, s.color).hash(&mut h);
+            (s.align, s.decoration, s.color, s.tabular).hash(&mut h);
             if let Some(sh) = s.shadow {
                 (
                     1u8,
@@ -296,6 +302,7 @@ fn text_style(style: &OverlayTextStyle) -> TextStyle {
         family: style.font_family.clone(),
         weight: finite_or(style.font_weight, 400.0).clamp(1.0, 1000.0) as f32,
         line_height: finite_or(style.line_height, 1.0).max(0.0) as f32,
+        tabular: false,
         letter_spacing: finite_or(style.letter_spacing_px, 0.0) as f32,
         align: match style.align {
             OverlayTextAlign::Left => Align::Left,

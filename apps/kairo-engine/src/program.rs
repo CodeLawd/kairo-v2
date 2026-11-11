@@ -9,11 +9,14 @@
 //! Until then their nodes exist without pixels, so every swap, retire and
 //! crossfade already happens as it will; colour backgrounds draw now.
 
+use crate::layers::{LayerJob, LayerSource, LiveLayer};
 use crate::text::{TextRequest, slide_is_blank};
 use crate::visuals::{self, Job};
 use kairo_compositor::thread::Op;
 use kairo_compositor::{Content, Fill, Rect, Slot, VideoLayout, clamp_transition, video_layout};
+use kairo_domain::program::{ConfidenceInfo, ProgramLayer};
 use kairo_engine_proto::*;
+use kairo_scene::program::Pattern;
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
@@ -59,6 +62,11 @@ pub struct Shell {
     /// Which request last asked for each slot's pixels; older results are stale.
     generations: std::collections::HashMap<Slot, u64>,
     next_generation: u64,
+    /// Program layers whose countdowns or clocks tick, by slot.
+    pub live: std::collections::HashMap<Slot, LiveLayer>,
+    /// Tests draw at a fixed moment instead of the wall clock.
+    #[cfg(test)]
+    pub pinned: Option<kairo_scene::program::Now>,
 }
 
 impl Shell {
@@ -74,12 +82,78 @@ impl Shell {
             element_keys: [None, None],
             generations: std::collections::HashMap::new(),
             next_generation: 0,
+            live: std::collections::HashMap::new(),
+            #[cfg(test)]
+            pinned: None,
         }
     }
 
     /// Whether a result made for `generation` is still the newest for `slot`.
     pub fn is_current(&self, slot: Slot, generation: u64) -> bool {
         self.generations.get(&slot) == Some(&generation)
+    }
+
+    /// A drawn layer arrived: remember its readouts while it is the slot's
+    /// newest, and give back what to show. The caller completes the
+    /// command waiting for it, or else sends it as an update.
+    pub fn layer_done(
+        &mut self,
+        slot: Slot,
+        key: &str,
+        generation: u64,
+        out: crate::layers::LayerOut,
+    ) -> Content {
+        let content = out.content();
+        if self.is_current(slot, generation) {
+            if out.live.is_empty() {
+                self.live.remove(&slot);
+            } else {
+                self.live.insert(
+                    slot,
+                    LiveLayer {
+                        key: key.to_owned(),
+                        generation,
+                        children: out.children,
+                        parts: out.live,
+                    },
+                );
+            }
+        }
+        content
+    }
+
+    /// Readouts whose text, colour or dimming changed at `now`.
+    pub fn tick(
+        &mut self,
+        now: &kairo_scene::program::Now,
+    ) -> Vec<(Slot, String, u64, crate::layers::LiveJob)> {
+        let mut jobs = Vec::new();
+        for (slot, layer) in &mut self.live {
+            for job in layer.due(now) {
+                jobs.push((*slot, layer.key.clone(), layer.generation, job));
+            }
+        }
+        jobs
+    }
+
+    /// A redrawn readout: the update for its node, unless the layer has
+    /// been replaced meanwhile.
+    pub fn live_done(
+        &mut self,
+        slot: Slot,
+        generation: u64,
+        out: crate::layers::LiveOut,
+    ) -> Option<Op> {
+        let layer = self
+            .live
+            .get_mut(&slot)
+            .filter(|l| l.generation == generation)?;
+        let content = layer.replace(out.index, out.content)?;
+        Some(Op::Update {
+            slot,
+            key: layer.key.clone(),
+            content,
+        })
     }
 
     fn generation(&mut self, slot: Slot) -> u64 {
@@ -157,17 +231,15 @@ impl Shell {
                 }
                 None => vec![],
             },
-            Command::SetLayer { kind, markup, .. } => vec![Op::Swap {
-                slot: layer_slot(*kind),
-                content: (!markup.is_empty()).then(Content::empty),
-                ms,
-            }],
+            Command::SetLayer { kind, layer, .. } => {
+                let source = layer.as_ref().and_then(|l| self.program_layer(l));
+                self.layer(layer_slot(*kind), source, ms, 0)
+            }
             // The info layer is shown and hidden, never faded.
-            Command::SetInfo { info, .. } => vec![Op::Swap {
-                slot: Slot::Info,
-                content: info.as_ref().map(|_| Content::empty()),
-                ms: 0,
-            }],
+            Command::SetInfo { info, .. } => {
+                let source = info.as_ref().and_then(|i| self.info_layer(i));
+                self.layer(Slot::Info, source, 0, 0)
+            }
             Command::SetWeb { web, .. } => self.web(web.as_ref()),
             Command::WebPointer { point, .. } => vec![self.pointer(*point)],
             Command::SetCamera { camera, .. } => match camera {
@@ -185,12 +257,7 @@ impl Shell {
                     vec![]
                 }
             },
-            Command::SetTestPattern { pattern, .. } => {
-                if pattern.is_some() {
-                    self.note("test patterns are drawn from prompt 060".into());
-                }
-                vec![]
-            }
+            Command::SetTestPattern { .. } => self.pattern(state, 0),
             // No pixels change in this engine yet: video (055), document
             // pages and their videos (058), web scrolling (059).
             Command::SwapPage { .. }
@@ -225,21 +292,22 @@ impl Shell {
     fn rebuild_ops(&mut self, state: &SurfaceState) -> Vec<Op> {
         self.web_shown = None;
         let mut ops = self.configure(&state.config);
+        self.live.clear();
         for kind in LayerKind::ALL {
-            if !state.layers.markup(kind).is_empty() {
-                ops.push(Op::Swap {
-                    slot: layer_slot(kind),
-                    content: Some(Content::empty()),
-                    ms: 0,
-                });
+            if let Some(layer) = state.layers.layer(kind) {
+                let source = self.program_layer(layer);
+                let at = ops.len();
+                ops.extend(self.layer(layer_slot(kind), source, 0, at));
             }
         }
-        if state.layers.info.is_some() {
-            ops.push(Op::Swap {
-                slot: Slot::Info,
-                content: Some(Content::empty()),
-                ms: 0,
-            });
+        if let Some(info) = &state.layers.info {
+            let source = self.info_layer(info);
+            let at = ops.len();
+            ops.extend(self.layer(Slot::Info, source, 0, at));
+        }
+        if state.test_pattern.is_some() {
+            let at = ops.len();
+            ops.extend(self.pattern(state, at));
         }
         let ms = self.ms;
         self.ms = 0;
@@ -252,6 +320,93 @@ impl Shell {
             }
         }
         ops
+    }
+
+    /// The moment a layer is drawn at.
+    fn now(&self) -> kairo_scene::program::Now {
+        #[cfg(test)]
+        if let Some(now) = &self.pinned {
+            return now.clone();
+        }
+        crate::layers::now()
+    }
+
+    /// Whether moving parts are held at their start (tests only).
+    fn still(&self) -> bool {
+        #[cfg(test)]
+        if self.pinned.is_some() {
+            return true;
+        }
+        false
+    }
+
+    /// A program layer's payload; one that cannot be read clears the layer.
+    fn program_layer(&mut self, layer: &Json) -> Option<LayerSource> {
+        match layer.decode::<ProgramLayer>() {
+            Ok(layer) => Some(LayerSource::Program(layer)),
+            Err(error) => {
+                tracing::error!(output = self.output, %error, "a program layer could not be read; clearing it");
+                None
+            }
+        }
+    }
+
+    /// `__setInfo`'s `ConfidenceInfo`; unreadable is the same as none.
+    fn info_layer(&mut self, info: &Json) -> Option<LayerSource> {
+        match info.decode::<ConfidenceInfo>() {
+            Ok(info) => Some(LayerSource::Info(info)),
+            Err(error) => {
+                tracing::error!(output = self.output, %error, "the info layer could not be read; hiding it");
+                None
+            }
+        }
+    }
+
+    /// The diagnostic pattern over everything, named for the output.
+    fn pattern(&mut self, state: &SurfaceState, at: usize) -> Vec<Op> {
+        let source = state.test_pattern.map(|pattern| LayerSource::Pattern {
+            pattern: match pattern {
+                TestPattern::Bars => Pattern::Bars,
+                TestPattern::Text => Pattern::Text,
+                TestPattern::Motion => Pattern::Motion,
+            },
+            name: state.spec.label.clone(),
+        });
+        self.layer(Slot::Pattern, source, 0, at)
+    }
+
+    /// `swapLayer` for a drawn layer: a new node every time (the shell
+    /// never keeps one), filled when its first stage is drawn. `at` is
+    /// where the returned operation lands in the command's list.
+    fn layer(&mut self, slot: Slot, source: Option<LayerSource>, ms: u32, at: usize) -> Vec<Op> {
+        let generation = self.generation(slot);
+        self.live.remove(&slot);
+        let Some(source) = source else {
+            return vec![Op::Keyed {
+                slot,
+                content: None,
+                ms,
+            }];
+        };
+        let key = format!("{slot:?}#{generation}");
+        self.visuals.push(VisualRequest {
+            op: at,
+            slot,
+            key: key.clone(),
+            generation,
+            blocking: true,
+            job: Job::Layer(LayerJob {
+                source,
+                frame: (FRAME_WIDTH as u32, self.frame_height),
+                now: self.now(),
+                still: self.still(),
+            }),
+        });
+        vec![Op::Keyed {
+            slot,
+            content: Some((Content::empty(), key)),
+            ms,
+        }]
     }
 
     /// `__configure`. A layout that throws abandons the whole call.
@@ -759,5 +914,177 @@ mod tests {
             .ops;
         assert!(ops.is_empty());
         assert_eq!(shell.ms, 0);
+    }
+
+    fn message_layer() -> Json {
+        Json::from_value(&json!({"kind": "message", "text": "Hi", "style": {
+            "position": "bottom", "fontSizePx": 44, "color": "#fff",
+            "background": "#000", "scroll": false}}))
+    }
+
+    #[test]
+    fn program_layers_fade_with_the_transition_and_info_cuts() {
+        let mut shell = Shell::new("o", 1080);
+        let state = state_with(json!({}));
+        let _ = shell.command(
+            &Command::Configure {
+                output: "o".into(),
+                config: SurfaceConfig {
+                    transition_ms: 400.0,
+                    ..SurfaceConfig::default()
+                },
+            },
+            &state,
+            &state,
+        );
+        let planned = shell.command(
+            &Command::SetLayer {
+                output: "o".into(),
+                kind: LayerKind::Message,
+                layer: Some(message_layer()),
+            },
+            &state,
+            &state,
+        );
+        assert!(matches!(
+            planned.ops.as_slice(),
+            [Op::Keyed {
+                slot: Slot::Message,
+                content: Some(_),
+                ms: 400
+            }]
+        ));
+        // The node waits for its pixels: one blocking request for it.
+        assert_eq!(planned.visuals.len(), 1);
+        assert!(planned.visuals[0].blocking && planned.visuals[0].op == 0);
+        let info = Json::from_value(&json!({"clock": true, "stageMessage": null,
+            "layout": {"position": "top", "size": "small"}, "sizes": {"barPx": 48, "messagePx": 40},
+            "style": {"rollover": true, "color": "#fff", "overrunColor": "#f00", "backdrop": false}}));
+        let planned = shell.command(
+            &Command::SetInfo {
+                output: "o".into(),
+                info: Some(info),
+            },
+            &state,
+            &state,
+        );
+        assert!(matches!(
+            planned.ops.as_slice(),
+            [Op::Keyed {
+                slot: Slot::Info,
+                content: Some(_),
+                ms: 0
+            }]
+        ));
+        // Each set is a new node, even with the same content (`swapLayer`).
+        let a = shell.command(
+            &Command::SetLayer {
+                output: "o".into(),
+                kind: LayerKind::Logo,
+                layer: Some(message_layer()),
+            },
+            &state,
+            &state,
+        );
+        let b = shell.command(
+            &Command::SetLayer {
+                output: "o".into(),
+                kind: LayerKind::Logo,
+                layer: Some(message_layer()),
+            },
+            &state,
+            &state,
+        );
+        let key = |p: &Planned| match &p.ops[0] {
+            Op::Keyed {
+                content: Some((_, key)),
+                ..
+            } => key.clone(),
+            _ => panic!(),
+        };
+        assert_ne!(key(&a), key(&b));
+        assert!(!shell.is_current(Slot::Logo, a.visuals[0].generation));
+    }
+
+    #[test]
+    fn an_unreadable_layer_clears_its_slot() {
+        let mut shell = Shell::new("o", 1080);
+        let state = state_with(json!({}));
+        let planned = shell.command(
+            &Command::SetLayer {
+                output: "o".into(),
+                kind: LayerKind::Poll,
+                layer: Some(Json("{\"kind\":\"nope\"}".into())),
+            },
+            &state,
+            &state,
+        );
+        assert!(matches!(
+            planned.ops.as_slice(),
+            [Op::Keyed {
+                slot: Slot::Poll,
+                content: None,
+                ..
+            }]
+        ));
+        assert!(planned.visuals.is_empty());
+        let planned = shell.command(
+            &Command::SetInfo {
+                output: "o".into(),
+                info: Some(Json("[]".into())),
+            },
+            &state,
+            &state,
+        );
+        assert!(matches!(
+            planned.ops.as_slice(),
+            [Op::Keyed {
+                slot: Slot::Info,
+                content: None,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn a_rebuilt_window_draws_every_layer_and_the_pattern_again() {
+        let mut shell = Shell::new("o", 1080);
+        let mut state = state_with(json!({}));
+        state.last_render = None;
+        state.apply(
+            &Command::SetLayer {
+                output: "o".into(),
+                kind: LayerKind::Message,
+                layer: Some(message_layer()),
+            },
+            true,
+        );
+        state.apply(
+            &Command::SetTestPattern {
+                output: "o".into(),
+                pattern: Some(TestPattern::Bars),
+            },
+            true,
+        );
+        let planned = shell.rebuild(&state);
+        let slots: Vec<Slot> = planned
+            .ops
+            .iter()
+            .filter_map(|op| match op {
+                Op::Keyed {
+                    slot,
+                    content: Some(_),
+                    ..
+                } => Some(*slot),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(slots, [Slot::Message, Slot::Pattern]);
+        // Each request fills its own operation.
+        for request in &planned.visuals {
+            assert!(
+                matches!(&planned.ops[request.op], Op::Keyed { slot, .. } if *slot == request.slot)
+            );
+        }
     }
 }

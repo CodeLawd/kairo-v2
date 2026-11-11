@@ -42,7 +42,7 @@ fn reference_dir() -> Option<PathBuf> {
 
 enum Back {
     Text(u64, TextDone),
-    Visual(u64, VisualRequestInfo, Output),
+    Visual(u64, VisualRequestInfo, Box<Output>),
 }
 
 struct VisualRequestInfo {
@@ -58,7 +58,7 @@ pub struct Rig {
     text: TextWork,
     visuals: VisualWork,
     pub shell: Shell,
-    state: SurfaceState,
+    pub state: SurfaceState,
     queue: Ordered,
     back_rx: mpsc::Receiver<Back>,
     back_tx: mpsc::Sender<Back>,
@@ -146,7 +146,7 @@ impl Rig {
                             key,
                             generation,
                         },
-                        o,
+                        Box::new(o),
                     ));
                 }
             };
@@ -220,7 +220,7 @@ impl Rig {
                 self.outstanding = self.outstanding.saturating_sub(1);
             }
             Back::Visual(job, info, output) => {
-                match output {
+                match *output {
                     Output::Fast(content) => {
                         // A layer with pictures sends a second result.
                         let more = matches!(&content.fill, kairo_compositor::Fill::Group(c)
@@ -245,6 +245,36 @@ impl Rig {
                         }
                     }
                     Output::Image(None) => {}
+                    Output::Layer(out) => {
+                        let full = out.full;
+                        let content =
+                            self.shell
+                                .layer_done(info.slot, &info.key, info.generation, out);
+                        if !self.queue.complete_visual(job, content.clone())
+                            && self.shell.is_current(info.slot, info.generation)
+                        {
+                            self.queue.push_waiting(
+                                0,
+                                vec![kairo_compositor::thread::Op::Update {
+                                    slot: info.slot,
+                                    key: info.key,
+                                    content,
+                                }],
+                                Vec::new(),
+                                Instant::now(),
+                            );
+                        }
+                        if !full {
+                            // Its pictures follow.
+                            return self.flush();
+                        }
+                    }
+                    Output::Live(out) => {
+                        if let Some(op) = self.shell.live_done(info.slot, info.generation, *out) {
+                            self.queue
+                                .push_waiting(0, vec![op], Vec::new(), Instant::now());
+                        }
+                    }
                 }
                 self.outstanding = self.outstanding.saturating_sub(1);
             }
@@ -256,6 +286,82 @@ impl Rig {
         // Nothing waits when `ready` has nothing more to give.
         self.flush();
         true
+    }
+
+    /// One 250 ms tick of the engine at `now`: readouts that changed are
+    /// redrawn. Returns how many were.
+    pub fn tick_at(&mut self, now: &kairo_scene::program::Now) -> usize {
+        let jobs = self.shell.tick(now);
+        let count = jobs.len();
+        for (slot, key, generation, live) in jobs {
+            let id = self.next_job;
+            self.next_job += 1;
+            let tx = self.back_tx.clone();
+            self.outstanding += 1;
+            self.visuals.submit(
+                crate::visuals::Job::Live(live),
+                None,
+                Box::new(move |o| {
+                    let _ = tx.send(Back::Visual(
+                        id,
+                        VisualRequestInfo {
+                            slot,
+                            key,
+                            generation,
+                        },
+                        Box::new(o),
+                    ));
+                }),
+            );
+        }
+        count
+    }
+
+    /// Waits for every outstanding worker result.
+    pub fn drain(&mut self) {
+        let end = Instant::now() + Duration::from_secs(30);
+        while self.outstanding > 0 {
+            assert!(Instant::now() < end, "workers never finished");
+            if let Ok(back) = self.back_rx.recv_timeout(Duration::from_millis(5)) {
+                self.absorb(back);
+            }
+        }
+    }
+
+    /// `stage.html` drawn through the workers and the compositor, over
+    /// everything (the stage has its own window from prompt 060).
+    pub fn show_stage(
+        &mut self,
+        view: kairo_domain::program::StageView,
+        now: kairo_scene::program::Now,
+    ) {
+        let (tx, rx) = mpsc::channel();
+        self.visuals.submit(
+            crate::visuals::Job::Layer(crate::layers::LayerJob {
+                source: crate::layers::LayerSource::Stage(view),
+                frame: (1920, 1080),
+                now,
+                still: true,
+            }),
+            None,
+            Box::new(move |o| {
+                let _ = tx.send(o);
+            }),
+        );
+        let Ok(Output::Layer(out)) = rx.recv_timeout(Duration::from_secs(30)) else {
+            panic!("the stage was not drawn");
+        };
+        self.seq += 1;
+        self.compositor.apply(
+            "o",
+            self.seq,
+            vec![kairo_compositor::thread::Op::Keyed {
+                slot: kairo_compositor::Slot::Pattern,
+                content: Some((out.content(), format!("stage#{}", self.seq))),
+                ms: 0,
+            }],
+        );
+        self.settle(self.seq);
     }
 
     pub fn show(&mut self, theme: &Value) -> u64 {
@@ -291,7 +397,7 @@ pub fn over_grey(premultiplied: &[u8]) -> Vec<u8> {
     out
 }
 
-fn load_png(path: &Path) -> Option<Vec<u8>> {
+pub fn load_png(path: &Path) -> Option<Vec<u8>> {
     let file = std::fs::File::open(path).ok()?;
     let mut reader = png::Decoder::new(std::io::BufReader::new(file))
         .read_info()
@@ -312,7 +418,7 @@ fn load_png(path: &Path) -> Option<Vec<u8>> {
     }
 }
 
-fn save_png(path: &Path, rgba: &[u8]) {
+pub fn save_png(path: &Path, rgba: &[u8]) {
     let file = std::fs::File::create(path).expect("create png");
     let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), W as u32, H as u32);
     encoder.set_color(png::ColorType::Rgba);

@@ -11,7 +11,7 @@ pub mod thread;
 pub use camera::{Mode, VideoLayout, place, video_layout};
 pub use geometry::{FRAME_WIDTH, Rect, Transform, frame_height, letterbox};
 pub use layers::{
-    ColorFilter, Content, Fill, Fit, Frames, Look, MediaParams, Node, PIP_SHADOW, Raster, Shadow,
-    Slot, Stack, clamp_transition,
+    ColorFilter, Content, Fill, Fit, Frames, Look, MediaParams, Motion, Node, PIP_SHADOW, Raster,
+    Shadow, Slot, Stack, clamp_transition,
 };
 pub use renderer::{FRAME_FORMAT, FrameTarget, Renderer, Scene};
