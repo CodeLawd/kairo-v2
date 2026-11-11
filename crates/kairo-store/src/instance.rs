@@ -15,7 +15,10 @@ use serde::{Deserialize, Serialize};
 use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use interprocess::local_socket::prelude::*;
@@ -55,6 +58,32 @@ impl Forwarded {
 pub struct PrimaryInstance {
     _lock: File,
     received: Receiver<Forwarded>,
+    listener: Listening,
+}
+
+/// The listener thread and how to stop it.
+struct Listening {
+    name: String,
+    stop: Arc<AtomicBool>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl Drop for PrimaryInstance {
+    /// Closes the socket before the lock goes, so the next process (or a
+    /// later [`acquire`] in this one) can bind the same name. The thread is
+    /// blocked accepting; one connection wakes it to see `stop`.
+    fn drop(&mut self) {
+        let listening = &mut self.listener;
+        listening.stop.store(true, Ordering::SeqCst);
+        let woken = to_name(&listening.name)
+            .and_then(LocalSocketStream::connect)
+            .is_ok();
+        if let Some(thread) = listening.thread.take()
+            && woken
+        {
+            let _ = thread.join();
+        }
+    }
 }
 
 impl PrimaryInstance {
@@ -115,10 +144,11 @@ pub fn acquire(user_data: &Path, launch: &Forwarded) -> io::Result<Instance> {
     match lock.try_lock() {
         Ok(()) => {
             let (tx, rx) = mpsc::channel();
-            listen(&name, tx)?;
+            let listener = listen(name, tx)?;
             Ok(Instance::Primary(PrimaryInstance {
                 _lock: lock,
                 received: rx,
+                listener,
             }))
         }
         Err(TryLockError::WouldBlock) => {
@@ -129,16 +159,21 @@ pub fn acquire(user_data: &Path, launch: &Forwarded) -> io::Result<Instance> {
     }
 }
 
-fn listen(name: &str, tx: Sender<Forwarded>) -> io::Result<()> {
+fn listen(name: String, tx: Sender<Forwarded>) -> io::Result<Listening> {
     // We hold the lock, so an existing socket file is stale.
     let listener = ListenerOptions::new()
-        .name(to_name(name)?)
+        .name(to_name(&name)?)
         .try_overwrite(true)
         .create_sync()?;
-    std::thread::Builder::new()
+    let stop = Arc::new(AtomicBool::new(false));
+    let stopped = stop.clone();
+    let thread = std::thread::Builder::new()
         .name("kairo-instance".into())
         .spawn(move || {
             for connection in listener.incoming() {
+                if stopped.load(Ordering::SeqCst) {
+                    return;
+                }
                 let Ok(stream) = connection else { continue };
                 // A client that never sends a line must not hold up later
                 // launches. Timeouts are unsupported on Windows named pipes.
@@ -160,7 +195,11 @@ fn listen(name: &str, tx: Sender<Forwarded>) -> io::Result<()> {
                 }
             }
         })?;
-    Ok(())
+    Ok(Listening {
+        name,
+        stop,
+        thread: Some(thread),
+    })
 }
 
 /// Sends `launch` to the first instance and waits for it to confirm.

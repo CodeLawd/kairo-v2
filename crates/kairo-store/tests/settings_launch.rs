@@ -50,7 +50,11 @@ fn electron(input: &BTreeMap<String, String>, read_only: &[&str]) -> Launch {
     }
 }
 
-fn native(input: &BTreeMap<String, String>, read_only: &[&str]) -> (Launch, OpenState) {
+fn native(
+    input: &BTreeMap<String, String>,
+    // Read-only files are made with Unix permissions only.
+    #[cfg_attr(not(unix), allow(unused_variables))] read_only: &[&str],
+) -> (Launch, OpenState) {
     let dir = tempfile::tempdir().unwrap();
     let user_data = dir.path().join("Kairo");
     std::fs::create_dir_all(&user_data).unwrap();

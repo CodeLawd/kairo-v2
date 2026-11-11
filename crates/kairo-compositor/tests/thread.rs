@@ -80,7 +80,18 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
         );
         spent += committed(&rx, seq);
     }
-    let frame_cost = (spent / samples as u32).max(Duration::from_micros(16_667));
+    // Offscreen frames are paced by a timed wait, which a busy virtual
+    // machine oversleeps: a frame comes no faster than that wait returns.
+    let (_keep, idle) = mpsc::channel::<()>();
+    let mut waited = Duration::ZERO;
+    for _ in 0..samples {
+        let at = Instant::now();
+        let _ = idle.recv_timeout(Duration::from_micros(16_667));
+        waited += at.elapsed();
+    }
+    let frame_cost = (spent / samples as u32)
+        .max(waited / samples as u32)
+        .max(Duration::from_micros(16_667));
     let fade_seq = 2 + samples;
     let settled = compositor.frames("out").unwrap();
     std::thread::sleep(Duration::from_millis(300));
