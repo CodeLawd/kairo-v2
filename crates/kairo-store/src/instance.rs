@@ -75,9 +75,17 @@ impl Drop for PrimaryInstance {
     fn drop(&mut self) {
         let listening = &mut self.listener;
         listening.stop.store(true, Ordering::SeqCst);
-        let woken = to_name(&listening.name)
-            .and_then(LocalSocketStream::connect)
-            .is_ok();
+        // The thread may still be answering the last launch and not yet
+        // accepting again (on Windows there is then no pipe to connect to),
+        // so the wake-up is retried for a moment.
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let woken = loop {
+            match to_name(&listening.name).and_then(LocalSocketStream::connect) {
+                Ok(_) => break true,
+                Err(_) if Instant::now() >= deadline => break false,
+                Err(_) => std::thread::sleep(Duration::from_millis(10)),
+            }
+        };
         if let Some(thread) = listening.thread.take()
             && woken
         {

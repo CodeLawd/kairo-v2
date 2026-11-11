@@ -758,11 +758,12 @@ mod tests {
         fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) {
             for entry in std::fs::read_dir(dir).unwrap().flatten() {
                 let path = entry.path();
+                // `/` on every platform, so one expected tree serves all.
                 let rel = path
                     .strip_prefix(base)
                     .unwrap()
                     .to_string_lossy()
-                    .into_owned();
+                    .replace('\\', "/");
                 if path.is_dir() {
                     out.push(format!("{rel}/"));
                     walk(base, &path, out);
@@ -850,8 +851,21 @@ mod tests {
 
     #[test]
     fn resolve_matches_node() {
-        assert_eq!(resolve(Path::new("/a/b/../c/./d")), PathBuf::from("/a/c/d"));
-        assert_eq!(resolve(Path::new("/../..")), PathBuf::from("/"));
+        // `path.resolve` on Windows keeps the drive and uses `\\`.
+        let (abs, root) = if cfg!(windows) {
+            ("C:\\a\\c\\d", "C:\\")
+        } else {
+            ("/a/c/d", "/")
+        };
+        let drive = if cfg!(windows) { "C:" } else { "" };
+        assert_eq!(
+            resolve(Path::new(&format!("{drive}/a/b/../c/./d"))),
+            PathBuf::from(abs)
+        );
+        assert_eq!(
+            resolve(Path::new(&format!("{drive}/../.."))),
+            PathBuf::from(root)
+        );
         assert!(resolve(Path::new("rel")).is_absolute());
     }
 }

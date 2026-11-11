@@ -169,7 +169,7 @@ fn media_folder_adoption() {
     );
     assert_eq!(
         m.target_folder,
-        dir.path().join("ws/Media").to_string_lossy()
+        dir.path().join("ws").join("Media").to_string_lossy()
     );
 
     store.set_raw(
@@ -187,7 +187,10 @@ fn media_folder_adoption() {
         json!({ "folder": backgrounds.to_string_lossy(), "playlists": [1] }),
     );
     let target = ws.adopt_media_folder(&mut store, true);
-    assert_eq!(target, dir.path().join("ws/Media").to_string_lossy());
+    assert_eq!(
+        target,
+        dir.path().join("ws").join("Media").to_string_lossy()
+    );
     assert!(dir.path().join("ws/Media/a.MP4").exists() && dir.path().join("ws/Media/Sub").is_dir());
     assert_eq!(
         store.data()["media"],
@@ -211,7 +214,7 @@ fn the_default_media_folder_never_replaces_a_chosen_one() {
     ws.apply_default_media_folder(&mut store);
     assert_eq!(
         store.data()["media"]["folder"],
-        json!(dir.path().join("ws/Media").to_string_lossy())
+        json!(dir.path().join("ws").join("Media").to_string_lossy())
     );
     // A workspace that cannot be created leaves media unset.
     std::fs::write(dir.path().join("file"), "").unwrap();
