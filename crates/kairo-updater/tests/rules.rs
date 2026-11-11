@@ -6,8 +6,7 @@ use kairo_updater::feed::{
     pick_mac_zip, pick_windows_installer, release_notes_from_atom,
 };
 use kairo_updater::install::{
-    MAC_SWAP_SCRIPT, bundle_from_executable, designated_requirement, is_adhoc_signature,
-    windows_installer_args,
+    bundle_from_executable, designated_requirement, is_adhoc_signature, windows_installer_args,
 };
 use kairo_updater::{Operation, update_error_message};
 use std::path::{Path, PathBuf};
@@ -217,7 +216,7 @@ fn windows_installer_arguments_match_electron_updater() {
 fn the_swap_script_replaces_the_bundle_and_puts_the_old_one_back_on_failure() {
     let root = tempfile::tempdir().unwrap();
     let script = root.path().join("swap.sh");
-    std::fs::write(&script, MAC_SWAP_SCRIPT).unwrap();
+    std::fs::write(&script, kairo_updater::install::MAC_SWAP_SCRIPT).unwrap();
     let installed = root.path().join("Applications").join("Kairo.app");
     std::fs::create_dir_all(&installed).unwrap();
     std::fs::write(installed.join("version"), "old").unwrap();
