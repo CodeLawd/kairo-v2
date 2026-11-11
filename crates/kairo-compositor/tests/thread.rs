@@ -54,6 +54,17 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
         }],
     );
     committed(&rx, 1);
+    // What one frame costs on this GPU: an instant swap, apply to commit.
+    compositor.apply(
+        "out",
+        2,
+        vec![Op::Swap {
+            slot: Slot::Background,
+            content: solid([1.0, 0.0, 0.0, 1.0]),
+            ms: 0,
+        }],
+    );
+    let frame_cost = committed(&rx, 2).max(Duration::from_micros(16_667));
     let settled = compositor.frames("out").unwrap();
     std::thread::sleep(Duration::from_millis(300));
     assert_eq!(
@@ -64,21 +75,25 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
 
     compositor.apply(
         "out",
-        2,
+        3,
         vec![Op::Swap {
             slot: Slot::Background,
             content: solid([0.0, 0.0, 1.0, 1.0]),
             ms: 300,
         }],
     );
-    committed(&rx, 2);
+    committed(&rx, 3);
     std::thread::sleep(Duration::from_millis(500));
     let after_fade = compositor.frames("out").unwrap();
     let drawn = after_fade - settled;
-    // About 60 frames a second for 300 ms; at least a dozen.
+    // Frames all through the fade: about 60 a second (18 in 300 ms) where
+    // the GPU keeps up, at least two thirds of what it can draw (a dozen on
+    // real hardware) where it does not, and never unpaced.
+    let possible = (300.0 / (frame_cost.as_secs_f64() * 1000.0)).round() as u64;
+    let least = (possible * 2 / 3).max(2);
     assert!(
-        (12..=40).contains(&drawn),
-        "{drawn} frames for a 300 ms fade"
+        (least..=40).contains(&drawn),
+        "{drawn} frames for a 300 ms fade (a frame costs {frame_cost:?}, at least {least} expected)"
     );
     std::thread::sleep(Duration::from_millis(300));
     assert_eq!(
