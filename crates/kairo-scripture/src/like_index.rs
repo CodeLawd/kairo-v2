@@ -29,7 +29,9 @@ pub struct LikePattern {
 }
 
 enum Segment {
-    Literal(memchr::memmem::Finder<'static>),
+    /// Boxed: on x86_64 the finder carries SIMD state and is far larger than
+    /// a `Vec`.
+    Literal(Box<memchr::memmem::Finder<'static>>),
     /// Holds at least one `_`.
     Wild(Vec<u8>),
 }
@@ -48,9 +50,9 @@ impl LikePattern {
             .filter(|segment| !segment.is_empty())
             .map(|segment| match segment.contains('_') {
                 true => Segment::Wild(segment.as_bytes().to_vec()),
-                false => {
-                    Segment::Literal(memchr::memmem::Finder::new(segment.as_bytes()).into_owned())
-                }
+                false => Segment::Literal(Box::new(
+                    memchr::memmem::Finder::new(segment.as_bytes()).into_owned(),
+                )),
             })
             .collect();
         Some(Self { segments })

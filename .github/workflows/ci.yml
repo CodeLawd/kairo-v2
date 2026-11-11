@@ -30,6 +30,35 @@ jobs:
             libssl-dev libzstd-dev libasound2-dev vulkan-validationlayers libvulkan1 \
             mesa-vulkan-drivers
 
+      # FFmpeg 9 shared libraries (DECISIONS: kairo-media links FFmpeg).
+      # `ffmpeg-sys-next` reads `FFMPEG_DIR`; tests need the DLLs/.so files
+      # at run time and the `ffmpeg` command for poster fixtures.
+      - name: Install FFmpeg 9 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg pkgconf
+
+      - name: Install FFmpeg 9 (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/ffmpeg.tar.xz" \
+            https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-linux64-lgpl-shared-9.0.tar.xz
+          mkdir -p "$RUNNER_TEMP/ffmpeg"
+          tar -xJf "$RUNNER_TEMP/ffmpeg.tar.xz" -C "$RUNNER_TEMP/ffmpeg" --strip-components=1
+          echo "FFMPEG_DIR=$RUNNER_TEMP/ffmpeg" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$RUNNER_TEMP/ffmpeg/lib" >> "$GITHUB_ENV"
+          echo "$RUNNER_TEMP/ffmpeg/bin" >> "$GITHUB_PATH"
+
+      - name: Install FFmpeg 9 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+          Invoke-WebRequest -Uri 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-lgpl-shared-9.0.zip' -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $env:RUNNER_TEMP
+          $dir = Join-Path $env:RUNNER_TEMP 'ffmpeg-n9.0-latest-win64-lgpl-shared-9.0'
+          "FFMPEG_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Join-Path $dir 'bin' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Select workspace Rust toolchain
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
 
