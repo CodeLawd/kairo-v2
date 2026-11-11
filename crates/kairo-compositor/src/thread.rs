@@ -274,7 +274,13 @@ fn run(
         let now = Instant::now();
         let wake = outputs
             .values()
-            .filter_map(|o| o.due.or_else(|| o.scene.stack.next_change(now)))
+            .filter_map(|o| {
+                o.due
+                    .or_else(|| o.scene.stack.next_change(now))
+                    // A fade that ended while a slow frame was drawing still
+                    // owes its frame at rest; nothing else would wake for it.
+                    .or_else(|| o.animated.then_some(now))
+            })
             .min();
         let first = match wake {
             None => match rx.recv() {
