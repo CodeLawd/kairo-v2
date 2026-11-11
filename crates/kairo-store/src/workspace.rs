@@ -677,6 +677,7 @@ mod tests {
     //! `tests/media-root.test.ts`, plus the realpath cases from `isUnderAllowedFolder`.
     use super::*;
 
+    #[cfg(unix)]
     fn inside(file: &str, root: &str) -> bool {
         is_inside_root(Path::new(file), Path::new(root))
     }
