@@ -7,9 +7,18 @@ use std::{
 
 fn main() -> ExitCode {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    let [checkout, output] = args.as_slice() else {
-        eprintln!("usage: golden-capture ELECTRON_CHECKOUT OUTPUT_DIRECTORY");
-        return ExitCode::FAILURE;
+    let (checkout, output, extra) = match args.as_slice() {
+        [checkout, output] => (checkout, output, Vec::new()),
+        // `visuals FIXTURES` captures the prompt 053 corpus.
+        [checkout, output, mode, fixtures] if mode == "visuals" => {
+            (checkout, output, vec![mode.clone(), fixtures.clone()])
+        }
+        _ => {
+            eprintln!(
+                "usage: golden-capture ELECTRON_CHECKOUT OUTPUT_DIRECTORY [visuals FIXTURES]"
+            );
+            return ExitCode::FAILURE;
+        }
     };
     let checkout = Path::new(checkout);
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("capture.cjs");
@@ -18,6 +27,7 @@ fn main() -> ExitCode {
         .arg(script)
         .arg(checkout)
         .arg(output)
+        .args(extra)
         .status();
     match result {
         Ok(status) if status.success() => ExitCode::SUCCESS,

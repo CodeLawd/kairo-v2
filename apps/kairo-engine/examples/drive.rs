@@ -3,14 +3,18 @@
 //!
 //! ```text
 //! cargo run -p kairo-engine --example drive -- [--display N] [--full] [--secs S]
-//!     [--kill-after S] [--fade MS] [--frame-height H]
+//!     [--kill-after S] [--fade MS] [--frame-height H] [--theme ID] [--case ID]
+//!     [--text TEXT] [--reference REF]
 //! ```
 //!
 //! Opens one output on display N (default 0): a rehearsal window, or the
-//! whole display with `--full`. Shows a red slide; with `--fade` it then
-//! crossfades to blue over MS milliseconds two seconds later. Logs every
-//! engine event, optionally SIGKILLs the engine once to show the relaunch,
-//! then shuts down after S seconds.
+//! whole display with `--full`. Shows a red slide carrying a verse in the
+//! built-in theme ID (default `broadcast`; also `warm-paper`, `midnight`,
+//! `lyrics-stage`, `lyrics-lower`); with `--fade` it then crossfades to a
+//! blue slide with different words over MS milliseconds. Logs every engine
+//! event, optionally SIGKILLs the engine once to show the relaunch, then
+//! shuts down after S seconds. Only colour backgrounds draw so far (053), so
+//! each theme's background is replaced by a flat colour.
 
 use kairo_core::engine::*;
 use kairo_engine_proto::*;
@@ -69,14 +73,56 @@ async fn main() {
             frame_height,
         }),
     }));
-    let slide = |color: &str| SlideContent {
-        reference: "John 3:16".into(),
-        text: "For God so loved the world".into(),
-        theme: Json(format!(
-            r#"{{"background":{{"type":"color","color":"{color}","opacity":1}}}}"#
-        )),
-        colored_lines: None,
+    let theme_id: String = value("--theme").unwrap_or_else(|| "broadcast".into());
+    let built_in = kairo_domain::theme_library::BUILT_IN_THEMES
+        .iter()
+        .find(|t| t.id == theme_id)
+        .unwrap_or_else(|| panic!("no built-in theme {theme_id}"));
+    // `--case ID` draws a prompt 053 corpus theme (background, elements)
+    // instead of a flat colour; its pictures come from tests/fixtures.
+    let case: Option<serde_json::Value> = value::<String>("--case").map(|id| {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let cases: Vec<serde_json::Value> = serde_json::from_slice(
+            &std::fs::read(root.join("tests/golden/053-visuals/cases.json")).expect("cases.json"),
+        )
+        .expect("cases json");
+        let found = cases
+            .into_iter()
+            .find(|c| c["id"] == id.as_str())
+            .unwrap_or_else(|| panic!("no visual case {id}"));
+        let fixtures = root
+            .join("tests/fixtures/visuals")
+            .canonicalize()
+            .expect("fixtures");
+        let text = found["theme"]
+            .to_string()
+            .replace("@FIX@", fixtures.to_str().unwrap());
+        serde_json::from_str(&text).expect("theme json")
+    });
+    let slide = |color: &str, reference: &str, text: &str| {
+        if let Some(theme) = &case {
+            return SlideContent {
+                reference: reference.into(),
+                text: text.into(),
+                theme: Json::from_value(theme),
+                colored_lines: None,
+            };
+        }
+        let mut theme = built_in.theme.clone();
+        theme.background.kind = kairo_domain::overlay::OverlayBackgroundType::Color;
+        theme.background.color = color.into();
+        theme.background.opacity = 1.0;
+        SlideContent {
+            reference: reference.into(),
+            text: text.into(),
+            theme: Json::encode(&theme),
+            colored_lines: None,
+        }
     };
+    let reference: String = value("--reference").unwrap_or_else(|| "John 3:16 (KJV)".into());
+    let first_text: String = value("--text").unwrap_or_else(|| {
+        "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.".into()
+    });
     if let Some(ms) = fade {
         engine.command(Command::Configure {
             output: "main".into(),
@@ -89,7 +135,7 @@ async fn main() {
     let sent = engine.command(Command::ShowSlide {
         output: "main".into(),
         source: "main".into(),
-        slide: slide("#C81E1E"),
+        slide: slide("#C81E1E", &reference, &first_text),
         instant: true,
     });
     println!(
@@ -122,7 +168,11 @@ async fn main() {
             engine.command(Command::ShowSlide {
                 output: "main".into(),
                 source: "main".into(),
-                slide: slide("#1E3CC8"),
+                slide: slide(
+                    "#1E3CC8",
+                    "Psalm 23:1–3 (KJV)",
+                    "1 The LORD is my shepherd; I shall not want.\n2 He maketh me to lie down in green pastures: he leadeth me beside the still waters.\n3 He restoreth my soul: he leadeth me in the paths of righteousness for his name’s sake.",
+                ),
                 instant: false,
             });
         }

@@ -19,6 +19,21 @@ pub enum Message {
     Connected(u64),
     /// From the compositor thread.
     Compositor(kairo_compositor::thread::CompositorEvent),
+    /// A slide's text was drawn on a worker.
+    Text {
+        output: String,
+        job: u64,
+        done: crate::text::TextDone,
+    },
+    /// A background picture or elements layer was made on a worker.
+    Visual {
+        output: String,
+        job: u64,
+        slot: kairo_compositor::Slot,
+        key: String,
+        generation: u64,
+        output_kind: crate::visuals::Output,
+    },
     Disconnected(u64),
     Command {
         seq: u64,

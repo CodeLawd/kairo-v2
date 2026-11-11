@@ -8,6 +8,10 @@ mod display;
 mod mac;
 mod program;
 mod server;
+mod text;
+#[cfg(test)]
+mod visual_corpus;
+mod visuals;
 
 use std::process::ExitCode;
 use std::time::Duration;
