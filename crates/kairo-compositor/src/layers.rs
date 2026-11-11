@@ -30,10 +30,13 @@ pub enum Slot {
     Question,
     Info,
     Logo,
+    /// `#kairo-diagnostic-pattern`: on the body, over everything, never
+    /// moved by a camera layout.
+    Pattern,
 }
 
 impl Slot {
-    pub const ALL: [Slot; 14] = [
+    pub const ALL: [Slot; 15] = [
         Slot::Background,
         Slot::Camera,
         Slot::Web,
@@ -48,6 +51,7 @@ impl Slot {
         Slot::Question,
         Slot::Info,
         Slot::Logo,
+        Slot::Pattern,
     ];
 
     /// The slots inside `#pa-content-fore`, bottom to top.
@@ -318,11 +322,43 @@ pub const PIP_SHADOW: Shadow = Shadow {
     color: [0.0, 0.0, 0.0, 0.5],
 };
 
+/// A CSS `linear infinite` translate along x, timed by the node's age:
+/// `@keyframes pa-ticker` (from 0 to `distance`) and the diagnostic sweep
+/// (`alternate`: there and back).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Motion {
+    /// Frame pixels moved over one period; negative moves left.
+    pub distance: f32,
+    pub period_ms: u32,
+    pub alternate: bool,
+}
+
+impl Motion {
+    /// The x offset `age` into the animation.
+    pub fn offset(&self, age: Duration) -> f32 {
+        if self.period_ms == 0 {
+            return 0.0;
+        }
+        let period = f64::from(self.period_ms);
+        let ms = age.as_secs_f64() * 1000.0;
+        let cycles = ms / period;
+        let mut t = cycles.fract();
+        if self.alternate && (cycles.floor() as u64) % 2 == 1 {
+            t = 1.0 - t;
+        }
+        self.distance * t as f32
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Content {
     pub fill: Fill,
     /// In frame pixels, before any group transform. `None`: the whole frame.
     pub rect: Option<Rect>,
+    /// `overflow: hidden` on a box of its own, in frame pixels.
+    pub clip: Option<Rect>,
+    /// Moves the content along x for as long as it is shown.
+    pub motion: Option<Motion>,
     pub radius: f32,
     pub shadow: Option<Shadow>,
     /// The node's own CSS opacity, times the fade.
@@ -337,6 +373,8 @@ impl Content {
         Self {
             fill,
             rect: None,
+            clip: None,
+            motion: None,
             radius: 0.0,
             shadow: None,
             opacity: 1.0,
@@ -406,6 +444,15 @@ impl Node {
         out
     }
 
+    /// True when something in it moves continuously (`Motion`).
+    fn moving(&self) -> bool {
+        fn walk(content: &Content) -> bool {
+            content.motion.is_some()
+                || matches!(&content.fill, Fill::Group(children) if children.iter().any(walk))
+        }
+        walk(&self.content)
+    }
+
     /// The soonest moment an animated frame of this node changes.
     fn next_frame(&self, now: Instant) -> Option<Instant> {
         let age = self.age(now);
@@ -456,7 +503,7 @@ pub fn clamp_transition(ms: f64) -> u32 {
 
 #[derive(Default, Debug)]
 pub struct Stack {
-    slots: [Vec<Node>; 14],
+    slots: [Vec<Node>; 15],
     next_id: u64,
 }
 
@@ -594,6 +641,7 @@ impl Stack {
                 let frame = n.next_frame(now);
                 let own = match (fade, removal) {
                     (Some(_), _) => Some(now),
+                    _ if n.moving() && !n.is_leaving() => Some(now),
                     (None, removal) => removal,
                 };
                 [own, frame].into_iter().flatten().min()
@@ -624,7 +672,7 @@ impl Stack {
         self.slots
             .iter()
             .flatten()
-            .any(|n| n.animating_until(now).is_some())
+            .any(|n| n.animating_until(now).is_some() || n.moving())
     }
 
     /// The live source ids any node draws, so their frames mark it dirty.
@@ -641,5 +689,53 @@ impl Stack {
             ids(&n.content, &mut out);
             out
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_ticker_runs_linearly_and_starts_again() {
+        let m = Motion {
+            distance: -1000.0,
+            period_ms: 10_000,
+            alternate: false,
+        };
+        assert_eq!(m.offset(Duration::ZERO), 0.0);
+        assert!((m.offset(Duration::from_millis(2_500)) + 250.0).abs() < 1e-3);
+        assert!((m.offset(Duration::from_millis(12_500)) + 250.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn an_alternating_sweep_comes_back() {
+        let m = Motion {
+            distance: 1800.0,
+            period_ms: 3_000,
+            alternate: true,
+        };
+        assert!((m.offset(Duration::from_millis(1_500)) - 900.0).abs() < 1e-3);
+        assert!((m.offset(Duration::from_millis(4_500)) - 900.0).abs() < 1e-3);
+        assert!((m.offset(Duration::from_millis(3_750)) - 1350.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn a_moving_node_keeps_the_output_drawing() {
+        let mut stack = Stack::default();
+        let now = Instant::now();
+        let content = Content {
+            motion: Some(Motion {
+                distance: -10.0,
+                period_ms: 1000,
+                alternate: false,
+            }),
+            ..Content::new(Fill::Solid([1.0; 4]))
+        };
+        stack.swap(Slot::Message, Some(content), 0, now);
+        assert!(stack.animating(now));
+        assert_eq!(stack.next_change(now), Some(now));
+        stack.swap(Slot::Message, None, 0, now);
+        assert!(!stack.animating(now));
     }
 }

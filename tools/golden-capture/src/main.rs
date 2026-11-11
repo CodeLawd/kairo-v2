@@ -10,12 +10,13 @@ fn main() -> ExitCode {
     let (checkout, output, extra) = match args.as_slice() {
         [checkout, output] => (checkout, output, Vec::new()),
         // `visuals FIXTURES` captures the prompt 053 corpus.
-        [checkout, output, mode, fixtures] if mode == "visuals" => {
+        // `programs FIXTURES` captures the prompt 054 corpus.
+        [checkout, output, mode, fixtures] if mode == "visuals" || mode == "programs" => {
             (checkout, output, vec![mode.clone(), fixtures.clone()])
         }
         _ => {
             eprintln!(
-                "usage: golden-capture ELECTRON_CHECKOUT OUTPUT_DIRECTORY [visuals FIXTURES]"
+                "usage: golden-capture ELECTRON_CHECKOUT OUTPUT_DIRECTORY [visuals|programs FIXTURES]"
             );
             return ExitCode::FAILURE;
         }

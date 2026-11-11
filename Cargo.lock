@@ -4714,6 +4714,7 @@ dependencies = [
 name = "kairo-engine"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "image",
  "interprocess",
  "kairo-compositor",
@@ -4849,6 +4850,7 @@ name = "kairo-scene"
 version = "0.1.0"
 dependencies = [
  "avif-decode",
+ "base64 0.22.1",
  "image",
  "kairo-domain",
  "kurbo 0.12.0",

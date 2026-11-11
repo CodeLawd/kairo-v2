@@ -20,6 +20,8 @@ use winit::window::{Window, WindowId};
 /// debounce of `surface-manager.ts` on top; parking happens at once.
 const DISPLAY_POLL: Duration = Duration::from_millis(250);
 const REPORT_EVERY: Duration = Duration::from_secs(2);
+/// How often countdowns and clocks are read (`setInterval(…, 250)`).
+const TICK: Duration = Duration::from_millis(250);
 /// Exit status when the GPU device is lost: the supervisor relaunches the
 /// engine and replays every surface.
 pub const EXIT_DEVICE_LOST: u8 = 75;
@@ -69,6 +71,7 @@ pub struct Engine {
     displays: Vec<DisplayInfo>,
     next_scan: Instant,
     next_report: Instant,
+    next_tick: Instant,
     /// Set while no client is connected, including before the first one.
     orphaned_at: Option<Instant>,
 }
@@ -91,6 +94,7 @@ impl Engine {
             displays: Vec::new(),
             next_scan: now,
             next_report: now + REPORT_EVERY,
+            next_tick: now,
             orphaned_at: Some(now),
         }
     }
@@ -276,6 +280,28 @@ impl Engine {
             Output::Image(None) => {
                 tracing::warn!(output, "a background picture could not be shown");
             }
+            Output::Layer(out) => {
+                let content = surface.shell.layer_done(slot, &key, generation, out);
+                // The first result fills the command waiting for it; a later
+                // one (with its pictures) updates the node.
+                if !surface.queue.complete_visual(job, content.clone())
+                    && surface.shell.is_current(slot, generation)
+                {
+                    surface.queue.push_waiting(
+                        0,
+                        vec![kairo_compositor::thread::Op::Update { slot, key, content }],
+                        Vec::new(),
+                        Instant::now(),
+                    );
+                }
+            }
+            Output::Live(out) => {
+                if let Some(op) = surface.shell.live_done(slot, generation, *out) {
+                    surface
+                        .queue
+                        .push_waiting(0, vec![op], Vec::new(), Instant::now());
+                }
+            }
         }
         self.flush(output);
     }
@@ -302,6 +328,37 @@ impl Engine {
                     .push_back((ready.seq, ready.received, timing));
             }
             compositor.apply(output, ready.seq, ready.ops);
+        }
+    }
+
+    /// Countdowns and clocks: every 250 ms, each readout whose text,
+    /// colour or dimming changed is redrawn on a worker, alone.
+    fn tick(&mut self) {
+        let now = crate::layers::now();
+        let mut jobs = Vec::new();
+        for surface in &mut self.surfaces {
+            for job in surface.shell.tick(&now) {
+                jobs.push((surface.output().to_owned(), job));
+            }
+        }
+        for (output, (slot, key, generation, live)) in jobs {
+            let proxy = self.proxy.clone();
+            let job = self.next_job;
+            self.next_job += 1;
+            self.visuals.submit(
+                crate::visuals::Job::Live(live),
+                None,
+                Box::new(move |o| {
+                    let _ = proxy.send_event(Message::Visual {
+                        output,
+                        job,
+                        slot,
+                        key,
+                        generation,
+                        output_kind: o,
+                    });
+                }),
+            );
         }
     }
 
@@ -688,7 +745,15 @@ impl ApplicationHandler<Message> for Engine {
                 self.report();
             }
         }
+        let ticking = self.surfaces.iter().any(|s| !s.shell.live.is_empty());
+        if ticking && now >= self.next_tick {
+            self.next_tick = now + TICK;
+            self.tick();
+        }
         let mut wake = self.next_scan.min(self.next_report);
+        if ticking {
+            wake = wake.min(self.next_tick);
+        }
         if let Some(at) = self.orphaned_at {
             wake = wake.min(at + self.grace);
         }

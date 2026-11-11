@@ -253,7 +253,7 @@ fn replay_rebuilds_the_same_state() {
             &Command::SetLayer {
                 output: "screen".into(),
                 kind,
-                markup: format!("<div>{index}</div>"),
+                layer: Some(Json(format!("{{\"kind\":\"message\",\"n\":{index}}}"))),
             },
             true,
         );

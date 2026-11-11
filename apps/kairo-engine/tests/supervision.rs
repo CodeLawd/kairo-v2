@@ -191,7 +191,7 @@ async fn killing_the_engine_during_a_command_storm_replays_state() {
                 engine.command(Command::SetLayer {
                     output: output.into(),
                     kind,
-                    markup: format!("<b>{i}</b>"),
+                    layer: Some(message(&format!("{i}"))),
                 });
                 if i % 7 == 0 {
                     engine.command(Command::Configure {
@@ -255,7 +255,9 @@ async fn killing_the_engine_during_a_command_storm_replays_state() {
         let sent = engine.command(Command::SetLayer {
             output: "screen".into(),
             kind: LayerKind::Logo,
-            markup: "logo".into(),
+            layer: Some(Json(
+                r##"{"kind":"logo","logo":{"mediaPath":"","background":"#000000"}}"##.into(),
+            )),
         });
         assert!(
             engine
@@ -308,14 +310,14 @@ async fn planned_restarts_do_not_spend_the_budget() {
     engine.command(Command::SetLayer {
         output: "ndi".into(),
         kind: LayerKind::Message,
-        markup: "hello".into(),
+        layer: Some(message("hello")),
     });
     for _ in 0..5 {
         engine.restart();
         pid = relaunched(&engine, pid).await;
     }
     let state = engine_state(&engine).await.unwrap();
-    assert_eq!(state[0].layers.message, "hello");
+    assert_eq!(state[0].layers.message, Some(message("hello")));
     engine.shutdown();
 }
 
@@ -609,4 +611,17 @@ fn the_grace_period_starts_even_when_stderr_is_gone() {
         }
         std::thread::sleep(Duration::from_millis(10));
     }
+}
+
+/// A message layer as `programLayersFor` sends it.
+fn message(text: &str) -> Json {
+    Json(
+        serde_json::json!({
+            "kind": "message",
+            "text": text,
+            "style": {"position": "bottom", "fontSizePx": 44, "color": "#ffffff",
+                      "background": "rgba(0,0,0,0.72)", "scroll": false}
+        })
+        .to_string(),
+    )
 }

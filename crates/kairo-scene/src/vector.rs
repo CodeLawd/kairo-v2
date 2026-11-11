@@ -59,7 +59,7 @@ pub fn element_opacity(opacity: f64) -> f32 {
 /// Control distance of a cubic quarter circle.
 const KAPPA: f32 = 0.552_285;
 
-fn rounded_rect(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<Path> {
+pub(crate) fn rounded_rect(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<Path> {
     let r = r.max(0.0).min(w / 2.0).min(h / 2.0);
     let mut b = PathBuilder::new();
     if r <= 0.0 {
@@ -81,7 +81,7 @@ fn rounded_rect(x: f32, y: f32, w: f32, h: f32, r: f32) -> Option<Path> {
     b.finish()
 }
 
-fn ellipse(x: f32, y: f32, w: f32, h: f32) -> Option<Path> {
+pub(crate) fn ellipse(x: f32, y: f32, w: f32, h: f32) -> Option<Path> {
     let (rx, ry) = (w / 2.0, h / 2.0);
     let (cx, cy) = (x + rx, y + ry);
     let (kx, ky) = (rx * KAPPA, ry * KAPPA);

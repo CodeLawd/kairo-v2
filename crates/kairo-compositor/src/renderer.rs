@@ -605,6 +605,7 @@ impl Renderer {
         if placement.mode == Mode::Pip {
             self.slot(&mut draws, scene, Slot::Camera, frame, size, camera, now);
         }
+        self.slot(&mut draws, scene, Slot::Pattern, frame, size, camera, now);
         draws
     }
 
@@ -649,7 +650,15 @@ impl Renderer {
             clip,
             ..
         } = ctx;
-        let rect = transform.apply(content.rect.unwrap_or(frame));
+        let clip = match content.clip {
+            Some(own) => intersect(clip, transform.apply(own)),
+            None => clip,
+        };
+        let ctx = Ctx { clip, ..ctx };
+        let mut rect = transform.apply(content.rect.unwrap_or(frame));
+        if let Some(motion) = content.motion {
+            rect.x += motion.offset(age) * transform.scale;
+        }
         let radius = content.radius * transform.scale;
         if let Some(shadow) = content.shadow {
             let mut quad = Quad::new(
@@ -1259,6 +1268,18 @@ fn scale_about(mut quad: Quad, centre: (f32, f32), s: f32) -> Quad {
         quad.rect[3] * s,
     ];
     quad
+}
+
+/// Both clips at once; `None` on either side means no limit there.
+fn intersect(a: Option<Rect>, b: Rect) -> Option<Rect> {
+    let Some(a) = a else {
+        return Some(b);
+    };
+    let x0 = a.x.max(b.x);
+    let y0 = a.y.max(b.y);
+    let x1 = (a.x + a.width).min(b.x + b.width);
+    let y1 = (a.y + a.height).min(b.y + b.height);
+    Some(Rect::new(x0, y0, (x1 - x0).max(0.0), (y1 - y0).max(0.0)))
 }
 
 /// The clip as a scissor inside the target, `None` when nothing is left.

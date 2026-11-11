@@ -193,6 +193,81 @@ async function runVisuals(window, source, output, fixtures) {
   console.log(`Captured ${written.length} visual cases with Chromium ${process.versions.chrome}`)
 }
 
+// Prompt 054: program layers, info, stage and test patterns.
+async function runPrograms(window, source, output, fixtures) {
+  const { build } = createRequire(join(source, 'package.json'))('esbuild')
+  const entrySource = [
+    `export * from ${JSON.stringify(join(source, 'src/lib/program.ts'))}`,
+    `export { outputTestPatternHTML } from ${JSON.stringify(join(source, 'src/lib/output-test-pattern.ts'))}`,
+  ].join('\n')
+  const bundle = await build({ stdin: { contents: entrySource, resolveDir: source, loader: 'ts' },
+    bundle: true, write: false, platform: 'node', format: 'cjs' })
+  const entry = { exports: {} }
+  new Function('module', 'exports', 'require', bundle.outputFiles[0].text)(entry, entry.exports, createRequire(join(source, 'package.json')))
+  const { toDataURL } = createRequire(join(source, 'package.json'))('qrcode')
+  // As the audience service makes it.
+  const qr = (url) => toDataURL(url, { width: 384, margin: 2, errorCorrectionLevel: 'M' })
+  const { cases, clock } = await require('./programs.cjs')(entry.exports, qr, fixtures)
+  await mkdir(join(output, 'programs'), { recursive: true })
+  // The debugger attaches to a loaded page and stays across loads.
+  await window.loadFile(join(source, 'src/main/services/output/overlay.html'))
+  const session = window.webContents.debugger
+  session.attach('1.3')
+  await session.sendCommand('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false })
+  const fix = (value) => JSON.parse(JSON.stringify(value).replaceAll('@FIX@', fixtures))
+  // `Date` pinned so the clock reads the same in every capture.
+  const pin = (now) => `(() => { const Real = Date; const now = ${now};
+    class Pinned extends Real { constructor(...a) { super(...(a.length ? a : [now])) } static now() { return now } }
+    window.Date = Pinned })()`
+  let page = null
+  let gray = null
+  const written = []
+  for (const item of cases) {
+    const want = item.stage ? 'stage' : 'overlay'
+    if (page !== want) {
+      await window.loadFile(join(source, `src/main/services/output/${want}.html`))
+      await window.webContents.executeJavaScript(pin(item.now))
+      gray = want === 'overlay' ? await window.webContents.insertCSS('html,body{background:#808080!important}') : null
+      page = want
+    }
+    const data = fix(item)
+    const script = []
+    if (want === 'stage') {
+      script.push(`window.__setStage(${JSON.stringify(data.stage)})`)
+    } else {
+      script.push(`['__setPoll','__setQuestion','__setMessage','__setProps','__setTimerDesign','__setLogo'].forEach(f => window[f](''))`)
+      script.push('window.__setInfo(null)')
+      script.push('document.getElementById("kairo-diagnostic-pattern")?.remove()')
+      const setters = { message: '__setMessage', props: '__setProps', timer: '__setTimerDesign', poll: '__setPoll', question: '__setQuestion', logo: '__setLogo' }
+      for (const [kind, { html }] of Object.entries(data.layers || {})) script.push(`window.${setters[kind]}(${JSON.stringify(html)})`)
+      if (data.info) script.push(`window.__setInfo(${JSON.stringify(data.info)})`)
+      if (data.pattern) script.push(`document.body.insertAdjacentHTML("beforeend", ${JSON.stringify(data.pattern.html)})`)
+    }
+    await window.webContents.executeJavaScript(`(async () => {
+      ${script.join(';\n')}
+      const media = [...document.querySelectorAll('img')]
+      await Promise.all(media.map(m => m.decode ? m.decode().catch(() => {}) : null))
+      await document.fonts.ready
+      // Moving parts at their first frame, as a new node starts.
+      document.getAnimations().forEach(a => { a.pause(); a.currentTime = 0 })
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    })()`)
+    const { data: png } = await session.sendCommand('Page.captureScreenshot', {
+      format: 'png', fromSurface: true, clip: { x: 0, y: 0, width, height, scale: 1 },
+    })
+    await writeFile(join(output, 'programs', item.id + '.png'), Buffer.from(png, 'base64'))
+    const { layers, info, stage, pattern } = item
+    written.push({
+      id: item.id, group: item.group, now: item.now, clock,
+      layers: layers ? Object.fromEntries(Object.entries(layers).map(([k, v]) => [k, v.value])) : undefined,
+      info, stage, pattern: pattern ? { pattern: pattern.pattern, name: pattern.name } : undefined,
+    })
+  }
+  if (gray) await window.webContents.removeInsertedCSS(gray)
+  await writeFile(join(output, 'programs', 'cases.json'), JSON.stringify(written) + '\n')
+  console.log(`Captured ${written.length} program cases with Chromium ${process.versions.chrome}`)
+}
+
 async function main() {
   const [, , source, output, mode, fixtures] = process.argv
   if (!source || !output) throw new Error('Usage: electron capture.cjs ELECTRON_CHECKOUT OUTPUT')
@@ -214,9 +289,10 @@ async function main() {
     window = new BrowserWindow({
       width, height, useContentSize: true, show: false, transparent: true,
       webPreferences: { backgroundThrottling: false, sandbox: true, contextIsolation: true, // Off-screen, so colours are not converted to the display's profile.
-      offscreen: mode === 'visuals' },
+      offscreen: mode === 'visuals' || mode === 'programs' },
     })
     if (mode === 'visuals') await runVisuals(window, sourceRoot, outputRoot, resolve(fixtures))
+    else if (mode === 'programs') await runPrograms(window, sourceRoot, outputRoot, resolve(fixtures))
     else await run(window, sourceRoot, outputRoot)
   } finally {
     window?.destroy()

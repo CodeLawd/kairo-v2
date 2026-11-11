@@ -11,6 +11,7 @@ pub mod fit;
 mod glyphs;
 pub mod media;
 mod pool;
+pub mod program;
 mod raster;
 mod scene;
 mod text;
@@ -22,8 +23,8 @@ pub use raster::{
     BoxLayout, TextRaster, Timings, analyse, rasterize, rasterize_timed, rasterize_with,
 };
 pub use scene::{
-    Align, BoxKind, ColoredLine, Decoration, Fit, Paragraph, Rect, Shadow, SlideScene, Stroke,
-    TextBox, TextStyle, Vertical, colored_lines_from_json,
+    Align, BoxKind, ColoredLine, Decoration, Fit, LINE_HEIGHT_NORMAL, Paragraph, Rect, Shadow,
+    SlideScene, Stroke, TextBox, TextStyle, Vertical, colored_lines_from_json,
 };
 pub use text::{collapse, paragraphs_for, transform};
 pub use typeset::{
