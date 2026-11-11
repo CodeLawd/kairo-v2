@@ -10,13 +10,31 @@ use proptest::prelude::*;
 use serde_json::{Value, json};
 
 /// Any double, weighted towards values whose printing or rounding is tricky.
+/// `10^e` by repeated squaring, as compiler-rt's `__powidf2` computes
+/// `powi`. `f64::powi` itself may differ between platforms (it did on
+/// Windows), which changed the inputs and so the oracle cache keys.
+fn pow10(e: i32) -> f64 {
+    let (mut base, mut n, mut result) = (10.0f64, e.unsigned_abs(), 1.0f64);
+    loop {
+        if n & 1 == 1 {
+            result *= base;
+        }
+        n /= 2;
+        if n == 0 {
+            break;
+        }
+        base *= base;
+    }
+    if e < 0 { 1.0 / result } else { result }
+}
+
 fn float() -> BoxedStrategy<f64> {
     prop_oneof![
         3 => any::<f64>(),
         2 => -1e6..1e6f64,
         2 => (-1000i32..1000).prop_map(|n| f64::from(n) / 2.0),
-        1 => (-30i32..30).prop_map(|e| 10f64.powi(e)),
-        1 => (-30i32..30, 1u32..999).prop_map(|(e, m)| f64::from(m) * 10f64.powi(e)),
+        1 => (-30i32..30).prop_map(pow10),
+        1 => (-30i32..30, 1u32..999).prop_map(|(e, m)| f64::from(m) * pow10(e)),
         1 => prop::sample::select(vec![
             0.0, -0.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0.49999999999999994,
             -0.5, 1e21, 1e-7, 123e-20, 5e-324, f64::MAX, 9_007_199_254_740_993.0,
