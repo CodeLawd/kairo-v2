@@ -11,6 +11,10 @@ pub mod service;
 pub mod slide_converter;
 #[cfg(target_os = "macos")]
 pub mod webkit;
+#[cfg(target_os = "linux")]
+pub mod webkitgtk;
+#[cfg(windows)]
+pub mod webview2;
 
 /// A documents failure; the message is what the import screen shows.
 #[derive(Debug, thiserror::Error)]

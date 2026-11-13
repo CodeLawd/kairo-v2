@@ -40,12 +40,7 @@ fn premultiplied(c: Rgba) -> [f32; 4] {
 
 /// FNV-1a: a stable id for a video source from what names it.
 pub fn source_id(key: &str) -> u64 {
-    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in key.bytes() {
-        h ^= u64::from(b);
-        h = h.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    h
+    kairo_engine::source_id(key)
 }
 
 fn fit_of(fit: Option<&MediaFit>) -> (Fit, FitMode) {
@@ -151,6 +146,7 @@ pub fn background(bg: &Value, frame: (u32, u32)) -> Background {
                 backdrop: [0.0; 4],
             };
             content.media = Some(MediaParams {
+                path: path.into(),
                 looped: playback.looped,
                 start_seconds: playback.start_seconds,
                 end_seconds: playback.end_seconds.flatten(),
@@ -504,6 +500,7 @@ fn element_content(
                     backdrop: [0.0; 4],
                 };
                 content.media = Some(MediaParams {
+                    path: path.into(),
                     looped: el.media_loop,
                     start_seconds: None,
                     end_seconds: None,
@@ -755,7 +752,9 @@ mod tests {
         );
         assert_eq!(video.key, "VIDEO:/m/a.mp4:7");
         let c = video.content.unwrap();
-        assert!(c.media.unwrap().looped && !c.media.unwrap().element);
+        let media = c.media.as_ref().unwrap();
+        assert!(media.looped && !media.element);
+        assert_eq!(&*media.path, "/m/a.mp4");
         assert!(video.image.is_none());
         // A cue that is not a safe integer is dropped.
         let odd = background(

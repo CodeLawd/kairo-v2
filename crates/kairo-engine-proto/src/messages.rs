@@ -122,6 +122,9 @@ pub struct SurfaceSpec {
 /// `SurfaceConfig` in `program-surface.ts`, the argument of `__configure`.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SurfaceConfig {
+    /// Surface-manager eligibility: shows backgrounds AND follows the program.
+    #[serde(default = "web_enabled_default")]
+    pub web_enabled: bool,
     pub transition_ms: f64,
     pub audio: AudioConfig,
     pub camera_audible: bool,
@@ -137,10 +140,15 @@ pub struct AudioConfig {
     pub output_label: String,
 }
 
+fn web_enabled_default() -> bool {
+    true
+}
+
 impl Default for SurfaceConfig {
     /// `DEFAULT_CONFIG`. `video_layout: None` stands for `DEFAULT_VIDEO_SETTINGS`.
     fn default() -> Self {
         Self {
+            web_enabled: true,
             transition_ms: 0.0,
             audio: AudioConfig {
                 enabled: false,
@@ -197,6 +205,26 @@ pub struct CameraLayer {
 pub struct WebLayer {
     pub url: String,
     pub reload: f64,
+}
+
+/// Validated again by the engine; web content cannot send these commands.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub enum WebInput {
+    Move {
+        x: f64,
+        y: f64,
+    },
+    Click {
+        x: f64,
+        y: f64,
+    },
+    Text {
+        text: String,
+    },
+    /// Enter, Tab, Backspace, Delete, Escape, arrows, Home, End, PageUp/Down.
+    Key {
+        key: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -313,6 +341,8 @@ pub enum Command {
     },
     /// `scrollWeb`.
     WebScroll { output: String, x: f64, y: f64 },
+    /// Direct input to the shared live page, in its 1920×1080 coordinates.
+    WebInput { output: String, input: WebInput },
     SetTestPattern {
         output: String,
         pattern: Option<TestPattern>,
@@ -346,6 +376,7 @@ impl Command {
             | SetCamera { output, .. }
             | SetWeb { output, .. }
             | WebPointer { output, .. }
+            | WebInput { output, .. }
             | WebScroll { output, .. }
             | SetTestPattern { output, .. } => Some(output),
             RetainSurfaces { .. } | Shutdown => None,
@@ -440,6 +471,11 @@ pub struct Health {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Event {
+    /// A top-level load, redirect or SPA location change of a shared live page.
+    WebNavigated {
+        output: String,
+        url: String,
+    },
     Displays(Vec<DisplayInfo>),
     SurfaceStatus {
         output: String,

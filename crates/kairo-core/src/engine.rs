@@ -716,6 +716,17 @@ fn dispatch(inner: &Inner, message: FromEngine) {
                 Event::Error { output, message } => {
                     tracing::warn!(output = output.as_deref(), "engine: {message}");
                 }
+                Event::WebNavigated { output, url } => {
+                    let mut mirror = lock(&inner.mirror);
+                    if let Some(web) = mirror
+                        .surfaces
+                        .iter_mut()
+                        .find(|s| &s.state.spec.output == output)
+                        .and_then(|s| s.state.layers.web.as_mut())
+                    {
+                        web.url = url.clone();
+                    }
+                }
                 Event::Health(_) | Event::Stats(_) => {}
             }
             let _ = inner.events.send(EngineEvent::Engine(event));

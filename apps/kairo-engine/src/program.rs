@@ -12,13 +12,12 @@
 use crate::layers::{LayerJob, LayerSource, LiveLayer};
 use crate::text::{TextRequest, slide_is_blank};
 use crate::visuals::{self, Job};
-use kairo_compositor::thread::Op;
+use kairo_compositor::thread::{MediaControl, Op};
 use kairo_compositor::{Content, Fill, Rect, Slot, VideoLayout, clamp_transition, video_layout};
 use kairo_domain::program::{ConfidenceInfo, ProgramLayer};
 use kairo_engine_proto::*;
 use kairo_scene::program::Pattern;
 use serde_json::{Value, json};
-use std::collections::HashSet;
 
 const FRAME_WIDTH: f64 = 1920.0;
 const OPAQUE_BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
@@ -49,8 +48,6 @@ pub struct Shell {
     frame_height: u32,
     ms: u32,
     web_shown: Option<String>,
-    /// Things not drawn yet, logged once per surface.
-    noted: HashSet<String>,
     output: String,
     /// The slide whose words the operations being built must carry.
     text: Option<TextRequest>,
@@ -64,6 +61,10 @@ pub struct Shell {
     next_generation: u64,
     /// Program layers whose countdowns or clocks tick, by slot.
     pub live: std::collections::HashMap<Slot, LiveLayer>,
+    /// Source ids of the cameras that are live, by label.
+    cameras: std::collections::HashMap<String, u64>,
+    /// The camera source the camera slot shows.
+    camera_shown: Option<u64>,
     /// Tests draw at a fixed moment instead of the wall clock.
     #[cfg(test)]
     pub pinned: Option<kairo_scene::program::Now>,
@@ -75,7 +76,6 @@ impl Shell {
             frame_height: kairo_compositor::frame_height(frame_height),
             ms: 0,
             web_shown: None,
-            noted: HashSet::new(),
             output: output.to_owned(),
             text: None,
             visuals: Vec::new(),
@@ -83,9 +83,47 @@ impl Shell {
             generations: std::collections::HashMap::new(),
             next_generation: 0,
             live: std::collections::HashMap::new(),
+            cameras: std::collections::HashMap::new(),
+            camera_shown: None,
             #[cfg(test)]
             pinned: None,
         }
+    }
+
+    /// Camera `label` is live as source `id`: the camera node, if this
+    /// surface wants that camera and does not show it yet.
+    pub fn camera_live(&mut self, label: &str, id: u64, state: &SurfaceState) -> Option<Op> {
+        self.cameras.insert(label.to_owned(), id);
+        let wanted = state.layers.camera.as_ref()?;
+        if wanted.label != label {
+            return None;
+        }
+        self.camera_op(label, self.ms)
+    }
+
+    /// Camera `label` is live as source `id`, known before a command or
+    /// a rebuild asks for it.
+    pub fn know_camera(&mut self, label: &str, id: u64) {
+        self.cameras.insert(label.to_owned(), id);
+    }
+
+    /// `__setCamera`'s node: the stream, cover-fitted on black.
+    fn camera_op(&mut self, label: &str, ms: u32) -> Option<Op> {
+        let id = *self.cameras.get(label)?;
+        if self.camera_shown == Some(id) {
+            return None;
+        }
+        self.camera_shown = Some(id);
+        let mut content = Content::new(Fill::Source {
+            id,
+            backdrop: OPAQUE_BLACK,
+        });
+        content.look.fit = kairo_compositor::Fit::Cover;
+        Some(Op::Swap {
+            slot: Slot::Camera,
+            content: Some(content),
+            ms,
+        })
     }
 
     /// Whether a result made for `generation` is still the newest for `slot`.
@@ -162,12 +200,6 @@ impl Shell {
         self.next_generation
     }
 
-    fn note(&mut self, what: String) {
-        if self.noted.insert(what.clone()) {
-            tracing::info!(output = self.output, "{what}");
-        }
-    }
-
     /// The operations for one applied command; `before` and `state` are
     /// the surface before and after it.
     pub fn command(
@@ -194,7 +226,11 @@ impl Shell {
     ) -> Vec<Op> {
         let ms = self.ms;
         match command {
-            Command::Configure { config, .. } => self.configure(config),
+            Command::Configure { config, .. } => {
+                let mut ops = self.configure(config);
+                ops.extend(self.web(state.layers.web.as_ref().filter(|_| config.web_enabled)));
+                ops
+            }
             Command::ShowSlide { instant, .. } => self.paint(state, *instant),
             Command::SetBackground { .. } => self.paint(state, false),
             Command::ClearText { background, .. } => {
@@ -240,32 +276,38 @@ impl Shell {
                 let source = info.as_ref().and_then(|i| self.info_layer(i));
                 self.layer(Slot::Info, source, 0, 0)
             }
-            Command::SetWeb { web, .. } => self.web(web.as_ref()),
+            Command::SetWeb { web, .. } => {
+                self.web(web.as_ref().filter(|_| state.config.web_enabled))
+            }
             Command::WebPointer { point, .. } => vec![self.pointer(*point)],
             Command::SetCamera { camera, .. } => match camera {
-                None => vec![Op::Swap {
-                    slot: Slot::Camera,
-                    content: None,
-                    ms,
-                }],
-                Some(camera) => {
-                    // `__setCamera` with no matching device keeps the old node.
-                    self.note(format!(
-                        "camera {:?} is not captured in this engine build (prompt 057)",
-                        camera.label
-                    ));
-                    vec![]
+                None => {
+                    self.camera_shown = None;
+                    vec![Op::Swap {
+                        slot: Slot::Camera,
+                        content: None,
+                        ms,
+                    }]
                 }
+                // Until the camera is live the old node stays, as
+                // `__setCamera` kept it until the new stream played.
+                Some(camera) => self.camera_op(&camera.label, ms).into_iter().collect(),
             },
             Command::SetTestPattern { .. } => self.pattern(state, 0),
-            // No pixels change in this engine yet: video (055), document
-            // pages and their videos (058), web scrolling (059).
+            // In order with the slides around it, to the background video
+            // current when it is applied.
+            Command::VideoTransport { transport, .. } => vec![Op::Media(match transport {
+                VideoTransport::Pause(p) => MediaControl::Pause(*p),
+                VideoTransport::Seek(s) => MediaControl::Seek(*s),
+            })],
+            // No pixels change in this engine yet: document pages and their
+            // videos (058), web scrolling (059).
             Command::SwapPage { .. }
             | Command::PreloadPage { .. }
             | Command::DocumentVideos { .. }
             | Command::ControlDocumentVideo { .. }
-            | Command::VideoTransport { .. }
-            | Command::WebScroll { .. } => vec![],
+            | Command::WebScroll { .. }
+            | Command::WebInput { .. } => vec![],
             Command::OpenSurface(_)
             | Command::RetainSurfaces { .. }
             | Command::CloseSurface { .. }
@@ -291,7 +333,11 @@ impl Shell {
 
     fn rebuild_ops(&mut self, state: &SurfaceState) -> Vec<Op> {
         self.web_shown = None;
+        self.camera_shown = None;
         let mut ops = self.configure(&state.config);
+        if let Some(camera) = &state.layers.camera {
+            ops.extend(self.camera_op(&camera.label, 0));
+        }
         self.live.clear();
         for kind in LayerKind::ALL {
             if let Some(layer) = state.layers.layer(kind) {
@@ -311,7 +357,15 @@ impl Shell {
         }
         let ms = self.ms;
         self.ms = 0;
-        ops.extend(self.web(state.layers.web.as_ref()));
+        ops.extend(
+            self.web(
+                state
+                    .layers
+                    .web
+                    .as_ref()
+                    .filter(|_| state.config.web_enabled),
+            ),
+        );
         self.ms = ms;
         if state.last_render.is_some() {
             ops.extend(self.paint(state, true));
@@ -536,6 +590,7 @@ impl Shell {
 
     /// `__setWeb`: the same url and reload keep the page.
     fn web(&mut self, web: Option<&WebLayer>) -> Vec<Op> {
+        let web = web.filter(|w| crate::web::address(&w.url).is_some() && w.reload.is_finite());
         let key = web.map(|w| format!("{} {}", w.url, kairo_number(w.reload)));
         if key == self.web_shown {
             return vec![];
@@ -549,7 +604,17 @@ impl Shell {
         ops.push(Op::Swap {
             slot: Slot::Web,
             // The page's frame is white until it paints (059 shows the page).
-            content: web.map(|_| Content::new(Fill::Solid([1.0; 4]))),
+            content: web.map(|w| {
+                let mut content = Content::new(Fill::Source {
+                    id: crate::web::source(&w.url),
+                    backdrop: [1.0; 4],
+                });
+                content.look.fit = kairo_compositor::Fit::Contain;
+                Content::new(Fill::Group(std::sync::Arc::new(vec![
+                    Content::new(Fill::Solid([1.0; 4])),
+                    content,
+                ])))
+            }),
             ms: self.ms,
         });
         ops
@@ -560,15 +625,17 @@ impl Shell {
         let content = match (point, &self.web_shown) {
             (Some((x, y)), Some(_)) if x.is_finite() && y.is_finite() => {
                 let x = x.clamp(0.0, FRAME_WIDTH);
-                let y = y.clamp(0.0, f64::from(self.frame_height));
+                let y = y.clamp(0.0, 1080.0);
+                let page = kairo_compositor::letterbox((1920, self.frame_height), (1920, 1080));
+                let scale = page.width / 1920.0;
                 Some(Content {
                     rect: Some(Rect::new(
-                        (x - 10.0).max(0.0) as f32,
-                        (y - 5.0).max(0.0) as f32,
-                        56.0,
-                        56.0,
+                        page.x + (x - 10.0).max(0.0) as f32 * scale,
+                        page.y + (y - 5.0).max(0.0) as f32 * scale,
+                        56.0 * scale,
+                        56.0 * scale,
                     )),
-                    ..Content::empty()
+                    ..Content::new(Fill::Image(crate::web::pointer()))
                 })
             }
             _ => None,
@@ -868,7 +935,117 @@ mod tests {
             &state,
             &state,
         );
-        assert!(planned.ops.is_empty() && planned.visuals.is_empty());
+        // Only the transport operation itself: no node is touched, and the
+        // compositor addresses it to the current background video alone,
+        // never to an element video (`media_uses` marks elements
+        // `transport: false`; tested in kairo-compositor `tests/video.rs`).
+        assert!(planned.visuals.is_empty());
+        assert!(matches!(
+            planned.ops.as_slice(),
+            [Op::Media(MediaControl::Pause(true))]
+        ));
+    }
+
+    #[test]
+    fn web_pointer_uses_the_same_canonical_fit_as_the_page() {
+        let mut shell = Shell::new("o", 1440);
+        shell.web(Some(&WebLayer {
+            url: "https://example.com/".into(),
+            reload: 0.,
+        }));
+        let Op::Swap {
+            content: Some(c), ..
+        } = shell.pointer(Some((960., 540.)))
+        else {
+            panic!("pointer");
+        };
+        assert_eq!(c.rect, Some(Rect::new(950., 715., 56., 56.)));
+        assert!(matches!(
+            shell.pointer(Some((f64::NAN, 2.))),
+            Op::Swap { content: None, .. }
+        ));
+    }
+
+    #[test]
+    fn web_eligibility_clears_page_and_pointer_and_restores_the_source() {
+        let mut shell = Shell::new("o", 1080);
+        let mut state = state_with(json!({}));
+        let set = Command::SetWeb {
+            output: "o".into(),
+            web: Some(WebLayer {
+                url: "https://example.com/".into(),
+                reload: 0.,
+            }),
+        };
+        let before = state.clone();
+        state.apply(&set, true);
+        assert!(
+            shell
+                .command(&set, &before, &state)
+                .ops
+                .iter()
+                .any(|op| matches!(
+                    op,
+                    Op::Swap {
+                        slot: Slot::Web,
+                        content: Some(Content {
+                            fill: Fill::Group(_),
+                            ..
+                        }),
+                        ..
+                    }
+                ))
+        );
+        let mut config = state.config.clone();
+        config.web_enabled = false;
+        let disable = Command::Configure {
+            output: "o".into(),
+            config,
+        };
+        let before = state.clone();
+        state.apply(&disable, true);
+        let ops = shell.command(&disable, &before, &state).ops;
+        assert!(ops.iter().any(|op| matches!(
+            op,
+            Op::Swap {
+                slot: Slot::Web,
+                content: None,
+                ..
+            }
+        )));
+        assert!(matches!(
+            shell.pointer(Some((10., 20.))),
+            Op::Swap { content: None, .. }
+        ));
+        assert!(
+            state.layers.web.is_some(),
+            "eligibility does not erase intended state"
+        );
+        let mut config = state.config.clone();
+        config.web_enabled = true;
+        let enable = Command::Configure {
+            output: "o".into(),
+            config,
+        };
+        let before = state.clone();
+        state.apply(&enable, true);
+        assert!(
+            shell
+                .command(&enable, &before, &state)
+                .ops
+                .iter()
+                .any(|op| matches!(
+                    op,
+                    Op::Swap {
+                        slot: Slot::Web,
+                        content: Some(Content {
+                            fill: Fill::Group(_),
+                            ..
+                        }),
+                        ..
+                    }
+                ))
+        );
     }
 
     #[test]
@@ -890,6 +1067,10 @@ mod tests {
                 ..
             } => {
                 assert_eq!(content.rect, Some(Rect::new(1910.0, 0.0, 56.0, 56.0)));
+                assert!(
+                    matches!(content.fill, Fill::Image(_)),
+                    "pointer needs pixels"
+                );
             }
             other => panic!("{other:?}"),
         }
@@ -1086,5 +1267,81 @@ mod tests {
                 matches!(&planned.ops[request.op], Op::Keyed { slot, .. } if *slot == request.slot)
             );
         }
+    }
+
+    fn camera_command(label: Option<&str>) -> Command {
+        Command::SetCamera {
+            output: "o".into(),
+            camera: label.map(|l| CameraLayer {
+                label: l.into(),
+                audio_label: None,
+            }),
+        }
+    }
+
+    #[test]
+    fn the_camera_node_waits_for_its_stream_then_cover_fits_on_black() {
+        let mut shell = Shell::new("o", 1080);
+        let before = state_with(json!({}));
+        let mut after = before.clone();
+        let command = camera_command(Some("Logitech BRIO"));
+        after.apply(&command, true);
+        // Not live yet: the old node stays.
+        assert!(shell.command(&command, &before, &after).ops.is_empty());
+        let op = shell
+            .camera_live("Logitech BRIO", 77, &after)
+            .expect("swap");
+        match op {
+            Op::Swap {
+                slot: Slot::Camera,
+                content: Some(content),
+                ..
+            } => {
+                assert!(
+                    matches!(content.fill, Fill::Source { id: 77, backdrop } if backdrop == OPAQUE_BLACK)
+                );
+                assert_eq!(content.look.fit, kairo_compositor::Fit::Cover);
+            }
+            other => panic!("{other:?}"),
+        }
+        // Shown once; another camera going live is not this surface's.
+        assert!(shell.camera_live("Logitech BRIO", 77, &after).is_none());
+        assert!(
+            shell
+                .camera_live("FaceTime HD Camera", 78, &after)
+                .is_none()
+        );
+        // A rebuilt window shows it at once.
+        let rebuilt = shell.rebuild(&after);
+        assert!(rebuilt.ops.iter().any(|op| matches!(
+            op,
+            Op::Swap {
+                slot: Slot::Camera,
+                content: Some(_),
+                ms: 0
+            }
+        )));
+        // Switching to a camera already live swaps at once; off clears.
+        let mut third = after.clone();
+        let switch = camera_command(Some("FaceTime HD Camera"));
+        third.apply(&switch, true);
+        let ops = shell.command(&switch, &after, &third).ops;
+        assert!(
+            matches!(&ops[..], [Op::Swap { slot: Slot::Camera, content: Some(c), .. }] if matches!(c.fill, Fill::Source { id: 78, .. }))
+        );
+        let mut off = third.clone();
+        let none = camera_command(None);
+        off.apply(&none, true);
+        let ops = shell.command(&none, &third, &off).ops;
+        assert!(matches!(
+            &ops[..],
+            [Op::Swap {
+                slot: Slot::Camera,
+                content: None,
+                ..
+            }]
+        ));
+        // Live again later: no camera wanted, nothing shown.
+        assert!(shell.camera_live("FaceTime HD Camera", 78, &off).is_none());
     }
 }
