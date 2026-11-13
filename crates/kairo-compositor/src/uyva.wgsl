@@ -1,4 +1,5 @@
-// Premultiplied RGBA frame to NDI UYVA: a UYVY plane (Rec.709 limited
+// Premultiplied RGBA frame to NDI UYVA (or, with `bgra`, premultiplied BGRA
+// for the recorder): a UYVY plane (Rec.709 limited
 // range) followed by a one-byte-per-pixel alpha plane.
 //
 // The maths is `uyvy()` in Electron's native/decklink/uyvy.h, in integers,
@@ -15,7 +16,8 @@ struct Params {
     dst_w: u32,
     dst_h: u32,
     alpha: u32,
-    pad0: u32,
+    // 1: plain BGRA words (the recorder's tap) instead of UYVA.
+    bgra: u32,
     pad1: u32,
     pad2: u32,
 }
@@ -55,6 +57,13 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         return;
     }
     let sy = y * p.src_h / p.dst_h;
+    if (p.bgra != 0u) {
+        for (var k = 0u; k < 4u; k = k + 1u) {
+            let c = bytes_at(x + k, sy);
+            dst[y * p.dst_w + x + k] = u32(c.b) | (u32(c.g) << 8u) | (u32(c.r) << 16u) | (u32(c.a) << 24u);
+        }
+        return;
+    }
     let px0 = bytes_at(x, sy);
     let px1 = bytes_at(x + 1u, sy);
     let px2 = bytes_at(x + 2u, sy);

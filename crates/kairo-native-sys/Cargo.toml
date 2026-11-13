@@ -5,9 +5,10 @@ edition.workspace = true
 publish = false
 
 # C ABI ports of Electron's native addons, built with `cc`. macOS only for
-# now: Syphon (prompt 063).
+# now: Syphon (prompt 063), the recorder (prompt 064).
 [build-dependencies]
 cc = "1"
 
 [dev-dependencies]
 png = "0.18"
+tempfile = "3"

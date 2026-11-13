@@ -9,6 +9,7 @@
 //!     [--camera-audio LABEL] [--ndi NAME] [--identify] [--shape NAME]
 //!     [--syphon NAME [--rename-after S NAME]]
 //!     [--card PORT MODE]
+//!     [--capture CODEC] [--capture-folder DIR] [--capture-fps N]
 //! ```
 //!
 //! `--ndi NAME` sends the output as an NDI source named NAME instead of
@@ -414,6 +415,24 @@ async fn main() {
             point: Some((960., 540.)),
         });
     }
+    // `--capture CODEC`: records "main" (h264, hevc, prores422, prores4444)
+    // into `--capture-folder` (default ~/Movies/Kairo) until the end.
+    let capturing = value::<String>("--capture");
+    if let Some(codec) = &capturing {
+        let mut settings = serde_json::json!({
+            "sourceOutputId": "main", "folder": value::<String>("--capture-folder").unwrap_or_default(),
+            "codec": codec, "resolution": "1080p", "frameRate": 30, "bitrateMbps": 12,
+            "audioDeviceId": "", "audioDeviceName": ""
+        });
+        if let Some(fps) = value::<u32>("--capture-fps") {
+            settings["frameRate"] = fps.into();
+        }
+        engine.command(Command::StartCapture {
+            output: "main".into(),
+            source_name: "Main".into(),
+            settings: Json::from_value(&settings),
+        });
+    }
     let mut web_step = 0;
     let mut faded = fade.is_none();
     #[cfg_attr(not(unix), allow(unused_mut, unused_variables))]
@@ -512,6 +531,15 @@ async fn main() {
             Ok(Ok(event)) => println!("{:>8.3}s {event:?}", start.elapsed().as_secs_f64()),
             Ok(Err(error)) => println!("events: {error}"),
             Err(_) => {}
+        }
+    }
+    if capturing.is_some() {
+        engine.command(Command::StopCapture);
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        while let Ok(Ok(event)) =
+            tokio::time::timeout(Duration::from_millis(50), events.recv()).await
+        {
+            println!("{:>8.3}s {event:?}", start.elapsed().as_secs_f64());
         }
     }
     engine.shutdown();

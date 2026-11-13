@@ -351,6 +351,8 @@ impl Shell {
             | Command::ControlDisplay { .. }
             | Command::IdentifyDisplays
             | Command::RefreshVideoDevices
+            | Command::StartCapture { .. }
+            | Command::StopCapture
             | Command::DisplayTestPattern { .. } => vec![],
         }
     }
