@@ -3,3 +3,11 @@ name = "kairo-ui-kit"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+gpui-kit.workspace = true
+tracing = "0.1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }

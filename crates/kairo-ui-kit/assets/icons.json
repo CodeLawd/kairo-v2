@@ -1,0 +1,582 @@
+[
+ {
+  "name": "AlertCircle",
+  "file": "alert_circle",
+  "source": "hugeicons:AlertCircleIcon"
+ },
+ {
+  "name": "AlertTriangle",
+  "file": "alert_triangle",
+  "source": "hugeicons:Alert02Icon"
+ },
+ {
+  "name": "AlignCenter",
+  "file": "align_center",
+  "source": "hugeicons:TextAlignCenterIcon"
+ },
+ {
+  "name": "AlignJustify",
+  "file": "align_justify",
+  "source": "hugeicons:TextAlignJustifyIcon"
+ },
+ {
+  "name": "AlignLeft",
+  "file": "align_left",
+  "source": "hugeicons:TextAlignLeftIcon"
+ },
+ {
+  "name": "AlignRight",
+  "file": "align_right",
+  "source": "hugeicons:TextAlignRightIcon"
+ },
+ {
+  "name": "ArrowDown",
+  "file": "arrow_down",
+  "source": "hugeicons:ArrowDown01Icon"
+ },
+ {
+  "name": "ArrowUp",
+  "file": "arrow_up",
+  "source": "hugeicons:ArrowUp01Icon"
+ },
+ {
+  "name": "Bible",
+  "file": "bible",
+  "source": "kairo:Bible"
+ },
+ {
+  "name": "BookOpen",
+  "file": "book_open",
+  "source": "hugeicons:BookOpen01Icon"
+ },
+ {
+  "name": "BookOpenCheck",
+  "file": "book_open_check",
+  "source": "hugeicons:BookOpenCheckIcon"
+ },
+ {
+  "name": "BookmarkSimple",
+  "file": "bookmark_simple",
+  "source": "hugeicons:Bookmark01Icon"
+ },
+ {
+  "name": "Check",
+  "file": "check",
+  "source": "hugeicons:CheckIcon"
+ },
+ {
+  "name": "CheckCircle",
+  "file": "check_circle",
+  "source": "hugeicons:CheckmarkCircle01Icon"
+ },
+ {
+  "name": "CheckIcon",
+  "file": "check",
+  "source": "hugeicons:CheckIcon"
+ },
+ {
+  "name": "ChevronDown",
+  "file": "chevron_down",
+  "source": "hugeicons:ChevronDownIcon"
+ },
+ {
+  "name": "ChevronDownIcon",
+  "file": "chevron_down",
+  "source": "hugeicons:ChevronDownIcon"
+ },
+ {
+  "name": "ChevronLeft",
+  "file": "chevron_left",
+  "source": "hugeicons:ChevronLeftIcon"
+ },
+ {
+  "name": "ChevronRight",
+  "file": "chevron_right",
+  "source": "hugeicons:ChevronRightIcon"
+ },
+ {
+  "name": "ChevronRightIcon",
+  "file": "chevron_right",
+  "source": "hugeicons:ChevronRightIcon"
+ },
+ {
+  "name": "ChevronUp",
+  "file": "chevron_up",
+  "source": "hugeicons:ChevronUpIcon"
+ },
+ {
+  "name": "ChevronUpIcon",
+  "file": "chevron_up",
+  "source": "hugeicons:ChevronUpIcon"
+ },
+ {
+  "name": "Church",
+  "file": "church",
+  "source": "hugeicons:ChurchIcon"
+ },
+ {
+  "name": "Circle",
+  "file": "circle",
+  "source": "hugeicons:CircleIcon"
+ },
+ {
+  "name": "CircleDashed",
+  "file": "circle_dashed",
+  "source": "hugeicons:CircleDashedIcon"
+ },
+ {
+  "name": "CircleUser",
+  "file": "circle_user",
+  "source": "hugeicons:UserCircleIcon"
+ },
+ {
+  "name": "ClipboardPaste",
+  "file": "clipboard_paste",
+  "source": "hugeicons:ClipboardPasteIcon"
+ },
+ {
+  "name": "Clock",
+  "file": "clock",
+  "source": "hugeicons:Clock01Icon"
+ },
+ {
+  "name": "Copy",
+  "file": "copy",
+  "source": "hugeicons:CopyIcon"
+ },
+ {
+  "name": "DeviceMobile",
+  "file": "device_mobile",
+  "source": "hugeicons:SmartphoneIcon"
+ },
+ {
+  "name": "Download",
+  "file": "download",
+  "source": "hugeicons:Download01Icon"
+ },
+ {
+  "name": "Edit2",
+  "file": "edit2",
+  "source": "hugeicons:PencilEdit01Icon"
+ },
+ {
+  "name": "Eraser",
+  "file": "eraser",
+  "source": "hugeicons:EraserIcon"
+ },
+ {
+  "name": "ExternalLink",
+  "file": "external_link",
+  "source": "hugeicons:ExternalLinkIcon"
+ },
+ {
+  "name": "Eye",
+  "file": "eye",
+  "source": "hugeicons:EyeIcon"
+ },
+ {
+  "name": "EyeOff",
+  "file": "eye_off",
+  "source": "hugeicons:EyeOffIcon"
+ },
+ {
+  "name": "FilePlus",
+  "file": "file_plus",
+  "source": "hugeicons:FileAddIcon"
+ },
+ {
+  "name": "FileText",
+  "file": "file_text",
+  "source": "hugeicons:FileTextIcon"
+ },
+ {
+  "name": "Film",
+  "file": "film",
+  "source": "phosphor:FilmStrip"
+ },
+ {
+  "name": "FlipHorizontal",
+  "file": "flip_horizontal",
+  "source": "hugeicons:FlipHorizontalIcon"
+ },
+ {
+  "name": "FlipVertical",
+  "file": "flip_vertical",
+  "source": "hugeicons:FlipVerticalIcon"
+ },
+ {
+  "name": "Folder",
+  "file": "folder",
+  "source": "hugeicons:Folder01Icon"
+ },
+ {
+  "name": "FolderOpen",
+  "file": "folder_open",
+  "source": "hugeicons:FolderOpenIcon"
+ },
+ {
+  "name": "Globe",
+  "file": "globe",
+  "source": "hugeicons:GlobeIcon"
+ },
+ {
+  "name": "GripVertical",
+  "file": "grip_vertical",
+  "source": "hugeicons:DragDropVerticalIcon"
+ },
+ {
+  "name": "Image",
+  "file": "image",
+  "source": "hugeicons:Image01Icon"
+ },
+ {
+  "name": "Images",
+  "file": "images",
+  "source": "hugeicons:ImagesIcon"
+ },
+ {
+  "name": "Key",
+  "file": "key",
+  "source": "hugeicons:Key01Icon"
+ },
+ {
+  "name": "Keyboard",
+  "file": "keyboard",
+  "source": "hugeicons:KeyboardIcon"
+ },
+ {
+  "name": "Languages",
+  "file": "languages",
+  "source": "hugeicons:TranslateIcon"
+ },
+ {
+  "name": "Laptop",
+  "file": "laptop",
+  "source": "hugeicons:LaptopIcon"
+ },
+ {
+  "name": "Layers",
+  "file": "layers",
+  "source": "hugeicons:Layers01Icon"
+ },
+ {
+  "name": "Library",
+  "file": "library",
+  "source": "hugeicons:Books01Icon"
+ },
+ {
+  "name": "Lightbulb",
+  "file": "lightbulb",
+  "source": "hugeicons:LightbulbIcon"
+ },
+ {
+  "name": "ListChecks",
+  "file": "list_checks",
+  "source": "hugeicons:ListChecksIcon"
+ },
+ {
+  "name": "ListMusic",
+  "file": "list_music",
+  "source": "hugeicons:ListMusicIcon"
+ },
+ {
+  "name": "Loader",
+  "file": "loader",
+  "source": "hugeicons:Loading01Icon"
+ },
+ {
+  "name": "Loader2",
+  "file": "loader",
+  "source": "hugeicons:Loading01Icon"
+ },
+ {
+  "name": "Lock",
+  "file": "lock",
+  "source": "hugeicons:LockIcon"
+ },
+ {
+  "name": "LogOut",
+  "file": "log_out",
+  "source": "hugeicons:Logout01Icon"
+ },
+ {
+  "name": "MediaLibrary",
+  "file": "images",
+  "source": "hugeicons:ImagesIcon"
+ },
+ {
+  "name": "MessageSquare",
+  "file": "message_square",
+  "source": "hugeicons:MessageSquareTextIcon"
+ },
+ {
+  "name": "Mic",
+  "file": "mic",
+  "source": "hugeicons:Mic01Icon"
+ },
+ {
+  "name": "MicOff",
+  "file": "mic_off",
+  "source": "hugeicons:MicOff01Icon"
+ },
+ {
+  "name": "Minus",
+  "file": "minus",
+  "source": "hugeicons:MinusSignIcon"
+ },
+ {
+  "name": "Monitor",
+  "file": "monitor",
+  "source": "hugeicons:MonitorIcon"
+ },
+ {
+  "name": "MonitorOff",
+  "file": "monitor_off",
+  "source": "hugeicons:MonitorOffIcon"
+ },
+ {
+  "name": "MonitorPlay",
+  "file": "monitor_play",
+  "source": "phosphor:MonitorPlay"
+ },
+ {
+  "name": "MoreHorizontal",
+  "file": "more_horizontal",
+  "source": "hugeicons:MoreHorizontalIcon"
+ },
+ {
+  "name": "MoreVertical",
+  "file": "more_vertical",
+  "source": "hugeicons:MoreVerticalIcon"
+ },
+ {
+  "name": "MousePointer",
+  "file": "mouse_pointer",
+  "source": "hugeicons:Cursor01Icon"
+ },
+ {
+  "name": "Music2",
+  "file": "music2",
+  "source": "hugeicons:MusicNote01Icon"
+ },
+ {
+  "name": "ObjectAlignBottom",
+  "file": "object_align_bottom",
+  "source": "hugeicons:AlignBottomIcon"
+ },
+ {
+  "name": "ObjectAlignCenter",
+  "file": "object_align_center",
+  "source": "hugeicons:AlignHorizontalCenterIcon"
+ },
+ {
+  "name": "ObjectAlignLeft",
+  "file": "object_align_left",
+  "source": "hugeicons:AlignLeftIcon"
+ },
+ {
+  "name": "ObjectAlignMiddle",
+  "file": "object_align_middle",
+  "source": "hugeicons:AlignVerticalCenterIcon"
+ },
+ {
+  "name": "ObjectAlignRight",
+  "file": "object_align_right",
+  "source": "hugeicons:AlignRightIcon"
+ },
+ {
+  "name": "ObjectAlignTop",
+  "file": "object_align_top",
+  "source": "hugeicons:AlignTopIcon"
+ },
+ {
+  "name": "Palette",
+  "file": "palette",
+  "source": "hugeicons:PaletteIcon"
+ },
+ {
+  "name": "Pause",
+  "file": "pause",
+  "source": "phosphor:Pause"
+ },
+ {
+  "name": "Pencil",
+  "file": "edit2",
+  "source": "hugeicons:PencilEdit01Icon"
+ },
+ {
+  "name": "Play",
+  "file": "play",
+  "source": "phosphor:Play"
+ },
+ {
+  "name": "Plus",
+  "file": "plus",
+  "source": "hugeicons:PlusSignIcon"
+ },
+ {
+  "name": "Presentation",
+  "file": "presentation",
+  "source": "hugeicons:Presentation01Icon"
+ },
+ {
+  "name": "Queue",
+  "file": "queue",
+  "source": "hugeicons:Playlist01Icon"
+ },
+ {
+  "name": "Radio",
+  "file": "radio",
+  "source": "hugeicons:RadioTowerIcon"
+ },
+ {
+  "name": "Redo",
+  "file": "redo",
+  "source": "hugeicons:RedoIcon"
+ },
+ {
+  "name": "RefreshCw",
+  "file": "refresh_cw",
+  "source": "hugeicons:RefreshCwIcon"
+ },
+ {
+  "name": "Repeat",
+  "file": "repeat",
+  "source": "hugeicons:RepeatIcon"
+ },
+ {
+  "name": "RotateCcw",
+  "file": "rotate_ccw",
+  "source": "hugeicons:RotateCcwIcon"
+ },
+ {
+  "name": "Save",
+  "file": "save",
+  "source": "hugeicons:SaveIcon"
+ },
+ {
+  "name": "ScanSearch",
+  "file": "scan_search",
+  "source": "hugeicons:Search01Icon"
+ },
+ {
+  "name": "Scissors",
+  "file": "scissors",
+  "source": "hugeicons:ScissorsIcon"
+ },
+ {
+  "name": "Search",
+  "file": "scan_search",
+  "source": "hugeicons:Search01Icon"
+ },
+ {
+  "name": "Send",
+  "file": "send",
+  "source": "hugeicons:SendIcon"
+ },
+ {
+  "name": "Settings",
+  "file": "settings",
+  "source": "hugeicons:Settings01Icon"
+ },
+ {
+  "name": "SidebarLeft",
+  "file": "sidebar_left",
+  "source": "hugeicons:SidebarLeftIcon"
+ },
+ {
+  "name": "SkipBack",
+  "file": "skip_back",
+  "source": "phosphor:SkipBack"
+ },
+ {
+  "name": "SkipForward",
+  "file": "skip_forward",
+  "source": "phosphor:SkipForward"
+ },
+ {
+  "name": "SlidersHorizontal",
+  "file": "sliders_horizontal",
+  "source": "hugeicons:SlidersHorizontalIcon"
+ },
+ {
+  "name": "Square",
+  "file": "square",
+  "source": "hugeicons:Square01Icon"
+ },
+ {
+  "name": "Star",
+  "file": "star",
+  "source": "hugeicons:StarIcon"
+ },
+ {
+  "name": "TextT",
+  "file": "text_t",
+  "source": "hugeicons:TextIcon"
+ },
+ {
+  "name": "Trash2",
+  "file": "trash2",
+  "source": "hugeicons:TrashIcon"
+ },
+ {
+  "name": "Undo",
+  "file": "undo",
+  "source": "hugeicons:UndoIcon"
+ },
+ {
+  "name": "Unlock",
+  "file": "unlock",
+  "source": "hugeicons:LockOpenIcon"
+ },
+ {
+  "name": "Upload",
+  "file": "upload",
+  "source": "hugeicons:Upload01Icon"
+ },
+ {
+  "name": "Usb",
+  "file": "usb",
+  "source": "hugeicons:UsbIcon"
+ },
+ {
+  "name": "Video",
+  "file": "video",
+  "source": "phosphor:VideoCamera"
+ },
+ {
+  "name": "Volume2",
+  "file": "volume2",
+  "source": "hugeicons:VolumeHighIcon"
+ },
+ {
+  "name": "Waveform",
+  "file": "waveform",
+  "source": "hugeicons:AudioWaveformIcon"
+ },
+ {
+  "name": "WifiOff",
+  "file": "wifi_off",
+  "source": "hugeicons:WifiOff01Icon"
+ },
+ {
+  "name": "X",
+  "file": "x",
+  "source": "hugeicons:Cancel01Icon"
+ },
+ {
+  "name": "XCircle",
+  "file": "x_circle",
+  "source": "hugeicons:CancelCircleIcon"
+ },
+ {
+  "name": "ZoomIn",
+  "file": "zoom_in",
+  "source": "hugeicons:ZoomInIcon"
+ },
+ {
+  "name": "ZoomOut",
+  "file": "zoom_out",
+  "source": "hugeicons:ZoomOutIcon"
+ }
+]

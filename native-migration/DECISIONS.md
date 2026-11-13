@@ -1252,3 +1252,26 @@ Decision: the tap. The compositor's single NDI capture became named taps (`Tap::
 Found and fixed: the engine's event loop did not wake for the once-a-second checks, so the disk check ran far less often than every 10 s; `CaptureFrameRate as u32` is the variant's position, not its number (use `.value()`).
 
 Affects prompts: 065, 091.
+
+## 2026-11-13 — 070 — Extend the 007 waiver to the design system
+
+Decision: The owner chose to start prompt 070 with prompt 007 still `blocked`, under the same waiver given for prompt 008. 007's tracker status is unchanged, because its work is not complete.
+Accepted for 070: 120 Hz pacing not proven; grid open under load not proven; real Yoruba IME, macOS 11, Windows and Linux not run; Electron shell side-by-side not captured.
+Carry forward: 070 re-measures UI frame pacing, as the 008 amendment requires. Closing 007 itself still needs the idle-machine rerun, a real IME, macOS 11, Windows and Linux runs, and the Electron shell capture.
+Affects prompts: 007, 070.
+
+## 2026-11-13 — 070 — Design system (`kairo-ui-kit`)
+
+Decision: tokens follow `index.css` where it disagrees with DESIGN.md's hex list (dark zinc 24 24 27 … 63 63 70, not #181818 … #404040), because the prompt protocol makes the current source the specification. Electron's `app-theme` and `operator-visual-system` tests are stale (they expect amber and `--surface: 12 12 12`) and were not used.
+Decision: Kit components (`Button`, `Input`, `Select`, `Slider`, `Switch`, `OtpInput`, `AlertDialog`, `PopupMenu`, tooltips) are used directly, with Kairo tokens mapped onto Kit's theme (`theme::apply_tokens`). Kairo adds only what Kit lacks: `SegmentedControl` (also the tablist used where Electron hand-rolls `role="tab"`), `NumberField` (Shift ×10 on keys, buttons and label scrub), `ZoomControl`, `PrefGroup`, `SelectionBar`, `TrafficLights`, `MovableDialog`, `FrostedPanel`, `LibrarySection`, `Marquee`, `CodeField`, `RailItem`, `DragPill`, `KairoMark`.
+Decision: not ported, no importers (confirmed by reading): `badge`, `field`, `input-group`, `resizable`, `scroll-area`, `secret-key-field`, `skeleton`, `tabs`, `toggle-group`; also `label`, `separator`, `textarea` and `toggle`, whose only importers are those unused files. `formatTimestamp`, `truncate` and `debounce` in `lib/utils.ts` have no importers. `downloadFile` is a save dialog, left to the screens that save. `paneSizing.ts` has no importers.
+Decision: fonts. The variable Source Sans 3 subsets register on macOS as "Source Sans 3 ExtraLight", so a request for "Source Sans 3" fell back to the system font. `crates/kairo-ui-kit/tools/instance-fonts.py` (fontTools 4.55.3) instances 400, 500, 600 and 700 from each subset, merges the five subsets per weight and names them family "Source Sans 3" (OFL kept beside them). Prompt 052's engine fonts are unchanged.
+Decision: icons. `tools/generate-icons.cjs` renders only the 117 names the renderer imports from `@/icons` (108 distinct glyphs; the rest are aliases) from Hugeicons free 4.4.0 (MIT) and Phosphor 2.1.10 (MIT), plus the hand-drawn Bible, in regular and fill weights. Licences are in `assets/licenses`.
+Decision: `window.confirm` and `window.alert` become `components::dialogs::{confirm, alert}` on Kit's alert dialog. Every message is kept word for word (`dialogs::messages`, tested against the browser text). The confirm button names the action instead of OK. The text-field right-click menu is Kit `Input`'s built-in native menu (Cut, Copy, Paste, Select All); headless tests cannot open a native menu, so its commands are tested through their key bindings.
+Decision: `MovableDialog` is its own overlay (scrim, focus trap, Escape, drag handle, clamp of 48px edge and 8px top), because Kit's `Dialog` is always centred and has no offset.
+Decision: frost has no backdrop blur. GPUI cannot blur behind a surface inside a window; `.glass` and `.modal-glass` keep their tint and alpha.
+Decision: motion keyframes are data (`motion::ALL`, 28 rules from `index.css`, `tailwind.config.js` and `onboarding.css`). `animate` plays opacity and translation and shows the end frame under reduced motion. Scale, rotate, blur, brightness and background sweeps are exposed but not applied, as GPUI has no general transform or filter.
+Decision: `gpui-fast` stays off for the app. Only prompt 089 embeds a web page in the operator window, and the kit works on either backend; 089 decides.
+API difference: the pinned Kit has no public `aria_disabled`; disabled custom actions use Kit `Button` so assistive technology sees the state. Custom elements must call `.test_support()` after `.id()` to be visible to UI-test queries. Kit's alert dialog exposes no accessible label for its title.
+Lock: `test-support` pulls `gpui-fast`, whose exact `taffy =0.15.0` and `unicode-properties =0.1.3` pins conflicted with the locked 0.15.1 and 0.1.5. Both were moved down to those versions (within `gpui-pre`'s `^` ranges), which unblocks UI tests workspace-wide. This supersedes the 025 note that left the Taffy lock alone.
+Affects prompts: 052, 071 and every UI prompt, 089.
