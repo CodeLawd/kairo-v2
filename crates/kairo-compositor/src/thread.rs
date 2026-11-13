@@ -158,6 +158,8 @@ enum Msg {
         /// The converted size; `None`: the frame's own.
         raster: Option<(u32, u32)>,
         alpha: bool,
+        /// At most one converted frame per interval (the preview's rate).
+        interval: Option<Duration>,
     },
     Shutdown,
 }
@@ -250,6 +252,9 @@ pub enum Tap {
     Video,
     /// Premultiplied BGRA, for the recorder.
     Record,
+    /// Straight-alpha BGRA, box-filtered down, at a capped rate: the
+    /// operator preview (prompt 066).
+    Preview,
 }
 
 /// Where a tap's frames go.
@@ -258,6 +263,9 @@ pub type CaptureSink = Arc<dyn Fn(crate::uyva::UyvaFrame) + Send + Sync>;
 struct Capture {
     converter: crate::uyva::UyvaConverter,
     sink: CaptureSink,
+    interval: Option<Duration>,
+    /// When a frame was last handed to the converter.
+    last: Option<Instant>,
 }
 
 /// Feeds live sources from other threads (the video players).
@@ -461,6 +469,22 @@ impl Compositor {
             sink,
             raster: None,
             alpha: true,
+            interval: None,
+        });
+    }
+
+    /// Sends `output`'s frames, downscaled to `size` and at most `fps` a
+    /// second, to `sink` (the operator preview), or stops with `None`. A
+    /// change that lands between two preview frames is still sent, once the
+    /// interval has passed.
+    pub fn preview(&self, output: &str, size: (u32, u32), fps: u32, sink: Option<CaptureSink>) {
+        self.send(Msg::Capture {
+            output: output.into(),
+            tap: Tap::Preview,
+            sink,
+            raster: Some(size),
+            alpha: true,
+            interval: Some(Duration::from_secs(1) / fps.clamp(1, 60)),
         });
     }
 
@@ -479,6 +503,7 @@ impl Compositor {
             sink,
             raster: Some(raster),
             alpha,
+            interval: None,
         });
     }
 
@@ -823,6 +848,7 @@ fn handle(
             sink,
             raster,
             alpha,
+            interval,
         } => {
             if let Some(o) = outputs.get_mut(&output) {
                 o.taps.retain(|(t, _)| *t != tap);
@@ -833,9 +859,20 @@ fn handle(
                             crate::uyva::UyvaConverter::new(renderer.device(), w, h, alpha)
                         }
                         Tap::Record => crate::uyva::UyvaConverter::bgra(renderer.device(), w, h),
+                        Tap::Preview => {
+                            crate::uyva::UyvaConverter::preview(renderer.device(), w, h)
+                        }
                     };
                     match made {
-                        Ok(converter) => o.taps.push((tap, Capture { converter, sink })),
+                        Ok(converter) => o.taps.push((
+                            tap,
+                            Capture {
+                                converter,
+                                sink,
+                                interval,
+                                last: None,
+                            },
+                        )),
                         Err(message) => events(CompositorEvent::Error {
                             output: Some(output.clone()),
                             message,
@@ -871,6 +908,40 @@ pub(crate) fn apply(scene: &mut Scene, op: Op, frame_height: u32, now: Instant) 
         }
         // Routed to the playback layer by the thread before it gets here.
         Op::Media(_) => {}
+    }
+}
+
+/// Hands the frame just drawn to every tap whose rate allows it. A tap held
+/// back by its rate asks for a frame when its interval ends, so the last
+/// change before the picture comes to rest is still sent.
+fn convert_taps(renderer: &Renderer, name: &str, output: &mut Output, now: Instant) {
+    let mut due = None::<Instant>;
+    for (tap, capture) in &mut output.taps {
+        if let (Some(interval), Some(last)) = (capture.interval, capture.last)
+            && now < last + interval
+        {
+            let at = last + interval;
+            due = Some(due.map_or(at, |d| d.min(at)));
+            continue;
+        }
+        capture.last = Some(now);
+        let sink = capture.sink.clone();
+        let name = name.to_owned();
+        let tap = *tap;
+        // Completed by the device wait after the frame; a busy converter
+        // drops the frame.
+        capture.converter.convert(
+            renderer.device(),
+            renderer.queue(),
+            output.target.texture(),
+            Box::new(move |frame| match frame {
+                Ok(frame) => sink(frame),
+                Err(error) => tracing::warn!(output = name, ?tap, %error, "frame read-back failed"),
+            }),
+        );
+    }
+    if let Some(at) = due {
+        output.due = Some(output.due.map_or(at, |d| d.min(at)));
     }
 }
 
@@ -919,9 +990,18 @@ fn draw(
                     CurrentSurfaceTexture::Timeout => "timeout",
                     _ => "validation",
                 };
-                // The frame target is still drawn, for offscreen readers.
+                // The frame target is still drawn, for offscreen readers:
+                // a rehearsal window behind the operator's still feeds its
+                // preview, NDI and recording.
                 renderer.queue().submit([encoder.finish()]);
                 output.due = Some(now + PRESENT_RETRY);
+                convert_taps(renderer, name, output, now);
+                if let Err(error) = renderer.device().poll(PollType::wait_indefinitely()) {
+                    events(CompositorEvent::Error {
+                        output: Some(name.into()),
+                        message: format!("GPU wait failed: {error}"),
+                    });
+                }
                 events(CompositorEvent::Dropped {
                     output: name.into(),
                     why,
@@ -934,21 +1014,7 @@ fn draw(
     if let Some(frame) = presented {
         renderer.queue().present(frame);
     }
-    for (tap, capture) in &output.taps {
-        let sink = capture.sink.clone();
-        let name = name.to_owned();
-        let tap = *tap;
-        // Completed by the wait below; a busy converter drops the frame.
-        capture.converter.convert(
-            renderer.device(),
-            renderer.queue(),
-            output.target.texture(),
-            Box::new(move |frame| match frame {
-                Ok(frame) => sink(frame),
-                Err(error) => tracing::warn!(output = name, ?tap, %error, "frame read-back failed"),
-            }),
-        );
-    }
+    convert_taps(renderer, name, output, now);
     output.last_frame = Some(now);
     output.frames += 1;
     // GPU work for this frame is done before it is reported.

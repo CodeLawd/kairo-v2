@@ -6,6 +6,7 @@ mod topic;
 pub mod bootstrap;
 pub mod engine;
 pub mod listeners;
+pub mod preview;
 pub mod quit;
 pub mod resilience;
 pub mod shutdown;

@@ -13,6 +13,7 @@ mod layers;
 mod mac;
 mod ndi;
 mod power;
+mod preview;
 mod program;
 #[cfg(test)]
 mod program_corpus;

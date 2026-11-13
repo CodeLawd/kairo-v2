@@ -75,6 +75,8 @@ pub struct SurfaceState {
     pub document_mode: bool,
     /// `DocumentSlide` of the page on screen, with its videos.
     pub document_slide: Option<Json>,
+    /// The operator preview this surface feeds (prompt 066).
+    pub preview: Option<crate::messages::PreviewTarget>,
 }
 
 /// Whether a surface takes pushes (`ProgramSurface.available`), as the side
@@ -94,6 +96,7 @@ impl SurfaceState {
             last_render: None,
             document_mode: false,
             document_slide: None,
+            preview: None,
         }
     }
 
@@ -255,6 +258,12 @@ impl SurfaceState {
             Command::WebInput { .. } | Command::WebPointer { .. } | Command::WebScroll { .. } => {
                 self.layers.web.is_some()
             }
+            // Previews follow the surface whether or not it takes pushes:
+            // a parked screen still shows its last frame.
+            Command::SetPreview { preview, .. } => {
+                self.preview = preview.clone();
+                true
+            }
             Command::SetTestPattern { pattern, .. } => {
                 if !available {
                     return false;
@@ -348,6 +357,12 @@ impl SurfaceState {
             commands.push(Command::SetWeb {
                 output: output.clone(),
                 web: self.layers.web.clone(),
+            });
+        }
+        if let Some(preview) = &self.preview {
+            commands.push(Command::SetPreview {
+                output: output.clone(),
+                preview: Some(preview.clone()),
             });
         }
         if self.test_pattern.is_some() {

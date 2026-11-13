@@ -342,7 +342,8 @@ impl Shell {
             Command::DocumentVideos { document, .. } => vec![self.set_document_videos(document)],
             Command::ControlDocumentVideo { .. }
             | Command::WebScroll { .. }
-            | Command::WebInput { .. } => vec![],
+            | Command::WebInput { .. }
+            | Command::SetPreview { .. } => vec![],
             Command::OpenSurface(_)
             | Command::RetainSurfaces { .. }
             | Command::CloseSurface { .. }

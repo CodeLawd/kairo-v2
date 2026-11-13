@@ -2,6 +2,9 @@
 
 use std::sync::Arc;
 
+pub mod preview;
+pub mod thumbnails;
+
 use futures_channel::oneshot;
 use gpui_kit::{Context, Task, Window};
 use kairo_core::{EventStream, StreamError, Watch};

@@ -33,6 +33,48 @@ fn luma(r: i32, g: i32, b: i32) -> u8 {
     clamp8(((47 * r + 157 * g + 16 * b + 128) >> 8) + 16)
 }
 
+/// The CPU reference of the preview converter: premultiplied RGBA at
+/// `src` to straight-alpha BGRA at `dst`, each pixel the rounded mean of at
+/// most 8 × 8 evenly spaced source pixels under it.
+pub fn preview_reference(rgba: &[u8], src: (u32, u32), dst: (u32, u32)) -> Vec<u8> {
+    let (sw, sh) = src;
+    let (dw, dh) = dst;
+    let mut out = Vec::with_capacity(dw as usize * dh as usize * 4);
+    for y in 0..dh {
+        let y0 = y * sh / dh;
+        let y1 = ((y + 1) * sh / dh).max(y0 + 1);
+        let ny = (y1 - y0).min(8);
+        for x in 0..dw {
+            let x0 = x * sw / dw;
+            let x1 = ((x + 1) * sw / dw).max(x0 + 1);
+            let nx = (x1 - x0).min(8);
+            let mut sum = [0u32; 4];
+            for j in 0..ny {
+                let sy = y0 + j * (y1 - y0) / ny;
+                for i in 0..nx {
+                    let sx = x0 + i * (x1 - x0) / nx;
+                    let at = (sy as usize * sw as usize + sx as usize) * 4;
+                    for (c, s) in sum.iter_mut().enumerate() {
+                        *s += u32::from(rgba[at + c]);
+                    }
+                }
+            }
+            let n = nx * ny;
+            let c = sum.map(|s| (s + n / 2) / n);
+            let (r, g, b, a) = match c[3] {
+                0 => (0, 0, 0, 0),
+                255 => (c[0], c[1], c[2], 255),
+                a => {
+                    let un = |v: u32| ((v * 255 + a / 2) / a).min(255);
+                    (un(c[0]), un(c[1]), un(c[2]), a)
+                }
+            };
+            out.extend_from_slice(&[b as u8, g as u8, r as u8, a as u8]);
+        }
+    }
+    out
+}
+
 /// The CPU reference: `convertFrame` from `uyvy.h` over premultiplied
 /// RGBA (not BGRA), nearest-neighbour scaled, with the alpha plane after
 /// the UYVY plane when `alpha` is set.
@@ -139,6 +181,8 @@ pub struct UyvaConverter {
     height: u32,
     alpha: bool,
     bgra: bool,
+    /// Box-filtered, straight-alpha BGRA (the operator preview, 066).
+    preview: bool,
     pub stats: Arc<Stats>,
 }
 
@@ -151,6 +195,14 @@ impl UyvaConverter {
     /// Premultiplied BGRA instead of UYVA, for the recorder's tap.
     pub fn bgra(device: &Device, width: u32, height: u32) -> Result<Self, String> {
         Self::make(device, width, height, true, true)
+    }
+
+    /// Straight-alpha BGRA averaged over each pixel's source box, for the
+    /// operator preview: [`preview_reference`] on the GPU.
+    pub fn preview(device: &Device, width: u32, height: u32) -> Result<Self, String> {
+        let mut made = Self::make(device, width, height, true, true)?;
+        made.preview = true;
+        Ok(made)
     }
 
     fn len(&self) -> usize {
@@ -222,6 +274,7 @@ impl UyvaConverter {
             height,
             alpha,
             bgra,
+            preview: false,
             stats: Arc::new(Stats::default()),
         })
     }
@@ -238,7 +291,11 @@ impl UyvaConverter {
                 dst_w: self.width,
                 dst_h: self.height,
                 alpha: u32::from(self.alpha),
-                bgra: u32::from(self.bgra),
+                bgra: if self.preview {
+                    2
+                } else {
+                    u32::from(self.bgra)
+                },
                 pad: [0; 2],
             };
             queue.write_buffer(&self.params, 0, bytemuck::bytes_of(&params));

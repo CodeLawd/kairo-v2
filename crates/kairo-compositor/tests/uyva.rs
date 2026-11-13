@@ -1,6 +1,6 @@
 //! The UYVA conversion against its CPU reference (Electron's `uyvy.h`).
 
-use kairo_compositor::uyva::{SLOTS, UyvaConverter, reference, uyva_len};
+use kairo_compositor::uyva::{SLOTS, UyvaConverter, preview_reference, reference, uyva_len};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -252,4 +252,78 @@ fn the_bgra_tap_is_the_frame_with_red_and_blue_swapped() {
         .flat_map(|p| [p[2], p[1], p[0], p[3]])
         .collect();
     assert_eq!(out, expected);
+}
+
+fn preview(
+    d: &wgpu::Device,
+    q: &wgpu::Queue,
+    rgba: &[u8],
+    src: (u32, u32),
+    dst: (u32, u32),
+) -> Vec<u8> {
+    let t = texture(d, q, rgba, src.0, src.1);
+    let c = UyvaConverter::preview(d, dst.0, dst.1).unwrap();
+    let (tx, rx) = mpsc::channel();
+    assert!(c.convert(
+        d,
+        q,
+        &t,
+        Box::new(move |r| tx.send(r.map(|f| (f.bgra, f.data().to_vec()))).unwrap())
+    ));
+    d.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let (bgra, out) = rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    assert!(bgra);
+    out
+}
+
+#[test]
+fn the_preview_matches_its_cpu_reference_at_every_operator_size() {
+    let Some((d, q)) = device() else { return };
+    let src = gradient(1920, 1080);
+    // 1080p down to the sizes an operator window asks for, a 4K frame, and
+    // a non-integer ratio.
+    for (from, to) in [
+        ((1920, 1080), (640, 360)),
+        ((1920, 1080), (960, 540)),
+        ((1920, 1080), (1920, 1080)),
+        ((1920, 1080), (332, 188)),
+    ] {
+        assert_eq!(
+            preview(&d, &q, &src, from, to),
+            preview_reference(&src, from, to),
+            "{from:?} to {to:?}"
+        );
+    }
+    let big = gradient(3840, 2160);
+    assert_eq!(
+        preview(&d, &q, &big, (3840, 2160), (640, 360)),
+        preview_reference(&big, (3840, 2160), (640, 360))
+    );
+}
+
+#[test]
+fn the_preview_averages_and_unpremultiplies() {
+    // A 2 × 2 box of red and black averages to dark red, not to nearest
+    // neighbour's red; half-transparent white comes out as white at half
+    // alpha, which is what GPUI expects.
+    let red = [200u8, 0, 0, 255];
+    let black = [0u8, 0, 0, 255];
+    let mut src = Vec::new();
+    for _ in 0..2 {
+        src.extend_from_slice(&red);
+        src.extend_from_slice(&black);
+        src.extend_from_slice(&[128, 128, 128, 128]);
+        src.extend_from_slice(&[128, 128, 128, 128]);
+        src.extend_from_slice(&[0; 4]);
+        src.extend_from_slice(&[0; 4]);
+        src.extend_from_slice(&red);
+        src.extend_from_slice(&red);
+    }
+    let out = preview_reference(&src, (8, 2), (4, 1));
+    assert_eq!(&out[0..4], &[0, 0, 100, 255], "averaged");
+    assert_eq!(&out[4..8], &[255, 255, 255, 128], "straight alpha");
+    assert_eq!(&out[8..12], &[0, 0, 0, 0], "clear stays clear");
+    assert_eq!(&out[12..16], &[0, 0, 200, 255]);
+    let Some((d, q)) = device() else { return };
+    assert_eq!(preview(&d, &q, &src, (8, 2), (4, 1)), out);
 }
