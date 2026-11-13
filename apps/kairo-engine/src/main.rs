@@ -3,10 +3,13 @@
 //! tells it everything it draws. winit owns the main thread.
 
 mod app;
+mod diagnostics;
 mod display;
 mod layers;
 #[cfg(target_os = "macos")]
 mod mac;
+mod ndi;
+mod power;
 mod program;
 #[cfg(test)]
 mod program_corpus;
@@ -16,6 +19,7 @@ mod text;
 #[cfg(test)]
 mod visual_corpus;
 mod visuals;
+mod window_policy;
 use kairo_engine::web;
 
 use std::process::ExitCode;
@@ -106,6 +110,29 @@ fn main() -> ExitCode {
         builder.with_activate_ignoring_other_apps(false);
         builder.with_default_menu(false);
     }
+    #[cfg(target_os = "windows")]
+    let display_proxy = std::sync::Arc::new(std::sync::Mutex::new(
+        None::<winit::event_loop::EventLoopProxy<server::Message>>,
+    ));
+    #[cfg(target_os = "windows")]
+    {
+        use winit::platform::windows::EventLoopBuilderExtWindows;
+        let proxy = display_proxy.clone();
+        builder.with_msg_hook(move |message| {
+            use windows::Win32::UI::WindowsAndMessaging::{
+                MSG, WM_DEVICECHANGE, WM_DISPLAYCHANGE, WM_POWERBROADCAST,
+            };
+            let message = unsafe { &*(message.cast::<MSG>()) };
+            if matches!(
+                message.message,
+                WM_DISPLAYCHANGE | WM_DEVICECHANGE | WM_POWERBROADCAST
+            ) && let Some(proxy) = proxy.lock().unwrap().as_ref()
+            {
+                let _ = proxy.send_event(server::Message::DisplaysChanged);
+            }
+            false
+        });
+    }
     let event_loop = match builder.build() {
         Ok(event_loop) => event_loop,
         Err(error) => {
@@ -113,6 +140,10 @@ fn main() -> ExitCode {
             return ExitCode::from(70);
         }
     };
+    #[cfg(target_os = "windows")]
+    {
+        *display_proxy.lock().unwrap() = Some(event_loop.create_proxy());
+    }
     let outbox = server::Outbox::default();
     if let Err(error) = server::listen(
         &arguments.socket,

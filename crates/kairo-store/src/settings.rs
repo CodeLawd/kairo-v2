@@ -769,6 +769,48 @@ pub fn open_ui_state(user_data: &Path) -> JsonStore {
     JsonStore::open(user_data, UI_STATE_STORE, Data::new())
 }
 
+impl SettingsStore {
+    /// A replug can change the native display id. Update only this binding,
+    /// and only if an operator has not reassigned it since the event was sent.
+    /// `stage` chooses presentation.stageDisplays rather than overlay.outputs.
+    pub fn persist_display_rebinding(
+        &mut self,
+        output: &str,
+        old_id: u32,
+        new_id: u32,
+        stage: bool,
+    ) -> bool {
+        let (section, list) = if stage {
+            ("presentation", "stageDisplays")
+        } else {
+            ("overlay", "outputs")
+        };
+        let Some(mut value) = self.store.get(section).cloned() else {
+            return false;
+        };
+        let Some(entries) = value.get_mut(list).and_then(Value::as_array_mut) else {
+            return false;
+        };
+        let Some(binding) = entries
+            .iter_mut()
+            .find(|entry| entry.get("id").and_then(Value::as_str) == Some(output))
+        else {
+            return false;
+        };
+        if binding.get("displayId").and_then(Value::as_f64) != Some(old_id as f64)
+            || old_id == new_id
+        {
+            return false;
+        }
+        let Some(binding) = binding.as_object_mut() else {
+            return false;
+        };
+        binding.insert("displayId".into(), Value::from(new_id));
+        self.store.set(section, value);
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

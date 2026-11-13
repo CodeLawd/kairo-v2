@@ -7,6 +7,7 @@ pub mod geometry;
 pub mod layers;
 pub mod renderer;
 pub mod thread;
+pub mod uyva;
 pub mod yuv;
 
 pub use camera::{Mode, VideoLayout, place, video_layout};

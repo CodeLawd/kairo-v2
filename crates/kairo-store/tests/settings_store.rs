@@ -518,3 +518,35 @@ fn killing_the_process_mid_write_never_leaves_a_broken_file() {
         .count();
     assert_eq!(leftovers, 0);
 }
+
+#[test]
+fn display_rebinding_is_persisted_without_overwriting_a_new_assignment_or_other_fields() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut store = open(dir.path());
+    store.set_raw("overlay", json!({"other":"preserved","outputs":[
+        {"id":"a","displayId":7,"displayLabel":"Projector","displaySize":{"width":1920,"height":1080},"keep":true},
+        {"id":"b","displayId":99}]}));
+    assert!(store.persist_display_rebinding("a", 7, 8, false));
+    assert!(
+        !store.persist_display_rebinding("a", 7, 9, false),
+        "stale replug cannot revert a later assignment"
+    );
+    store.flush().unwrap();
+    let stored = &on_disk(dir.path())["overlay"];
+    assert_eq!(stored["outputs"][0]["displayId"], 8);
+    assert_eq!(stored["outputs"][0]["displayLabel"], "Projector");
+    assert_eq!(stored["outputs"][0]["keep"], true);
+    assert_eq!(stored["outputs"][1]["displayId"], 99);
+    assert_eq!(stored["other"], "preserved");
+    store.set_raw(
+        "presentation",
+        json!({"keep":true,"stageDisplays":[{"id":"s","displayId":1}]}),
+    );
+    assert!(store.persist_display_rebinding("s", 1, 2, true));
+    store.flush().unwrap();
+    assert_eq!(
+        on_disk(dir.path())["presentation"]["stageDisplays"][0]["displayId"],
+        2
+    );
+    assert!(!store.persist_display_rebinding("missing", 1, 2, false));
+}

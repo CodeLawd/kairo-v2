@@ -122,6 +122,7 @@ struct Mirror {
     surfaces: Vec<ClientSurface>,
     next_seq: u64,
     displays: Vec<DisplayInfo>,
+    control_display: Option<Option<u64>>,
     /// The commands' wire, while an engine is connected.
     link: Option<mpsc::Sender<ToEngine>>,
 }
@@ -235,6 +236,11 @@ impl EngineHandle {
         let seq = mirror.next_seq;
         let accepted = match &command {
             Command::Shutdown => true,
+            Command::ControlDisplay { native_id } => {
+                mirror.control_display = Some(*native_id);
+                true
+            }
+            Command::IdentifyDisplays | Command::DisplayTestPattern { .. } => true,
             Command::RetainSurfaces { outputs } => {
                 mirror
                     .surfaces
@@ -337,6 +343,75 @@ impl EngineHandle {
             .iter()
             .map(|s| s.state.spec.output.clone())
             .collect()
+    }
+
+    pub fn identify_displays(&self) -> bool {
+        matches!(self.status(), EngineStatus::Running { .. })
+            && !self.displays().is_empty()
+            && self.command(Command::IdentifyDisplays).accepted
+    }
+
+    pub fn show_display_test_pattern(
+        &self,
+        input: &kairo_domain::overlay::TestPatternInput,
+    ) -> bool {
+        use kairo_domain::{
+            displays::{Dimensions, OUTPUT_ASPECTS, frame_height_for},
+            overlay::OutputAspect,
+        };
+        if !matches!(self.status(), EngineStatus::Running { .. })
+            || !input.display_id.is_finite()
+            || input.display_id.fract() != 0.
+            || input.name.len() > 1024
+        {
+            return false;
+        }
+        let Some(display) = self
+            .displays()
+            .into_iter()
+            .find(|d| d.id as f64 == input.display_id)
+        else {
+            return false;
+        };
+        let (width, height) = display.logical_size();
+        let custom = Dimensions {
+            width: input.custom_aspect.width,
+            height: input.custom_aspect.height,
+        };
+        let frame_height = frame_height_for(
+            Dimensions {
+                width: width as f64,
+                height: height as f64,
+            },
+            input.aspect,
+            Some(custom),
+        ) as u32;
+        let shape = match input.aspect {
+            OutputAspect::Custom => format!(
+                "{}:{}",
+                kairo_domain::js::number_to_string(custom.width),
+                kairo_domain::js::number_to_string(custom.height)
+            ),
+            OutputAspect::Fill => "Matches the display".into(),
+            aspect => OUTPUT_ASPECTS
+                .iter()
+                .find(|a| a.value == aspect)
+                .map_or("16:9", |a| a.label.split(" — ").next().unwrap_or("16:9"))
+                .into(),
+        };
+        self.command(Command::DisplayTestPattern {
+            display: display.id,
+            name: input.name.clone(),
+            shape,
+            frame_height,
+        })
+        .accepted
+    }
+
+    pub fn report_control_display(&self, native_id: Option<u64>) {
+        if lock(&self.inner.mirror).control_display != Some(native_id) {
+            self.command(Command::ControlDisplay { native_id });
+        }
     }
 
     pub fn displays(&self) -> Vec<DisplayInfo> {
@@ -665,6 +740,11 @@ fn connect(
                 .map(|s| s.state.spec.output.clone())
                 .collect(),
         })
+        .chain(
+            mirror
+                .control_display
+                .map(|native_id| Command::ControlDisplay { native_id }),
+        )
         .chain(mirror.surfaces.iter().flat_map(|s| s.state.replay()))
         .collect();
         for surface in &mut mirror.surfaces {
@@ -706,6 +786,23 @@ fn dispatch(inner: &Inner, message: FromEngine) {
                     }
                 }
                 Event::Displays(displays) => lock(&inner.mirror).displays = displays.clone(),
+                Event::DisplayRebound {
+                    output,
+                    old_id,
+                    new_id,
+                    ..
+                } => {
+                    let mut mirror = lock(&inner.mirror);
+                    if let Some(surface) = mirror
+                        .surfaces
+                        .iter_mut()
+                        .find(|s| &s.state.spec.output == output)
+                        && let SinkSpec::Display(sink) = &mut surface.state.spec.sink
+                        && sink.binding.display_id == Some(*old_id)
+                    {
+                        sink.binding.display_id = Some(*new_id);
+                    }
+                }
                 Event::FrameCommitted { output, seq } => {
                     let mut committed = lock(&inner.committed);
                     let entry = committed.entry(output.clone()).or_insert(0);

@@ -11,17 +11,18 @@ use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use winit::application::ApplicationHandler;
-use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoopProxy};
 use winit::window::{Window, WindowId};
 
 /// Display changes are noticed this quickly. Prompt 060 adds the 250 ms
 /// debounce of `surface-manager.ts` on top; parking happens at once.
-const DISPLAY_POLL: Duration = Duration::from_millis(250);
+const DISPLAY_POLL: Duration = Duration::from_millis(50);
 const REPORT_EVERY: Duration = Duration::from_secs(2);
 /// How often video sound is checked against its picture.
 const SOUND_FOLLOW: Duration = Duration::from_millis(50);
+/// NDI frames are 1920 × 1080, as Electron's NDI surface painted them.
+const NDI_HEIGHT: u32 = 1080;
 /// How often countdowns and clocks are read (`setInterval(…, 250)`).
 const TICK: Duration = Duration::from_millis(250);
 /// Exit status when the GPU device is lost: the supervisor relaunches the
@@ -32,6 +33,7 @@ struct OutputWindow {
     window: Arc<Window>,
     display: u32,
     sink: DisplaySink,
+    target: DisplayInfo,
 }
 
 struct EngineSurface {
@@ -47,11 +49,18 @@ struct EngineSurface {
     queue: Ordered,
     /// Slides applied and not yet reported committed: for the trace line.
     traces: VecDeque<(u64, Instant, Timing)>,
+    /// The NDI feed an NDI surface sends to (prompt 061).
+    ndi: Option<crate::ndi::Feed>,
 }
 
 impl EngineSurface {
     fn output(&self) -> &str {
         &self.state.spec.output
+    }
+
+    /// Drawn somewhere: a window or an NDI feed.
+    fn is_open(&self) -> bool {
+        self.window.is_some() || self.ndi.is_some()
     }
 }
 
@@ -79,11 +88,19 @@ pub struct Engine {
     visuals: VisualWork,
     next_job: u64,
     displays: Vec<DisplayInfo>,
+    control_native: Option<Option<u64>>,
+    display_debounce: display::Debounce,
+    diagnostics: crate::diagnostics::Diagnostics,
+    power: crate::power::Power,
+    #[cfg(target_os = "macos")]
+    display_observer: Option<crate::mac::DisplayObserver>,
     next_scan: Instant,
     next_report: Instant,
     next_tick: Instant,
     /// Program sound; made with the first surface.
     sound: Option<crate::sound::Sound>,
+    /// The NDI runtime and feeds; the primary sender starts at launch.
+    ndi: crate::ndi::Ndi,
     next_sound: Instant,
     /// Sound glitch frames already reported.
     glitches: u64,
@@ -113,10 +130,17 @@ impl Engine {
             visuals: VisualWork::new(),
             next_job: 0,
             displays: Vec::new(),
+            control_native: None,
+            display_debounce: display::Debounce::default(),
+            diagnostics: crate::diagnostics::Diagnostics::default(),
+            power: crate::power::Power::default(),
+            #[cfg(target_os = "macos")]
+            display_observer: None,
             next_scan: now,
             next_report: now + REPORT_EVERY,
             next_tick: now,
             sound: None,
+            ndi: crate::ndi::Ndi::launch(),
             next_sound: now,
             glitches: 0,
             orphaned_at: Some(now),
@@ -161,6 +185,19 @@ impl Engine {
             self.error(Some(output), "Invalid web input".into());
             return;
         }
+        if let Command::SetStage { output, view } = &command
+            && view.decode::<kairo_domain::program::StageView>().is_err()
+        {
+            self.error(Some(output), "Invalid stage view".into());
+            return;
+        }
+        if let Command::OpenSurface(spec) = &command
+            && let SinkSpec::Display(sink) = &spec.sink
+            && !(360..=4320).contains(&sink.frame_height)
+        {
+            self.error(Some(&spec.output), "Invalid display frame height".into());
+            return;
+        }
         if matches!(command, Command::Shutdown) {
             self.web = crate::web::Webs::default();
         }
@@ -190,7 +227,7 @@ impl Engine {
         let wanted = self
             .surfaces
             .iter()
-            .filter(|s| s.window.is_some() && !s.state.parked && s.state.config.web_enabled)
+            .filter(|s| s.is_open() && !s.state.parked && s.state.config.web_enabled)
             .filter_map(|s| {
                 s.state
                     .layers
@@ -237,8 +274,57 @@ impl Engine {
 
     fn command_inner(&mut self, event_loop: &ActiveEventLoop, seq: u64, command: Command) {
         match &command {
+            Command::ControlDisplay { native_id } => {
+                self.control_native = Some(*native_id);
+                self.scan_displays(event_loop);
+                return;
+            }
+            Command::IdentifyDisplays => {
+                let displays = self.current_displays(event_loop);
+                for error in self.diagnostics.identify(event_loop, &displays) {
+                    self.error(None, error);
+                }
+                self.update_power();
+                return;
+            }
+            Command::DisplayTestPattern {
+                display,
+                name,
+                shape,
+                frame_height,
+            } => {
+                if !(360..=4320).contains(frame_height) || name.len() > 1024 || shape.len() > 256 {
+                    self.error(None, "Invalid display test pattern".into());
+                    return;
+                }
+                let target = self
+                    .current_displays(event_loop)
+                    .into_iter()
+                    .find(|d| d.id == *display);
+                match target {
+                    Some(target) => {
+                        if let Err(error) = self.diagnostics.pattern(
+                            event_loop,
+                            &target,
+                            name,
+                            shape,
+                            *frame_height,
+                        ) {
+                            self.error(None, error);
+                        }
+                    }
+                    None => self.error(None, "Display not connected".into()),
+                }
+                self.update_power();
+                return;
+            }
             Command::Shutdown => {
+                self.diagnostics = crate::diagnostics::Diagnostics::default();
+                self.power.set_active(false);
                 tracing::info!("shutdown requested");
+                for index in 0..self.surfaces.len() {
+                    self.close_window(index);
+                }
                 self.surfaces.clear();
                 self.sound = None;
                 self.cameras = None;
@@ -259,6 +345,11 @@ impl Engine {
                         if !outputs.iter().any(|o| o == surface.output()) {
                             cameras.want(surface.output(), None);
                         }
+                    }
+                }
+                for index in 0..self.surfaces.len() {
+                    if !outputs.iter().any(|o| o == self.surfaces[index].output()) {
+                        self.close_window(index);
                     }
                 }
                 self.surfaces
@@ -284,12 +375,16 @@ impl Engine {
                     shell: Shell::new(&spec.output, frame_height_of(&spec.sink)),
                     queue: Ordered::default(),
                     traces: VecDeque::new(),
+                    ndi: None,
                 }),
             },
             Command::CloseSurface {
                 output,
                 destroy: true,
             } => {
+                if let Some(index) = self.surfaces.iter().position(|s| s.output() == output) {
+                    self.close_window(index);
+                }
                 self.surfaces.retain(|s| s.output() != output);
                 if let Some(sound) = self.sound.as_mut() {
                     sound.forget(output);
@@ -319,7 +414,7 @@ impl Engine {
                     && before.config != surface.state.config
                 {
                     self.sound
-                        .get_or_insert_with(crate::sound::Sound::new)
+                        .get_or_insert_with(|| new_sound(&self.ndi))
                         .configure(&output, config);
                 }
                 let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
@@ -329,12 +424,14 @@ impl Engine {
                 let planned = surface.shell.command(&command, &before, &surface.state);
                 // Every applied command gets a frame, so `FrameCommitted`
                 // follows even when no pixels change.
-                if surface.window.is_some() {
+                if surface.is_open() {
                     self.dispatch(&output, seq, planned);
                 }
                 if !matches!(
                     command,
-                    Command::CloseSurface { .. } | Command::RestoreSurface { .. }
+                    Command::CloseSurface { .. }
+                        | Command::RestoreSurface { .. }
+                        | Command::SetStage { .. }
                 ) {
                     return;
                 }
@@ -360,7 +457,7 @@ impl Engine {
             surface.shell.know_camera(&label, id);
         }
         self.sound
-            .get_or_insert_with(crate::sound::Sound::new)
+            .get_or_insert_with(|| new_sound(&self.ndi))
             .camera(output, camera.and_then(|c| c.audio_label.as_deref()));
     }
 
@@ -582,6 +679,35 @@ impl Engine {
     fn query(&self, id: u64, query: Query) {
         let has = |output: &str| self.surfaces.iter().find(|s| s.output() == output);
         let reply = match query {
+            Query::DisplayState => {
+                let mut windows = self.diagnostics.info();
+                windows.extend(self.surfaces.iter().filter_map(|s| {
+                    let w = s.window.as_ref()?;
+                    let position = w.window.outer_position().ok()?;
+                    let size = w.window.outer_size();
+                    Some(WindowInfo {
+                        output: s.output().into(),
+                        display: w.display,
+                        kind: if s.state.stage.is_some() {
+                            WindowKind::Stage
+                        } else {
+                            WindowKind::Program
+                        },
+                        rehearsal: w.sink.rehearsal,
+                        bounds: Rect {
+                            x: position.x,
+                            y: position.y,
+                            width: size.width,
+                            height: size.height,
+                        },
+                        native_window: crate::window_policy::native_id(&w.window),
+                    })
+                }));
+                Reply::DisplayState {
+                    windows,
+                    sleep_blocked: self.power.active(),
+                }
+            }
             // No video (or no compositor yet) counts as ended.
             Query::VideoEnded { output } => match has(&output) {
                 Some(_) => Reply::VideoEnded(self.videos.as_ref().is_none_or(|v| v.ended(&output))),
@@ -601,53 +727,126 @@ impl Engine {
     /// display is gone, unavailable when its sink cannot run here.
     fn reconcile(&mut self, event_loop: &ActiveEventLoop) {
         let mut claimed = HashSet::new();
-        for index in 0..self.surfaces.len() {
+        let mut order: Vec<_> = (0..self.surfaces.len()).collect();
+        // Program screens claim displays first; stage displays never cover one.
+        order.sort_by_key(|index| self.surfaces[*index].state.stage.is_some());
+        for index in order {
             let spec = self.surfaces[index].state.spec.clone();
             let status = match &spec.sink {
-                SinkSpec::Display(sink) => {
-                    if self.surfaces[index].state.parked {
+                SinkSpec::Display(requested) => {
+                    if self.surfaces[index].state.parked || self.control_native == Some(None) {
                         self.close_window(index);
-                        continue;
-                    }
-                    let resolved =
-                        display::resolve(&sink.binding, &self.displays, &claimed).cloned();
-                    match resolved {
-                        None => {
-                            // Never placed on whatever display is left.
-                            self.close_window(index);
-                            SurfaceStatus::Parked {
-                                reason: "Display not connected".into(),
-                            }
+                        SurfaceStatus::Parked {
+                            reason: "Output is closed".into(),
                         }
-                        Some(target) => {
-                            claimed.insert(target.id);
-                            let current = self.surfaces[index].window.as_ref();
-                            if current.is_some_and(|w| w.display == target.id && &w.sink == sink) {
-                                continue;
-                            }
-                            self.close_window(index);
-                            match self.open_window(event_loop, index, sink, &target) {
-                                Ok(()) => {
-                                    tracing::info!(
-                                        output = spec.output,
-                                        "window on {} (rehearsal {})",
-                                        target.label,
-                                        sink.rehearsal
-                                    );
-                                    SurfaceStatus::Ready
+                    } else {
+                        let resolved =
+                            display::resolve(&requested.binding, &self.displays, &claimed).cloned();
+                        match resolved {
+                            None => {
+                                self.close_window(index);
+                                let connected = display::resolve(
+                                    &requested.binding,
+                                    &self.displays,
+                                    &HashSet::new(),
+                                )
+                                .is_some();
+                                SurfaceStatus::Parked {
+                                    reason: if requested.binding.display_id.is_none() {
+                                        "No display chosen"
+                                    } else if connected {
+                                        "Display in use by another screen"
+                                    } else {
+                                        "Display not connected"
+                                    }
+                                    .into(),
                                 }
-                                Err(reason) => {
-                                    self.error(
-                                        Some(&spec.output),
-                                        format!("output window failed: {reason}"),
-                                    );
-                                    SurfaceStatus::Unavailable { reason }
+                            }
+                            Some(target) => {
+                                claimed.insert(target.id);
+                                let mut sink = requested.clone();
+                                if let Some(Some(control)) = self.control_native {
+                                    sink.rehearsal = control == target.native_id;
+                                }
+                                if self.surfaces[index].state.stage.is_some() {
+                                    sink.frame_height = 1080;
+                                }
+                                if let Some(old_id) =
+                                    sink.binding.display_id.filter(|id| *id != target.id)
+                                {
+                                    sink.binding.display_id = Some(target.id);
+                                    if let SinkSpec::Display(retained) =
+                                        &mut self.surfaces[index].state.spec.sink
+                                    {
+                                        retained.binding.display_id = Some(target.id);
+                                    }
+                                    self.send_event(Event::DisplayRebound {
+                                        output: spec.output.clone(),
+                                        old_id,
+                                        new_id: target.id,
+                                        stage: self.surfaces[index].state.stage.is_some(),
+                                    });
+                                }
+                                let current = self.surfaces[index].window.as_ref();
+                                if current.is_some_and(|w| {
+                                    w.display == target.id
+                                        && w.sink.rehearsal == sink.rehearsal
+                                        && w.sink.frame_height == sink.frame_height
+                                }) {
+                                    let w = self.surfaces[index].window.as_mut().unwrap();
+                                    if w.target.bounds != target.bounds
+                                        || w.target.scale_factor != target.scale_factor
+                                    {
+                                        let bounds = if sink.rehearsal {
+                                            crate::window_policy::rehearsal_bounds(
+                                                &target,
+                                                sink.frame_height,
+                                            )
+                                        } else {
+                                            target.bounds.clone()
+                                        };
+                                        crate::window_policy::set_bounds(&w.window, &bounds);
+                                        crate::window_policy::show(&w.window, sink.rehearsal);
+                                    }
+                                    w.target = target;
+                                    w.sink = sink;
+                                    SurfaceStatus::Ready
+                                } else {
+                                    self.close_window(index);
+                                    match self.open_window(event_loop, index, &sink, &target) {
+                                        Ok(()) => SurfaceStatus::Ready,
+                                        Err(reason) => {
+                                            self.error(
+                                                Some(&spec.output),
+                                                format!("output window failed: {reason}"),
+                                            );
+                                            SurfaceStatus::Unavailable { reason }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                SinkSpec::Ndi { .. } => unavailable("NDI output"),
+                SinkSpec::Ndi { name } => {
+                    if self.surfaces[index].state.parked {
+                        self.close_window(index);
+                        continue;
+                    }
+                    if self.surfaces[index]
+                        .ndi
+                        .as_ref()
+                        .is_some_and(|f| &f.name == name)
+                    {
+                        continue;
+                    }
+                    // A new name is a new sender.
+                    self.close_window(index);
+                    match self.open_ndi(index, name) {
+                        Ok(()) => SurfaceStatus::Ready,
+                        Err(reason) => SurfaceStatus::Unavailable { reason },
+                    }
+                }
                 SinkSpec::Syphon { .. } => unavailable("Syphon output"),
                 SinkSpec::Device { .. } => unavailable("Video card output"),
             };
@@ -657,6 +856,43 @@ impl Engine {
                 let output = surface.output().to_owned();
                 self.send_event(Event::SurfaceStatus { output, status });
             }
+        }
+        self.update_power();
+    }
+
+    fn current_displays(&self, el: &ActiveEventLoop) -> Vec<DisplayInfo> {
+        let mut displays = display::scan(el);
+        for display in &mut displays {
+            display.hosts_main_window = self.control_native.flatten() == Some(display.native_id);
+        }
+        displays
+    }
+
+    fn scan_displays(&mut self, el: &ActiveEventLoop) {
+        let observed = self.current_displays(el);
+        self.diagnostics.topology(&observed);
+        // macOS can move an unplugged window onto another display before the
+        // debounce expires. Hide it immediately, before asynchronous GPU close.
+        for index in 0..self.surfaces.len() {
+            let unsafe_window = self.surfaces[index].window.as_ref().is_some_and(|w| {
+                !observed.iter().any(|d| d.id == w.display)
+                    || self.control_native == Some(None)
+                    || (!w.sink.rehearsal
+                        && self.control_native.flatten() == Some(w.target.native_id))
+            });
+            if unsafe_window {
+                self.close_window(index);
+            }
+        }
+        self.display_debounce
+            .observe(Instant::now(), &self.displays, observed);
+        self.update_power();
+    }
+
+    fn update_power(&mut self) {
+        let active = self.surfaces.iter().any(|s| s.window.is_some()) || self.diagnostics.active();
+        if let Some(error) = self.power.set_active(active) {
+            self.error(None, error);
         }
     }
 
@@ -705,11 +941,51 @@ impl Engine {
         let surface = &mut self.surfaces[index];
         surface.queue.clear();
         surface.traces.clear();
-        if surface.window.take().is_some()
+        if let Some(window) = &surface.window {
+            window.window.set_visible(false);
+        }
+        let feed = surface.ndi.take();
+        if (surface.window.take().is_some() || feed.is_some())
             && let Some(compositor) = self.compositor.as_ref()
         {
+            compositor.capture(&surface.state.spec.output, None);
             compositor.close(&surface.state.spec.output);
         }
+        if let Some(feed) = feed {
+            self.ndi.close(&surface.state.spec.output, feed);
+        }
+    }
+
+    /// An NDI surface: an offscreen 1920 × 1080 output whose frames go to
+    /// its feed as UYVA.
+    fn open_ndi(&mut self, index: usize, name: &str) -> Result<(), String> {
+        let output = self.surfaces[index].state.spec.output.clone();
+        let feed = self.ndi.open(&output, name)?;
+        let sink = feed.output.clone();
+        let compositor = match self.compositor() {
+            Ok(c) => c,
+            Err(error) => {
+                self.ndi.close(&output, feed);
+                return Err(error);
+            }
+        };
+        compositor.open(&output, NDI_HEIGHT, Sink::Offscreen);
+        compositor.capture(&output, Some(Arc::new(move |frame| sink.frame(frame))));
+        tracing::info!(output, name, "NDI output open");
+        let surface = &mut self.surfaces[index];
+        surface.ndi = Some(feed);
+        surface.shell = Shell::new(&output, NDI_HEIGHT);
+        if let (Some(cameras), Some(camera)) = (self.cameras.as_ref(), &surface.state.layers.camera)
+            && let Some(id) = cameras.live_id(&camera.label)
+        {
+            surface.shell.know_camera(&camera.label, id);
+        }
+        surface.queue.clear();
+        surface.traces.clear();
+        let planned = surface.shell.rebuild(&surface.state);
+        let seq = surface.seq;
+        self.dispatch(&output, seq, planned);
+        Ok(())
     }
 
     /// `createDisplayWindow`: borderless over the whole display, or a
@@ -725,7 +1001,7 @@ impl Engine {
         let label = self.surfaces[index].state.spec.label.clone();
         let output = self.surfaces[index].state.spec.output.clone();
         let bounds = if sink.rehearsal {
-            display::rehearsal_bounds(&target.bounds, sink.frame_height)
+            crate::window_policy::rehearsal_bounds(target, sink.frame_height)
         } else {
             target.bounds.clone()
         };
@@ -734,31 +1010,18 @@ impl Engine {
         } else {
             label
         };
-        // On macOS borderless windows are ordered front by `place_output`,
-        // which does not activate the engine.
-        let visible = sink.rehearsal || cfg!(not(target_os = "macos"));
-        #[allow(unused_mut)]
-        let mut attributes = Window::default_attributes()
-            .with_title(title)
-            .with_visible(visible)
-            .with_active(false)
-            .with_decorations(sink.rehearsal)
-            .with_resizable(sink.rehearsal)
-            .with_transparent(false)
-            .with_inner_size(PhysicalSize::new(bounds.width, bounds.height))
-            .with_position(PhysicalPosition::new(bounds.x, bounds.y));
-        #[cfg(target_os = "macos")]
-        {
-            use winit::platform::macos::WindowAttributesExtMacOS;
-            attributes = attributes.with_has_shadow(sink.rehearsal);
+        let window =
+            crate::window_policy::open(event_loop, &title, &bounds, sink.rehearsal, false)?;
+        crate::window_policy::set_bounds(&window, &bounds);
+        #[cfg(not(target_os = "macos"))]
+        if !sink.rehearsal {
+            // Use true borderless fullscreen on Windows so the taskbar cannot
+            // draw over the output. macOS uses screen-saver level, no Space.
+            let monitor = event_loop
+                .available_monitors()
+                .find(|m| m.position().x == target.bounds.x && m.position().y == target.bounds.y);
+            window.set_fullscreen(Some(winit::window::Fullscreen::Borderless(monitor)));
         }
-        let window = Arc::new(
-            event_loop
-                .create_window(attributes)
-                .map_err(|e| e.to_string())?,
-        );
-        #[cfg(target_os = "macos")]
-        crate::mac::make_nonfocusable(&window);
         let compositor = self.compositor()?;
         // The surface is made here, on the window's thread; the compositor
         // thread configures and presents it.
@@ -787,18 +1050,12 @@ impl Engine {
         let planned = surface.shell.rebuild(&surface.state);
         let seq = surface.seq;
         self.dispatch(&output, seq, planned);
-        if !sink.rehearsal {
-            window.set_cursor_visible(false);
-            #[cfg(target_os = "macos")]
-            crate::mac::place_output(&window);
-        } else {
-            #[cfg(target_os = "macos")]
-            crate::mac::show_without_focus(&window);
-        }
+        crate::window_policy::show(&window, sink.rehearsal);
         self.surfaces[index].window = Some(OutputWindow {
             window,
             display: target.id,
             sink: sink.clone(),
+            target: target.clone(),
         });
         Ok(())
     }
@@ -843,7 +1100,7 @@ impl Engine {
             CompositorEvent::Error { output, message } => self.error(output.as_deref(), message),
             CompositorEvent::Media { output, uses } => {
                 self.sound
-                    .get_or_insert_with(crate::sound::Sound::new)
+                    .get_or_insert_with(|| new_sound(&self.ndi))
                     .media(&output, &uses);
                 if let Some(videos) = self.videos.as_mut() {
                     videos.sync(&output, uses);
@@ -886,7 +1143,7 @@ impl Engine {
             CompositorEvent::DeviceLost(why) => {
                 self.error(None, format!("GPU device lost: {why}"));
                 self.exit_code = Some(EXIT_DEVICE_LOST);
-                event_loop.exit();
+                self.command_inner(event_loop, 0, Command::Shutdown);
             }
         }
     }
@@ -960,7 +1217,7 @@ impl Engine {
         // Frames drawn, fades included, as the compositor counts them.
         if let Some(compositor) = self.compositor.as_ref() {
             for surface in &mut self.surfaces {
-                if surface.window.is_some()
+                if surface.is_open()
                     && !(surface.state.config.web_enabled && surface.state.layers.web.is_some())
                     && let Some(frames) = compositor.frames(surface.state.spec.output.as_str())
                 {
@@ -1021,14 +1278,22 @@ fn unavailable(what: &str) -> SurfaceStatus {
 
 impl ApplicationHandler<Message> for Engine {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        #[cfg(target_os = "macos")]
+        if self.display_observer.is_none() {
+            let proxy = self.proxy.clone();
+            self.display_observer = Some(crate::mac::DisplayObserver::new(move || {
+                let _ = proxy.send_event(Message::DisplaysChanged);
+            }));
+        }
         if self.displays.is_empty() {
-            self.displays = display::scan(event_loop);
+            self.displays = self.current_displays(event_loop);
             tracing::info!("{} display(s)", self.displays.len());
         }
     }
 
     fn user_event(&mut self, event_loop: &ActiveEventLoop, message: Message) {
         match message {
+            Message::DisplaysChanged => self.scan_displays(event_loop),
             Message::Connected(id) => {
                 if self.orphaned_at.take().is_some()
                     && self.start.elapsed() > Duration::from_secs(1)
@@ -1112,19 +1377,20 @@ impl ApplicationHandler<Message> for Engine {
             && now.duration_since(at) >= self.grace
         {
             tracing::warn!("no client for {} ms; exiting", self.grace.as_millis());
-            event_loop.exit();
+            self.command_inner(event_loop, 0, Command::Shutdown);
             return;
         }
+        self.diagnostics.expire(now);
+        self.update_power();
         if now >= self.next_scan {
             self.next_scan = now + DISPLAY_POLL;
-            let displays = display::scan(event_loop);
-            if displays != self.displays {
-                tracing::info!("displays changed: {} now", displays.len());
-                self.displays = displays;
-                self.send_event(Event::Displays(self.displays.clone()));
-                self.reconcile(event_loop);
-                self.sync_web(event_loop);
-            }
+            self.scan_displays(event_loop);
+        }
+        if let Some(displays) = self.display_debounce.take_ready(now) {
+            self.displays = displays;
+            self.send_event(Event::Displays(self.displays.clone()));
+            self.reconcile(event_loop);
+            self.sync_web(event_loop);
         }
         if now >= self.next_report {
             self.next_report = now + REPORT_EVERY;
@@ -1138,6 +1404,12 @@ impl ApplicationHandler<Message> for Engine {
             self.tick();
         }
         let mut wake = self.next_scan.min(self.next_report);
+        if let Some(deadline) = self.display_debounce.deadline() {
+            wake = wake.min(deadline);
+        }
+        if let Some(deadline) = self.diagnostics.deadline() {
+            wake = wake.min(deadline);
+        }
         if ticking {
             wake = wake.min(self.next_tick);
         }
@@ -1181,4 +1453,11 @@ impl ApplicationHandler<Message> for Engine {
         }
         event_loop.set_control_flow(ControlFlow::WaitUntil(wake));
     }
+}
+
+/// Program sound whose NDI taps feed the NDI senders.
+fn new_sound(ndi: &crate::ndi::Ndi) -> crate::sound::Sound {
+    let mut sound = crate::sound::Sound::new();
+    sound.send_ndi_audio(ndi.audio_route());
+    sound
 }

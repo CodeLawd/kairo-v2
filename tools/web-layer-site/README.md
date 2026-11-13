@@ -19,6 +19,17 @@ reload, teardown with an outstanding capture, URL adoption and return to the
 original page, and replacement at the page limit. It fails rather than silently
 skipping an unsupported desktop/browser/capture environment.
 
+Run the fullscreen occlusion regression and capture measurement with:
+
+```sh
+cargo run -p kairo-engine --example verify_web -- --occluded --measure
+```
+
+This checks animation while the source is fully covered and records 300 capture
+samples after 30 warm-up frames (p99 must remain below 50 ms). The macOS backend
+uses a guarded private WebKit visibility control; rerun this check when qualifying
+macOS updates. See [native capture notes](../../native-migration/notes/059-web-capture.md).
+
 To see the actual engine output, start the manual fixture in one terminal:
 
 ```sh

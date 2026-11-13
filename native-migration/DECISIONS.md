@@ -1139,3 +1139,88 @@ The owner explicitly chose to skip the Windows capture measurement for now and p
 - Capture callbacks feed the GPU immediately; waiting for the next 30 Hz engine tick added an avoidable frame of delay. Timings distinguish snapshot request→CPU pixels from pixels→GPU-complete display submission; they exclude sampling age and physical scanout. Diagnostic PNG readback runs off the window thread.
 - Shutdown is asynchronous while the GPU releases surfaces. A sample of the stalled engine showed main joining the compositor while the compositor dropped a wgpu surface whose Window destruction needed main. The event loop now services native destruction until the GPU thread is finished, then joins and exits; no timeout increase or test weakening.
 - Web page audio cannot be intercepted into the mixer via public WKWebView, WebView2 or WebKitGTK APIs. A single page can play to the system's normal device (HTML audio playback verified on macOS), but program speaker gain/device selection and isolated NDI audio taps do not control it. Windows/Linux audio is not verified. DRM capture, PiP/fullscreen behaviour on capture outputs and physical scanout latency are not qualified here.
+
+### 059 fullscreen capture blocker (2026-11-13)
+
+The owner's Windows deferral remains in effect. It does not waive macOS live
+animation correctness. Fullscreen output fully occludes the mapped source and
+WKWebView stops requestAnimationFrame; captures keep delivering frame 0. A
+ScreenCaptureKit own-window experiment delivered fast pixels but did not make
+animation advance. Wry's disabled throttling and setting public
+WKInactiveSchedulingPolicy::None directly also failed to resolve it. The
+unsuccessful experiment was removed; no new capture dependency remains.
+The earlier mapped-window implementation note only holds for partial occlusion.
+059 is blocked pending a viable native host/capture solution or an explicit
+architecture amendment; it is not blocked on having Windows hardware.
+
+### 059 WebKit capture visibility (2026-11-13)
+
+Resolves the fullscreen blocker above without changing the selected shared-page
+and captured-display architecture. WebKit independently treats an occluded window
+as invisible; disabling inactive scheduling does not keep requestAnimationFrame
+running. The backend calls the private per-view
+`_setWindowOcclusionDetectionEnabled:NO` before loading untrusted content.
+[WebKit's declaration](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/API/Cocoa/WKWebViewPrivate.h)
+confirms the selector. Both setter and getter are checked with respondsToSelector,
+and the disabled policy is read back. Missing/ignored SPI fails page creation
+with an explicit error; it never silently falls back to known frozen output.
+
+This is a deliberate compatibility tradeoff: it uses private WebKit SPI, isolated
+to our owned capture view. It does not globally replace AppKit methods, inject
+synthetic animation scheduling, or expose the source above the output. Future
+macOS qualification must run the native fullscreen animation regression; a
+selector check alone cannot guarantee unchanged scheduling semantics. A backend
+with supported offscreen rendering remains an alternative architecture if this
+SPI stops working. No CEF/GPUI dependency change is introduced.
+
+The native regression failed before this change and passed with it. A real
+fullscreen engine output continued animating after navigation (saved frame 381,
+previously stuck at frame 0). Windows runtime qualification stays owner-deferred.
+
+## 2026-11-13 — 060 — Display sink boundaries and identity
+
+Decision: keep display placement/diagnostics/power in the winit engine; the GPUI
+bootstrap reports its native display id to the supervised engine on open/move.
+Control-display state is replayed before opening outputs. Settings/output routing
+remain 065; expose guarded display-rebinding events and a persistence helper so
+replug cannot revert a newer operator assignment. The engine does not open stores.
+
+DisplayInfo keeps physical bounds for winit, and exposes logical sizes for stored
+Electron bindings. Native names replace winit's synthetic macOS "Monitor #…".
+Mac identity is CGDirectDisplayID, matching Electron. Windows uses Chromium 130's
+adapter LUID/target id formatted as LowPart/HighPart/target and PersistentHash,
+with its GDI device-name fallback; GPUI's HMONITOR is a separate native routing id.
+References: Chromium 130 ui/display/win/display_info.cc and
+ui/display/win/display_config_helper.cc. Runtime qualification is separate from
+source/cross-build verification. No random monitor hash is an Electron identity.
+Protocol encoding changes bump its version from 3 to 4.
+
+Stage view is retained surface state carried as JSON (the existing StageView
+serde model) and rendered by the 054 stage planner. Physical shape diagnostics
+are separate from the existing persistent program bars/text/motion pattern slot.
+Transient diagnostic windows expire independently (3 s identify, 5 s shape card),
+and replacement cannot let an old expiry close a newer request.
+
+060 diagnostics implementation: the transient identify/shape windows load the
+reference HTML/CSS directly into a local Wry child (JavaScript disabled, default-src
+none, escaped text, no navigation/download/popups). Wry already ships with the
+engine; this preserves the exact translucent identify card and yellow grid rather
+than adding transparent-swapchain behavior to the compositor. They are independent
+of shared remote program pages and are destroyed with their timeout/window. Program
+and stage display sinks continue through the vsync compositor. This replaces the
+plan's proposed diagnostic raster comparison with direct HTML/content and native
+window verification; no new dependency or remote load is introduced.
+
+## 2026-11-13 — 061 — NDI output
+
+Decision: the binding is spike 005's `libloading` binding, moved into `kairo-sinks::ndi` with the symbols resolved once at load and the runtime held by an `Arc` that every sender keeps. Struct layouts follow the NDI 6.3.2 headers and are checked by tests. The runtime is looked for in `KAIRO_NDI_RUNTIME` (a file), then beside the executable, then the bundle's `Frameworks` and `lib` folders, never a system path. No SDK file is in the repository: tests and runs use the runtime in the git-ignored `spikes/sinks/app-folder`. Packaging (prompt 110) must place the runtime in the app folder, ship `libndi_licenses.txt`, and carry decision 001's attribution (`NDI® is a registered trademark of Vizrt NDI AB`, the ndi.video link near the NDI settings). A missing or broken runtime disables NDI only, with the reason logged.
+
+Decision: conversion. `kairo-compositor::uyva` converts the output's premultiplied RGBA frame target with `uyva.wgsl`, the integer maths of `uyvy.h` (Rec.709 limited, chroma from the pair average, nearest-neighbour scaling, alpha plane after the UYVY plane). The result is byte-identical to the CPU reference on Electron's self-test vectors, a 1080p gradient, 1080p to 720p, 4K to 1080p, and the UYVA alpha plane. One invocation writes four pixels, because storage buffers are written a word at a time, so the output width must be a multiple of 4 (1920 and 1280 are). Read-back uses 3 staging slots and at most 5 frame buffers: a burst beyond the slots, or a sender holding every buffer, drops the frame (counted as skipped) instead of queueing it. `map_async` completes in the compositor's existing wait after each frame, so no extra wait is added. Bind groups are made once per source texture.
+
+Decision: the feed (`kairo-sinks::output::NdiOutput`) is `NdiService`. The sender is created on the feed's own thread with the video clock on. A failure keeps its reason (`senderError`) and is retried after 5 s, so a name clash with a second copy is cured without a restart. New pixels are sent at once; the current frame repeats every 100 ms; a send starts only after the last returned, so there is no backlog. Until the first frame, and after a clear, it sends 1920 × 1080 transparent black BGRA. Frames are declared 30000/1001 progressive. A UYVA frame of the wrong size is ignored with a warning. Audio blocks that fail `handleNdiAudio`'s checks are refused, and send failures are logged at most once every 10 s.
+
+Decision: names and lifetime. The engine loads the runtime and starts the primary sender (`NDI_SENDER_NAME`, "Kairo Scripture") at launch. A surface whose `SinkSpec::Ndi` name is that name uses it; when the surface closes, the primary is cleared to transparent and stays on the network. Any other name gets its own sender, which is removed when the surface closes, and recreated when the name changes (the client sends `Kairo <name>`, as `reconcileNdi` does). An NDI surface is a 1920 × 1080 offscreen compositor output with capture on. Without a runtime, the surface reports `Unavailable { reason: "NDI sender unavailable" }`, Electron's text. Program sound from each NDI tap goes to the feed of the output that owns the tap.
+
+Not met: p99 of the conversion and read-back against Electron's 2.2 ms. Measured with other sessions' builds running on the machine; see PROGRESS 061.
+
+Affects prompts: 062, 065, 110.

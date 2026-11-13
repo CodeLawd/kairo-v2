@@ -16,6 +16,7 @@ kairo-compositor = { path = "../../crates/kairo-compositor" }
 kairo-domain = { path = "../../crates/kairo-domain" }
 kairo-engine-proto = { path = "../../crates/kairo-engine-proto" }
 kairo-scene = { path = "../../crates/kairo-scene" }
+kairo-sinks = { path = "../../crates/kairo-sinks" }
 kairo-video = { path = "../../crates/kairo-video" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 tracing = "0.1"
@@ -27,10 +28,13 @@ objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = ["NSGeometry", "NSThread"] }
 objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSWindow", "NSResponder", "NSView", "NSRunningApplication"] }
 
-wry = { package = "lb-wry", version = "=0.53.3" }
+# `transparent`: the identify card's clear background (prompt 060), as
+# Electron's `transparent: true` window; pages that do not ask stay opaque.
+wry = { package = "lb-wry", version = "=0.53.3", features = ["transparent"] }
 block2 = "0.6"
 objc2-web-kit = { version = "0.3", features = ["WKSnapshotConfiguration", "WKWebView", "block2"] }
 objc2-core-graphics = "0.3"
+objc2-core-foundation = "0.3"
 
 [dev-dependencies]
 kairo-core = { path = "../../crates/kairo-core" }
@@ -45,4 +49,4 @@ libc = "0.2"
 [target.'cfg(target_os = "windows")'.dependencies]
 wry = { package = "lb-wry", version = "=0.53.3" }
 webview2-com = "=0.38.2"
-windows = { version = "0.61", features = ["Graphics_Capture", "Graphics_DirectX_Direct3D11", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_System_Performance", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.61", features = ["Graphics_Capture", "Graphics_DirectX_Direct3D11", "Win32_Devices_Display", "Win32_Graphics_Gdi", "Win32_System_Power", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_System_Performance", "Win32_UI_WindowsAndMessaging"] }
