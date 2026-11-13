@@ -922,6 +922,48 @@ async fn lobby_images_hold_videos_play_once_and_one_video_rewinds() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_lobby_item_that_fails_to_show_is_retried_after_five_seconds() {
+    let mut r = rig();
+    r.engine.set_displays(vec![display(1, "Foyer", 0, false)]);
+    r.media.playlists.lock().unwrap().insert(
+        "p".into(),
+        vec![
+            item("a.jpg", MediaKind::Image),
+            item("b.jpg", MediaKind::Image),
+        ],
+    );
+    let lobby = OverlayOutput {
+        source: OutputSource::Playlist,
+        playlist_id: "p".into(),
+        slide_sec: 60.,
+        ..screen("lobby", 1, "Foyer")
+    };
+    r.manager.reconcile(Some(vec![lobby])).await;
+    // The surface is open but cannot take a frame, so the first show fails.
+    r.engine.set_status(
+        "lobby",
+        SurfaceStatus::Parked {
+            reason: "Display not connected".into(),
+        },
+    );
+    settle().await;
+    assert_eq!(slides(&r.engine).len(), 1, "one failed show");
+    assert!(painted(&r.engine, "lobby").is_none());
+    // Retried after 5 s, not after the 60 s an image would hold.
+    r.engine.set_status("lobby", SurfaceStatus::Ready);
+    tokio::time::advance(Duration::from_millis(4900)).await;
+    settle().await;
+    assert!(slides(&r.engine).is_empty());
+    tokio::time::advance(Duration::from_millis(200)).await;
+    settle().await;
+    let shown = slides(&r.engine);
+    assert_eq!(shown.len(), 1, "{shown:?}");
+    // Electron advances the index before showing, so the retry shows the next item.
+    assert_eq!(background(&shown[0])["mediaPath"], "/media/b.jpg");
+    assert!(painted(&r.engine, "lobby").is_some());
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_video_that_never_ends_moves_on_after_thirty_minutes() {
     let mut r = rig();
     r.engine.set_displays(vec![display(1, "Foyer", 0, false)]);
