@@ -38,6 +38,8 @@ changing quickly. Prompt 008 confirms the cadence.
 | `spikes/sinks/native/ring.h` | `native/gpu-frames/ring.h` | `de3bb54` | Spike copy, unmodified |
 | `spikes/sinks/native/uyvy.h` | `native/decklink/uyvy.h` | `de3bb54` | Spike copy, unmodified |
 | `spikes/sinks/native/metal_core.inc` | `native/gpu-frames/gpu_frames.mm` | `de3bb54` | Shader and Metal section only, unmodified |
+| `native/decklink/` | `native/decklink/` (without `build/`) | `1067495` (tree checked at `af978c5`) | Unmodified, including `prebuilt/decklink-helper` and `prebuilt/SOURCE_SHA256`; the hash matches the copied sources (test `the_prebuilt_helper_matches_its_recorded_sources`). Prompt 062 |
+| `native/gpu-frames/ring.h` | `native/gpu-frames/ring.h` | `8754529` | Unmodified; included by `native/decklink/helper.cpp`. Prompt 062 |
 
 ## Running it
 

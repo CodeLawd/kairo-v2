@@ -154,6 +154,9 @@ enum Msg {
     Capture {
         output: String,
         sink: Option<CaptureSink>,
+        /// The converted size; `None`: the frame's own.
+        raster: Option<(u32, u32)>,
+        alpha: bool,
     },
     Shutdown,
 }
@@ -436,6 +439,25 @@ impl Compositor {
         self.send(Msg::Capture {
             output: output.into(),
             sink,
+            raster: None,
+            alpha: true,
+        });
+    }
+
+    /// As [`Compositor::capture`], scaled (nearest neighbour) to `raster`
+    /// and with or without the alpha plane: a video card's mode (062).
+    pub fn capture_raster(
+        &self,
+        output: &str,
+        raster: (u32, u32),
+        alpha: bool,
+        sink: Option<CaptureSink>,
+    ) {
+        self.send(Msg::Capture {
+            output: output.into(),
+            sink,
+            raster: Some(raster),
+            alpha,
         });
     }
 
@@ -774,15 +796,21 @@ fn handle(
             }),
             None => {}
         },
-        Msg::Capture { output, sink } => {
+        Msg::Capture {
+            output,
+            sink,
+            raster,
+            alpha,
+        } => {
             if let Some(o) = outputs.get_mut(&output) {
+                let (width, height) = raster.unwrap_or((o.target.width, o.target.height));
                 o.capture = match sink {
                     None => None,
                     Some(sink) => match crate::uyva::UyvaConverter::new(
                         renderer.device(),
-                        o.target.width,
-                        o.target.height,
-                        true,
+                        width,
+                        height,
+                        alpha,
                     ) {
                         Ok(converter) => Some(Capture { converter, sink }),
                         Err(message) => {

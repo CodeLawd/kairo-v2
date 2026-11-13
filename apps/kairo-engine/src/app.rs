@@ -59,6 +59,8 @@ struct EngineSurface {
     resident: VecDeque<Arc<kairo_compositor::Raster>>,
     /// The NDI feed an NDI surface sends to (prompt 061).
     ndi: Option<crate::ndi::Feed>,
+    /// The video card port this surface plays to (062).
+    card: Option<Arc<kairo_sinks::video_devices::Managed>>,
 }
 
 /// Pages kept on the GPU per surface: the one shown, the ones either side
@@ -90,6 +92,7 @@ impl EngineSurface {
         self.window.is_some()
             || self.ndi.is_some()
             || self.syphon.as_ref().is_some_and(|c| c.running())
+            || self.card.is_some()
     }
 }
 
@@ -130,6 +133,10 @@ pub struct Engine {
     sound: Option<crate::sound::Sound>,
     /// The NDI runtime and feeds; the primary sender starts at launch.
     ndi: crate::ndi::Ndi,
+    /// Video cards; started with the first card surface or query.
+    devices: Option<kairo_sinks::video_devices::VideoDevices>,
+    /// The card bindings last sent, so an unchanged reconcile sends none.
+    device_bindings: Vec<kairo_sinks::video_devices::Binding>,
     next_sound: Instant,
     /// Sound glitch frames already reported.
     glitches: u64,
@@ -170,6 +177,8 @@ impl Engine {
             next_tick: now,
             sound: None,
             ndi: crate::ndi::Ndi::launch(),
+            devices: None,
+            device_bindings: Vec::new(),
             next_sound: now,
             glitches: 0,
             orphaned_at: Some(now),
@@ -308,6 +317,10 @@ impl Engine {
                 self.scan_displays(event_loop);
                 return;
             }
+            Command::RefreshVideoDevices => {
+                self.devices().refresh();
+                return;
+            }
             Command::IdentifyDisplays => {
                 let displays = self.current_displays(event_loop);
                 for error in self.diagnostics.identify(event_loop, &displays) {
@@ -355,6 +368,12 @@ impl Engine {
                     self.close_window(index);
                 }
                 self.surfaces.clear();
+                // Quit releases the cards first, bounded at 2 s.
+                if let Some(devices) = self.devices.take()
+                    && !devices.close(Duration::from_secs(2))
+                {
+                    tracing::warn!("video card release timed out, quitting anyway");
+                }
                 self.sound = None;
                 self.cameras = None;
                 if let Some(mut videos) = self.videos.take() {
@@ -409,6 +428,7 @@ impl Engine {
                     preloads: HashSet::new(),
                     resident: VecDeque::new(),
                     ndi: None,
+                    card: None,
                 }),
             },
             Command::CloseSurface {
@@ -929,6 +949,17 @@ impl Engine {
                 ),
                 None => Reply::UnknownSurface,
             },
+            // Empty until a card surface or `RefreshVideoDevices` starts the service.
+            Query::VideoDevices => {
+                Reply::VideoDevices(Json::encode(&self.devices.as_ref().map_or_else(
+                    || kairo_domain::video_devices::VideoDeviceSnapshot {
+                        ports: Vec::new(),
+                        providers: Vec::new(),
+                        outputs: Default::default(),
+                    },
+                    |d| d.snapshot(),
+                )))
+            }
             Query::State => Reply::State(self.surfaces.iter().map(|s| s.state.clone()).collect()),
         };
         self.outbox.send(&FromEngine::Reply { id, reply });
@@ -937,6 +968,7 @@ impl Engine {
     /// Places each surface: a window on its display, parked when the
     /// display is gone, unavailable when its sink cannot run here.
     fn reconcile(&mut self, event_loop: &ActiveEventLoop) {
+        self.sync_cards();
         let mut claimed = HashSet::new();
         let mut order: Vec<_> = (0..self.surfaces.len()).collect();
         // Program screens claim displays first; stage displays never cover one.
@@ -1062,7 +1094,10 @@ impl Engine {
                     Some(status) => status,
                     None => continue,
                 },
-                SinkSpec::Device { .. } => unavailable("Video card output"),
+                SinkSpec::Device { .. } => match self.place_card(index) {
+                    Some(status) => status,
+                    None => continue,
+                },
             };
             let surface = &mut self.surfaces[index];
             if surface.status.as_ref() != Some(&status) {
@@ -1161,7 +1196,8 @@ impl Engine {
         let feed = surface.ndi.take();
         // Clients see the Syphon server leave.
         let syphon = surface.syphon.take().map(|mut c| c.stop()).is_some();
-        if (surface.window.take().is_some() || feed.is_some() || syphon)
+        let card = surface.card.take().is_some();
+        if (surface.window.take().is_some() || feed.is_some() || syphon || card)
             && let Some(compositor) = self.compositor.as_ref()
         {
             compositor.capture(&surface.state.spec.output, None);
@@ -1202,6 +1238,101 @@ impl Engine {
         let seq = surface.seq;
         self.dispatch(&output, seq, planned);
         Ok(())
+    }
+
+    /// The video card service, started on first use. The provider is the
+    /// DeckLink helper on macOS unless `KAIRO_ENABLE_DECKLINK=0`.
+    fn devices(&mut self) -> &kairo_sinks::video_devices::VideoDevices {
+        if self.devices.is_none() {
+            let proxy = self.proxy.clone();
+            self.devices = Some(kairo_sinks::video_devices::VideoDevices::start(
+                crate::cards::providers(),
+                Duration::from_millis(250),
+                move || {
+                    let _ = proxy.send_event(Message::VideoDevices);
+                },
+            ));
+        }
+        self.devices.as_ref().expect("devices")
+    }
+
+    /// Sends the card bindings to the service when they changed: a reconcile
+    /// with no change does no card work. A parked card surface lets go of
+    /// its port.
+    fn sync_cards(&mut self) {
+        let bindings: Vec<_> = self
+            .surfaces
+            .iter()
+            .filter_map(|s| match &s.state.spec.sink {
+                SinkSpec::Device {
+                    port_id,
+                    mode_id,
+                    key_fill,
+                } => Some(kairo_sinks::video_devices::Binding {
+                    id: s.output().to_owned(),
+                    enabled: !s.state.parked,
+                    port_id: port_id.clone(),
+                    mode_id: mode_id.clone(),
+                    key_fill: *key_fill,
+                }),
+                _ => None,
+            })
+            .collect();
+        if bindings == self.device_bindings || (bindings.is_empty() && self.devices.is_none()) {
+            return;
+        }
+        self.device_bindings = bindings.clone();
+        self.devices().reconcile(bindings);
+    }
+
+    /// A card surface: drawn offscreen at the card mode's shape and sent to
+    /// the port the service holds for it, as UYVY in the frame ring or BGRA
+    /// down the helper's stdin. `None`: unchanged.
+    fn place_card(&mut self, index: usize) -> Option<SurfaceStatus> {
+        let output = self.surfaces[index].state.spec.output.clone();
+        let (state, sink) = match self.devices.as_ref() {
+            Some(devices) => (devices.output_status(&output), devices.sink_for(&output)),
+            None => {
+                return Some(SurfaceStatus::Unavailable {
+                    reason: "Output unavailable".into(),
+                });
+            }
+        };
+        let Some(sink) = sink.filter(|s| state.ready && s.active()) else {
+            if self.surfaces[index].card.is_some() {
+                self.close_window(index);
+            }
+            let reason = if state.reason.is_empty() {
+                "Output unavailable".into()
+            } else {
+                state.reason
+            };
+            return Some(SurfaceStatus::Unavailable { reason });
+        };
+        if self.surfaces[index]
+            .card
+            .as_ref()
+            .is_some_and(|c| Arc::ptr_eq(c, &sink))
+        {
+            return None;
+        }
+        self.close_window(index);
+        let frame_height = crate::cards::frame_height(sink.raster);
+        let compositor = match self.compositor() {
+            Ok(compositor) => compositor,
+            Err(reason) => return Some(SurfaceStatus::Unavailable { reason }),
+        };
+        compositor.open(&output, frame_height, Sink::Offscreen);
+        crate::cards::attach(compositor, &output, &sink);
+        tracing::info!(
+            output,
+            raster = ?sink.raster,
+            ring = sink.frame_ring().is_some(),
+            "video card output open"
+        );
+        self.surfaces[index].card = Some(sink);
+        self.show_state(index, frame_height);
+        Some(SurfaceStatus::Ready)
     }
 
     /// A Syphon surface: an offscreen output whose frames go to a server
@@ -1544,13 +1675,6 @@ fn frame_height_of(sink: &SinkSpec) -> u32 {
     }
 }
 
-fn unavailable(what: &str) -> SurfaceStatus {
-    // Sinks other than displays arrive with prompts 061 to 064.
-    SurfaceStatus::Unavailable {
-        reason: format!("{what} is not available in this engine build"),
-    }
-}
-
 impl ApplicationHandler<Message> for Engine {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         #[cfg(target_os = "macos")]
@@ -1597,6 +1721,13 @@ impl ApplicationHandler<Message> for Engine {
             Message::Command { seq, command } => self.command(event_loop, seq, command),
             Message::Compositor(event) => self.compositor_event(event_loop, event),
             Message::Camera(event) => self.camera_event(event),
+            Message::VideoDevices => {
+                if let Some(devices) = self.devices.as_ref() {
+                    let snapshot = Json::encode(&devices.snapshot());
+                    self.send_event(Event::VideoDevices(snapshot));
+                }
+                self.reconcile(event_loop);
+            }
             // The node stays and draws nothing; the video counts as ended.
             Message::VideoFailed { path, message } => {
                 self.error(None, format!("video {path}: {message}"))

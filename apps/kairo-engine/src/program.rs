@@ -350,6 +350,7 @@ impl Shell {
             | Command::Shutdown
             | Command::ControlDisplay { .. }
             | Command::IdentifyDisplays
+            | Command::RefreshVideoDevices
             | Command::DisplayTestPattern { .. } => vec![],
         }
     }

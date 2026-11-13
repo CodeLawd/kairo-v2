@@ -7,9 +7,16 @@ publish = false
 [dependencies]
 kairo-audio = { path = "../kairo-audio" }
 kairo-compositor = { path = "../kairo-compositor" }
+kairo-domain = { path = "../kairo-domain" }
+kairo-engine-proto = { path = "../kairo-engine-proto" }
 libloading = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tracing = "0.1"
 wgpu = "30"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 kairo-native-sys = { path = "../kairo-native-sys" }
@@ -20,3 +27,4 @@ wgpu = { version = "30", features = ["metal"] }
 [dev-dependencies]
 pollster = "0.4"
 png = "0.18"
+tempfile = "3"

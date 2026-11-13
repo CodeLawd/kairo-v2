@@ -81,10 +81,12 @@ pub enum SinkSpec {
     Syphon {
         name: String,
     },
-    /// A video card port (DeckLink), through the frame ring.
+    /// A video card port (DeckLink). The engine acquires the port, opens
+    /// the frame ring at the mode raster and runs the helper (prompt 062).
     Device {
         port_id: String,
-        ring: Option<String>,
+        mode_id: String,
+        key_fill: bool,
     },
 }
 
@@ -261,6 +263,8 @@ pub enum Command {
     ControlDisplay { native_id: Option<u64> },
     /// Three-second labels, one on every connected display.
     IdentifyDisplays,
+    /// Forget card faults and enumerate the cards again (`refresh`).
+    RefreshVideoDevices,
     /// Five-second physical shape card. Frame height is 360..4320.
     DisplayTestPattern {
         display: u32,
@@ -411,6 +415,7 @@ impl Command {
             | Shutdown
             | ControlDisplay { .. }
             | IdentifyDisplays
+            | RefreshVideoDevices
             | DisplayTestPattern { .. } => None,
         }
     }
@@ -426,6 +431,8 @@ pub enum Query {
     DocumentPlayback { output: String },
     /// Every surface's state, for diagnostics and replay checks.
     State,
+    /// The video card snapshot (`VideoDeviceSnapshot`).
+    VideoDevices,
 }
 
 // ─── Engine to client ────────────────────────────────────────────────────────
@@ -457,6 +464,8 @@ pub enum Reply {
     /// `DocumentPlaybackStatus`, or `None` outside document mode.
     DocumentPlayback(Option<Json>),
     State(Vec<SurfaceState>),
+    /// `VideoDeviceSnapshot`.
+    VideoDevices(Json),
     /// The query named a surface the engine does not have.
     UnknownSurface,
 }
@@ -551,6 +560,8 @@ pub enum Event {
         url: String,
     },
     Displays(Vec<DisplayInfo>),
+    /// The video card snapshot changed (`VideoDeviceSnapshot`).
+    VideoDevices(Json),
     SurfaceStatus {
         output: String,
         status: SurfaceStatus,

@@ -266,6 +266,7 @@ impl SurfaceState {
             | Command::Shutdown
             | Command::ControlDisplay { .. }
             | Command::IdentifyDisplays
+            | Command::RefreshVideoDevices
             | Command::DisplayTestPattern { .. } => true,
         }
     }

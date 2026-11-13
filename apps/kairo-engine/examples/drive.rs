@@ -8,6 +8,7 @@
 //!     [--sound VOLUME] [--sound-device LABEL] [--camera LABEL]
 //!     [--camera-audio LABEL] [--ndi NAME] [--identify] [--shape NAME]
 //!     [--syphon NAME [--rename-after S NAME]]
+//!     [--card PORT MODE]
 //! ```
 //!
 //! `--ndi NAME` sends the output as an NDI source named NAME instead of
@@ -17,6 +18,10 @@
 //! instead of a window (macOS); read it with `cargo run -p kairo-native-sys
 //! --example syphon_client -- "Kairo NAME" out.png`. `--rename-after S NAME`
 //! renames the output after S seconds, which restarts the server.
+//!
+//! `--card PORT MODE` sends the output to a video card port and mode
+//! (`decklink:…` ids from `decklink-helper --list`), printing the card
+//! snapshot as it changes.
 //!
 //! `--camera LABEL` puts a live camera or capture card up, matched by the
 //! label the operator's list showed (`cargo run -p kairo-camera --example
@@ -103,7 +108,19 @@ async fn main() {
     }
     // `--ndi NAME`: the output is an NDI feed instead of a window.
     let syphon: Option<String> = value("--syphon");
+    let card: Option<(String, String)> = {
+        let mut args = std::env::args().skip_while(|a| a != "--card").skip(1);
+        args.next().zip(args.next())
+    };
     let sink = match (value::<String>("--ndi"), &syphon) {
+        _ if card.is_some() => {
+            let (port_id, mode_id) = card.clone().unwrap();
+            SinkSpec::Device {
+                port_id,
+                mode_id,
+                key_fill: false,
+            }
+        }
         (Some(name), _) => SinkSpec::Ndi { name },
         (None, Some(name)) => SinkSpec::syphon(name, 0),
         (None, None) => SinkSpec::Display(DisplaySink {
