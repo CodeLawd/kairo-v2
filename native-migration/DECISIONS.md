@@ -1287,3 +1287,21 @@ Decision: the tap. The compositor's single NDI capture became named taps (`Tap::
 Found and fixed: the engine's event loop did not wake for the once-a-second checks, so the disk check ran far less often than every 10 s; `CaptureFrameRate as u32` is the variant's position, not its number (use `.value()`).
 
 Affects prompts: 065, 091.
+
+## 2026-11-13 — 065 — Surface manager, lobbies and program service
+
+Decision: new crate `kairo-output` holds `SurfaceManager` (a core actor, `SurfaceActor`; the mailbox serializes reconciles), `LobbyPlayer`, `ProgramService` and a test-only `FakeEngine` (feature `fake`, enabled only by its own dev-dependency). `kairo-core::engine` gains the object-safe `OutputEngine` trait, implemented by `EngineHandle` (and `Arc<T>`), so the manager and `kairo-orchestrator::engine::EngineSurfaces` (now generic, default `EngineHandle`) run unchanged on the fake and the real engine. Settings and the media library are reached through `OutputSettings` (implemented for `Mutex<SettingsStore>`) and `LobbyMedia` (implemented for `Mutex<MediaService<S>>`); prompt 067 wires the real instances.
+
+Decision: the engine already places windows, claims displays (program before stage), rebinds replugged displays, parks lost cards and blocks display sleep (060, 062). The manager does not repeat that work: it resolves displays client-side only to keep Electron's status strings ("No display chosen", "Display in use by another screen", "Display not connected", "Display in use by a program screen", "Live", the rehearsal text, the two playlist texts, "Screen window failed to open" and "Stage window failed to open" when the engine reports the sink `Unavailable`), and sends the resolved id in the binding. A re-matched id is persisted with `persist_display_rebinding` (only while the stored id is still the old one) both at reconcile and on `Event::DisplayRebound`, and `SettingsRewritten` is emitted so the operator re-reads settings. The power blocker stays in the engine (060).
+
+Decision: "no engine work on a no-change reconcile" is met by remembering, per surface, the config, layers and stage view last sent, and opening a surface only when its spec changed. A program change sends only changed layers (Electron's `applyLayers`). A timer or a prop carrying a timer view includes `now`, so while one is on screens each program change resends that layer, as Electron did.
+
+Decision: `nextPaint` waits are `EngineHandle::wait_frame` on `Event::FrameCommitted` (already used by `EngineSurfaces` for page turns and documents); the manager itself never waited for a paint.
+
+Decision: NDI and Syphon renames destroy the surface and open a new one (Electron's `dropNdi`/`dropSyphon`: the new sender starts blank), although the engine could keep the content.
+
+Decision: card lobbies start when the engine's card snapshot says the output is ready (`Event::VideoDevices`), instead of Electron's re-run of the whole reconcile on every card change; card acquisition and release already happen in the engine on their own thread.
+
+Decision: `program.ndiAudioSupported` is `Query::NdiAudioSupported` → `Reply::NdiAudioSupported(bool)` (protocol 6), answered true when the engine loaded the NDI runtime: every native sender carries audio, so Electron's adapter check reduces to the runtime being present. `kairo_output::manager::ndi_audio_supported` returns false when the engine does not answer. `program.pickImage` (a file dialog) and `program.onWebNavigated` forwarding are UI/wiring (067/089); `videoDevices.openDriverDownloads` opens `kairo_sinks::decklink::DRIVER_DOWNLOADS` from the shell (067).
+
+Affects prompts: 066, 067, 075, 076.

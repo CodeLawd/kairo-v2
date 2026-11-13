@@ -996,6 +996,9 @@ impl Engine {
                 )))
             }
             Query::State => Reply::State(self.surfaces.iter().map(|s| s.state.clone()).collect()),
+            // Every sender of the native runtime sends audio; without the
+            // runtime there is no sender, as Electron's missing binding.
+            Query::NdiAudioSupported => Reply::NdiAudioSupported(self.ndi.available()),
         };
         self.outbox.send(&FromEngine::Reply { id, reply });
     }
