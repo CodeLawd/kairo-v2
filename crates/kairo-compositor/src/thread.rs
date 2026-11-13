@@ -149,6 +149,7 @@ enum Msg {
     },
     Capture {
         output: String,
+        tap: Tap,
         sink: Option<CaptureSink>,
     },
     Shutdown,
@@ -175,11 +176,22 @@ struct Output {
     /// The video nodes last reported.
     media: Vec<MediaUse>,
     web_pending: Option<(Instant, Instant)>,
-    /// NDI capture: every drawn frame converted to UYVA (prompt 061).
-    capture: Option<Capture>,
+    /// Frame taps: every drawn frame converted for the NDI sender (UYVA,
+    /// prompt 061) or the recorder (BGRA, prompt 064), each on its own
+    /// read-back ring, so a slow one never holds up another.
+    taps: Vec<(Tap, Capture)>,
 }
 
-/// Where a captured output's UYVA frames go (the NDI sender).
+/// Which tap of an output.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tap {
+    /// UYVA with alpha, for NDI.
+    Ndi,
+    /// Premultiplied BGRA, for the recorder.
+    Record,
+}
+
+/// Where a tap's frames go.
 pub type CaptureSink = Arc<dyn Fn(crate::uyva::UyvaFrame) + Send + Sync>;
 
 struct Capture {
@@ -367,8 +379,15 @@ impl Compositor {
     /// Converts every frame `output` draws to UYVA (with alpha) for
     /// `sink`, or stops. A frame whose read-back slot is busy is dropped.
     pub fn capture(&self, output: &str, sink: Option<CaptureSink>) {
+        self.tap(output, Tap::Ndi, sink);
+    }
+
+    /// Sets or removes one of `output`'s frame taps. The output must be
+    /// open; a tap goes when the output closes.
+    pub fn tap(&self, output: &str, tap: Tap, sink: Option<CaptureSink>) {
         self.send(Msg::Capture {
             output: output.into(),
+            tap,
             sink,
         });
     }
@@ -576,7 +595,7 @@ fn handle(
                     frames: 0,
                     media: Vec::new(),
                     web_pending: None,
-                    capture: None,
+                    taps: Vec::new(),
                 },
             );
         }
@@ -696,26 +715,23 @@ fn handle(
         Msg::Frames { output, reply } => {
             let _ = reply.send(outputs.get(&output).map(|o| o.frames));
         }
-        Msg::Capture { output, sink } => {
+        Msg::Capture { output, tap, sink } => {
             if let Some(o) = outputs.get_mut(&output) {
-                o.capture = match sink {
-                    None => None,
-                    Some(sink) => match crate::uyva::UyvaConverter::new(
-                        renderer.device(),
-                        o.target.width,
-                        o.target.height,
-                        true,
-                    ) {
-                        Ok(converter) => Some(Capture { converter, sink }),
-                        Err(message) => {
-                            events(CompositorEvent::Error {
-                                output: Some(output.clone()),
-                                message,
-                            });
-                            None
-                        }
-                    },
-                };
+                o.taps.retain(|(t, _)| *t != tap);
+                if let Some(sink) = sink {
+                    let (w, h) = (o.target.width, o.target.height);
+                    let made = match tap {
+                        Tap::Ndi => crate::uyva::UyvaConverter::new(renderer.device(), w, h, true),
+                        Tap::Record => crate::uyva::UyvaConverter::bgra(renderer.device(), w, h),
+                    };
+                    match made {
+                        Ok(converter) => o.taps.push((tap, Capture { converter, sink })),
+                        Err(message) => events(CompositorEvent::Error {
+                            output: Some(output.clone()),
+                            message,
+                        }),
+                    }
+                }
                 // The receiver gets the current picture at once.
                 o.due = Some(now);
             }
@@ -801,9 +817,10 @@ fn draw(
     if let Some(frame) = presented {
         renderer.queue().present(frame);
     }
-    if let Some(capture) = output.capture.as_ref() {
+    for (tap, capture) in &output.taps {
         let sink = capture.sink.clone();
         let name = name.to_owned();
+        let tap = *tap;
         // Completed by the wait below; a busy converter drops the frame.
         capture.converter.convert(
             renderer.device(),
@@ -811,7 +828,7 @@ fn draw(
             output.target.texture(),
             Box::new(move |frame| match frame {
                 Ok(frame) => sink(frame),
-                Err(error) => tracing::warn!(output = name, %error, "NDI frame read-back failed"),
+                Err(error) => tracing::warn!(output = name, ?tap, %error, "frame read-back failed"),
             }),
         );
     }

@@ -247,6 +247,16 @@ pub enum Command {
     ControlDisplay { native_id: Option<u64> },
     /// Three-second labels, one on every connected display.
     IdentifyDisplays,
+    /// Live → Start Capture: records surface `output` to a movie file with
+    /// `settings` (`CaptureSettings` JSON). `source_name` names the file.
+    /// Not replayed after a relaunch: the file of a crashed engine is lost.
+    StartCapture {
+        output: String,
+        source_name: String,
+        settings: Json,
+    },
+    /// Finishes the recording's file. Nothing when none is running.
+    StopCapture,
     /// Five-second physical shape card. Frame height is 360..4320.
     DisplayTestPattern {
         display: u32,
@@ -397,6 +407,8 @@ impl Command {
             | Shutdown
             | ControlDisplay { .. }
             | IdentifyDisplays
+            | StartCapture { .. }
+            | StopCapture
             | DisplayTestPattern { .. } => None,
         }
     }
@@ -558,6 +570,8 @@ pub enum Event {
     },
     Health(Health),
     Stats(Vec<SinkStats>),
+    /// The recording's `CaptureStatus` JSON, on every change.
+    Capture(Json),
     Error {
         output: Option<String>,
         message: String,

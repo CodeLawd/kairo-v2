@@ -230,3 +230,26 @@ fn held_frames_make_the_converter_drop_rather_than_allocate() {
     ));
     assert!(UyvaConverter::new(&d, 1918, 1080, true).is_err());
 }
+
+#[test]
+fn the_bgra_tap_is_the_frame_with_red_and_blue_swapped() {
+    let Some((d, q)) = device() else { return };
+    let src = gradient(64, 8);
+    let t = texture(&d, &q, &src, 64, 8);
+    let c = UyvaConverter::bgra(&d, 64, 8).unwrap();
+    let (tx, rx) = mpsc::channel();
+    assert!(c.convert(
+        &d,
+        &q,
+        &t,
+        Box::new(move |r| tx.send(r.map(|f| (f.bgra, f.data().to_vec()))).unwrap())
+    ));
+    d.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let (bgra, out) = rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    assert!(bgra);
+    let expected: Vec<u8> = src
+        .chunks(4)
+        .flat_map(|p| [p[2], p[1], p[0], p[3]])
+        .collect();
+    assert_eq!(out, expected);
+}

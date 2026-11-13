@@ -350,6 +350,8 @@ impl Shell {
             | Command::Shutdown
             | Command::ControlDisplay { .. }
             | Command::IdentifyDisplays
+            | Command::StartCapture { .. }
+            | Command::StopCapture
             | Command::DisplayTestPattern { .. } => vec![],
         }
     }

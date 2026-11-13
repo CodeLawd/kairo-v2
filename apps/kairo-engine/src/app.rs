@@ -121,6 +121,9 @@ pub struct Engine {
     display_observer: Option<crate::mac::DisplayObserver>,
     next_scan: Instant,
     next_report: Instant,
+    /// Live → Start Capture (prompt 064).
+    capture: crate::capture::Capture,
+    next_capture: Instant,
     next_tick: Instant,
     /// Program sound; made with the first surface.
     sound: Option<crate::sound::Sound>,
@@ -163,6 +166,8 @@ impl Engine {
             display_observer: None,
             next_scan: now,
             next_report: now + REPORT_EVERY,
+            capture: crate::capture::Capture::new(Arc::new(crate::capture::System)),
+            next_capture: now,
             next_tick: now,
             sound: None,
             ndi: crate::ndi::Ndi::launch(),
@@ -343,7 +348,37 @@ impl Engine {
                 self.update_power();
                 return;
             }
+            Command::StartCapture {
+                output,
+                source_name,
+                settings,
+            } => {
+                let settings = settings
+                    .decode::<kairo_domain::capture::CaptureSettings>()
+                    .unwrap_or_default();
+                let aspect = self.capture_aspect(output);
+                self.capture.start(output, source_name, &settings, aspect);
+                self.attach_capture(output);
+                self.next_capture = Instant::now() + crate::capture::POLL;
+                self.send_capture();
+                return;
+            }
+            Command::StopCapture => {
+                if let Some(output) = self.capture.output().map(str::to_owned)
+                    && let Some(compositor) = self.compositor.as_ref()
+                {
+                    compositor.tap(&output, kairo_compositor::thread::Tap::Record, None);
+                }
+                self.capture.stop();
+                self.send_capture();
+                return;
+            }
             Command::Shutdown => {
+                // `before-quit`: the recording's file is finished first.
+                if self.capture.recording() {
+                    tracing::info!("finishing the recording before quitting");
+                    self.capture.finish_before_quit();
+                }
                 self.diagnostics = crate::diagnostics::Diagnostics::default();
                 self.power.set_active(false);
                 tracing::info!("shutdown requested");
@@ -1191,6 +1226,8 @@ impl Engine {
         let planned = surface.shell.rebuild(&surface.state);
         let seq = surface.seq;
         self.dispatch(&output, seq, planned);
+        // A recording follows its output through rebuilds.
+        self.attach_capture(&output);
         Ok(())
     }
 
@@ -1256,6 +1293,8 @@ impl Engine {
         let planned = surface.shell.rebuild(&surface.state);
         let seq = surface.seq;
         self.dispatch(&output, seq, planned);
+        // A recording follows its output through rebuilds.
+        self.attach_capture(&output);
         crate::window_policy::show(&window, sink.rehearsal);
         self.surfaces[index].window = Some(OutputWindow {
             window,
@@ -1597,6 +1636,17 @@ impl ApplicationHandler<Message> for Engine {
         }
         self.diagnostics.expire(now);
         self.update_power();
+        if now >= self.next_capture {
+            self.next_capture = now + crate::capture::POLL;
+            let aspect = self
+                .capture
+                .output()
+                .map(str::to_owned)
+                .and_then(|o| self.capture_aspect(&o));
+            if self.capture.check(aspect) {
+                self.send_capture();
+            }
+        }
         if now >= self.next_scan {
             self.next_scan = now + DISPLAY_POLL;
             self.scan_displays(event_loop);
@@ -1619,6 +1669,10 @@ impl ApplicationHandler<Message> for Engine {
             self.tick();
         }
         let mut wake = self.next_scan.min(self.next_report);
+        // The recording's once-a-second checks, and a file being finished.
+        if self.capture.active() {
+            wake = wake.min(self.next_capture);
+        }
         if let Some(deadline) = self.display_debounce.deadline() {
             wake = wake.min(deadline);
         }
@@ -1667,6 +1721,37 @@ impl ApplicationHandler<Message> for Engine {
             wake = wake.min(at + self.grace);
         }
         event_loop.set_control_flow(ControlFlow::WaitUntil(wake));
+    }
+}
+
+impl Engine {
+    /// The source's picture shape while it is open (`sourceAspect`).
+    fn capture_aspect(&self, output: &str) -> crate::capture::Aspect {
+        let surface = self.surfaces.iter().find(|s| s.output() == output)?;
+        if !surface.is_open() || surface.state.parked {
+            return None;
+        }
+        let height = match &surface.state.spec.sink {
+            SinkSpec::Ndi { .. } => NDI_HEIGHT,
+            sink => frame_height_of(sink),
+        };
+        Some(f64::from(kairo_compositor::FRAME_WIDTH) / f64::from(height.max(1)))
+    }
+
+    /// Hands `output`'s frames to the recording, if it records that output.
+    fn attach_capture(&self, output: &str) {
+        if self.capture.output() != Some(output) {
+            return;
+        }
+        if let (Some(compositor), Some(sink)) = (self.compositor.as_ref(), self.capture.sink()) {
+            compositor.tap(output, kairo_compositor::thread::Tap::Record, Some(sink));
+        }
+    }
+
+    fn send_capture(&self) {
+        self.send_event(Event::Capture(Json::from_value(
+            &serde_json::to_value(self.capture.status()).unwrap_or_default(),
+        )));
     }
 }
 
