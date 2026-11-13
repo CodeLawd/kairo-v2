@@ -3,3 +3,14 @@ name = "kairo-sinks"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+kairo-audio = { path = "../kairo-audio" }
+kairo-compositor = { path = "../kairo-compositor" }
+libloading = "0.8"
+tracing = "0.1"
+
+[dev-dependencies]
+pollster = "0.4"
+wgpu = "30"
+png = "0.18"

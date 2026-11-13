@@ -16,6 +16,7 @@ use winit::event_loop::EventLoopProxy;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub enum Message {
+    DisplaysChanged,
     Connected(u64),
     /// From the compositor thread.
     Compositor(kairo_compositor::thread::CompositorEvent),

@@ -1,6 +1,8 @@
 //! Real Wry + real GPU integration test, with a localhost adversarial page.
 //! `cargo run -p kairo-engine --example verify_web`
 //! Requires a macOS desktop (Windows runtime qualification is deferred).
+//! `--occluded` covers the source to regress WebKit animation scheduling.
+//! Add `--measure` for 300 captured frames after 30 warm-up frames.
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn main() {
@@ -16,7 +18,7 @@ fn main() {
 mod native {
     use kairo_compositor::{
         Content, Fill, Slot,
-        thread::{Compositor, Op, Sink},
+        thread::{Compositor, CompositorEvent, Op, Sink},
     };
     use kairo_engine::web::{self, Webs};
     use kairo_engine_proto::{WebInput, WebLayer};
@@ -36,6 +38,7 @@ mod native {
     #[derive(Default, Debug)]
     struct Observed {
         loads: usize,
+        animation: usize,
         click: bool,
         text: bool,
         scroll: bool,
@@ -66,6 +69,7 @@ mod native {
                         s.loads += 1;
                         r#"<!doctype html><style>body{margin:0;height:4000px;background:#126548}button{position:fixed;top:20px;left:20px;width:200px;height:60px}input{position:fixed;top:90px;left:20px;width:250px;height:50px}#deny{top:160px}</style><button id='click'>click</button><input id='text'><button id='deny'>capture</button><a id="next" href="/next" style="position:fixed;left:20px;top:240px">Next</a><iframe src='/attack' style='position:fixed;left:400px;top:20px;width:300px;height:100px;border:0'></iframe><script>
 const send=(s)=>fetch('/'+s).catch(()=>{});
+let frames=0;function animate(){if(++frames%30===0)send('animation');requestAnimationFrame(animate)}requestAnimationFrame(animate);
 document.querySelector('#click').onclick=()=>send('click');
 document.querySelector('#text').oninput=e=>{if(e.target.value==='verified')send('text')};
 document.querySelector('#deny').onclick=()=>navigator.mediaDevices.getUserMedia({audio:true,video:true}).then(()=>send('granted'),()=>send('denied'));
@@ -74,6 +78,7 @@ window.ipc.postMessage(JSON.stringify({type:'Shutdown'}));
 window.ipc.postMessage('x'.repeat(300));
 </script>"#.to_string()
                     }
+                    "/animation" => { s.animation += 1; "ok".into() },
                     "/click" => {
                         s.click = true;
                         "ok".into()
@@ -119,6 +124,11 @@ window.ipc.postMessage('x'.repeat(300));
     }
     struct Rig {
         browser: Webs,
+        occluded: bool,
+        occluded_baseline: Option<usize>,
+        measure: bool,
+        timings: Arc<Mutex<Vec<(u64, u64)>>>,
+        cover: Option<winit::window::Window>,
         gpu: Option<Compositor>,
         url: String,
         seen: Arc<Mutex<Observed>>,
@@ -158,7 +168,23 @@ window.ipc.postMessage('x'.repeat(300));
             if self.gpu.is_some() {
                 return;
             }
-            let gpu = Compositor::start(|_| {}).expect("GPU");
+            let timings = self.timings.clone();
+            let gpu = Compositor::start(move |event| {
+                if let CompositorEvent::WebPresented {
+                    output,
+                    capture_us,
+                    compose_us,
+                    ..
+                } = event
+                    && output == "a"
+                {
+                    let mut timings = timings.lock().unwrap();
+                    if timings.len() < 330 {
+                        timings.push((capture_us, compose_us));
+                    }
+                }
+            })
+            .expect("GPU");
             for o in ["a", "b"] {
                 gpu.open(o, 1080, Sink::Offscreen);
                 gpu.apply(
@@ -176,6 +202,16 @@ window.ipc.postMessage('x'.repeat(300));
             }
             self.gpu = Some(gpu);
             self.wanted(el, 2, 0.);
+            if self.occluded {
+                self.cover = Some(
+                    el.create_window(
+                        winit::window::Window::default_attributes()
+                            .with_title("059 occlusion regression")
+                            .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None))),
+                    )
+                    .expect("opaque fullscreen cover"),
+                );
+            }
             self.started = Instant::now();
             self.stage_at = self.started;
         }
@@ -200,8 +236,48 @@ window.ipc.postMessage('x'.repeat(300));
                 }
             }
             let elapsed = self.stage_at.elapsed();
+            // Require fresh animation reports late in the covered interval,
+            // not reports left over from before the cover became effective.
+            if self.stage == 0
+                && self.occluded
+                && self.occluded_baseline.is_none()
+                && if self.measure {
+                    self.timings.lock().unwrap().len() >= 270
+                } else {
+                    elapsed >= Duration::from_secs(1)
+                }
+            {
+                self.occluded_baseline = Some(self.seen.lock().unwrap().animation);
+            }
             let next = match self.stage {
-                0 if elapsed > Duration::from_secs(3) => {
+                0 if elapsed > Duration::from_secs(3)
+                    && (!self.measure || self.timings.lock().unwrap().len() >= 330) =>
+                {
+                    if self.measure {
+                        let timings = self.timings.lock().unwrap();
+                        let mut capture: Vec<_> =
+                            timings[30..330].iter().map(|(c, _)| *c).collect();
+                        let mut total: Vec<_> =
+                            timings[30..330].iter().map(|(c, p)| c + p).collect();
+                        capture.sort_unstable();
+                        total.sort_unstable();
+                        println!(
+                            "300 frames after 30 warmup; capture p50={:.3} ms p99={:.3} ms max={:.3} ms; capture-to-GPU p50={:.3} ms p99={:.3} ms",
+                            capture[150] as f64 / 1000.,
+                            capture[296] as f64 / 1000.,
+                            capture[299] as f64 / 1000.,
+                            total[150] as f64 / 1000.,
+                            total[296] as f64 / 1000.
+                        );
+                        assert!(capture[296] < 50_000, "capture p99 must remain below 50 ms");
+                    }
+                    if self.occluded {
+                        assert!(
+                            self.seen.lock().unwrap().animation
+                                >= self.occluded_baseline.expect("cover-settled baseline") + 2,
+                            "fully covered web source must keep requestAnimationFrame advancing"
+                        );
+                    }
                     assert_eq!(
                         self.browser.live_pages(),
                         1,
@@ -373,6 +449,11 @@ window.ipc.postMessage('x'.repeat(300));
         let now = Instant::now();
         let mut rig = Rig {
             browser: Webs::with_page_limit(2),
+            occluded: std::env::args().any(|arg| arg == "--occluded"),
+            cover: None,
+            occluded_baseline: None,
+            measure: std::env::args().any(|arg| arg == "--measure"),
+            timings: Arc::new(Mutex::new(Vec::new())),
             gpu: None,
             url,
             seen,

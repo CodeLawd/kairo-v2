@@ -4559,6 +4559,8 @@ name = "kairo"
 version = "0.1.0"
 dependencies = [
  "gpui-kit",
+ "kairo-core",
+ "kairo-engine-proto",
  "kairo-store",
  "tracing",
 ]
@@ -4758,11 +4760,13 @@ dependencies = [
  "kairo-engine-proto",
  "kairo-orchestrator",
  "kairo-scene",
+ "kairo-sinks",
  "kairo-video",
  "lb-wry",
  "libc",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
  "objc2-web-kit",
@@ -4940,6 +4944,15 @@ dependencies = [
 [[package]]
 name = "kairo-sinks"
 version = "0.1.0"
+dependencies = [
+ "kairo-audio",
+ "kairo-compositor",
+ "libloading",
+ "png 0.18.1",
+ "pollster",
+ "tracing",
+ "wgpu",
+]
 
 [[package]]
 name = "kairo-store"

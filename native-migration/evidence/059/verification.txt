@@ -1,9 +1,77 @@
-2026-11-13, macOS 27.2, shared working tree
-cargo build -p kairo-engine --example web_capture: PASS
-cargo fmt --all -- --check: PASS
-cargo clippy --workspace --all-targets -- -D warnings: PASS
-cargo test --workspace (socket/window-server access): PASS, 1227 passed, 0 failed, 38 ignored
-Windows capture qualification: NOT RUN
-Production engine web output: NOT IMPLEMENTED
-Added display latency: NOT MEASURED
-059 status: BLOCKED at cross-platform capture gate
+2026-11-13, macOS 27.2 / Apple M2 Pro, shared tree (implementation in 48a20a0)
+059 status: DONE; Windows runtime qualification explicitly owner-deferred.
+
+Final source checks:
+- cargo fmt --all -- --check: PASS
+- cargo clippy --workspace --all-targets --offline -- -D warnings: PASS
+- cargo check -p kairo-engine --offline: PASS
+- cargo build -p kairo-engine --example verify_web --bin kairo-engine --offline: PASS
+- caffeinate -diu target/debug/examples/verify_web: PASS (see native-rig.txt)
+- Before fix: caffeinate -diu target/debug/examples/verify_web --occluded: FAIL
+  fully covered web source must keep requestAnimationFrame advancing
+- Final guarded fix enabled by default:
+  caffeinate -diu target/debug/examples/verify_web --occluded --measure: PASS
+  300 frames after 30 warmup; capture p50 3.495 ms, p99 6.813 ms,
+  max 10.297 ms; capture-to-offscreen-GPU p50 6.454 ms, p99 10.605 ms.
+  See occluded-fixed-measurement.txt. Frame rate requested: 30 Hz, 1920x1080.
+- Real fullscreen canvas advanced after navigation: saved frame 381. See
+  occluded-animation-fixed.png and fullscreen-fixed.txt.
+- Private WKWebView occlusion setter/getter presence checked and read back;
+  an incompatible runtime explicitly fails instead of showing frozen output.
+  Private SPI is an OS compatibility risk; rerun native tests on macOS updates.
+- Review found the first regression only required cumulative early animation
+  reports. Strengthened it to record a baseline late in the measurement and
+  require two fresh reports before passing; the final run above includes this.
+- Full workspace retry initially hit two video-decoder zero-frame timeouts;
+  the standalone video suite passed 10/10 on retry. Found shared fixture names
+  could be decoded/overwritten before FFmpeg finished writing (path.exists
+  was the only guard). Serialized fixture generation without weakening any
+  frame/timing assertions. Final full-suite result is recorded below.
+
+Final full workspace run after the guarded fix and fixture race correction:
+- caffeinate -diu cargo test --workspace --offline: PASS, 1232 passed,
+  0 failed, 38 ignored, 172 suites; exit 0.
+- cargo fmt --all -- --check: PASS.
+- cargo clippy --workspace --all-targets --offline -- -D warnings: PASS,
+  repeated after the final test-helper change; exit 0.
+- Actual Windows backend source cross-target checked/linted with real common
+  helpers/compositor/domain/proto dependencies in an isolated harness:
+  cargo clippy --manifest-path /tmp/kairo-web-win-check/Cargo.toml
+    --target x86_64-pc-windows-msvc --offline -- -D warnings: PASS
+  Compile evidence only; full Windows app/runtime/performance NOT RUN.
+- Electron reference checkout status clean at final read; no Electron edits.
+- Root GPUI dependency pin unchanged.
+
+Measurement scope:
+- Original visible standalone snapshot probe: 1920x1080, 30 Hz, 300 measured
+  frames after load/warmup, CPU copy included; p50 6.274 ms, p99 9.216 ms,
+  max 12.772 ms, zero misses/errors. See capture-macos-debug.txt.
+- Partially visible real output warm two-second batches: capture p99 ~14-16 ms,
+  compose p99 ~7-9 ms, request-to-GPU-display p99 ~20-24 ms. Software latency
+  excludes up to one 30 Hz sampling period and physical display scanout.
+- Fully occluded snapshot run: canvas froze at frame 0 after navigation.
+- ScreenCaptureKit experiment (not shipped): own borderless source window,
+  1920x1080 BGRA, 30 Hz, CPU channel conversion; two-second batch capture p99
+  2.663-4.450 ms, sample-to-GPU-display p99 11.792-16.933 ms. Still froze at
+  frame 0; fast frozen pixels do not qualify live capture. See sck-experiment.txt
+  and occluded-frame-zero.png. No new dependency remains from the experiment.
+- Direct public WKInactiveSchedulingPolicy::None did not fix the issue and
+  that separate run presented no frames. Removed with the failed experiment.
+- Final real fullscreen run: last five warm two-second batches capture-to-display
+  p99 21.400-22.393 ms. Earlier cold/load/permission batches had outliers up to
+  248.110 ms; these warm batches are not a whole-run percentile. Sampling age
+  and physical scanout are excluded. Guarded visibility fix enabled (initial
+  diagnostic build); final build additionally reads the policy back.
+
+Other live checks completed earlier:
+- Click/text/scroll, permission denied, popup/download blocked, HTML audio play
+  promise resolved, real link navigation; camera/mic denied before untrusted load.
+- Killed this engine's sole WebKit helper; native crash notice and one reload
+  observed; helper/server navigation resumed.
+- GPU frame PNGs visually inspected; native computer-use service timed out.
+- Asynchronous compositor shutdown resolved sampled native destruction deadlock;
+  later engine runs exited without supervisor kill.
+
+Not verified: Windows runtime/security/latency (owner-deferred), Linux backend,
+DRM capture, captured fullscreen/PiP semantics, physical scanout, sound by ear,
+long-run soak, multiple physical displays, future capture sinks 061-064.

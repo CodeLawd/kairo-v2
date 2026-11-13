@@ -6,8 +6,11 @@
 //!     [--kill-after S] [--fade MS] [--frame-height H] [--theme ID] [--case ID]
 //!     [--text TEXT] [--reference REF] [--program ID] [--live] [--video PATH]
 //!     [--sound VOLUME] [--sound-device LABEL] [--camera LABEL]
-//!     [--camera-audio LABEL]
+//!     [--camera-audio LABEL] [--ndi NAME] [--identify] [--shape NAME]
 //! ```
+//!
+//! `--ndi NAME` sends the output as an NDI source named NAME instead of
+//! opening a window (`Kairo Scripture` is the primary feed).
 //!
 //! `--camera LABEL` puts a live camera or capture card up, matched by the
 //! label the operator's list showed (`cargo run -p kairo-camera --example
@@ -79,10 +82,23 @@ async fn main() {
         tokio::time::sleep(Duration::from_millis(10)).await;
     };
     println!("display {index}: {display:?}");
-    engine.command(Command::OpenSurface(SurfaceSpec {
-        output: "main".into(),
-        label: "Kairo output".into(),
-        sink: SinkSpec::Display(DisplaySink {
+    // `--identify`: the 3 s display labels; `--shape NAME`: the 5 s shape
+    // card on this display (prompt 060).
+    if std::env::args().any(|a| a == "--identify") {
+        engine.command(Command::IdentifyDisplays);
+    }
+    if let Some(name) = value::<String>("--shape") {
+        engine.command(Command::DisplayTestPattern {
+            display: display.id,
+            name,
+            shape: "16:9".into(),
+            frame_height: 1080,
+        });
+    }
+    // `--ndi NAME`: the output is an NDI feed instead of a window.
+    let sink = match value::<String>("--ndi") {
+        Some(name) => SinkSpec::Ndi { name },
+        None => SinkSpec::Display(DisplaySink {
             binding: DisplayBinding {
                 display_id: Some(display.id),
                 label: display.label.clone(),
@@ -91,6 +107,11 @@ async fn main() {
             rehearsal: !full,
             frame_height,
         }),
+    };
+    engine.command(Command::OpenSurface(SurfaceSpec {
+        output: "main".into(),
+        label: "Kairo output".into(),
+        sink,
     }));
     let video: Option<String> = value("--video");
     let theme_id: String = value("--theme").unwrap_or_else(|| "broadcast".into());

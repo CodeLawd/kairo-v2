@@ -95,7 +95,16 @@ impl Page {
         }
         let signals = Rc::new(RefCell::new(Signals::default()));
         let observe = signals.clone();
-        let view = WebViewBuilder::new()
+        // WebView2's default beside-the-executable profile cannot be written
+        // after installation in Program Files. All pages share one user profile.
+        let local = std::env::var_os("LOCALAPPDATA")
+            .ok_or("LOCALAPPDATA is unavailable for the browser profile")?;
+        let profile = std::path::PathBuf::from(local)
+            .join("Kairo")
+            .join("web-output");
+        std::fs::create_dir_all(&profile)?;
+        let mut context = wry::WebContext::new(Some(profile));
+        let view = WebViewBuilder::new_with_web_context(&mut context)
             .with_bounds(wry::Rect {
                 position: PhysicalPosition::new(0, 0).into(),
                 size: PhysicalSize::new(1920, 1080).into(),

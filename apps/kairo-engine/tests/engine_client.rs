@@ -96,15 +96,18 @@ async fn engine_client_follows_program_surface_rules() {
     })
     .await;
 
-    // A display that is not attached parks; NDI is not in this build yet.
+    // A display that is not attached parks. NDI runs when the runtime is in
+    // the app folder; without it the feed says why, as Electron did.
     assert_eq!(
         surfaces.unavailable_reason(&gone).as_deref(),
         Some("Display not connected")
     );
-    assert_eq!(
-        surfaces.unavailable_reason(&ndi).as_deref(),
-        Some("NDI output is not available in this engine build")
-    );
+    if std::env::var_os("KAIRO_NDI_RUNTIME").is_none() {
+        assert_eq!(
+            surfaces.unavailable_reason(&ndi).as_deref(),
+            Some("NDI sender unavailable")
+        );
+    }
     assert_eq!(surfaces.unavailable_reason(&screen), None);
     let live: Vec<String> = surfaces
         .live_targets(None)

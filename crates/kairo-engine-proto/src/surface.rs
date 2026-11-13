@@ -60,6 +60,8 @@ impl Layers {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SurfaceState {
     pub spec: SurfaceSpec,
+    /// Stage-only view, retained through parking and engine replay.
+    pub stage: Option<Json>,
     /// Closed by the client; nothing reopens it until `RestoreSurface`.
     pub parked: bool,
     pub config: SurfaceConfig,
@@ -83,6 +85,7 @@ impl SurfaceState {
     pub fn new(spec: SurfaceSpec) -> Self {
         Self {
             spec,
+            stage: None,
             parked: false,
             config: SurfaceConfig::default(),
             layers: Layers::default(),
@@ -125,6 +128,10 @@ impl SurfaceState {
             }
             Command::RestoreSurface { .. } => {
                 self.parked = false;
+                true
+            }
+            Command::SetStage { view, .. } => {
+                self.stage = Some(view.clone());
                 true
             }
             Command::Configure { config, .. } => {
@@ -255,7 +262,11 @@ impl SurfaceState {
                 self.test_pattern = *pattern;
                 true
             }
-            Command::RetainSurfaces { .. } | Command::Shutdown => true,
+            Command::RetainSurfaces { .. }
+            | Command::Shutdown
+            | Command::ControlDisplay { .. }
+            | Command::IdentifyDisplays
+            | Command::DisplayTestPattern { .. } => true,
         }
     }
 
@@ -301,6 +312,12 @@ impl SurfaceState {
             commands.push(Command::Configure {
                 output: output.clone(),
                 config: self.config.clone(),
+            });
+        }
+        if let Some(view) = &self.stage {
+            commands.push(Command::SetStage {
+                output: output.clone(),
+                view: view.clone(),
             });
         }
         for kind in LayerKind::ALL {

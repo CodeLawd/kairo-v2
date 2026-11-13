@@ -321,3 +321,27 @@ fn replay_rebuilds_the_same_state() {
         assert_eq!(rebuilt.unwrap(), state);
     }
 }
+
+#[test]
+fn a_stage_view_is_retained_while_parked_and_replayed_without_a_program_slide() {
+    let mut state = SurfaceState::new(display_spec());
+    state.apply(
+        &Command::CloseSurface {
+            output: "screen".into(),
+            destroy: false,
+        },
+        true,
+    );
+    let command = Command::SetStage {
+        output: "screen".into(),
+        view: Json::from_value(&json!({"current":null,"showClock":true})),
+    };
+    assert!(state.apply(&command, false));
+    assert!(state.replay().contains(&command));
+    assert!(state.last_render.is_none());
+    let mut fresh = SurfaceState::new(display_spec());
+    for command in state.replay() {
+        fresh.apply(&command, true);
+    }
+    assert_eq!(fresh, state);
+}

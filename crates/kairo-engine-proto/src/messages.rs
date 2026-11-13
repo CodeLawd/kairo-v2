@@ -243,6 +243,19 @@ pub enum VideoTransport {
 /// Architecture section 5.3, one to one with the Electron shell.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Command {
+    /// Native control-window display (CGDirectDisplayID or Windows HMONITOR).
+    ControlDisplay { native_id: Option<u64> },
+    /// Three-second labels, one on every connected display.
+    IdentifyDisplays,
+    /// Five-second physical shape card. Frame height is 360..4320.
+    DisplayTestPattern {
+        display: u32,
+        name: String,
+        shape: String,
+        frame_height: u32,
+    },
+    /// The independent stage display's complete current view.
+    SetStage { output: String, view: Json },
     /// Creates a surface, or retargets an existing one to a new sink.
     OpenSurface(SurfaceSpec),
     /// Destroys every surface not named. Sent first when state is replayed.
@@ -378,14 +391,21 @@ impl Command {
             | WebPointer { output, .. }
             | WebInput { output, .. }
             | WebScroll { output, .. }
-            | SetTestPattern { output, .. } => Some(output),
-            RetainSurfaces { .. } | Shutdown => None,
+            | SetTestPattern { output, .. }
+            | SetStage { output, .. } => Some(output),
+            RetainSurfaces { .. }
+            | Shutdown
+            | ControlDisplay { .. }
+            | IdentifyDisplays
+            | DisplayTestPattern { .. } => None,
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Query {
+    /// Native window geometry and power assertion for output qualification.
+    DisplayState,
     /// `__videoEnded`: has the background video finished, or is there none.
     VideoEnded { output: String },
     /// `__documentPlayback`.
@@ -415,6 +435,10 @@ pub enum FromEngine {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Reply {
+    DisplayState {
+        windows: Vec<WindowInfo>,
+        sleep_blocked: bool,
+    },
     VideoEnded(bool),
     /// `DocumentPlaybackStatus`, or `None` outside document mode.
     DocumentPlayback(Option<Json>),
@@ -437,6 +461,35 @@ pub struct DisplayInfo {
     pub label: String,
     pub bounds: Rect,
     pub scale_factor: f64,
+    /// The toolkit/OS identity used for control-window location reporting.
+    pub native_id: u64,
+    pub primary: bool,
+    pub hosts_main_window: bool,
+    pub refresh_millihertz: Option<u32>,
+}
+
+impl DisplayInfo {
+    /// Stored Electron sizes are in display-independent pixels, not framebuffer pixels.
+    pub fn logical_size(&self) -> (u32, u32) {
+        let scale = if self.scale_factor.is_finite() && self.scale_factor > 0. {
+            self.scale_factor
+        } else {
+            1.
+        };
+        (
+            (self.bounds.width as f64 / scale).round() as u32,
+            (self.bounds.height as f64 / scale).round() as u32,
+        )
+    }
+    pub fn description(&self) -> String {
+        let label = self.label.trim();
+        format!(
+            "{} · {}×{}",
+            if label.is_empty() { "Display" } else { label },
+            self.bounds.width,
+            self.bounds.height
+        )
+    }
 }
 
 /// Whether a surface can take content now.
@@ -471,6 +524,13 @@ pub struct Health {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Event {
+    /// Persist only when the stored assignment still equals old_id.
+    DisplayRebound {
+        output: String,
+        old_id: u32,
+        new_id: u32,
+        stage: bool,
+    },
     /// A top-level load, redirect or SPA location change of a shared live page.
     WebNavigated {
         output: String,
@@ -502,4 +562,23 @@ pub enum Event {
         output: Option<String>,
         message: String,
     },
+}
+
+/// Physical windows owned by the engine; no other process/window is inspected.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowKind {
+    Program,
+    Stage,
+    Identify,
+    Pattern,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct WindowInfo {
+    pub output: String,
+    pub display: u32,
+    pub kind: WindowKind,
+    pub rehearsal: bool,
+    pub bounds: Rect,
+    /// CGWindowID or HWND, only for identifying our own native output in tests.
+    pub native_window: u64,
 }

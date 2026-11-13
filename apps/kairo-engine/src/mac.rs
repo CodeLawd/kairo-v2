@@ -48,10 +48,12 @@ pub fn make_nonfocusable(window: &Window) {
 pub fn place_output(window: &Window) {
     let Some(ns) = ns_window(window) else { return };
     ns.setLevel(SCREEN_SAVER_LEVEL);
+    ns.setExcludedFromWindowsMenu(true);
     ns.setCollectionBehavior(
         NSWindowCollectionBehavior::CanJoinAllSpaces
             | NSWindowCollectionBehavior::FullScreenAuxiliary
-            | NSWindowCollectionBehavior::Stationary,
+            | NSWindowCollectionBehavior::Stationary
+            | NSWindowCollectionBehavior::IgnoresCycle,
     );
     ns.setHasShadow(false);
     ns.orderFrontRegardless();
@@ -76,5 +78,40 @@ pub fn place_web_source(window: &Window) {
             NSWindowCollectionBehavior::CanJoinAllSpaces | NSWindowCollectionBehavior::IgnoresCycle,
         );
         ns.orderBack(None);
+    }
+}
+
+/// AppKit's topology notification arrives before the next polling pass.
+#[allow(dead_code)]
+pub struct DisplayObserver(
+    Retained<objc2::runtime::ProtocolObject<dyn objc2_foundation::NSObjectProtocol>>,
+);
+#[allow(dead_code)]
+impl DisplayObserver {
+    pub fn new(callback: impl Fn() + Send + Sync + 'static) -> Self {
+        use objc2_foundation::{NSNotificationCenter, NSOperationQueue, ns_string};
+        let block = block2::RcBlock::new(
+            move |_: std::ptr::NonNull<objc2_foundation::NSNotification>| callback(),
+        );
+        // SAFETY: no UI references cross threads; the block only posts an event.
+        let token = unsafe {
+            NSNotificationCenter::defaultCenter().addObserverForName_object_queue_usingBlock(
+                Some(ns_string!(
+                    "NSApplicationDidChangeScreenParametersNotification"
+                )),
+                None,
+                Some(&NSOperationQueue::mainQueue()),
+                &block,
+            )
+        };
+        Self(token)
+    }
+}
+impl Drop for DisplayObserver {
+    fn drop(&mut self) {
+        let observer: &AnyObject = (*self.0).as_ref();
+        unsafe {
+            objc2_foundation::NSNotificationCenter::defaultCenter().removeObserver(observer);
+        }
     }
 }
