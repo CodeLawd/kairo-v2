@@ -76,7 +76,8 @@ struct Params {
     dst_w: u32,
     dst_h: u32,
     alpha: u32,
-    pad: [u32; 3],
+    bgra: u32,
+    pad: [u32; 2],
 }
 
 struct Slot {
@@ -100,6 +101,8 @@ pub struct UyvaFrame {
     pub width: u32,
     pub height: u32,
     pub alpha: bool,
+    /// Premultiplied BGRA, four bytes a pixel, rows of `width × 4`, instead of UYVA.
+    pub bgra: bool,
     data: Option<Vec<u8>>,
     pool: Arc<Mutex<Vec<Vec<u8>>>>,
 }
@@ -135,12 +138,36 @@ pub struct UyvaConverter {
     width: u32,
     height: u32,
     alpha: bool,
+    bgra: bool,
     pub stats: Arc<Stats>,
 }
 
 impl UyvaConverter {
     /// A converter to `width` × `height` (even width, a multiple of 4).
     pub fn new(device: &Device, width: u32, height: u32, alpha: bool) -> Result<Self, String> {
+        Self::make(device, width, height, alpha, false)
+    }
+
+    /// Premultiplied BGRA instead of UYVA, for the recorder's tap.
+    pub fn bgra(device: &Device, width: u32, height: u32) -> Result<Self, String> {
+        Self::make(device, width, height, true, true)
+    }
+
+    fn len(&self) -> usize {
+        if self.bgra {
+            self.width as usize * self.height as usize * 4
+        } else {
+            uyva_len(self.width, self.height)
+        }
+    }
+
+    fn make(
+        device: &Device,
+        width: u32,
+        height: u32,
+        alpha: bool,
+        bgra: bool,
+    ) -> Result<Self, String> {
         if width == 0 || height == 0 || !width.is_multiple_of(4) || width > 8192 || height > 8192 {
             return Err(format!("UYVA frame {width}×{height} is not supported"));
         }
@@ -162,7 +189,11 @@ impl UyvaConverter {
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        let bytes = uyva_len(width, height) as u64;
+        let bytes = if bgra {
+            width as u64 * height as u64 * 4
+        } else {
+            uyva_len(width, height) as u64
+        };
         let slots = (0..SLOTS)
             .map(|_| Slot {
                 storage: device.create_buffer(&BufferDescriptor {
@@ -190,6 +221,7 @@ impl UyvaConverter {
             width,
             height,
             alpha,
+            bgra,
             stats: Arc::new(Stats::default()),
         })
     }
@@ -206,7 +238,8 @@ impl UyvaConverter {
                 dst_w: self.width,
                 dst_h: self.height,
                 alpha: u32::from(self.alpha),
-                pad: [0; 3],
+                bgra: u32::from(self.bgra),
+                pad: [0; 2],
             };
             queue.write_buffer(&self.params, 0, bytemuck::bytes_of(&params));
             let view = src.create_view(&Default::default());
@@ -261,7 +294,7 @@ impl UyvaConverter {
         };
         // The bytes come from the pool; when the sender holds every one,
         // the frame is dropped too.
-        let len = uyva_len(self.width, self.height);
+        let len = self.len();
         let buffer = {
             let mut pool = self.pool.lock().unwrap_or_else(|e| e.into_inner());
             match pool.pop() {
@@ -300,7 +333,7 @@ impl UyvaConverter {
         let busy = slot.busy.clone();
         let stats = self.stats.clone();
         let pool = self.pool.clone();
-        let (width, height, alpha) = (self.width, self.height, self.alpha);
+        let (width, height, alpha, bgra) = (self.width, self.height, self.alpha, self.bgra);
         slot.staging.map_async(MapMode::Read, .., move |result| {
             let out = match result {
                 Ok(()) => match staging.get_mapped_range(..) {
@@ -323,6 +356,7 @@ impl UyvaConverter {
                         width,
                         height,
                         alpha,
+                        bgra,
                         data: Some(buffer),
                         pool,
                     }));

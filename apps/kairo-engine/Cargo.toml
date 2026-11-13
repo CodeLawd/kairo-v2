@@ -19,9 +19,13 @@ kairo-scene = { path = "../../crates/kairo-scene" }
 kairo-sinks = { path = "../../crates/kairo-sinks" }
 kairo-video = { path = "../../crates/kairo-video" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+kairo-native-sys = { path = "../../crates/kairo-native-sys" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "ansi"] }
 winit = "0.30"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
@@ -43,6 +47,8 @@ kairo-output = { path = "../../crates/kairo-output" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 tempfile = "3"
 image = { version = "0.25", default-features = false, features = ["gif"] }
+pollster = "0.4"
+wgpu = "30"
 
 [target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"

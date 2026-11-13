@@ -267,6 +267,8 @@ impl SurfaceState {
             | Command::ControlDisplay { .. }
             | Command::IdentifyDisplays
             | Command::RefreshVideoDevices
+            | Command::StartCapture { .. }
+            | Command::StopCapture
             | Command::DisplayTestPattern { .. } => true,
         }
     }

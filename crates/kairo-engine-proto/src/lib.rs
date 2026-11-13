@@ -17,7 +17,7 @@ pub use wire::{DecodeError, FrameDecoder, MAX_FRAME_BYTES, encode_frame, read_fr
 
 /// Bumped on any change to the encoding of a message. A client and an engine
 /// with different versions refuse each other at the handshake.
-pub const PROTOCOL_VERSION: u32 = 4;
+pub const PROTOCOL_VERSION: u32 = 5;
 
 /// Environment variable carrying the handshake token to the engine. It is
 /// not passed on the command line, where other users' `ps` could read it.

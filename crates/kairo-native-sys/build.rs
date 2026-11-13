@@ -2,6 +2,8 @@
 //! base server, client and messaging (`native/syphon/vendor/Syphon`, BSD),
 //! compiled straight in, as Electron's `native/syphon/build.mjs` does: no
 //! Syphon.framework to ship and no Metal toolchain, since the copy is a blit.
+//! The recorder (prompt 064): `native/recorder.mm`, a C ABI port of
+//! Electron's `native/recorder/recorder.mm` at commit af978c5.
 
 use std::path::Path;
 
@@ -63,12 +65,26 @@ fn main() {
         .flag(prefix.to_str().expect("utf-8 path"))
         .compile("kairo_syphon_c");
 
+    cc::Build::new()
+        .cpp(true)
+        .file("native/recorder.mm")
+        .flag("-std=c++17")
+        .flag("-ObjC++")
+        .flag("-fobjc-arc")
+        .flag("-Wno-deprecated-declarations")
+        .flag("-mmacosx-version-min=11.0")
+        .compile("kairo_recorder");
+
     for framework in [
         "Metal",
         "Foundation",
         "IOSurface",
         "CoreFoundation",
         "Cocoa",
+        "AVFoundation",
+        "CoreMedia",
+        "CoreVideo",
+        "Accelerate",
     ] {
         println!("cargo:rustc-link-lib=framework={framework}");
     }

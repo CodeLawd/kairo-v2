@@ -242,7 +242,9 @@ impl EngineHandle {
             }
             Command::IdentifyDisplays
             | Command::RefreshVideoDevices
-            | Command::DisplayTestPattern { .. } => true,
+            | Command::DisplayTestPattern { .. }
+            | Command::StartCapture { .. }
+            | Command::StopCapture => true,
             Command::RetainSurfaces { outputs } => {
                 mirror
                     .surfaces
@@ -829,7 +831,8 @@ fn dispatch(inner: &Inner, message: FromEngine) {
                 Event::PageSwapped { .. }
                 | Event::Health(_)
                 | Event::Stats(_)
-                | Event::VideoDevices(_) => {}
+                | Event::VideoDevices(_)
+                | Event::Capture(_) => {}
             }
             let _ = inner.events.send(EngineEvent::Engine(event));
         }

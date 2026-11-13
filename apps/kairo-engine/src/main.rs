@@ -3,6 +3,7 @@
 //! tells it everything it draws. winit owns the main thread.
 
 mod app;
+mod capture;
 mod cards;
 mod diagnostics;
 mod display;
