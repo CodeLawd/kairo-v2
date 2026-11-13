@@ -252,7 +252,15 @@ impl Shell {
         state: &SurfaceState,
     ) -> Vec<Op> {
         let ms = self.ms;
+        if state.stage.is_some() {
+            return if matches!(command, Command::SetStage { .. }) && before.stage != state.stage {
+                self.stage(state, 0)
+            } else {
+                vec![]
+            };
+        }
         match command {
+            Command::SetStage { .. } => self.stage(state, 0),
             Command::Configure { config, .. } => {
                 let mut ops = self.configure(config);
                 ops.extend(self.web(state.layers.web.as_ref().filter(|_| config.web_enabled)));
@@ -339,7 +347,10 @@ impl Shell {
             | Command::RetainSurfaces { .. }
             | Command::CloseSurface { .. }
             | Command::RestoreSurface { .. }
-            | Command::Shutdown => vec![],
+            | Command::Shutdown
+            | Command::ControlDisplay { .. }
+            | Command::IdentifyDisplays
+            | Command::DisplayTestPattern { .. } => vec![],
         }
     }
 
@@ -359,6 +370,10 @@ impl Shell {
     }
 
     fn rebuild_ops(&mut self, state: &SurfaceState) -> Vec<Op> {
+        if state.stage.is_some() {
+            self.live.clear();
+            return self.stage(state, 0);
+        }
         self.web_shown = None;
         self.camera_shown = None;
         let mut ops = self.configure(&state.config);
@@ -448,6 +463,17 @@ impl Shell {
     }
 
     /// The diagnostic pattern over everything, named for the output.
+    fn stage(&mut self, state: &SurfaceState, at: usize) -> Vec<Op> {
+        let source = state.stage.as_ref().and_then(|view| match view.decode() {
+            Ok(view) => Some(LayerSource::Stage(view)),
+            Err(error) => {
+                tracing::warn!(%error, "invalid stage view");
+                None
+            }
+        });
+        self.layer(Slot::Background, source, 0, at)
+    }
+
     fn pattern(&mut self, state: &SurfaceState, at: usize) -> Vec<Op> {
         let source = state.test_pattern.map(|pattern| LayerSource::Pattern {
             pattern: match pattern {
@@ -1663,5 +1689,60 @@ mod tests {
         ));
         // Live again later: no camera wanted, nothing shown.
         assert!(shell.camera_live("FaceTime HD Camera", 78, &off).is_none());
+    }
+}
+
+#[cfg(test)]
+mod stage_sink_tests {
+    use super::*;
+    fn state() -> SurfaceState {
+        let cases: Value = serde_json::from_str(include_str!(
+            "../../../tests/golden/054-programs/cases.json"
+        ))
+        .unwrap();
+        let view = cases
+            .as_array()
+            .unwrap()
+            .iter()
+            .find_map(|case| case.get("stage"))
+            .unwrap();
+        let mut state = SurfaceState::new(SurfaceSpec {
+            output: "stage".into(),
+            label: "Stage".into(),
+            sink: SinkSpec::Display(DisplaySink {
+                binding: DisplayBinding {
+                    display_id: Some(1),
+                    label: "A".into(),
+                    size: Some((1920, 1080)),
+                },
+                rehearsal: true,
+                frame_height: 1080,
+            }),
+        });
+        state.stage = Some(Json::from_value(view));
+        state
+    }
+    #[test]
+    fn stage_rebuild_uses_existing_stage_renderer_and_identical_updates_do_not_rasterize() {
+        let state = state();
+        let mut shell = Shell::new("stage", 1080);
+        let rebuild = shell.rebuild(&state);
+        assert!(rebuild.visuals.iter().any(|r| matches!(
+            &r.job,
+            Job::Layer(LayerJob {
+                source: LayerSource::Stage(_),
+                ..
+            })
+        )));
+        let unchanged = shell.command(
+            &Command::SetStage {
+                output: "stage".into(),
+                view: state.stage.clone().unwrap(),
+            },
+            &state,
+            &state,
+        );
+        assert!(unchanged.ops.is_empty());
+        assert!(unchanged.visuals.is_empty());
     }
 }

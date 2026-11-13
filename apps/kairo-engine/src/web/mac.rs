@@ -215,6 +215,7 @@ pub struct Page {
     alive: Rc<Cell<bool>>,
     generation: Rc<Cell<u64>>,
     last_error: Option<String>,
+    last_url: String,
 }
 
 impl Page {
@@ -275,6 +276,25 @@ impl Page {
         let permissions: Retained<Permissions> =
             unsafe { msg_send![Permissions::alloc(mtm), init] };
         unsafe {
+            // Captured outputs completely cover this source. WebKit otherwise
+            // stops requestAnimationFrame independently of inactive scheduling.
+            // This is private WebKit SPI, isolated to our own WKWebView. Check
+            // both selectors and read back the policy: an incompatible runtime
+            // must report an error instead of silently streaming frozen frames.
+            // See DECISIONS.md, "059 WebKit capture visibility".
+            if !native.respondsToSelector(objc2::sel!(_setWindowOcclusionDetectionEnabled:))
+                || !native.respondsToSelector(objc2::sel!(_windowOcclusionDetectionEnabled))
+            {
+                return Err("Live web capture is unavailable on this macOS WebKit version".into());
+            }
+            let _: () = msg_send![&*native, _setWindowOcclusionDetectionEnabled: false];
+            let enabled: objc2::runtime::Bool =
+                msg_send![&*native, _windowOcclusionDetectionEnabled];
+            if enabled.as_bool() {
+                return Err(
+                    "WebKit could not enable live capture while the source is covered".into(),
+                );
+            }
             native
                 .configuration()
                 .preferences()
@@ -293,6 +313,7 @@ impl Page {
             alive: Rc::new(Cell::new(true)),
             generation: Rc::new(Cell::new(0)),
             last_error: None,
+            last_url: url.to_owned(),
         };
         if let Some((x, y)) = restore {
             page.scroll(x, y);
@@ -305,7 +326,14 @@ impl Page {
         self.busy.set(None);
         self._navigation.ivars().crashes.set(0);
         self.signals.borrow_mut().frame = None;
-        if let Err(e) = self.view.reload() {
+        let current = self.location();
+        let result = if current.is_none() || self.last_error.is_some() {
+            self.view
+                .load_url(current.as_deref().unwrap_or(&self.last_url))
+        } else {
+            self.view.reload()
+        };
+        if let Err(e) = result {
             self.signals.borrow_mut().error = Some(e.to_string());
         }
     }
@@ -448,7 +476,11 @@ impl Page {
                 self.last_error = Some(error.clone());
             }
         }
-        (signals, self.location())
+        let location = self.location();
+        if let Some(url) = &location {
+            self.last_url = url.clone();
+        }
+        (signals, location)
     }
 }
 

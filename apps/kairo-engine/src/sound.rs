@@ -81,7 +81,13 @@ pub struct PictureClock {
     pub playing: bool,
 }
 
+/// Where tapped blocks go: the NDI feed of the output that owns the tap.
+type NdiAudio = Arc<std::sync::Mutex<Option<Arc<dyn Fn(&str, &AudioBlock) + Send + Sync>>>>;
+
 pub struct Sound {
+    /// `tap_owner` as the tap sender thread sees it.
+    owners: Arc<std::sync::Mutex<[Option<String>; MAX_TAPS]>>,
+    ndi: NdiAudio,
     out: AudioOut,
     control: MixerControl,
     taps: Vec<Arc<TapSwitch>>,
@@ -95,7 +101,7 @@ pub struct Sound {
     camera_inputs: HashMap<String, String>,
     /// Camera audio inputs being captured, by label.
     cameras: HashMap<String, CameraSound>,
-    /// Blocks made with no NDI sender to take them (prompt 061).
+    /// Blocks tapped with no NDI feed to take them.
     pub unsent: Arc<AtomicU64>,
     /// Sound minus picture while both play: samples, sum of |d|, worst |d|.
     drift: (u64, f64, f64),
@@ -140,17 +146,28 @@ impl Sound {
         let unsent = Arc::new(AtomicU64::new(0));
         let taps = outputs.iter().map(|o| o.switch.clone()).collect();
         let counter = unsent.clone();
-        let sender = TapSender::start(outputs, move |_tap, block: AudioBlock| {
-            // The block passed `handleNdiAudio`'s checks; the NDI sender
-            // that sends it is prompt 061's.
-            if counter.fetch_add(1, Ordering::Relaxed) == 0 {
-                tracing::info!(
-                    samples = block.samples,
-                    "NDI audio is being tapped; no NDI sender in this build to carry it"
-                );
+        let owners: Arc<std::sync::Mutex<[Option<String>; MAX_TAPS]>> = Arc::default();
+        let ndi: NdiAudio = Arc::default();
+        let (seen, send) = (owners.clone(), ndi.clone());
+        let sender = TapSender::start(outputs, move |tap, block: AudioBlock| {
+            // The block passed `handleNdiAudio`'s checks.
+            let owner = seen.lock().unwrap_or_else(|e| e.into_inner())[tap].clone();
+            let route = send.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            match (owner, route) {
+                (Some(owner), Some(route)) => route(&owner, &block),
+                _ => {
+                    if counter.fetch_add(1, Ordering::Relaxed) == 0 {
+                        tracing::info!(
+                            samples = block.samples,
+                            "NDI audio is being tapped with no NDI feed to carry it"
+                        );
+                    }
+                }
             }
         });
         Self {
+            owners,
+            ndi,
             out: AudioOut::start(mixer, SystemHost),
             control,
             taps,
@@ -430,6 +447,12 @@ impl Sound {
             video.control.set_taps(mask);
         }
         self.route_cameras(speaker.as_ref());
+        *self.owners.lock().unwrap_or_else(|e| e.into_inner()) = self.tap_owner.clone();
+    }
+
+    /// Sends each tap's blocks to the NDI feed of the output it serves.
+    pub fn send_ndi_audio(&mut self, route: impl Fn(&str, &AudioBlock) + Send + Sync + 'static) {
+        *self.ndi.lock().unwrap_or_else(|e| e.into_inner()) = Some(Arc::new(route));
     }
 
     fn route_cameras(&self, speaker: Option<&String>) {

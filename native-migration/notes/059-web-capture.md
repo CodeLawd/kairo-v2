@@ -5,6 +5,63 @@ explicitly deferred Windows runtime/performance qualification after the original
 both-platform gate; see the latest 059 amendments in DECISIONS.md. No CEF or
 GPUI pin change.
 
+## WebKit capture visibility fix (2026-11-13)
+
+A fully covered source window froze WebKit's requestAnimationFrame callbacks.
+The default offscreen-output rig and standalone visible probe did not catch this.
+The fullscreen regression first failed with
+`fully covered web source must keep requestAnimationFrame advancing`.
+
+The fix disables window occlusion detection **only on Kairo's source WKWebView**,
+using `_setWindowOcclusionDetectionEnabled:NO`. This is private WebKit SPI,
+declared in WebKit's [own header](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/API/Cocoa/WKWebViewPrivate.h).
+The normal inactive scheduling policy does not control this separate visibility
+check. Before loading content, the backend checks both setter and getter selectors,
+sets the policy and reads it back. An incompatible runtime reports an error rather
+than silently streaming frozen frames. No global swizzle, JavaScript animation
+replacement, extra visible source overlay, or new browser dependency is used.
+
+This preserves one page/shared playback and compositor outputs. The explicit
+tradeoff is reliance on private SPI: macOS updates may change its availability or
+behaviour. The runtime check handles missing/ignored selectors; the native
+fullscreen regression must be rerun when qualifying an OS update. There is no
+claim of a supported public offscreen WKWebView API. Replacing the backend with
+a browser supporting offscreen rendering would be a separate architecture change.
+
+```sh
+cargo run -p kairo-engine --example verify_web -- --occluded --measure
+```
+
+The fixture reports every 30 animation callbacks. It records a baseline after
+the cover settles, then requires at least two new reports; with `--measure`, the
+baseline is taken during the final 60 of 330 captures, so early animation followed
+by a freeze cannot pass. `--measure` records 300 timings after 30 warm-up frames
+and asserts capture p99 below 50 ms. The guarded default fix passed
+the fullscreen regression and existing native checks. A real fullscreen engine
+capture after link navigation visibly showed **frame 381**, compared with frame 0
+before the fix. See `evidence/059/` for before/after frames, logs and timings.
+
+An earlier experimental own-window ScreenCaptureKit stream (1920×1080 BGRA,
+30 Hz, no cursor/shadows/audio, borderless source) delivered captures but still
+captured frozen frame 0. Its software delivery+copy p99 was 2.663–4.450 ms in
+two-second batches and capture→display p99 11.792–16.933 ms. Fast frozen pixels
+were not accepted. That unsuccessful experiment and dependency were removed.
+Setting public WKInactiveSchedulingPolicy::None directly also did not resolve it.
+
+Covered-source capture measurement on the same M2 Pro/macOS 27.2 debug build:
+1920×1080 at 30 Hz, 30 warm-up + 300 measured frames; p50 **3.495 ms**,
+p99 **6.813 ms**, max **10.297 ms**. Capture→offscreen GPU-complete p50
+6.454 ms/p99 10.605 ms. An earlier 300-frame run measured capture p99
+8.276 ms; both passed. The separate real fullscreen display run logged warm
+two-second-batch software latency around 19–21 ms median, with final five
+batch p99s 21.400–22.393 ms. That run also recorded earlier load/permission
+outliers (capture p99 54.529 and 111.189 ms; cold first batch 239.883 ms), so
+those warm batches are not a whole-run percentile. All software figures exclude
+capture sampling age and physical scanout. No latency number claims physical
+monitor response.
+
+Windows qualification remains explicitly deferred by the owner.
+
 ## Try it
 
 See [the native verification and live demo commands](../../tools/web-layer-site/README.md).
@@ -34,7 +91,8 @@ itself is prompt 089; app IPC/output routing remains 065.
   on reload, timeout, renderer loss or teardown. Snapshot pixels are explicitly
   converted into premultiplied RGBA, dimensions validated. A hidden view stopped
   animation; the source is mapped behind other windows, non-interactive and out
-  of window cycling. Public fullscreen preference is enabled; Wry enables PiP
+  of window cycling. The guarded visibility control above sustains animation
+  under full occlusion. Public fullscreen preference is enabled; Wry enables PiP
   and autoplay. Original framing headers are untouched.
 - Windows WGC source capture, two-frame pool, D3D11 BGRA→RGBA staging copy,
   WebView2 scale 1, restricted native permissions and input to the owned renderer
@@ -99,7 +157,8 @@ unchanged display test passed after `caffeinate -u`; no assertion was weakened.
   multiple physical displays and unusual GPU adapters; Linux native backend.
 - Physical scanout latency, DRM/video snapshot coverage, fullscreen/PiP behaviour
   on captured outputs, and long-run resource soak. ScreenCaptureKit is not used:
-  the measured snapshot fallback is the macOS path.
+  the snapshot fallback remains the current macOS path, with the guarded
+  private visibility control above.
 - Public WKWebView/WebView2/WebKitGTK APIs do not expose page PCM to kairo-audio.
   One page can sound through the OS default route; Kairo mixer gain/device selection
   and per-output NDI audio do not control it. macOS HTML media playback was

@@ -1,0 +1,2 @@
+300 frames after 30 warmup; capture p50=3.495 ms p99=6.813 ms max=10.297 ms; capture-to-GPU p50=6.454 ms p99=10.605 ms
+PASS: one browser/two GPU outputs; framing bypass; direct click/text/scroll; camera+mic denial; blocked subframe top navigation; teardown/reopen/reload; URL adoption/return-to-original; replacement at capacity; malformed IPC ignored

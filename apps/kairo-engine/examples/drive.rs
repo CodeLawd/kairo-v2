@@ -6,8 +6,12 @@
 //!     [--kill-after S] [--fade MS] [--frame-height H] [--theme ID] [--case ID]
 //!     [--text TEXT] [--reference REF] [--program ID] [--live] [--video PATH]
 //!     [--sound VOLUME] [--sound-device LABEL] [--camera LABEL]
-//!     [--camera-audio LABEL] [--syphon NAME [--rename-after S NAME]]
+//!     [--camera-audio LABEL] [--ndi NAME] [--identify] [--shape NAME]
+//!     [--syphon NAME [--rename-after S NAME]]
 //! ```
+//!
+//! `--ndi NAME` sends the output as an NDI source named NAME instead of
+//! opening a window (`Kairo Scripture` is the primary feed).
 //!
 //! `--syphon NAME` sends the output to a Syphon server called "Kairo NAME"
 //! instead of a window (macOS); read it with `cargo run -p kairo-native-sys
@@ -84,10 +88,25 @@ async fn main() {
         tokio::time::sleep(Duration::from_millis(10)).await;
     };
     println!("display {index}: {display:?}");
+    // `--identify`: the 3 s display labels; `--shape NAME`: the 5 s shape
+    // card on this display (prompt 060).
+    if std::env::args().any(|a| a == "--identify") {
+        engine.command(Command::IdentifyDisplays);
+    }
+    if let Some(name) = value::<String>("--shape") {
+        engine.command(Command::DisplayTestPattern {
+            display: display.id,
+            name,
+            shape: "16:9".into(),
+            frame_height: 1080,
+        });
+    }
+    // `--ndi NAME`: the output is an NDI feed instead of a window.
     let syphon: Option<String> = value("--syphon");
-    let sink = match &syphon {
-        Some(name) => SinkSpec::syphon(name, 0),
-        None => SinkSpec::Display(DisplaySink {
+    let sink = match (value::<String>("--ndi"), &syphon) {
+        (Some(name), _) => SinkSpec::Ndi { name },
+        (None, Some(name)) => SinkSpec::syphon(name, 0),
+        (None, None) => SinkSpec::Display(DisplaySink {
             binding: DisplayBinding {
                 display_id: Some(display.id),
                 label: display.label.clone(),

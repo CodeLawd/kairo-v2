@@ -151,6 +151,10 @@ enum Msg {
         output: String,
         sink: Option<Box<dyn FrameSink>>,
     },
+    Capture {
+        output: String,
+        sink: Option<CaptureSink>,
+    },
     Shutdown,
 }
 
@@ -177,6 +181,8 @@ struct Output {
     web_pending: Option<(Instant, Instant)>,
     /// Takes every frame drawn (Syphon).
     frame_sink: Option<Box<dyn FrameSink>>,
+    /// NDI capture: every drawn frame converted to UYVA (prompt 061).
+    capture: Option<Capture>,
 }
 
 /// Takes each frame an output draws, on the compositor thread (Syphon).
@@ -228,6 +234,14 @@ impl FinishedFrame<'_> {
     pub fn read_rgba(&self) -> Vec<u8> {
         self.renderer.read_frame(self.target)
     }
+}
+
+/// Where a captured output's UYVA frames go (the NDI sender).
+pub type CaptureSink = Arc<dyn Fn(crate::uyva::UyvaFrame) + Send + Sync>;
+
+struct Capture {
+    converter: crate::uyva::UyvaConverter,
+    sink: CaptureSink,
 }
 
 /// Feeds live sources from other threads (the video players).
@@ -416,6 +430,15 @@ impl Compositor {
     }
 
     /// How many frames the output has drawn since it opened.
+    /// Converts every frame `output` draws to UYVA (with alpha) for
+    /// `sink`, or stops. A frame whose read-back slot is busy is dropped.
+    pub fn capture(&self, output: &str, sink: Option<CaptureSink>) {
+        self.send(Msg::Capture {
+            output: output.into(),
+            sink,
+        });
+    }
+
     pub fn frames(&self, output: &str) -> Option<u64> {
         let (reply, rx) = mpsc::channel();
         self.send(Msg::Frames {
@@ -620,6 +643,7 @@ fn handle(
                     media: Vec::new(),
                     web_pending: None,
                     frame_sink: None,
+                    capture: None,
                 },
             );
         }
@@ -750,6 +774,30 @@ fn handle(
             }),
             None => {}
         },
+        Msg::Capture { output, sink } => {
+            if let Some(o) = outputs.get_mut(&output) {
+                o.capture = match sink {
+                    None => None,
+                    Some(sink) => match crate::uyva::UyvaConverter::new(
+                        renderer.device(),
+                        o.target.width,
+                        o.target.height,
+                        true,
+                    ) {
+                        Ok(converter) => Some(Capture { converter, sink }),
+                        Err(message) => {
+                            events(CompositorEvent::Error {
+                                output: Some(output.clone()),
+                                message,
+                            });
+                            None
+                        }
+                    },
+                };
+                // The receiver gets the current picture at once.
+                o.due = Some(now);
+            }
+        }
     }
     true
 }
@@ -837,6 +885,20 @@ fn draw(
     renderer.queue().submit([encoder.finish()]);
     if let Some(frame) = presented {
         renderer.queue().present(frame);
+    }
+    if let Some(capture) = output.capture.as_ref() {
+        let sink = capture.sink.clone();
+        let name = name.to_owned();
+        // Completed by the wait below; a busy converter drops the frame.
+        capture.converter.convert(
+            renderer.device(),
+            renderer.queue(),
+            output.target.texture(),
+            Box::new(move |frame| match frame {
+                Ok(frame) => sink(frame),
+                Err(error) => tracing::warn!(output = name, %error, "NDI frame read-back failed"),
+            }),
+        );
     }
     output.last_frame = Some(now);
     output.frames += 1;

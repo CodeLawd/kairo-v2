@@ -1,0 +1,61 @@
+2026-11-13T15:00:53.954025Z  INFO kairo_engine: engine 0.1.0 listening, protocol 3, pid 18519 pid=18519
+2026-11-13T15:00:53.956280Z  INFO kairo_engine: client 1 connected pid=18519
+2026-11-13T15:00:53.956282Z  INFO kairo_core::engine: output engine 0.1.0 handshake, protocol 3
+2026-11-13T15:00:53.956428Z  INFO kairo_core::engine: output engine running pid=18519 relaunch=false
+2026-11-13T15:00:53.973215Z  INFO kairo_engine: 1 display(s) pid=18519
+display 0: DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }
+2026-11-13T15:00:54.027136Z  INFO kairo_engine: compositor GPU: Apple M2 Pro pid=18519
+2026-11-13T15:00:54.032820Z  INFO kairo_engine: window on Monitor #41038 (rehearsal false) output="main" pid=18519
+slide accepted=true frame within 2 s: true
+   1.466s Launched { pid: 18519, relaunch: false }
+   1.466s Engine(Displays([DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }]))
+   1.466s Engine(SurfaceStatus { output: "main", status: Ready })
+   1.466s Engine(FrameCommitted { output: "main", seq: 3 })
+   1.810s Engine(FrameCommitted { output: "main", seq: 4 })
+   1.810s Engine(WebNavigated { output: "main", url: "http://127.0.0.1:8059/" })
+   1.881s Engine(FrameCommitted { output: "main", seq: 5 })
+   3.026s Engine(FrameCommitted { output: "main", seq: 6 })
+2026-11-13T15:00:55.954132Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=40 capture_p99_ms=239.883 compose_p99_ms=8.265 request_to_present_p50_ms=19.104 request_to_present_p99_ms=248.11 pid=18519
+   3.355s Engine(Health(Health { uptime_ms: 2000, surfaces: 1, windows: 1, gpu: true }))
+   3.355s Engine(Stats([SinkStats { output: "main", produced: 45, dropped: 5, late: 0 }]))
+   5.018s Engine(FrameCommitted { output: "main", seq: 7 })
+2026-11-13T15:00:57.954411Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=16.161 compose_p99_ms=8.908 request_to_present_p50_ms=18.859 request_to_present_p99_ms=22.135 pid=18519
+   5.355s Engine(Health(Health { uptime_ms: 4000, surfaces: 1, windows: 1, gpu: true }))
+   5.355s Engine(Stats([SinkStats { output: "main", produced: 106, dropped: 5, late: 0 }]))
+   7.018s Engine(FrameCommitted { output: "main", seq: 8 })
+   7.033s Engine(FrameCommitted { output: "main", seq: 9 })
+2026-11-13T15:00:59.954545Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=58 capture_p99_ms=54.529 compose_p99_ms=8.106 request_to_present_p50_ms=19.303 request_to_present_p99_ms=61.639 pid=18519
+   7.355s Engine(Health(Health { uptime_ms: 6000, surfaces: 1, windows: 1, gpu: true }))
+   7.355s Engine(Stats([SinkStats { output: "main", produced: 166, dropped: 5, late: 0 }]))
+   9.022s Engine(FrameCommitted { output: "main", seq: 10 })
+2026-11-13T15:01:01.954608Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=16.241 compose_p99_ms=20.729 request_to_present_p50_ms=20.847 request_to_present_p99_ms=34.808 pid=18519
+   9.355s Engine(Health(Health { uptime_ms: 8000, surfaces: 1, windows: 1, gpu: true }))
+   9.355s Engine(Stats([SinkStats { output: "main", produced: 228, dropped: 5, late: 0 }]))
+  11.022s Engine(FrameCommitted { output: "main", seq: 11 })
+2026-11-13T15:01:03.954670Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=15.172 compose_p99_ms=8.401 request_to_present_p50_ms=20.241 request_to_present_p99_ms=23.463 pid=18519
+  11.355s Engine(Health(Health { uptime_ms: 10000, surfaces: 1, windows: 1, gpu: true }))
+  11.355s Engine(Stats([SinkStats { output: "main", produced: 289, dropped: 5, late: 0 }]))
+  13.020s Engine(FrameCommitted { output: "main", seq: 12 })
+2026-11-13T15:01:05.954735Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=21.819 compose_p99_ms=9.777 request_to_present_p50_ms=19.818 request_to_present_p99_ms=30.929 pid=18519
+  13.355s Engine(Health(Health { uptime_ms: 12000, surfaces: 1, windows: 1, gpu: true }))
+  13.355s Engine(Stats([SinkStats { output: "main", produced: 350, dropped: 5, late: 0 }]))
+  15.021s Engine(FrameCommitted { output: "main", seq: 13 })
+2026-11-13T15:01:07.954814Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=57 capture_p99_ms=111.189 compose_p99_ms=7.813 request_to_present_p50_ms=20.46 request_to_present_p99_ms=115.905 pid=18519
+  15.355s Engine(Health(Health { uptime_ms: 14000, surfaces: 1, windows: 1, gpu: true }))
+  15.355s Engine(Stats([SinkStats { output: "main", produced: 408, dropped: 5, late: 0 }]))
+  17.020s Engine(FrameCommitted { output: "main", seq: 14 })
+  17.022s Engine(WebNavigated { output: "main", url: "http://127.0.0.1:8059/next" })
+2026-11-13T15:01:09.954911Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=14.458 compose_p99_ms=8.753 request_to_present_p50_ms=20.794 request_to_present_p99_ms=22.393 pid=18519
+  17.356s Engine(Health(Health { uptime_ms: 16000, surfaces: 1, windows: 1, gpu: true }))
+  17.356s Engine(Stats([SinkStats { output: "main", produced: 469, dropped: 5, late: 0 }]))
+2026-11-13T15:01:11.955032Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=13.757 compose_p99_ms=8.437 request_to_present_p50_ms=20.037 request_to_present_p99_ms=21.402 pid=18519
+  19.356s Engine(Health(Health { uptime_ms: 18000, surfaces: 1, windows: 1, gpu: true }))
+  19.356s Engine(Stats([SinkStats { output: "main", produced: 529, dropped: 5, late: 0 }]))
+2026-11-13T15:01:13.955017Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=13.71 compose_p99_ms=8.931 request_to_present_p50_ms=19.819 request_to_present_p99_ms=21.918 pid=18519
+  21.356s Engine(Health(Health { uptime_ms: 20000, surfaces: 1, windows: 1, gpu: true }))
+  21.356s Engine(Stats([SinkStats { output: "main", produced: 589, dropped: 5, late: 0 }]))
+2026-11-13T15:01:15.955156Z  INFO kairo_engine: web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=14.058 compose_p99_ms=8.243 request_to_present_p50_ms=18.82 request_to_present_p99_ms=21.4 pid=18519
+  23.356s Engine(Health(Health { uptime_ms: 22001, surfaces: 1, windows: 1, gpu: true }))
+  23.356s Engine(Stats([SinkStats { output: "main", produced: 649, dropped: 5, late: 0 }]))
+2026-11-13T15:01:16.117525Z  INFO kairo_engine: shutdown requested pid=18519
+status Stopped

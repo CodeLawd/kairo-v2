@@ -30,6 +30,10 @@ fn has_encoder(name: &str) -> bool {
 /// A `seconds` clip at `fps`, 640 × 360, keyframe every second. H.264 when
 /// this FFmpeg has libx264, else MPEG-4 part 2.
 fn clip(name: &str, fps: u32, seconds: f64, extra: &[&str]) -> PathBuf {
+    // Parallel tests share names. Existence alone does not mean FFmpeg has
+    // finished writing the MP4 header; never decode or overwrite a partial file.
+    static GENERATING: Mutex<()> = Mutex::new(());
+    let _generation = GENERATING.lock().unwrap();
     let path = dir().join(name);
     if path.exists() {
         return path;

@@ -32,7 +32,21 @@ fn receive_files(files: Vec<PathBuf>, cx: &mut App) {
     cx.default_global::<PendingKairoFiles>().0.extend(files);
 }
 
-struct HelloWorld;
+mod display_reporting;
+struct HelloWorld {
+    _display: display_reporting::ControlDisplayReporter,
+}
+impl HelloWorld {
+    fn new(
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        engine: kairo_core::engine::EngineHandle,
+    ) -> Self {
+        Self {
+            _display: display_reporting::ControlDisplayReporter::new(window, cx, engine),
+        }
+    }
+}
 
 impl Render for HelloWorld {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -102,6 +116,57 @@ fn watch_incoming(instance: Option<PrimaryInstance>, cx: &mut App) {
     .detach();
 }
 
+fn watch_display_rebindings(
+    engine: kairo_core::engine::EngineHandle,
+    user_data: PathBuf,
+    cx: &mut App,
+) {
+    let mut events = engine.subscribe();
+    let settings = std::sync::Arc::new(std::sync::Mutex::new(
+        None::<kairo_store::settings::SettingsStore>,
+    ));
+    cx.spawn(async move |cx| {
+        loop {
+            cx.background_executor()
+                .timer(Duration::from_millis(100))
+                .await;
+            while let Ok(event) = events.try_recv() {
+                if let kairo_core::engine::EngineEvent::Engine(
+                    kairo_engine_proto::Event::DisplayRebound {
+                        output,
+                        old_id,
+                        new_id,
+                        stage,
+                    },
+                ) = event
+                {
+                    let settings = settings.clone();
+                    let user_data = user_data.clone();
+                    cx.background_spawn(async move {
+                        let mut settings = settings.lock().unwrap_or_else(|e| e.into_inner());
+                        let settings = settings.get_or_insert_with(|| {
+                            let mut new_id = kairo_store::settings::random_uuid;
+                            kairo_store::settings::SettingsStore::open(
+                                &user_data,
+                                &mut kairo_store::settings::LaunchContext {
+                                    now_ms: kairo_store::settings::now_ms(),
+                                    new_id: &mut new_id,
+                                },
+                            )
+                        });
+                        settings.persist_display_rebinding(&output, old_id, new_id, stage);
+                    })
+                    .await;
+                }
+            }
+            if engine.status() == kairo_core::engine::EngineStatus::Stopped {
+                break;
+            }
+        }
+    })
+    .detach();
+}
+
 fn main() {
     let paths = match paths::detect() {
         Ok(paths) => paths,
@@ -144,8 +209,35 @@ fn main() {
     application.run(move |cx| {
         init(cx);
 
-        open_window(WindowOptions::default(), cx, |_, cx| cx.new(|_| HelloWorld))
-            .expect("failed to open the Kairo bootstrap window");
+        // Output supervision lives outside GPUI's event loop. The shell owns
+        // this handle; feature/routing services are composed by prompt 067.
+        let binary = std::env::var_os("KAIRO_ENGINE_BINARY")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                std::env::current_exe()
+                    .expect("Kairo executable")
+                    .with_file_name(if cfg!(windows) {
+                        "kairo-engine.exe"
+                    } else {
+                        "kairo-engine"
+                    })
+            });
+        let engine =
+            kairo_core::engine::EngineHandle::spawn(kairo_core::engine::EngineOptions::new(binary));
+        let window_engine = engine.clone();
+        open_window(WindowOptions::default(), cx, move |window, cx| {
+            cx.new(|cx| HelloWorld::new(window, cx, window_engine))
+        })
+        .expect("failed to open the Kairo bootstrap window");
+        let shutdown = engine.clone();
+        cx.on_app_quit(move |cx| {
+            let shutdown = shutdown.clone();
+            cx.background_spawn(async move {
+                shutdown.shutdown();
+            })
+        })
+        .detach();
+        watch_display_rebindings(engine, paths.user_data.clone(), cx);
 
         receive_files(LAUNCH_FILES.mark_ready(), cx);
         watch_incoming(instance, cx);

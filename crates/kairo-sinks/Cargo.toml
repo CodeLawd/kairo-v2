@@ -4,9 +4,10 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
-# Where an offscreen output's frames go: Syphon (prompt 063).
 [dependencies]
+kairo-audio = { path = "../kairo-audio" }
 kairo-compositor = { path = "../kairo-compositor" }
+libloading = "0.8"
 tracing = "0.1"
 wgpu = "30"
 
@@ -15,3 +16,7 @@ kairo-native-sys = { path = "../kairo-native-sys" }
 objc2 = "0.6"
 objc2-metal = { version = "0.3", default-features = false, features = ["std", "MTLAllocation", "MTLDevice", "MTLResource", "MTLTexture"] }
 wgpu = { version = "30", features = ["metal"] }
+
+[dev-dependencies]
+pollster = "0.4"
+png = "0.18"
