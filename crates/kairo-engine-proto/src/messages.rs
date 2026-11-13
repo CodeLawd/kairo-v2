@@ -486,6 +486,16 @@ pub enum Event {
         output: String,
         seq: u64,
     },
+    /// The answer to `SwapPage` command `seq` (`swapDocumentPage`'s
+    /// result). `false`: the surface was not showing a document from that
+    /// source, the page could not be decoded, or a newer turn replaced it;
+    /// the caller then sends a full `ShowDocument`. Sent before the
+    /// `FrameCommitted` that carries a swapped page.
+    PageSwapped {
+        output: String,
+        seq: u64,
+        swapped: bool,
+    },
     Health(Health),
     Stats(Vec<SinkStats>),
     Error {

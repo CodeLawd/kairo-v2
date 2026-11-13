@@ -263,14 +263,40 @@ impl Ordered {
             .iter()
             .position(|w| matches!(w, Wait::Visual(j, _) if *j == job))
             .expect("matched above");
-        if let Wait::Visual(_, index) = entry.waiting.remove(at)
-            && let Some(Op::Keyed {
-                content: Some((slot_content, _)),
-                ..
-            }) = entry.ops.get_mut(index)
-        {
-            *slot_content = content;
+        if let Wait::Visual(_, index) = entry.waiting.remove(at) {
+            match entry.ops.get_mut(index) {
+                Some(Op::Keyed {
+                    content: Some((slot_content, _)),
+                    ..
+                })
+                | Some(Op::Update {
+                    content: slot_content,
+                    ..
+                }) => *slot_content = content,
+                _ => {}
+            }
         }
+        true
+    }
+
+    /// A page turn's result is not to be shown: every operation of its
+    /// entry is dropped (the frame still follows) and it stops waiting.
+    pub fn cancel_visual(&mut self, job: u64) -> bool {
+        let Some(entry) = self.entries.iter_mut().find(|e| {
+            e.waiting
+                .iter()
+                .any(|w| matches!(w, Wait::Visual(j, _) if *j == job))
+        }) else {
+            return false;
+        };
+        let at = entry
+            .waiting
+            .iter()
+            .position(|w| matches!(w, Wait::Visual(j, _) if *j == job))
+            .expect("matched above");
+        entry.waiting.remove(at);
+        // A refused page turn changes nothing: neither page nor videos.
+        entry.ops.clear();
         true
     }
 

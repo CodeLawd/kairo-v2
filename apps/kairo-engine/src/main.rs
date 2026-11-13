@@ -4,6 +4,7 @@
 
 mod app;
 mod display;
+mod documents;
 mod layers;
 #[cfg(target_os = "macos")]
 mod mac;

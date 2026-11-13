@@ -14,6 +14,7 @@ use crate::text::{TextRequest, slide_is_blank};
 use crate::visuals::{self, Job};
 use kairo_compositor::thread::{MediaControl, Op};
 use kairo_compositor::{Content, Fill, Rect, Slot, VideoLayout, clamp_transition, video_layout};
+use kairo_domain::documents::DocumentSlide;
 use kairo_domain::program::{ConfidenceInfo, ProgramLayer};
 use kairo_engine_proto::*;
 use kairo_scene::program::Pattern;
@@ -41,6 +42,19 @@ pub struct VisualRequest {
     /// result arrives as an update to the node.
     pub blocking: bool,
     pub job: Job,
+    pub role: Role,
+}
+
+/// What a request's result is for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Role {
+    /// The pixels of the node the request names.
+    Node,
+    /// A document page turn: the result swaps the page, or the turn is
+    /// answered `false` (unreadable page, newer turn, repaint).
+    Page,
+    /// A page decoded ahead of the click; kept on the GPU, shown by nothing.
+    Preload,
 }
 
 /// One surface's shell settings (`config`, `webShown`).
@@ -65,6 +79,15 @@ pub struct Shell {
     cameras: std::collections::HashMap<String, u64>,
     /// The camera source the camera slot shows.
     camera_shown: Option<u64>,
+    /// The key of the background node the operations built so far leave.
+    background_key: Option<String>,
+    /// Painting a document: no blur, and the page is decoded before the
+    /// command's frame (`__markDocument` waits for `decode`).
+    document: bool,
+    /// `documentSlide` and its `<video>` elements, once shown.
+    pub doc_videos: Option<DocVideos>,
+    /// The videos a page turn brings, kept until the turn is shown.
+    proposed: Option<(u64, Option<DocVideos>)>,
     /// Tests draw at a fixed moment instead of the wall clock.
     #[cfg(test)]
     pub pinned: Option<kairo_scene::program::Now>,
@@ -85,6 +108,10 @@ impl Shell {
             live: std::collections::HashMap::new(),
             cameras: std::collections::HashMap::new(),
             camera_shown: None,
+            background_key: None,
+            document: false,
+            doc_videos: None,
+            proposed: None,
             #[cfg(test)]
             pinned: None,
         }
@@ -247,9 +274,11 @@ impl Shell {
                 }
             }
             Command::Clear { .. } => self.set_content(None, false),
-            Command::ShowDocument { .. } => {
-                let mut ops = self.paint(state, true);
-                ops.push(Op::ProgramBackground(Some(OPAQUE_BLACK)));
+            Command::ShowDocument { document, .. } => {
+                let mut ops = self.document_paint(state);
+                if let Some(document) = document {
+                    ops.push(self.set_document_videos(document));
+                }
                 ops
             }
             Command::PatchBackground { .. } => match state.last_render.as_ref() {
@@ -300,12 +329,10 @@ impl Shell {
                 VideoTransport::Pause(p) => MediaControl::Pause(*p),
                 VideoTransport::Seek(s) => MediaControl::Seek(*s),
             })],
-            // No pixels change in this engine yet: document pages and their
-            // videos (058), web scrolling (059).
-            Command::SwapPage { .. }
-            | Command::PreloadPage { .. }
-            | Command::DocumentVideos { .. }
-            | Command::ControlDocumentVideo { .. }
+            Command::SwapPage { document, .. } => self.swap_page(state, document.as_ref()),
+            Command::PreloadPage { media_path, .. } => self.preload_page(state, media_path),
+            Command::DocumentVideos { document, .. } => vec![self.set_document_videos(document)],
+            Command::ControlDocumentVideo { .. }
             | Command::WebScroll { .. }
             | Command::WebInput { .. } => vec![],
             Command::OpenSurface(_)
@@ -368,9 +395,13 @@ impl Shell {
         );
         self.ms = ms;
         if state.last_render.is_some() {
-            ops.extend(self.paint(state, true));
             if state.document_mode {
-                ops.push(Op::ProgramBackground(Some(OPAQUE_BLACK)));
+                ops.extend(self.document_paint(state));
+                if let Some(document) = &state.document_slide {
+                    ops.push(self.set_document_videos(document));
+                }
+            } else {
+                ops.extend(self.paint(state, true));
             }
         }
         ops
@@ -455,6 +486,7 @@ impl Shell {
                 now: self.now(),
                 still: self.still(),
             }),
+            role: Role::Node,
         });
         vec![Op::Keyed {
             slot,
@@ -491,13 +523,26 @@ impl Shell {
     /// elements, then the words. Leaves document mode.
     fn set_content(&mut self, slide: Option<&SlideContent>, instant: bool) -> Vec<Op> {
         let ms = if instant { 0 } else { self.ms };
-        let mut ops = vec![Op::ProgramBackground(None)];
-        match slide {
-            None => ops.push(Op::Keyed {
-                slot: Slot::Background,
+        // `clearDocumentVideos`.
+        self.doc_videos = None;
+        self.proposed = None;
+        let mut ops = vec![
+            Op::ProgramBackground(None),
+            Op::Keyed {
+                slot: Slot::DocumentVideos,
                 content: None,
-                ms,
-            }),
+                ms: 0,
+            },
+        ];
+        match slide {
+            None => {
+                self.background_key = None;
+                ops.push(Op::Keyed {
+                    slot: Slot::Background,
+                    content: None,
+                    ms,
+                });
+            }
             Some(slide) => {
                 let op = ops.len();
                 let bg = self.background(slide, ms, op);
@@ -534,6 +579,7 @@ impl Shell {
                         generation,
                         blocking: true,
                         job: Job::Elements(plan.clone_plan()),
+                        role: Role::Node,
                     });
                     ops.push(Op::Keyed {
                         slot,
@@ -567,7 +613,13 @@ impl Shell {
     fn background(&mut self, slide: &SlideContent, ms: u32, op: usize) -> Op {
         let theme = slide.theme.value().unwrap_or(Value::Null);
         let background = theme.get("background").cloned().unwrap_or(Value::Null);
+        let background = if self.document {
+            document_background(background)
+        } else {
+            background
+        };
         let plan = visuals::background(&background, (FRAME_WIDTH as u32, self.frame_height));
+        self.background_key = Some(plan.key.clone());
         if let Some(image) = plan.image {
             let generation = self.generation(Slot::Background);
             self.visuals.push(VisualRequest {
@@ -575,8 +627,9 @@ impl Shell {
                 slot: Slot::Background,
                 key: plan.key.clone(),
                 generation,
-                blocking: false,
+                blocking: self.document,
                 job: Job::Image(image),
+                role: Role::Node,
             });
         } else {
             self.generation(Slot::Background);
@@ -586,6 +639,150 @@ impl Shell {
             content: plan.content.map(|c| (c, plan.key)),
             ms,
         }
+    }
+
+    /// `showDocument` then `__markDocument`: the slide with its background
+    /// unblurred (a page is the presentation, not decoration), shown at
+    /// once, its page decoded before the frame, on opaque black.
+    fn document_paint(&mut self, state: &SurfaceState) -> Vec<Op> {
+        self.document = true;
+        let mut ops = self.paint(state, true);
+        self.document = false;
+        ops.push(Op::ProgramBackground(Some(OPAQUE_BLACK)));
+        ops
+    }
+
+    /// The page's picture plan for the current slide's background.
+    fn page_plan(
+        &self,
+        state: &SurfaceState,
+        media_path: Option<&str>,
+    ) -> Option<visuals::ImageJob> {
+        let slide = state.last_render.as_ref()?;
+        let theme = slide.theme.value().ok()?;
+        let mut background = document_background(theme.get("background").cloned()?);
+        if let (Some(path), Some(b)) = (media_path, background.as_object_mut()) {
+            b.insert("mediaPath".into(), Value::String(path.to_owned()));
+        }
+        visuals::background(&background, (FRAME_WIDTH as u32, self.frame_height)).image
+    }
+
+    /// `__swapDocumentPage`: the page node keeps its key and takes the new
+    /// pixels once they are decoded (the old page stays until then). The
+    /// shared reducer has already refused a surface that is not showing a
+    /// document from this source; this refuses a background that is not a
+    /// page picture.
+    fn swap_page(&mut self, state: &SurfaceState, document: Option<&Json>) -> Vec<Op> {
+        let (Some(key), Some(image)) = (self.background_key.clone(), self.page_plan(state, None))
+        else {
+            return vec![];
+        };
+        if !key.starts_with("IMG:") {
+            return vec![];
+        }
+        // A newer turn or any repaint makes this one stale.
+        let generation = self.generation(Slot::Background);
+        self.visuals.push(VisualRequest {
+            op: 0,
+            slot: Slot::Background,
+            key: key.clone(),
+            generation,
+            blocking: true,
+            job: Job::Image(image),
+            role: Role::Page,
+        });
+        // On success the old videos go (`clearDocumentVideos`) and the
+        // slide's own come (`setDocumentVideos`); a refused turn keeps both.
+        let videos = document.and_then(|d| self.document_videos(d));
+        let videos_op = Op::Keyed {
+            slot: Slot::DocumentVideos,
+            content: videos.as_ref().and_then(DocVideos::node),
+            ms: 0,
+        };
+        self.proposed = Some((generation, videos));
+        vec![
+            Op::Update {
+                slot: Slot::Background,
+                key,
+                content: Content::new(Fill::Pending),
+            },
+            videos_op,
+        ]
+    }
+
+    /// A page turn planned for `generation` was shown: its videos are now
+    /// the slide's.
+    pub fn page_shown(&mut self, generation: u64) {
+        if let Some((planned, videos)) = self.proposed.take() {
+            if planned == generation {
+                self.doc_videos = videos;
+            } else {
+                self.proposed = Some((planned, videos));
+            }
+        }
+    }
+
+    /// `__setDocumentVideos`: hidden, paused at the clip start, inside the
+    /// contain-fit page box.
+    fn set_document_videos(&mut self, document: &Json) -> Op {
+        self.proposed = None;
+        self.doc_videos = self.document_videos(document);
+        Op::Keyed {
+            slot: Slot::DocumentVideos,
+            content: self.doc_videos.as_ref().and_then(DocVideos::node),
+            ms: 0,
+        }
+    }
+
+    fn document_videos(&mut self, document: &Json) -> Option<DocVideos> {
+        self.next_generation += 1;
+        let generation = self.next_generation;
+        match document.decode::<DocumentSlide>() {
+            Ok(slide) => DocVideos::new(
+                slide,
+                (FRAME_WIDTH as f32, self.frame_height as f32),
+                generation,
+            ),
+            Err(error) => {
+                tracing::warn!(output = self.output, %error, "document slide could not be read; no videos");
+                None
+            }
+        }
+    }
+
+    /// Shows or hides embedded video `index`: an update to the same node,
+    /// so the video keeps playing.
+    pub fn document_video_visible(&mut self, index: usize, visible: bool) -> Option<Op> {
+        let videos = self.doc_videos.as_mut()?;
+        let shown = videos.visible.get_mut(index)?;
+        if *shown == visible {
+            return None;
+        }
+        *shown = visible;
+        Some(Op::Update {
+            slot: Slot::DocumentVideos,
+            key: videos.key.clone(),
+            content: videos.content(),
+        })
+    }
+
+    /// `__preloadDocumentPage`: decode ahead, in document mode only.
+    fn preload_page(&mut self, state: &SurfaceState, media_path: &str) -> Vec<Op> {
+        if !state.document_mode || media_path.is_empty() {
+            return vec![];
+        }
+        if let Some(image) = self.page_plan(state, Some(media_path)) {
+            self.visuals.push(VisualRequest {
+                op: 0,
+                slot: Slot::Background,
+                key: String::new(),
+                generation: 0,
+                blocking: false,
+                job: Job::Image(image),
+                role: Role::Preload,
+            });
+        }
+        vec![]
     }
 
     /// `__setWeb`: the same url and reload keep the page.
@@ -646,6 +843,120 @@ impl Shell {
             ms: 0,
         }
     }
+}
+
+/// A slide's embedded videos as shown.
+#[derive(Clone, Debug)]
+pub struct DocVideos {
+    pub slide: DocumentSlide,
+    pub key: String,
+    /// Source id of each video, in slide order.
+    pub sources: Vec<u64>,
+    pub visible: Vec<bool>,
+    /// `data-play-error`: play was asked of a video that cannot start.
+    pub play_error: Vec<Option<String>>,
+    /// Videos already put at their clip start, paused.
+    pub primed: Vec<bool>,
+    /// The contain-fit page box (`overflow: hidden`), in frame pixels.
+    canvas: Rect,
+}
+
+impl DocVideos {
+    fn new(slide: DocumentSlide, frame: (f32, f32), generation: u64) -> Option<Self> {
+        let (w, h) = (slide.width as f32, slide.height as f32);
+        // A slide without a usable size has no box to put videos in; its
+        // status is still reported.
+        let canvas = if w.is_finite() && h.is_finite() && w > 0.0 && h > 0.0 {
+            let scale = (frame.0 / w).min(frame.1 / h);
+            let (cw, ch) = (w * scale, h * scale);
+            Rect::new((frame.0 - cw) / 2.0, (frame.1 - ch) / 2.0, cw, ch)
+        } else {
+            Rect::new(0.0, 0.0, 0.0, 0.0)
+        };
+        let key = format!(
+            "DOCV:{}:{}:{generation}",
+            slide.id,
+            kairo_number(slide.page)
+        );
+        let sources = (0..slide.videos.len())
+            .map(|i| visuals::source_id(&format!("{key}:{i}:{}", slide.videos[i].file)))
+            .collect();
+        let visible = vec![false; slide.videos.len()];
+        let play_error = vec![None; slide.videos.len()];
+        let primed = vec![false; slide.videos.len()];
+        Some(Self {
+            slide,
+            key,
+            sources,
+            visible,
+            play_error,
+            primed,
+            canvas,
+        })
+    }
+
+    /// The clip's start and end within its file.
+    pub fn range(&self, index: usize) -> Option<(f64, Option<f64>)> {
+        let clip = self.slide.videos.get(index)?;
+        let start = if clip.start.is_finite() {
+            clip.start.max(0.0)
+        } else {
+            0.0
+        };
+        Some((start, clip.end.filter(|e| e.is_finite() && *e > 0.0)))
+    }
+
+    /// The node for the slide's videos; none without videos or a box.
+    pub fn node(&self) -> Option<(Content, String)> {
+        (!self.slide.videos.is_empty() && self.canvas.width > 0.0)
+            .then(|| (self.content(), self.key.clone()))
+    }
+
+    fn content(&self) -> Content {
+        let c = self.canvas;
+        let children = self
+            .slide
+            .videos
+            .iter()
+            .enumerate()
+            .map(|(i, clip)| {
+                let b = &clip.frame;
+                let (start, end) = self.range(i).unwrap_or((0.0, None));
+                Content {
+                    rect: Some(Rect::new(
+                        c.x + (b.x as f32) * c.width,
+                        c.y + (b.y as f32) * c.height,
+                        (b.width as f32) * c.width,
+                        (b.height as f32) * c.height,
+                    )),
+                    clip: Some(c),
+                    // `visibility: hidden` until played.
+                    opacity: if self.visible[i] { 1.0 } else { 0.0 },
+                    media: Some(kairo_compositor::MediaParams {
+                        path: clip.file.as_str().into(),
+                        looped: false,
+                        start_seconds: (start > 0.0).then_some(start),
+                        end_seconds: end,
+                        rate: 1.0,
+                        element: false,
+                    }),
+                    ..Content::new(Fill::Source {
+                        id: self.sources[i],
+                        backdrop: [0.0; 4],
+                    })
+                }
+            })
+            .collect();
+        Content::new(Fill::Group(std::sync::Arc::new(children)))
+    }
+}
+
+/// `showDocument`'s theme: the background with `blurPx: 0`.
+fn document_background(mut background: Value) -> Value {
+    if let Some(b) = background.as_object_mut() {
+        b.insert("blurPx".into(), json!(0));
+    }
+    background
 }
 
 fn background_of(state: &SurfaceState) -> Option<Value> {
@@ -740,7 +1051,16 @@ mod tests {
         assert_eq!(request.frame, (1920, 1080));
         assert_eq!(request.slide.text, "x");
         assert!(matches!(ops[0], Op::ProgramBackground(None)));
-        match &ops[1] {
+        // `__setContent` starts with `clearDocumentVideos`.
+        assert!(matches!(
+            ops[1],
+            Op::Keyed {
+                slot: Slot::DocumentVideos,
+                content: None,
+                ..
+            }
+        ));
+        match &ops[2] {
             Op::Keyed {
                 slot: Slot::Background,
                 content: Some((content, key)),

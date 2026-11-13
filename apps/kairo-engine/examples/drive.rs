@@ -193,6 +193,78 @@ async fn main() {
         });
     }
 
+    // `--pages a.png,b.png,…` shows a document deck (prompt 058): page 0
+    // with `--doc-video CLIP` embedded at a quarter of the slide, played,
+    // then a page turn every second with the next page decoded ahead.
+    if let Some(pages) = value::<String>("--pages") {
+        let pages: Vec<String> = pages.split(',').map(str::to_owned).collect();
+        let doc_slide = |path: &str| {
+            let mut theme = kairo_domain::overlay_defaults::DEFAULT_OVERLAY_THEME.clone();
+            theme.background.kind = kairo_domain::overlay::OverlayBackgroundType::Image;
+            theme.background.media_path = Some(path.to_owned());
+            theme.background.media_fit = Some(kairo_domain::overlay::MediaFit::Contain);
+            theme.background.opacity = 1.0;
+            SlideContent {
+                reference: String::new(),
+                text: String::new(),
+                theme: Json::encode(&theme),
+                colored_lines: None,
+            }
+        };
+        let videos = value::<String>("--doc-video").map_or_else(Vec::new, |file| {
+            vec![serde_json::json!({ "file": file, "start": 0,
+                "box": { "x": 0.55, "y": 0.1, "width": 0.4, "height": 0.4 } })]
+        });
+        let deck = |page: usize, videos: &[serde_json::Value]| {
+            Json::from_value(&serde_json::json!({ "id": "drive-deck", "page": page,
+                "path": pages[page], "width": 1440, "height": 1080, "videos": videos }))
+        };
+        let shown = engine.command(Command::ShowDocument {
+            output: "main".into(),
+            source: "main".into(),
+            slide: doc_slide(&pages[0]),
+            document: Some(deck(0, &videos)),
+        });
+        println!(
+            "document accepted={} frame: {}",
+            shown.accepted,
+            engine
+                .wait_frame("main", shown.seq, Duration::from_secs(3))
+                .await
+        );
+        if !videos.is_empty() {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            engine.command(Command::ControlDocumentVideo {
+                output: "main".into(),
+                id: "drive-deck".into(),
+                page: 0.0,
+                video: 0,
+                command: Json::from_value(&serde_json::json!({ "action": "play" })),
+            });
+        }
+        tokio::time::sleep(Duration::from_secs(4)).await;
+        for (turn, page) in pages.iter().enumerate().skip(1) {
+            engine.command(Command::PreloadPage {
+                output: "main".into(),
+                media_path: page.clone(),
+            });
+            tokio::time::sleep(Duration::from_millis(1000)).await;
+            let sent = engine.command(Command::SwapPage {
+                output: "main".into(),
+                source: "main".into(),
+                media_path: page.clone(),
+                document: Some(deck(turn, &[])),
+            });
+            println!(
+                "turn {turn} accepted={} frame: {}",
+                sent.accepted,
+                engine
+                    .wait_frame("main", sent.seq, Duration::from_secs(2))
+                    .await
+            );
+        }
+    }
+
     if let Some(id) = value::<String>("--program") {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let fixtures = root

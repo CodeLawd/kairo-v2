@@ -134,6 +134,7 @@ impl Rig {
                 generation,
                 blocking,
                 job: work,
+                ..
             } = request;
             let id = self.next_job;
             self.next_job += 1;
