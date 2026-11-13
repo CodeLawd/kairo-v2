@@ -4,8 +4,19 @@
 //! ```text
 //! cargo run -p kairo-engine --example drive -- [--display N] [--full] [--secs S]
 //!     [--kill-after S] [--fade MS] [--frame-height H] [--theme ID] [--case ID]
-//!     [--text TEXT] [--reference REF] [--program ID] [--live]
+//!     [--text TEXT] [--reference REF] [--program ID] [--live] [--video PATH]
+//!     [--sound VOLUME] [--sound-device LABEL] [--camera LABEL]
+//!     [--camera-audio LABEL]
 //! ```
+//!
+//! `--camera LABEL` puts a live camera or capture card up, matched by the
+//! label the operator's list showed (`cargo run -p kairo-camera --example
+//! list` prints them); `--camera-audio LABEL` plays an audio input with it
+//! (heard with `--sound`).
+//!
+//! `--video PATH` plays a looping background video under the slides.
+//! `--sound VOLUME` makes this output the audio surface at that volume
+//! (0 to 1), on `--sound-device` or the system default.
 //!
 //! `--program ID` also puts up the layers of a prompt 054 corpus case
 //! (`tests/golden/054-programs/cases.json`). `--live` puts up a running
@@ -41,13 +52,16 @@ async fn main() {
     let fade: Option<f64> = value("--fade");
     let frame_height: u32 = value("--frame-height").unwrap_or(1080);
 
-    let binary = std::env::current_exe()
+    let default_binary = std::env::current_exe()
         .unwrap()
         .parent()
         .unwrap()
         .parent()
         .unwrap()
         .join("kairo-engine");
+    let binary = value::<String>("--engine")
+        .map(std::path::PathBuf::from)
+        .unwrap_or(default_binary);
     let engine = EngineHandle::spawn(EngineOptions::new(binary));
     let mut events = engine.subscribe();
     let start = Instant::now();
@@ -78,6 +92,7 @@ async fn main() {
             frame_height,
         }),
     }));
+    let video: Option<String> = value("--video");
     let theme_id: String = value("--theme").unwrap_or_else(|| "broadcast".into());
     let built_in = kairo_domain::theme_library::BUILT_IN_THEMES
         .iter()
@@ -117,6 +132,14 @@ async fn main() {
         theme.background.kind = kairo_domain::overlay::OverlayBackgroundType::Color;
         theme.background.color = color.into();
         theme.background.opacity = 1.0;
+        if let Some(path) = &video {
+            // `--video PATH`: a looping background video at cue 1, kept
+            // across the slides (the same file and cue).
+            theme.background.kind = kairo_domain::overlay::OverlayBackgroundType::Video;
+            theme.background.media_path = Some(path.clone());
+            theme.background.media_loop = Some(true);
+            theme.background.media_cue = Some(1.0);
+        }
         SlideContent {
             reference: reference.into(),
             text: text.into(),
@@ -128,11 +151,20 @@ async fn main() {
     let first_text: String = value("--text").unwrap_or_else(|| {
         "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.".into()
     });
-    if let Some(ms) = fade {
+    let sound: Option<f64> = value("--sound");
+    let camera: Option<String> = value("--camera");
+    let camera_audio: Option<String> = value("--camera-audio");
+    if fade.is_some() || sound.is_some() || camera.is_some() {
         engine.command(Command::Configure {
             output: "main".into(),
             config: SurfaceConfig {
-                transition_ms: ms,
+                transition_ms: fade.unwrap_or(0.0),
+                audio: AudioConfig {
+                    enabled: sound.is_some(),
+                    volume: sound.unwrap_or(1.0),
+                    output_label: value("--sound-device").unwrap_or_default(),
+                },
+                camera_audible: sound.is_some() && camera_audio.is_some(),
                 ..SurfaceConfig::default()
             },
         });
@@ -150,6 +182,16 @@ async fn main() {
             .wait_frame("main", sent.seq, Duration::from_secs(2))
             .await
     );
+
+    if let Some(label) = camera {
+        engine.command(Command::SetCamera {
+            output: "main".into(),
+            camera: Some(CameraLayer {
+                label,
+                audio_label: camera_audio,
+            }),
+        });
+    }
 
     if let Some(id) = value::<String>("--program") {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -228,6 +270,17 @@ async fn main() {
         });
     }
 
+    if let Some(url) = value::<String>("--web") {
+        engine.command(Command::SetWeb {
+            output: "main".into(),
+            web: Some(WebLayer { url, reload: 0. }),
+        });
+        engine.command(Command::WebPointer {
+            output: "main".into(),
+            point: Some((960., 540.)),
+        });
+    }
+    let mut web_step = 0;
     let mut faded = fade.is_none();
     #[cfg_attr(not(unix), allow(unused_mut, unused_variables))]
     let mut killed = false;
@@ -243,6 +296,69 @@ async fn main() {
             println!("SIGKILL engine {pid}");
             // SAFETY: the engine this example launched.
             unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+        }
+        if std::env::args().any(|a| a == "--web-exercise")
+            && start.elapsed().as_secs() >= (3 + web_step * 2)
+            && web_step < 8
+        {
+            match web_step {
+                0 => {
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Click { x: 100., y: 150. },
+                    });
+                }
+                1 => {
+                    engine.command(Command::WebScroll {
+                        output: "main".into(),
+                        x: 0.,
+                        y: 700.,
+                    });
+                }
+                2 => {
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Click { x: 100., y: 90. },
+                    });
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Text {
+                            text: "shared page".into(),
+                        },
+                    });
+                }
+                3 => {
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Click { x: 370., y: 150. },
+                    });
+                }
+                4 => {
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Click { x: 610., y: 150. },
+                    });
+                }
+                5 => {
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Click { x: 850., y: 150. },
+                    });
+                }
+                6 => {
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Click { x: 1300., y: 150. },
+                    });
+                }
+                _ => {
+                    engine.command(Command::WebInput {
+                        output: "main".into(),
+                        input: WebInput::Click { x: 1100., y: 150. },
+                    });
+                }
+            }
+            web_step += 1;
         }
         if !faded && start.elapsed() >= Duration::from_secs(3) {
             faded = true;

@@ -63,3 +63,18 @@ pub fn show_without_focus(window: &Window) {
         ns.orderFrontRegardless();
     }
 }
+
+/// Mapped WebKit source, behind the visible outputs and operator windows. A
+/// hidden NSWindow suspends WKWebView's animation frames even with timer
+/// throttling disabled. It never takes input or appears in window cycling.
+#[allow(dead_code)] // Also compiled by the binary for its display window helpers.
+pub fn place_web_source(window: &Window) {
+    if let Some(ns) = ns_window(window) {
+        ns.setIgnoresMouseEvents(true);
+        ns.setLevel(-1);
+        ns.setCollectionBehavior(
+            NSWindowCollectionBehavior::CanJoinAllSpaces | NSWindowCollectionBehavior::IgnoresCycle,
+        );
+        ns.orderBack(None);
+    }
+}

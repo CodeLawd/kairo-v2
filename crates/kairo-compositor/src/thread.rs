@@ -4,8 +4,9 @@
 //! its mailbox and uses no CPU or GPU.
 
 use crate::camera::VideoLayout;
-use crate::layers::{Content, Raster, Slot};
+use crate::layers::{Content, MediaUse, Raster, Slot};
 use crate::renderer::{FrameTarget, Renderer, Scene};
+use crate::yuv::YuvFrame;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -45,6 +46,17 @@ pub enum Op {
     ProgramBackground(Option<[f32; 4]>),
     /// `config.video`, normalised once.
     Layout(VideoLayout),
+    /// `__setVideoPaused` / `__seekVideo`: addressed to whatever video is the
+    /// current background when the operation is applied, in order with the
+    /// slides around it. Nothing happens when there is none.
+    Media(MediaControl),
+}
+
+/// The operator's transport on a background video.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MediaControl {
+    Pause(bool),
+    Seek(f64),
 }
 
 /// Where an output's frames go.
@@ -71,6 +83,23 @@ pub enum CompositorEvent {
     },
     /// The GPU device is gone; nothing more will draw.
     DeviceLost(String),
+    /// Web capture request/CPU pixels to GPU-complete display submission.
+    WebPresented {
+        output: String,
+        capture_us: u64,
+        compose_us: u64,
+        frames: u64,
+    },
+    /// The output's video nodes changed (made, kept with new settings,
+    /// retired or removed). Empty once the output is closed.
+    Media { output: String, uses: Vec<MediaUse> },
+    /// A transport operation reached the output's current background video,
+    /// source `id`. Always follows the `Media` report it depends on.
+    Transport {
+        output: String,
+        id: u64,
+        control: MediaControl,
+    },
 }
 
 enum Msg {
@@ -97,9 +126,14 @@ enum Msg {
     Source {
         id: u64,
         frame: Arc<Raster>,
+        timing: Option<(Instant, Instant)>,
     },
     RemoveSource {
         id: u64,
+    },
+    SourceYuv {
+        id: u64,
+        frame: Arc<YuvFrame>,
     },
     Read {
         output: String,
@@ -130,6 +164,48 @@ struct Output {
     animated: bool,
     /// Frames drawn since the output opened.
     frames: u64,
+    /// The video nodes last reported.
+    media: Vec<MediaUse>,
+    web_pending: Option<(Instant, Instant)>,
+}
+
+/// Feeds live sources from other threads (the video players).
+#[derive(Clone)]
+pub struct SourceFeed {
+    tx: mpsc::Sender<Msg>,
+}
+
+impl SourceFeed {
+    /// Diagnostic readback from a worker, without blocking the window thread.
+    pub fn read(&self, output: &str) -> Option<(u32, u32, Vec<u8>)> {
+        let (tx, rx) = mpsc::channel();
+        self.tx
+            .send(Msg::Read {
+                output: output.into(),
+                reply: tx,
+            })
+            .ok()?;
+        rx.recv_timeout(Duration::from_secs(2)).ok().flatten()
+    }
+
+    /// Premultiplied RGBA from a captured web page.
+    pub fn rgba_frame(&self, id: u64, frame: Arc<Raster>, started: Instant, ready: Instant) {
+        let _ = self.tx.send(Msg::Source {
+            id,
+            frame,
+            timing: Some((started, ready)),
+        });
+    }
+
+    /// The newest decoded frame of video source `id`.
+    pub fn video_frame(&self, id: u64, frame: Arc<YuvFrame>) {
+        let _ = self.tx.send(Msg::SourceYuv { id, frame });
+    }
+
+    /// The source's texture is no longer needed.
+    pub fn remove(&self, id: u64) {
+        let _ = self.tx.send(Msg::RemoveSource { id });
+    }
 }
 
 /// The engine's handle on the compositor thread.
@@ -221,12 +297,32 @@ impl Compositor {
         });
     }
 
+    /// Stop asynchronously so the window thread can continue servicing native
+    /// destruction while the GPU thread releases its window surfaces.
+    pub fn begin_shutdown(&self) {
+        self.send(Msg::Shutdown);
+    }
+    pub fn finished(&self) -> bool {
+        self.thread.as_ref().is_none_or(|t| t.is_finished())
+    }
+
     pub fn source_frame(&self, id: u64, frame: Arc<Raster>) {
-        self.send(Msg::Source { id, frame });
+        self.send(Msg::Source {
+            id,
+            frame,
+            timing: None,
+        });
     }
 
     pub fn remove_source(&self, id: u64) {
         self.send(Msg::RemoveSource { id });
+    }
+
+    /// A handle that feeds sources from any thread.
+    pub fn feed(&self) -> SourceFeed {
+        SourceFeed {
+            tx: self.tx.clone(),
+        }
     }
 
     /// The output's current frame as premultiplied RGBA, after any pending
@@ -278,6 +374,8 @@ fn run(
     events: Arc<dyn Fn(CompositorEvent) + Send + Sync>,
 ) {
     let mut outputs: HashMap<String, Output> = HashMap::new();
+    // Video sources whose frames the GPU cannot take, reported once.
+    let mut refused = std::collections::HashSet::new();
     loop {
         let now = Instant::now();
         let wake = outputs
@@ -304,13 +402,24 @@ fn run(
         let mut pending: Vec<Msg> = first.into_iter().collect();
         pending.extend(rx.try_iter());
         for msg in pending {
-            if !handle(msg, &mut renderer, &adapter, &mut outputs, &events) {
+            if !handle(
+                msg,
+                &mut renderer,
+                &adapter,
+                &mut outputs,
+                &mut refused,
+                &events,
+            ) {
                 return;
+            }
+            for (name, output) in &mut outputs {
+                report_media(name, output, &events);
             }
         }
         let now = Instant::now();
         for (name, output) in &mut outputs {
             output.scene.stack.prune(now);
+            report_media(name, output, &events);
             // Both run every pass: a changed frame must be seen even while a fade runs.
             let fading = output.scene.stack.animating(now);
             let frames = output.scene.stack.frames_changed(now);
@@ -330,6 +439,22 @@ fn run(
                 draw(&mut renderer, name, output, now, &events);
             }
         }
+    }
+}
+
+/// Tells the engine when an output's video nodes changed.
+fn report_media(
+    name: &str,
+    output: &mut Output,
+    events: &Arc<dyn Fn(CompositorEvent) + Send + Sync>,
+) {
+    let uses = output.scene.stack.media_uses();
+    if uses != output.media {
+        output.media = uses.clone();
+        events(CompositorEvent::Media {
+            output: name.to_owned(),
+            uses,
+        });
     }
 }
 
@@ -361,6 +486,7 @@ fn handle(
     renderer: &mut Renderer,
     adapter: &Adapter,
     outputs: &mut HashMap<String, Output>,
+    refused: &mut std::collections::HashSet<u64>,
     events: &Arc<dyn Fn(CompositorEvent) + Send + Sync>,
 ) -> bool {
     let now = Instant::now();
@@ -412,11 +538,20 @@ fn handle(
                     last_frame: None,
                     animated: false,
                     frames: 0,
+                    media: Vec::new(),
+                    web_pending: None,
                 },
             );
         }
         Msg::Close { output } => {
-            outputs.remove(&output);
+            if let Some(o) = outputs.remove(&output)
+                && !o.media.is_empty()
+            {
+                events(CompositorEvent::Media {
+                    output,
+                    uses: Vec::new(),
+                });
+            }
         }
         Msg::Resize { output, size } => {
             if let Some(o) = outputs.get_mut(&output)
@@ -446,20 +581,59 @@ fn handle(
             };
             let height = o.target.height;
             for op in ops {
+                if let Op::Media(control) = op {
+                    // The video it addresses may have been made by an
+                    // earlier operation in this batch: report that first.
+                    report_media(&output, o, events);
+                    let current = o.media.iter().find(|u| u.transport).map(|u| u.id);
+                    if let Some(id) = current {
+                        events(CompositorEvent::Transport {
+                            output: output.clone(),
+                            id,
+                            control,
+                        });
+                    }
+                    continue;
+                }
                 apply(&mut o.scene, op, height, now);
             }
             o.seq = o.seq.max(seq);
             o.due = Some(now);
         }
-        Msg::Source { id, frame } => {
+        Msg::Source { id, frame, timing } => {
             renderer.update_source(id, &frame);
             for o in outputs.values_mut() {
                 if o.scene.stack.sources().any(|s| s == id) {
                     o.due = Some(o.due.map_or(now, |d| d.min(now)));
+                    if timing.is_some() {
+                        o.web_pending = timing;
+                    }
                 }
             }
         }
-        Msg::RemoveSource { id } => renderer.remove_source(id),
+        Msg::RemoveSource { id } => {
+            renderer.remove_source(id);
+            refused.remove(&id);
+        }
+        Msg::SourceYuv { id, frame } => match renderer.update_source_yuv(id, &frame) {
+            Ok(()) => {
+                for o in outputs.values_mut() {
+                    if o.scene.stack.sources().any(|s| s == id) {
+                        o.due = Some(o.due.map_or(now, |d| d.min(now)));
+                    }
+                }
+            }
+            // Said once per source: a stream's frames all share the fault.
+            Err(message) => {
+                if refused.insert(id) {
+                    tracing::warn!(source = id, "video frames refused: {message}");
+                    events(CompositorEvent::Error {
+                        output: None,
+                        message: format!("a video cannot be shown: {message}"),
+                    });
+                }
+            }
+        },
         Msg::Read { output, reply } => {
             let frame = outputs.get_mut(&output).map(|o| {
                 if o.due.is_some() {
@@ -504,6 +678,8 @@ pub(crate) fn apply(scene: &mut Scene, op: Op, frame_height: u32, now: Instant) 
             scene.layout = layout;
             scene.restyle_camera(frame_height);
         }
+        // Routed to the playback layer by the thread before it gets here.
+        Op::Media(_) => {}
     }
 }
 
@@ -569,6 +745,14 @@ fn draw(
             message: format!("GPU wait failed: {error}"),
         });
         return;
+    }
+    if let Some((started, ready)) = output.web_pending.take() {
+        events(CompositorEvent::WebPresented {
+            output: name.into(),
+            capture_us: ready.duration_since(started).as_micros() as u64,
+            compose_us: ready.elapsed().as_micros() as u64,
+            frames: output.frames,
+        });
     }
     if output.seq > output.committed || output.committed == 0 {
         output.committed = output.seq;

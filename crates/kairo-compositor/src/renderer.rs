@@ -3,6 +3,7 @@
 use crate::camera::{Mode, VideoLayout, place};
 use crate::geometry::{FRAME_WIDTH, Rect, Transform, frame_height, letterbox};
 use crate::layers::{Content, Fill, Fit, Raster, Slot, Stack};
+use crate::yuv::{ColorUniform, YuvFrame};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use wgpu::util::DeviceExt;
@@ -172,6 +173,19 @@ struct SourceTexture {
     texture: Texture,
     bind: BindGroup,
     size: (u32, u32),
+    /// Present when the source is fed decoded video planes.
+    planes: Option<Planes>,
+}
+
+/// The upload textures of a video source and the conversion's bindings.
+struct Planes {
+    /// Width, height, bits, alpha.
+    shape: (u32, u32, u32, bool),
+    luma: Texture,
+    chroma: Texture,
+    alpha: Texture,
+    uniform: Buffer,
+    bind: BindGroup,
 }
 
 /// What a draw's pixels are, for placing and caching.
@@ -211,6 +225,8 @@ pub struct Renderer {
     white: BindGroup,
     images: HashMap<u64, Cached>,
     sources: HashMap<u64, SourceTexture>,
+    /// YUV to RGBA, made on the first video frame.
+    yuv: Option<ComputePipeline>,
     temps: HashMap<(u32, u32, u8), TempPair>,
     blurred: HashMap<u64, Blurred>,
     frames: u64,
@@ -357,6 +373,7 @@ impl Renderer {
             sampler,
             images: HashMap::new(),
             sources: HashMap::new(),
+            yuv: None,
             temps: HashMap::new(),
             blurred: HashMap::new(),
             frames: 0,
@@ -487,7 +504,10 @@ impl Renderer {
     /// Hands a live source (video, camera) its newest frame.
     pub fn update_source(&mut self, id: u64, frame: &Raster) {
         let size = (frame.width, frame.height);
-        let stale = self.sources.get(&id).is_none_or(|s| s.size != size);
+        let stale = self
+            .sources
+            .get(&id)
+            .is_none_or(|s| s.size != size || s.planes.is_some());
         if stale {
             let texture = self.device.create_texture(&TextureDescriptor {
                 label: Some("source"),
@@ -510,11 +530,218 @@ impl Renderer {
                     texture,
                     bind,
                     size,
+                    planes: None,
                 },
             );
         }
         let source = &self.sources[&id];
         write_raster(&self.queue, &source.texture, frame);
+    }
+
+    /// Hands a video source its newest decoded frame: the planes are
+    /// uploaded and turned into premultiplied RGBA on the GPU. A frame whose
+    /// planes do not match its sizes, or that is larger than the device
+    /// allows, is refused and the source keeps what it showed.
+    pub fn update_source_yuv(&mut self, id: u64, frame: &YuvFrame) -> Result<(), String> {
+        let limit = self.device.limits().max_texture_dimension_2d;
+        if !frame.is_valid() {
+            return Err("video frame planes do not match its size".into());
+        }
+        if frame.width > limit || frame.height > limit {
+            return Err(format!(
+                "video frame {}x{} exceeds the GPU limit {limit}",
+                frame.width, frame.height
+            ));
+        }
+        let size = (frame.width, frame.height);
+        let shape = (frame.width, frame.height, frame.bits, frame.alpha.is_some());
+        let stale = self
+            .sources
+            .get(&id)
+            .is_none_or(|s| s.planes.as_ref().is_none_or(|p| p.shape != shape));
+        if stale {
+            let pipeline = self.yuv_pipeline().clone();
+            let texture = self.device.create_texture(&TextureDescriptor {
+                label: Some("video source"),
+                size: Extent3d {
+                    width: size.0,
+                    height: size.1,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format: FRAME_FORMAT,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+                view_formats: &[],
+            });
+            let planes = self.planes(&pipeline, &texture, shape);
+            let bind = bind_texture(&self.device, &self.fill_layout, &self.sampler, &texture);
+            self.sources.insert(
+                id,
+                SourceTexture {
+                    texture,
+                    bind,
+                    size,
+                    planes: Some(planes),
+                },
+            );
+        }
+        let source = &self.sources[&id];
+        let planes = source.planes.as_ref().expect("video planes");
+        let sample = if frame.bits > 8 { 2 } else { 1 };
+        write_plane(
+            &self.queue,
+            &planes.luma,
+            &frame.luma,
+            frame.luma_stride,
+            (frame.width, frame.height),
+            frame.width * sample,
+        );
+        let chroma = (frame.width.div_ceil(2), frame.height.div_ceil(2));
+        write_plane(
+            &self.queue,
+            &planes.chroma,
+            &frame.chroma,
+            frame.chroma_stride,
+            chroma,
+            chroma.0 * 2 * sample,
+        );
+        if let Some(alpha) = &frame.alpha {
+            write_plane(
+                &self.queue,
+                &planes.alpha,
+                alpha,
+                frame.width,
+                (frame.width, frame.height),
+                frame.width,
+            );
+        }
+        self.queue.write_buffer(
+            &planes.uniform,
+            0,
+            bytemuck::bytes_of(&ColorUniform::of(frame)),
+        );
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        {
+            let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                label: Some("video conversion"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(self.yuv.as_ref().expect("yuv pipeline"));
+            pass.set_bind_group(0, &planes.bind, &[]);
+            pass.dispatch_workgroups(frame.width.div_ceil(16), frame.height.div_ceil(16), 1);
+        }
+        self.queue.submit([encoder.finish()]);
+        Ok(())
+    }
+
+    fn yuv_pipeline(&mut self) -> &ComputePipeline {
+        self.yuv.get_or_insert_with(|| {
+            let module = self.device.create_shader_module(ShaderModuleDescriptor {
+                label: Some("yuv"),
+                source: ShaderSource::Wgsl(include_str!("yuv.wgsl").into()),
+            });
+            self.device
+                .create_compute_pipeline(&ComputePipelineDescriptor {
+                    label: Some("video conversion"),
+                    layout: None,
+                    module: &module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    cache: None,
+                })
+        })
+    }
+
+    fn planes(
+        &self,
+        pipeline: &ComputePipeline,
+        target: &Texture,
+        shape: (u32, u32, u32, bool),
+    ) -> Planes {
+        let (w, h, bits, alpha) = shape;
+        let ten = bits > 8;
+        let make = |w: u32, h: u32, format: TextureFormat| {
+            self.device.create_texture(&TextureDescriptor {
+                label: Some("video plane"),
+                size: Extent3d {
+                    width: w,
+                    height: h,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: TextureDimension::D2,
+                format,
+                usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+                view_formats: &[],
+            })
+        };
+        let luma = make(
+            w,
+            h,
+            if ten {
+                TextureFormat::R16Uint
+            } else {
+                TextureFormat::R8Uint
+            },
+        );
+        let chroma = make(
+            w.div_ceil(2),
+            h.div_ceil(2),
+            if ten {
+                TextureFormat::Rg16Uint
+            } else {
+                TextureFormat::Rg8Uint
+            },
+        );
+        let alpha = if alpha {
+            make(w, h, TextureFormat::R8Uint)
+        } else {
+            make(1, 1, TextureFormat::R8Uint)
+        };
+        let uniform = self.device.create_buffer(&BufferDescriptor {
+            label: Some("video colour"),
+            size: std::mem::size_of::<ColorUniform>() as u64,
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let views = [&luma, &chroma, &alpha, target].map(|t| t.create_view(&Default::default()));
+        let bind = self.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("video conversion"),
+            layout: &pipeline.get_bind_group_layout(0),
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&views[0]),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::TextureView(&views[1]),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: BindingResource::TextureView(&views[2]),
+                },
+                BindGroupEntry {
+                    binding: 3,
+                    resource: BindingResource::TextureView(&views[3]),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: uniform.as_entire_binding(),
+                },
+            ],
+        });
+        Planes {
+            shape,
+            luma,
+            chroma,
+            alpha,
+            uniform,
+            bind,
+        }
     }
 
     pub fn remove_source(&mut self, id: u64) {
@@ -1324,6 +1551,32 @@ fn solid_texture(device: &Device, queue: &Queue, rgba: [u8; 4]) -> Texture {
         },
     );
     texture
+}
+
+/// Uploads `rows` of `row_bytes` from a plane laid out `stride` apart.
+fn write_plane(
+    queue: &Queue,
+    texture: &Texture,
+    data: &[u8],
+    stride: u32,
+    size: (u32, u32),
+    row_bytes: u32,
+) {
+    debug_assert!(stride >= row_bytes);
+    queue.write_texture(
+        texture.as_image_copy(),
+        data,
+        TexelCopyBufferLayout {
+            offset: 0,
+            bytes_per_row: Some(stride),
+            rows_per_image: None,
+        },
+        Extent3d {
+            width: size.0,
+            height: size.1,
+            depth_or_array_layers: 1,
+        },
+    );
 }
 
 fn write_raster(queue: &Queue, texture: &Texture, raster: &Raster) {

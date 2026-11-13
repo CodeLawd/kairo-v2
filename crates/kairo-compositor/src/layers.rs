@@ -263,14 +263,29 @@ impl Look {
 /// only carries it: a keyed node that is kept takes the new values, so a
 /// background that is the same file and cue keeps playing and just changes
 /// loop and the rest.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MediaParams {
+    /// The file the frames come from.
+    pub path: std::sync::Arc<str>,
     pub looped: bool,
     pub start_seconds: Option<f64>,
     pub end_seconds: Option<f64>,
     pub rate: f64,
     /// Element videos are decoration: muted, and deaf to the transport.
     pub element: bool,
+}
+
+/// A video node as the playback layer sees it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MediaUse {
+    /// The compositor node: a new node is a new `<video>` element.
+    pub node: u64,
+    /// The source the node draws; outputs showing the same file at the same
+    /// cue draw the same one.
+    pub id: u64,
+    pub params: MediaParams,
+    /// The output's current background video, which pause and seek address.
+    pub transport: bool,
 }
 
 /// What fills a node's box.
@@ -673,6 +688,32 @@ impl Stack {
             .iter()
             .flatten()
             .any(|n| n.animating_until(now).is_some() || n.moving())
+    }
+
+    /// Every video node in the stack, leaving ones included (a fading video
+    /// keeps playing until it is removed), in slot order. `transport` marks
+    /// the one the operator's transport drives: the current background's.
+    pub fn media_uses(&self) -> Vec<MediaUse> {
+        fn walk(content: &Content, node: u64, transport: bool, out: &mut Vec<MediaUse>) {
+            match (&content.fill, &content.media) {
+                (Fill::Source { id, .. }, Some(media)) => out.push(MediaUse {
+                    node,
+                    id: *id,
+                    params: media.clone(),
+                    transport: transport && !media.element,
+                }),
+                (Fill::Group(children), _) => {
+                    children.iter().for_each(|c| walk(c, node, false, out))
+                }
+                _ => {}
+            }
+        }
+        let current = self.current(Slot::Background).map(|n| n.id);
+        let mut out = Vec::new();
+        for node in self.slots.iter().flatten() {
+            walk(&node.content, node.id, Some(node.id) == current, &mut out);
+        }
+        out
     }
 
     /// The live source ids any node draws, so their frames mark it dirty.

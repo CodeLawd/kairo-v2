@@ -19,6 +19,13 @@ pub enum Message {
     Connected(u64),
     /// From the compositor thread.
     Compositor(kairo_compositor::thread::CompositorEvent),
+    /// A video could not be opened or stopped decoding (from its thread).
+    VideoFailed {
+        path: String,
+        message: String,
+    },
+    /// A camera went live, failed, was lost or came back (its threads).
+    Camera(kairo_camera::CameraEvent),
     /// A slide's text was drawn on a worker.
     Text {
         output: String,

@@ -3,3 +3,14 @@ name = "kairo-video"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+# Video playback for the engine: FFmpeg decode, one thread per stream, the
+# presentation clock and Electron's transport rules. Engine-side only.
+[dependencies]
+ffmpeg-next = { version = "=9.0.0", default-features = false, features = ["codec", "format", "software-scaling"] }
+kairo-compositor = { path = "../kairo-compositor" }
+libc = "0.2"
+tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3"

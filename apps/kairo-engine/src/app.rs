@@ -5,7 +5,7 @@ use crate::program::{Planned, Shell};
 use crate::server::{Message, Outbox};
 use crate::text::{Ordered, TextWork, Timing, Wait, text_slot};
 use crate::visuals::{Output, VisualWork};
-use kairo_compositor::thread::{Compositor, CompositorEvent, Sink};
+use kairo_compositor::thread::{Compositor, CompositorEvent, MediaControl, Sink, SourceFeed};
 use kairo_engine_proto::*;
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
@@ -20,6 +20,8 @@ use winit::window::{Window, WindowId};
 /// debounce of `surface-manager.ts` on top; parking happens at once.
 const DISPLAY_POLL: Duration = Duration::from_millis(250);
 const REPORT_EVERY: Duration = Duration::from_secs(2);
+/// How often video sound is checked against its picture.
+const SOUND_FOLLOW: Duration = Duration::from_millis(50);
 /// How often countdowns and clocks are read (`setInterval(…, 250)`).
 const TICK: Duration = Duration::from_millis(250);
 /// Exit status when the GPU device is lost: the supervisor relaunches the
@@ -58,6 +60,14 @@ pub struct Engine {
     outbox: Outbox,
     proxy: EventLoopProxy<Message>,
     grace: Duration,
+    /// Background and element videos, fed to the compositor.
+    videos: Option<kairo_video::Videos>,
+    /// Live cameras, fed to the compositor.
+    cameras: Option<kairo_camera::Cameras>,
+    web: crate::web::Webs,
+    next_web: Instant,
+    web_timings: Vec<(u64, u64)>,
+    shutting_down: bool,
     compositor: Option<Compositor>,
     gpu_error: Option<String>,
     /// Set when the engine must exit with a failure status.
@@ -72,6 +82,11 @@ pub struct Engine {
     next_scan: Instant,
     next_report: Instant,
     next_tick: Instant,
+    /// Program sound; made with the first surface.
+    sound: Option<crate::sound::Sound>,
+    next_sound: Instant,
+    /// Sound glitch frames already reported.
+    glitches: u64,
     /// Set while no client is connected, including before the first one.
     orphaned_at: Option<Instant>,
 }
@@ -84,6 +99,12 @@ impl Engine {
             outbox,
             proxy,
             grace,
+            videos: None,
+            cameras: None,
+            web: crate::web::Webs::default(),
+            next_web: now,
+            web_timings: Vec::new(),
+            shutting_down: false,
             compositor: None,
             gpu_error: None,
             exit_code: None,
@@ -95,6 +116,9 @@ impl Engine {
             next_scan: now,
             next_report: now + REPORT_EVERY,
             next_tick: now,
+            sound: None,
+            next_sound: now,
+            glitches: 0,
             orphaned_at: Some(now),
         }
     }
@@ -116,17 +140,132 @@ impl Engine {
     }
 
     fn command(&mut self, event_loop: &ActiveEventLoop, seq: u64, command: Command) {
+        if self.shutting_down {
+            return;
+        }
+        if let Command::SetWeb {
+            output,
+            web: Some(w),
+        } = &command
+            && (crate::web::address(&w.url).is_none() || !w.reload.is_finite())
+        {
+            self.error(
+                Some(output),
+                "Invalid live web address or reload value".into(),
+            );
+            return;
+        }
+        if let Command::WebInput { output, input } = &command
+            && !crate::web::input_valid(input)
+        {
+            self.error(Some(output), "Invalid web input".into());
+            return;
+        }
+        if matches!(command, Command::Shutdown) {
+            self.web = crate::web::Webs::default();
+        }
+        self.command_inner(event_loop, seq, command.clone());
+        self.sync_web(event_loop);
+        match &command {
+            Command::WebScroll { output, x, y } => self.web.scroll(output, *x, *y),
+            Command::WebInput { output, input } => self.web.input(output, input),
+            Command::WebPointer {
+                output,
+                point: Some((x, y)),
+            } if x.is_finite() && y.is_finite() => self.web.input(
+                output,
+                &WebInput::Move {
+                    x: x.clamp(0., 1920.),
+                    y: y.clamp(0., 1080.),
+                },
+            ),
+            _ => {}
+        }
+    }
+
+    fn sync_web(&mut self, event_loop: &ActiveEventLoop) {
+        let Some(compositor) = self.compositor.as_ref() else {
+            return;
+        };
+        let wanted = self
+            .surfaces
+            .iter()
+            .filter(|s| s.window.is_some() && !s.state.parked && s.state.config.web_enabled)
+            .filter_map(|s| {
+                s.state
+                    .layers
+                    .web
+                    .clone()
+                    .map(|w| (s.output().to_owned(), w))
+            })
+            .collect();
+        let notices = self.web.sync(event_loop, wanted, &compositor.feed());
+        self.web_notices(notices);
+    }
+
+    fn web_notices(&mut self, notices: Vec<crate::web::Notice>) {
+        for notice in notices {
+            match notice {
+                crate::web::Notice::Navigated { output, url } => {
+                    let planned = self.surface_mut(&output).and_then(|surface| {
+                        if surface
+                            .state
+                            .layers
+                            .web
+                            .as_ref()
+                            .is_none_or(|w| w.url == url)
+                        {
+                            return None;
+                        }
+                        let before = surface.state.clone();
+                        surface.state.layers.web.as_mut()?.url = url.clone();
+                        let command = Command::SetWeb {
+                            output: output.clone(),
+                            web: surface.state.layers.web.clone(),
+                        };
+                        Some(surface.shell.command(&command, &before, &surface.state))
+                    });
+                    if let Some(planned) = planned {
+                        self.dispatch(&output, 0, planned);
+                    }
+                    self.send_event(Event::WebNavigated { output, url });
+                }
+                crate::web::Notice::Error(error) => self.error(None, error),
+            }
+        }
+    }
+
+    fn command_inner(&mut self, event_loop: &ActiveEventLoop, seq: u64, command: Command) {
         match &command {
             Command::Shutdown => {
                 tracing::info!("shutdown requested");
                 self.surfaces.clear();
-                self.compositor = None;
-                event_loop.exit();
+                self.sound = None;
+                self.cameras = None;
+                if let Some(mut videos) = self.videos.take() {
+                    videos.shutdown();
+                }
+                self.shutting_down = true;
+                if let Some(compositor) = self.compositor.as_ref() {
+                    compositor.begin_shutdown();
+                } else {
+                    event_loop.exit();
+                }
                 return;
             }
             Command::RetainSurfaces { outputs } => {
+                if let Some(cameras) = self.cameras.as_ref() {
+                    for surface in &self.surfaces {
+                        if !outputs.iter().any(|o| o == surface.output()) {
+                            cameras.want(surface.output(), None);
+                        }
+                    }
+                }
                 self.surfaces
                     .retain(|s| outputs.iter().any(|o| o == s.output()));
+                if let Some(sound) = self.sound.as_mut() {
+                    sound.retain(outputs);
+                }
             }
             Command::OpenSurface(spec) => match self.surface_mut(&spec.output) {
                 Some(surface) => {
@@ -150,7 +289,15 @@ impl Engine {
             Command::CloseSurface {
                 output,
                 destroy: true,
-            } => self.surfaces.retain(|s| s.output() != output),
+            } => {
+                self.surfaces.retain(|s| s.output() != output);
+                if let Some(sound) = self.sound.as_mut() {
+                    sound.forget(output);
+                }
+                if let Some(cameras) = self.cameras.as_ref() {
+                    cameras.want(output, None);
+                }
+            }
             _ => {
                 let output = command.output().expect("surface command").to_owned();
                 let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
@@ -162,6 +309,22 @@ impl Engine {
                 };
                 let before = surface.state.clone();
                 surface.state.apply(&command, true);
+                if let Command::SetCamera { camera, .. } = &command {
+                    self.set_camera(&output, camera.as_ref());
+                }
+                let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
+                    return;
+                };
+                if let Command::Configure { config, .. } = &command
+                    && before.config != surface.state.config
+                {
+                    self.sound
+                        .get_or_insert_with(crate::sound::Sound::new)
+                        .configure(&output, config);
+                }
+                let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
+                    return;
+                };
                 surface.seq = seq;
                 let planned = surface.shell.command(&command, &before, &surface.state);
                 // Every applied command gets a frame, so `FrameCommitted`
@@ -178,6 +341,60 @@ impl Engine {
             }
         }
         self.reconcile(event_loop);
+    }
+
+    /// `__setCamera` for `output`: the capture (shared by every output
+    /// that wants the same input) and the camera's sound.
+    fn set_camera(&mut self, output: &str, camera: Option<&CameraLayer>) {
+        if let Err(error) = self.compositor() {
+            self.error(Some(output), format!("camera not shown: {error}"));
+            return;
+        }
+        let Some(cameras) = self.cameras.as_ref() else {
+            return;
+        };
+        let label = camera.map(|c| c.label.as_str());
+        cameras.want(output, label);
+        let live = label.and_then(|l| cameras.live_id(l).map(|id| (l.to_owned(), id)));
+        if let (Some((label, id)), Some(surface)) = (live, self.surface_mut(output)) {
+            surface.shell.know_camera(&label, id);
+        }
+        self.sound
+            .get_or_insert_with(crate::sound::Sound::new)
+            .camera(output, camera.and_then(|c| c.audio_label.as_deref()));
+    }
+
+    /// A camera's capture changed state.
+    fn camera_event(&mut self, event: kairo_camera::CameraEvent) {
+        use kairo_camera::CameraEvent;
+        match event {
+            CameraEvent::Live { label, id, .. } => {
+                let mut ready = Vec::new();
+                for surface in &mut self.surfaces {
+                    if let Some(op) = surface.shell.camera_live(&label, id, &surface.state) {
+                        surface
+                            .queue
+                            .push_waiting(0, vec![op], Vec::new(), Instant::now());
+                        ready.push(surface.output().to_owned());
+                    }
+                }
+                for output in ready {
+                    self.flush(&output);
+                }
+            }
+            CameraEvent::Failed { label, error } => {
+                self.error(None, format!("camera {label}: {error}"));
+            }
+            CameraEvent::Lost { label, error } => {
+                self.error(
+                    None,
+                    format!("camera {label}: {error}; showing its last frame"),
+                );
+            }
+            CameraEvent::Restored { label } => {
+                tracing::info!(%label, "camera running again");
+            }
+        }
     }
 
     /// Hand a command's operations to the compositor, after the words of any
@@ -365,10 +582,9 @@ impl Engine {
     fn query(&self, id: u64, query: Query) {
         let has = |output: &str| self.surfaces.iter().find(|s| s.output() == output);
         let reply = match query {
-            // No background video plays in this engine yet (prompt 055), so
-            // there is none to be still running.
+            // No video (or no compositor yet) counts as ended.
             Query::VideoEnded { output } => match has(&output) {
-                Some(_) => Reply::VideoEnded(true),
+                Some(_) => Reply::VideoEnded(self.videos.as_ref().is_none_or(|v| v.ended(&output))),
                 None => Reply::UnknownSurface,
             },
             // Document video playback arrives with prompt 058.
@@ -455,7 +671,27 @@ impl Engine {
             match Compositor::start(move |event| {
                 let _ = proxy.send_event(Message::Compositor(event));
             }) {
-                Ok(compositor) => self.compositor = Some(compositor),
+                Ok(compositor) => {
+                    let proxy = self.proxy.clone();
+                    self.videos = Some(kairo_video::Videos::new(
+                        Arc::new(Feed(compositor.feed())),
+                        move |_, path, message| {
+                            let _ = proxy.send_event(Message::VideoFailed {
+                                path: path.to_owned(),
+                                message: message.to_owned(),
+                            });
+                        },
+                    ));
+                    let proxy = self.proxy.clone();
+                    self.cameras = Some(kairo_camera::Cameras::new(
+                        kairo_camera::system(),
+                        Arc::new(Feed(compositor.feed())),
+                        move |event| {
+                            let _ = proxy.send_event(Message::Camera(event));
+                        },
+                    ));
+                    self.compositor = Some(compositor);
+                }
                 Err(error) => {
                     self.gpu_error = Some(error.clone());
                     return Err(error);
@@ -541,6 +777,11 @@ impl Engine {
         );
         let surface = &mut self.surfaces[index];
         surface.shell = Shell::new(&output, sink.frame_height);
+        if let (Some(cameras), Some(camera)) = (self.cameras.as_ref(), &surface.state.layers.camera)
+            && let Some(id) = cameras.live_id(&camera.label)
+        {
+            surface.shell.know_camera(&camera.label, id);
+        }
         surface.queue.clear();
         surface.traces.clear();
         let planned = surface.shell.rebuild(&surface.state);
@@ -600,6 +841,48 @@ impl Engine {
                 }
             }
             CompositorEvent::Error { output, message } => self.error(output.as_deref(), message),
+            CompositorEvent::Media { output, uses } => {
+                self.sound
+                    .get_or_insert_with(crate::sound::Sound::new)
+                    .media(&output, &uses);
+                if let Some(videos) = self.videos.as_mut() {
+                    videos.sync(&output, uses);
+                }
+            }
+            CompositorEvent::Transport { id, control, .. } => {
+                if let Some(sound) = self.sound.as_mut() {
+                    sound.control(
+                        id,
+                        match control {
+                            MediaControl::Pause(true) => kairo_audio::ClipControl::Pause,
+                            MediaControl::Pause(false) => kairo_audio::ClipControl::Play,
+                            MediaControl::Seek(s) => kairo_audio::ClipControl::Seek(s),
+                        },
+                    );
+                }
+                if let Some(videos) = self.videos.as_ref() {
+                    videos.control(
+                        id,
+                        match control {
+                            MediaControl::Pause(p) => kairo_video::Control::Pause(p),
+                            MediaControl::Seek(s) => kairo_video::Control::Seek(s),
+                        },
+                    );
+                }
+            }
+            CompositorEvent::WebPresented {
+                output,
+                capture_us,
+                compose_us,
+                frames,
+            } => {
+                if let Some(surface) = self.surface_mut(&output) {
+                    surface.stats.produced = frames;
+                }
+                if self.web_timings.len() < 10_000 {
+                    self.web_timings.push((capture_us, compose_us));
+                }
+            }
             CompositorEvent::DeviceLost(why) => {
                 self.error(None, format!("GPU device lost: {why}"));
                 self.exit_code = Some(EXIT_DEVICE_LOST);
@@ -609,10 +892,76 @@ impl Engine {
     }
 
     fn report(&mut self) {
+        if !self.web_timings.is_empty() {
+            let n = self.web_timings.len();
+            let mut capture: Vec<_> = self.web_timings.iter().map(|(c, _)| *c).collect();
+            let mut compose: Vec<_> = self.web_timings.iter().map(|(_, c)| *c).collect();
+            let mut total: Vec<_> = self.web_timings.iter().map(|(c, p)| c + p).collect();
+            capture.sort_unstable();
+            compose.sort_unstable();
+            total.sort_unstable();
+            let p99 = (n * 99).div_ceil(100) - 1;
+            tracing::info!(
+                samples = n,
+                capture_p99_ms = capture[p99] as f64 / 1000.,
+                compose_p99_ms = compose[p99] as f64 / 1000.,
+                request_to_present_p50_ms = total[n / 2] as f64 / 1000.,
+                request_to_present_p99_ms = total[p99] as f64 / 1000.,
+                "web display latency (software, excludes capture sampling and scanout)"
+            );
+            self.web_timings.clear();
+        }
+        if self.web.active()
+            && let Some(dir) = std::env::var_os("KAIRO_WEB_EVIDENCE_DIR")
+            && let Some(compositor) = self.compositor.as_ref()
+            && let Some(surface) = self.surfaces.iter().find(|s| {
+                s.window.is_some() && s.state.config.web_enabled && s.state.layers.web.is_some()
+            })
+        {
+            let feed = compositor.feed();
+            let output = surface.output().to_owned();
+            std::thread::spawn(move || {
+                if let Some((w, h, pixels)) = feed.read(&output) {
+                    let dir = std::path::PathBuf::from(dir);
+                    let _ = std::fs::create_dir_all(&dir);
+                    if let Ok(file) = std::fs::File::create(dir.join("web-output.png")) {
+                        let mut encoder = png::Encoder::new(file, w, h);
+                        encoder.set_color(png::ColorType::Rgba);
+                        encoder.set_depth(png::BitDepth::Eight);
+                        if let Ok(mut writer) = encoder.write_header() {
+                            let _ = writer.write_image_data(&pixels);
+                        }
+                    }
+                }
+            });
+        }
+        if let Some(sound) = self.sound.as_ref()
+            && sound.active()
+        {
+            let tapping: Vec<&str> = self
+                .surfaces
+                .iter()
+                .map(|s| s.output())
+                .filter(|o| sound.tapping(o))
+                .collect();
+            let glitches = sound.glitches();
+            if glitches > self.glitches {
+                tracing::warn!(frames = glitches - self.glitches, "program sound glitched");
+                self.glitches = glitches;
+            }
+            tracing::debug!(
+                device = ?sound.device(),
+                glitches,
+                ?tapping,
+                ndi_blocks = sound.unsent.load(std::sync::atomic::Ordering::Relaxed),
+                "program sound"
+            );
+        }
         // Frames drawn, fades included, as the compositor counts them.
         if let Some(compositor) = self.compositor.as_ref() {
             for surface in &mut self.surfaces {
                 if surface.window.is_some()
+                    && !(surface.state.config.web_enabled && surface.state.layers.web.is_some())
                     && let Some(frames) = compositor.frames(surface.state.spec.output.as_str())
                 {
                     surface.stats.produced = frames;
@@ -629,6 +978,29 @@ impl Engine {
         self.send_event(Event::Stats(
             self.surfaces.iter().map(|s| s.stats.clone()).collect(),
         ));
+    }
+}
+
+impl kairo_camera::Feed for Feed {
+    fn frame(&self, id: u64, frame: Arc<kairo_compositor::YuvFrame>) {
+        self.0.video_frame(id, frame);
+    }
+
+    fn remove(&self, id: u64) {
+        self.0.remove(id);
+    }
+}
+
+/// The compositor as the video players' frame destination.
+struct Feed(SourceFeed);
+
+impl kairo_video::Feed for Feed {
+    fn frame(&self, id: u64, frame: Arc<kairo_compositor::YuvFrame>) {
+        self.0.video_frame(id, frame);
+    }
+
+    fn remove(&self, id: u64) {
+        self.0.remove(id);
     }
 }
 
@@ -684,6 +1056,11 @@ impl ApplicationHandler<Message> for Engine {
             Message::Query { id, query } => self.query(id, query),
             Message::Command { seq, command } => self.command(event_loop, seq, command),
             Message::Compositor(event) => self.compositor_event(event_loop, event),
+            Message::Camera(event) => self.camera_event(event),
+            // The node stays and draws nothing; the video counts as ended.
+            Message::VideoFailed { path, message } => {
+                self.error(None, format!("video {path}: {message}"))
+            }
             Message::Visual {
                 output,
                 job,
@@ -722,6 +1099,15 @@ impl ApplicationHandler<Message> for Engine {
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         let now = Instant::now();
+        if self.shutting_down {
+            if self.compositor.as_ref().is_none_or(|c| c.finished()) {
+                self.compositor = None;
+                event_loop.exit();
+            } else {
+                event_loop.set_control_flow(ControlFlow::WaitUntil(now + Duration::from_millis(5)));
+            }
+            return;
+        }
         if let Some(at) = self.orphaned_at
             && now.duration_since(at) >= self.grace
         {
@@ -737,6 +1123,7 @@ impl ApplicationHandler<Message> for Engine {
                 self.displays = displays;
                 self.send_event(Event::Displays(self.displays.clone()));
                 self.reconcile(event_loop);
+                self.sync_web(event_loop);
             }
         }
         if now >= self.next_report {
@@ -753,6 +1140,41 @@ impl ApplicationHandler<Message> for Engine {
         let mut wake = self.next_scan.min(self.next_report);
         if ticking {
             wake = wake.min(self.next_tick);
+        }
+        if self.web.active() {
+            if now >= self.next_web {
+                if now.duration_since(self.next_web) > Duration::from_secs(1) {
+                    self.next_web = now;
+                }
+                while self.next_web <= now {
+                    self.next_web += crate::web::PERIOD;
+                }
+                if let Some(compositor) = self.compositor.as_ref() {
+                    let notices = self.web.tick(now, &compositor.feed());
+                    self.web_notices(notices);
+                    self.sync_web(event_loop);
+                }
+            }
+            wake = wake.min(self.next_web);
+        }
+        // Video sound follows its picture, checked every 50 ms; camera
+        // inputs that stopped are retried.
+        if let Some(sound) = self.sound.as_mut()
+            && (sound.active() || sound.has_cameras())
+        {
+            if now >= self.next_sound {
+                self.next_sound = now + SOUND_FOLLOW;
+                sound.check_cameras();
+                let videos = self.videos.as_ref();
+                sound.follow(|id| {
+                    let status = videos?.status(id)?;
+                    Some(crate::sound::PictureClock {
+                        position: status.position,
+                        playing: status.shown && !status.paused && !status.ended,
+                    })
+                });
+            }
+            wake = wake.min(self.next_sound);
         }
         if let Some(at) = self.orphaned_at {
             wake = wake.min(at + self.grace);

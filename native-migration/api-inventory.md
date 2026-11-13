@@ -324,3 +324,24 @@ Detection covers `window.api.x.y` and `api.x.y`. Methods passed by destructuring
 - scripture.setConfidenceThreshold
 - settings.testApiKey
 - songUsage.clear
+
+## Engine web backend — 059
+
+The engine implementation of the web family is complete (protocol 3). The rows
+above remain owned by 065 for application routing/IPC; this does not claim that
+065 or the operator workspace (089) is finished.
+
+| Existing API | Native engine implementation |
+|---|---|
+| `program.setWeb` | `Command::SetWeb`: shared, top-level page per normalized URL; white-backed captured source in `Slot::Web`; clear/rebuild/teardown; bounded page count |
+| `program.reloadWeb` | Change `WebLayer.reload`; reload once per shared page, discard stale captures |
+| `program.scrollWeb` | `Command::WebScroll`: finite, rounded/clamped direct input to the single page; remember last URL's scroll |
+| `program.webPointer` | `Command::WebPointer`: visible 56 px SVG arrow with original tip offsets, canonical-fit placement, direct native hover input |
+| `program.onWebNavigated` | `Event::WebNavigated`: native actual URL including redirects/SPA changes; engine/client intended state updates; adopt running page without another load |
+| Operator interactions (089) | `Command::WebInput`: move/click/text/whitelisted keys in 1920×1080 page coordinates |
+
+065 must set `SurfaceConfig.web_enabled = showBackgrounds && followProgram`.
+Ineligible/parked/closed surfaces acquire no web consumer; disabling eligibility
+also clears the web and pointer nodes while preserving intended state.
+Windows capture/performance and runtime interaction verification are deferred
+by the owner; the WGC/WebView2 backend was checked against the Windows target.

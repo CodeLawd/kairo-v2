@@ -245,7 +245,9 @@ impl SurfaceState {
                 self.layers.web = web.clone();
                 true
             }
-            Command::WebPointer { .. } | Command::WebScroll { .. } => self.layers.web.is_some(),
+            Command::WebInput { .. } | Command::WebPointer { .. } | Command::WebScroll { .. } => {
+                self.layers.web.is_some()
+            }
             Command::SetTestPattern { pattern, .. } => {
                 if !available {
                     return false;

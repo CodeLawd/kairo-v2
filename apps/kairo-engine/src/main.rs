@@ -11,10 +11,12 @@ mod program;
 #[cfg(test)]
 mod program_corpus;
 mod server;
+mod sound;
 mod text;
 #[cfg(test)]
 mod visual_corpus;
 mod visuals;
+use kairo_engine::web;
 
 use std::process::ExitCode;
 use std::time::Duration;

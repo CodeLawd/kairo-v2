@@ -1,0 +1,9 @@
+2026-11-13, macOS 27.2, shared working tree
+cargo build -p kairo-engine --example web_capture: PASS
+cargo fmt --all -- --check: PASS
+cargo clippy --workspace --all-targets -- -D warnings: PASS
+cargo test --workspace (socket/window-server access): PASS, 1227 passed, 0 failed, 38 ignored
+Windows capture qualification: NOT RUN
+Production engine web output: NOT IMPLEMENTED
+Added display latency: NOT MEASURED
+059 status: BLOCKED at cross-platform capture gate
