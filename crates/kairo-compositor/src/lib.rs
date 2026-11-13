@@ -16,4 +16,5 @@ pub use layers::{
     Raster, Shadow, Slot, Stack, clamp_transition,
 };
 pub use renderer::{FRAME_FORMAT, FrameTarget, Renderer, Scene};
+pub use thread::{FinishedFrame, FrameSink, SinkFrame};
 pub use yuv::{YuvColor, YuvFrame};

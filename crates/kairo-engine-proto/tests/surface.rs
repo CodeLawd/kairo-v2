@@ -321,3 +321,29 @@ fn replay_rebuilds_the_same_state() {
         assert_eq!(rebuilt.unwrap(), state);
     }
 }
+
+#[test]
+fn syphon_servers_are_named_after_their_output() {
+    assert_eq!(
+        SinkSpec::syphon("Lower Third", 0),
+        SinkSpec::Syphon {
+            name: "Kairo Lower Third".into()
+        }
+    );
+    assert_eq!(
+        SinkSpec::syphon("", 1),
+        SinkSpec::Syphon {
+            name: "Kairo Syphon 2".into()
+        }
+    );
+}
+
+#[test]
+fn a_syphon_surface_reopens_instead_of_parking() {
+    let spec = SurfaceSpec {
+        output: "y".into(),
+        label: "Syphon (Lower Third)".into(),
+        sink: SinkSpec::syphon("Lower Third", 0),
+    };
+    assert!(!SurfaceState::new(spec).parks_on_close());
+}

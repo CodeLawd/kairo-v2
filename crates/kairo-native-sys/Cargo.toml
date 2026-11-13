@@ -3,3 +3,11 @@ name = "kairo-native-sys"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+# C ABI ports of Electron's native addons, built with `cc`. macOS only for
+# now: Syphon (prompt 063).
+[build-dependencies]
+cc = "1"
+
+[dev-dependencies]
+png = "0.18"

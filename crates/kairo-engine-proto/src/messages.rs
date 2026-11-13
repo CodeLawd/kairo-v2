@@ -77,6 +77,7 @@ pub enum SinkSpec {
     Ndi {
         name: String,
     },
+    /// A Syphon server (macOS), named by [`SinkSpec::syphon`].
     Syphon {
         name: String,
     },
@@ -90,6 +91,19 @@ pub enum SinkSpec {
 impl SinkSpec {
     pub fn is_display(&self) -> bool {
         matches!(self, Self::Display(_))
+    }
+
+    /// `reconcileSyphon`: a Syphon server named after its output ("Kairo
+    /// Lower Third"), or "Kairo Syphon n" (n counts enabled Syphon outputs
+    /// from 1) when the output has no name. The engine uses the name as
+    /// given; a new name restarts the server.
+    pub fn syphon(output_name: &str, index: usize) -> Self {
+        let name = if output_name.is_empty() {
+            format!("Kairo Syphon {}", index + 1)
+        } else {
+            format!("Kairo {output_name}")
+        };
+        Self::Syphon { name }
     }
 }
 

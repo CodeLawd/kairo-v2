@@ -40,6 +40,8 @@ struct EngineSurface {
     seq: u64,
     status: Option<SurfaceStatus>,
     window: Option<OutputWindow>,
+    /// The Syphon server an offscreen Syphon surface publishes to.
+    syphon: Option<kairo_sinks::syphon::SyphonChannel>,
     stats: SinkStats,
     /// The `overlay.html` shell state of the open window.
     shell: Shell,
@@ -77,6 +79,11 @@ impl EngineSurface {
 impl EngineSurface {
     fn output(&self) -> &str {
         &self.state.spec.output
+    }
+
+    /// The compositor draws this surface: a window, or a running sink.
+    fn drawn(&self) -> bool {
+        self.window.is_some() || self.syphon.as_ref().is_some_and(|c| c.running())
     }
 }
 
@@ -302,6 +309,7 @@ impl Engine {
                     seq,
                     status: None,
                     window: None,
+                    syphon: None,
                     stats: SinkStats {
                         output: spec.output.clone(),
                         ..SinkStats::default()
@@ -359,7 +367,7 @@ impl Engine {
                 // (no window, not a picture), is answered at once.
                 if matches!(command, Command::SwapPage { .. })
                     && (!applied
-                        || surface.window.is_none()
+                        || !surface.drawn()
                         || !planned.visuals.iter().any(|v| v.role == Role::Page))
                 {
                     self.send_event(Event::PageSwapped {
@@ -373,7 +381,7 @@ impl Engine {
                 };
                 // Every applied command gets a frame, so `FrameCommitted`
                 // follows even when no pixels change.
-                if surface.window.is_some() {
+                if surface.drawn() {
                     self.dispatch(&output, seq, planned);
                 }
                 if let Command::ControlDocumentVideo {
@@ -854,7 +862,10 @@ impl Engine {
                     }
                 }
                 SinkSpec::Ndi { .. } => unavailable("NDI output"),
-                SinkSpec::Syphon { .. } => unavailable("Syphon output"),
+                SinkSpec::Syphon { name } => match self.place_syphon(index, name) {
+                    Some(status) => status,
+                    None => continue,
+                },
                 SinkSpec::Device { .. } => unavailable("Video card output"),
             };
             let surface = &mut self.surfaces[index];
@@ -911,11 +922,74 @@ impl Engine {
         let surface = &mut self.surfaces[index];
         surface.queue.clear();
         surface.traces.clear();
-        if surface.window.take().is_some()
+        // Clients see the server leave.
+        let syphon = surface.syphon.take().map(|mut c| c.stop()).is_some();
+        if (surface.window.take().is_some() || syphon)
             && let Some(compositor) = self.compositor.as_ref()
         {
             compositor.close(&surface.state.spec.output);
         }
+    }
+
+    /// A Syphon surface: an offscreen output whose frames go to a server
+    /// named `name`. A new name restarts the server. `None`: unchanged.
+    fn place_syphon(&mut self, index: usize, name: &str) -> Option<SurfaceStatus> {
+        if self.surfaces[index]
+            .syphon
+            .as_ref()
+            .is_some_and(|c| c.server_name() == name && c.running())
+        {
+            return None;
+        }
+        self.close_window(index);
+        let output = self.surfaces[index].state.spec.output.clone();
+        let frame_height = frame_height_of(&self.surfaces[index].state.spec.sink);
+        let mut channel = kairo_sinks::syphon::SyphonChannel::new(name);
+        if let Err(reason) = channel.status() {
+            return Some(SurfaceStatus::Unavailable { reason });
+        }
+        let proxy = self.proxy.clone();
+        let owner = output.clone();
+        let report: kairo_sinks::syphon::Report = Arc::new(move |message| {
+            let _ = proxy.send_event(Message::Compositor(CompositorEvent::Error {
+                output: Some(owner.clone()),
+                message,
+            }));
+        });
+        let Some(sink) = channel.sink(report) else {
+            let reason = channel
+                .status()
+                .err()
+                .unwrap_or_else(|| "Syphon unavailable".into());
+            return Some(SurfaceStatus::Unavailable { reason });
+        };
+        let compositor = match self.compositor() {
+            Ok(compositor) => compositor,
+            Err(reason) => return Some(SurfaceStatus::Unavailable { reason }),
+        };
+        compositor.open(&output, frame_height, Sink::Offscreen);
+        compositor.attach(&output, Some(sink));
+        tracing::info!(output, name, "Syphon server publishing");
+        self.surfaces[index].syphon = Some(channel);
+        self.show_state(index, frame_height);
+        Some(SurfaceStatus::Ready)
+    }
+
+    /// A freshly opened compositor output shows the surface's state at once.
+    fn show_state(&mut self, index: usize, frame_height: u32) {
+        let output = self.surfaces[index].state.spec.output.clone();
+        let surface = &mut self.surfaces[index];
+        surface.shell = Shell::new(&output, frame_height);
+        if let (Some(cameras), Some(camera)) = (self.cameras.as_ref(), &surface.state.layers.camera)
+            && let Some(id) = cameras.live_id(&camera.label)
+        {
+            surface.shell.know_camera(&camera.label, id);
+        }
+        surface.queue.clear();
+        surface.traces.clear();
+        let planned = surface.shell.rebuild(&surface.state);
+        let seq = surface.seq;
+        self.dispatch(&output, seq, planned);
     }
 
     /// `createDisplayWindow`: borderless over the whole display, or a
@@ -981,18 +1055,7 @@ impl Engine {
                 size: (size.width, size.height),
             },
         );
-        let surface = &mut self.surfaces[index];
-        surface.shell = Shell::new(&output, sink.frame_height);
-        if let (Some(cameras), Some(camera)) = (self.cameras.as_ref(), &surface.state.layers.camera)
-            && let Some(id) = cameras.live_id(&camera.label)
-        {
-            surface.shell.know_camera(&camera.label, id);
-        }
-        surface.queue.clear();
-        surface.traces.clear();
-        let planned = surface.shell.rebuild(&surface.state);
-        let seq = surface.seq;
-        self.dispatch(&output, seq, planned);
+        self.show_state(index, sink.frame_height);
         if !sink.rehearsal {
             window.set_cursor_visible(false);
             #[cfg(target_os = "macos")]
@@ -1175,7 +1238,7 @@ impl Engine {
         // Frames drawn, fades included, as the compositor counts them.
         if let Some(compositor) = self.compositor.as_ref() {
             for surface in &mut self.surfaces {
-                if surface.window.is_some()
+                if surface.drawn()
                     && !(surface.state.config.web_enabled && surface.state.layers.web.is_some())
                     && let Some(frames) = compositor.frames(surface.state.spec.output.as_str())
                 {

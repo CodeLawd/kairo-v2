@@ -3,3 +3,15 @@ name = "kairo-sinks"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+# Where an offscreen output's frames go: Syphon (prompt 063).
+[dependencies]
+kairo-compositor = { path = "../kairo-compositor" }
+tracing = "0.1"
+wgpu = "30"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+kairo-native-sys = { path = "../kairo-native-sys" }
+objc2 = "0.6"
+objc2-metal = { version = "0.3", default-features = false, features = ["std", "MTLAllocation", "MTLDevice", "MTLResource", "MTLTexture"] }
+wgpu = { version = "30", features = ["metal"] }

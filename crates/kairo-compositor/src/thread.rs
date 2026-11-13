@@ -147,6 +147,10 @@ enum Msg {
         output: String,
         reply: mpsc::Sender<Option<u64>>,
     },
+    Attach {
+        output: String,
+        sink: Option<Box<dyn FrameSink>>,
+    },
     Shutdown,
 }
 
@@ -171,6 +175,59 @@ struct Output {
     /// The video nodes last reported.
     media: Vec<MediaUse>,
     web_pending: Option<(Instant, Instant)>,
+    /// Takes every frame drawn (Syphon).
+    frame_sink: Option<Box<dyn FrameSink>>,
+}
+
+/// Takes each frame an output draws, on the compositor thread (Syphon).
+pub trait FrameSink: Send {
+    /// While the frame's GPU work is recorded: copy it on the GPU.
+    fn encode(&mut self, frame: &mut SinkFrame<'_>);
+    /// Once the GPU has finished the frame.
+    fn finished(&mut self, frame: &FinishedFrame<'_>);
+}
+
+/// A frame being recorded, for [`FrameSink::encode`].
+pub struct SinkFrame<'a> {
+    renderer: &'a mut Renderer,
+    encoder: &'a mut CommandEncoder,
+    target: &'a FrameTarget,
+}
+
+impl SinkFrame<'_> {
+    pub fn device(&self) -> &Device {
+        self.renderer.device()
+    }
+
+    /// The frame's size: 1920 × frame height.
+    pub fn size(&self) -> (u32, u32) {
+        (self.target.width, self.target.height)
+    }
+
+    /// Records a copy of the frame, transparency kept, into `view` (a
+    /// `format` texture of [`SinkFrame::size`]): no read-back.
+    pub fn copy_to(&mut self, view: &TextureView, format: TextureFormat) {
+        self.renderer
+            .copy(self.encoder, self.target, view, format, self.size());
+    }
+}
+
+/// A frame the GPU finished, for [`FrameSink::finished`].
+pub struct FinishedFrame<'a> {
+    renderer: &'a Renderer,
+    target: &'a FrameTarget,
+}
+
+impl FinishedFrame<'_> {
+    pub fn size(&self) -> (u32, u32) {
+        (self.target.width, self.target.height)
+    }
+
+    /// The frame read back as tight premultiplied RGBA rows: the slow
+    /// path, for sinks that cannot take it on the GPU.
+    pub fn read_rgba(&self) -> Vec<u8> {
+        self.renderer.read_frame(self.target)
+    }
 }
 
 /// Feeds live sources from other threads (the video players).
@@ -328,6 +385,15 @@ impl Compositor {
         self.send(Msg::Resident {
             output: output.into(),
             rasters,
+        });
+    }
+
+    /// Hands every frame `output` draws to `sink`, or stops (`None`). The
+    /// output draws at once so the sink starts with the current picture.
+    pub fn attach(&self, output: &str, sink: Option<Box<dyn FrameSink>>) {
+        self.send(Msg::Attach {
+            output: output.into(),
+            sink,
         });
     }
 
@@ -553,6 +619,7 @@ fn handle(
                     frames: 0,
                     media: Vec::new(),
                     web_pending: None,
+                    frame_sink: None,
                 },
             );
         }
@@ -672,6 +739,17 @@ fn handle(
         Msg::Frames { output, reply } => {
             let _ = reply.send(outputs.get(&output).map(|o| o.frames));
         }
+        Msg::Attach { output, sink } => match outputs.get_mut(&output) {
+            Some(o) => {
+                o.frame_sink = sink;
+                o.due = Some(now);
+            }
+            None if sink.is_some() => events(CompositorEvent::Error {
+                output: Some(output),
+                message: "frame sink for an output the compositor does not have".into(),
+            }),
+            None => {}
+        },
     }
     true
 }
@@ -711,6 +789,13 @@ fn draw(
         .device()
         .create_command_encoder(&Default::default());
     renderer.draw_frame(&mut encoder, &output.scene, &output.target, now);
+    if let Some(sink) = output.frame_sink.as_mut() {
+        sink.encode(&mut SinkFrame {
+            renderer,
+            encoder: &mut encoder,
+            target: &output.target,
+        });
+    }
     let mut presented = None;
     if let Some(window) = output.window.as_mut() {
         match window.surface.get_current_texture() {
@@ -762,6 +847,12 @@ fn draw(
             message: format!("GPU wait failed: {error}"),
         });
         return;
+    }
+    if let Some(sink) = output.frame_sink.as_mut() {
+        sink.finished(&FinishedFrame {
+            renderer,
+            target: &output.target,
+        });
     }
     if let Some((started, ready)) = output.web_pending.take() {
         events(CompositorEvent::WebPresented {

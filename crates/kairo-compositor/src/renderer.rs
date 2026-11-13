@@ -1253,6 +1253,36 @@ impl Renderer {
         );
     }
 
+    /// `target` copied 1:1 into `view` (a `format` texture of `size`, the
+    /// target's own), transparency kept: for GPU sinks such as Syphon.
+    pub fn copy(
+        &mut self,
+        encoder: &mut CommandEncoder,
+        target: &FrameTarget,
+        view: &TextureView,
+        format: TextureFormat,
+        size: (u32, u32),
+    ) {
+        let globals = self.globals(size);
+        self.pipeline(format);
+        let rect = Rect::new(0.0, 0.0, size.0 as f32, size.1 as f32);
+        let draw = Draw::new(
+            Quad::new(rect, [1.0; 4], 0.0, 1.0, 0.0, 0.0),
+            Texel::White,
+            None,
+        );
+        self.encode(
+            encoder,
+            view,
+            format,
+            &globals,
+            size,
+            Some(Color::TRANSPARENT),
+            &[draw],
+            Some(&target.sampled),
+        );
+    }
+
     /// Records `draws` into `view`. A draw with offscreen work first ends
     /// the pass, does that work, and the pass resumes loading what it drew.
     #[allow(clippy::too_many_arguments)]

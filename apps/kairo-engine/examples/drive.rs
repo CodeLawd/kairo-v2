@@ -6,8 +6,13 @@
 //!     [--kill-after S] [--fade MS] [--frame-height H] [--theme ID] [--case ID]
 //!     [--text TEXT] [--reference REF] [--program ID] [--live] [--video PATH]
 //!     [--sound VOLUME] [--sound-device LABEL] [--camera LABEL]
-//!     [--camera-audio LABEL]
+//!     [--camera-audio LABEL] [--syphon NAME [--rename-after S NAME]]
 //! ```
+//!
+//! `--syphon NAME` sends the output to a Syphon server called "Kairo NAME"
+//! instead of a window (macOS); read it with `cargo run -p kairo-native-sys
+//! --example syphon_client -- "Kairo NAME" out.png`. `--rename-after S NAME`
+//! renames the output after S seconds, which restarts the server.
 //!
 //! `--camera LABEL` puts a live camera or capture card up, matched by the
 //! label the operator's list showed (`cargo run -p kairo-camera --example
@@ -79,10 +84,10 @@ async fn main() {
         tokio::time::sleep(Duration::from_millis(10)).await;
     };
     println!("display {index}: {display:?}");
-    engine.command(Command::OpenSurface(SurfaceSpec {
-        output: "main".into(),
-        label: "Kairo output".into(),
-        sink: SinkSpec::Display(DisplaySink {
+    let syphon: Option<String> = value("--syphon");
+    let sink = match &syphon {
+        Some(name) => SinkSpec::syphon(name, 0),
+        None => SinkSpec::Display(DisplaySink {
             binding: DisplayBinding {
                 display_id: Some(display.id),
                 label: display.label.clone(),
@@ -91,7 +96,28 @@ async fn main() {
             rehearsal: !full,
             frame_height,
         }),
+    };
+    engine.command(Command::OpenSurface(SurfaceSpec {
+        output: "main".into(),
+        label: "Kairo output".into(),
+        sink,
     }));
+    if let (Some(_), Some(after)) = (&syphon, value::<u64>("--rename-after")) {
+        let mut args = std::env::args()
+            .skip_while(|a| a != "--rename-after")
+            .skip(2);
+        let renamed = args.next().expect("--rename-after S NAME");
+        let engine = engine.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs(after)).await;
+            println!("renaming the Syphon output to {renamed:?}");
+            engine.command(Command::OpenSurface(SurfaceSpec {
+                output: "main".into(),
+                label: "Kairo output".into(),
+                sink: SinkSpec::syphon(&renamed, 0),
+            }));
+        });
+    }
     let video: Option<String> = value("--video");
     let theme_id: String = value("--theme").unwrap_or_else(|| "broadcast".into());
     let built_in = kairo_domain::theme_library::BUILT_IN_THEMES

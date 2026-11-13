@@ -16,6 +16,7 @@ kairo-compositor = { path = "../../crates/kairo-compositor" }
 kairo-domain = { path = "../../crates/kairo-domain" }
 kairo-engine-proto = { path = "../../crates/kairo-engine-proto" }
 kairo-scene = { path = "../../crates/kairo-scene" }
+kairo-sinks = { path = "../../crates/kairo-sinks" }
 kairo-video = { path = "../../crates/kairo-video" }
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 tracing = "0.1"
@@ -46,3 +47,11 @@ libc = "0.2"
 wry = { package = "lb-wry", version = "=0.53.3" }
 webview2-com = "=0.38.2"
 windows = { version = "0.61", features = ["Graphics_Capture", "Graphics_DirectX_Direct3D11", "Win32_Graphics_Direct3D", "Win32_Graphics_Direct3D11", "Win32_Graphics_Dxgi", "Win32_Graphics_Dxgi_Common", "Win32_System_WinRT_Direct3D11", "Win32_System_WinRT_Graphics_Capture", "Win32_System_Performance", "Win32_UI_WindowsAndMessaging"] }
+
+# Runs on the main thread: Syphon discovery needs its run loop.
+[[test]]
+name = "syphon"
+harness = false
+
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+kairo-native-sys = { path = "../../crates/kairo-native-sys" }
