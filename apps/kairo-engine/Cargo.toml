@@ -39,6 +39,7 @@ objc2-core-foundation = "0.3"
 [dev-dependencies]
 kairo-core = { path = "../../crates/kairo-core" }
 kairo-orchestrator = { path = "../../crates/kairo-orchestrator" }
+kairo-output = { path = "../../crates/kairo-output" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
 tempfile = "3"
 image = { version = "0.25", default-features = false, features = ["gif"] }

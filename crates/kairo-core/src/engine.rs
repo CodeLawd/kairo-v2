@@ -893,3 +893,127 @@ fn stop(inner: &Inner, running: &mut Running) {
     }
     tracing::warn!("output engine did not exit after shutdown; killing it");
 }
+
+// ─── The engine as a trait ───────────────────────────────────────────────────
+
+/// A boxed, sendable future, so [`OutputEngine`] stays object safe.
+pub type EngineFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+
+/// What the surface manager and the orchestrator ask of the engine. The
+/// real one is [`EngineHandle`]; tests drive the same code with a fake
+/// (`kairo-output`'s `FakeEngine`).
+pub trait OutputEngine: Send + Sync + 'static {
+    fn command(&self, command: Command) -> Sent;
+    fn is_available(&self, output: &str) -> bool;
+    fn unavailable_reason(&self, output: &str) -> Option<String>;
+    fn surface_state(&self, output: &str) -> Option<SurfaceState>;
+    fn surface_status(&self, output: &str) -> Option<SurfaceStatus>;
+    fn surfaces(&self) -> Vec<String>;
+    fn displays(&self) -> Vec<DisplayInfo>;
+    /// The engine is up (`EngineStatus::Running`).
+    fn running(&self) -> bool;
+    fn subscribe(&self) -> broadcast::Receiver<EngineEvent>;
+    fn query(&self, query: Query) -> EngineFuture<'_, Option<Reply>>;
+    fn wait_frame<'a>(
+        &'a self,
+        output: &'a str,
+        seq: u64,
+        timeout: Duration,
+    ) -> EngineFuture<'a, bool>;
+    fn identify_displays(&self) -> bool;
+    fn show_display_test_pattern(&self, input: &kairo_domain::overlay::TestPatternInput) -> bool;
+}
+
+impl OutputEngine for EngineHandle {
+    fn command(&self, command: Command) -> Sent {
+        EngineHandle::command(self, command)
+    }
+    fn is_available(&self, output: &str) -> bool {
+        EngineHandle::is_available(self, output)
+    }
+    fn unavailable_reason(&self, output: &str) -> Option<String> {
+        EngineHandle::unavailable_reason(self, output)
+    }
+    fn surface_state(&self, output: &str) -> Option<SurfaceState> {
+        EngineHandle::surface_state(self, output)
+    }
+    fn surface_status(&self, output: &str) -> Option<SurfaceStatus> {
+        EngineHandle::surface_status(self, output)
+    }
+    fn surfaces(&self) -> Vec<String> {
+        EngineHandle::surfaces(self)
+    }
+    fn displays(&self) -> Vec<DisplayInfo> {
+        EngineHandle::displays(self)
+    }
+    fn running(&self) -> bool {
+        matches!(self.status(), EngineStatus::Running { .. })
+    }
+    fn subscribe(&self) -> broadcast::Receiver<EngineEvent> {
+        EngineHandle::subscribe(self)
+    }
+    fn query(&self, query: Query) -> EngineFuture<'_, Option<Reply>> {
+        Box::pin(EngineHandle::query(self, query))
+    }
+    fn wait_frame<'a>(
+        &'a self,
+        output: &'a str,
+        seq: u64,
+        timeout: Duration,
+    ) -> EngineFuture<'a, bool> {
+        Box::pin(EngineHandle::wait_frame(self, output, seq, timeout))
+    }
+    fn identify_displays(&self) -> bool {
+        EngineHandle::identify_displays(self)
+    }
+    fn show_display_test_pattern(&self, input: &kairo_domain::overlay::TestPatternInput) -> bool {
+        EngineHandle::show_display_test_pattern(self, input)
+    }
+}
+
+impl<T: OutputEngine + ?Sized> OutputEngine for Arc<T> {
+    fn command(&self, command: Command) -> Sent {
+        (**self).command(command)
+    }
+    fn is_available(&self, output: &str) -> bool {
+        (**self).is_available(output)
+    }
+    fn unavailable_reason(&self, output: &str) -> Option<String> {
+        (**self).unavailable_reason(output)
+    }
+    fn surface_state(&self, output: &str) -> Option<SurfaceState> {
+        (**self).surface_state(output)
+    }
+    fn surface_status(&self, output: &str) -> Option<SurfaceStatus> {
+        (**self).surface_status(output)
+    }
+    fn surfaces(&self) -> Vec<String> {
+        (**self).surfaces()
+    }
+    fn displays(&self) -> Vec<DisplayInfo> {
+        (**self).displays()
+    }
+    fn running(&self) -> bool {
+        (**self).running()
+    }
+    fn subscribe(&self) -> broadcast::Receiver<EngineEvent> {
+        (**self).subscribe()
+    }
+    fn query(&self, query: Query) -> EngineFuture<'_, Option<Reply>> {
+        (**self).query(query)
+    }
+    fn wait_frame<'a>(
+        &'a self,
+        output: &'a str,
+        seq: u64,
+        timeout: Duration,
+    ) -> EngineFuture<'a, bool> {
+        (**self).wait_frame(output, seq, timeout)
+    }
+    fn identify_displays(&self) -> bool {
+        (**self).identify_displays()
+    }
+    fn show_display_test_pattern(&self, input: &kairo_domain::overlay::TestPatternInput) -> bool {
+        (**self).show_display_test_pattern(input)
+    }
+}

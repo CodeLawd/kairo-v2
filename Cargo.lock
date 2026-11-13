@@ -4760,6 +4760,7 @@ dependencies = [
  "kairo-engine-proto",
  "kairo-native-sys",
  "kairo-orchestrator",
+ "kairo-output",
  "kairo-scene",
  "kairo-sinks",
  "kairo-video",
@@ -4894,6 +4895,24 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "kairo-output"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kairo-core",
+ "kairo-domain",
+ "kairo-engine-proto",
+ "kairo-media",
+ "kairo-orchestrator",
+ "kairo-output",
+ "kairo-store",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
