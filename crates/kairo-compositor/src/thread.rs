@@ -131,6 +131,10 @@ enum Msg {
     RemoveSource {
         id: u64,
     },
+    Resident {
+        output: String,
+        rasters: Vec<std::sync::Arc<crate::Raster>>,
+    },
     SourceYuv {
         id: u64,
         frame: Arc<YuvFrame>,
@@ -316,6 +320,15 @@ impl Compositor {
 
     pub fn remove_source(&self, id: u64) {
         self.send(Msg::RemoveSource { id });
+    }
+
+    /// Uploads `rasters` and keeps their textures for `output` until the
+    /// next call, so showing one later is a texture change, not an upload.
+    pub fn keep_resident(&self, output: &str, rasters: Vec<std::sync::Arc<crate::Raster>>) {
+        self.send(Msg::Resident {
+            output: output.into(),
+            rasters,
+        });
     }
 
     /// A handle that feeds sources from any thread.
@@ -544,6 +557,7 @@ fn handle(
             );
         }
         Msg::Close { output } => {
+            renderer.keep_resident(&output, &[]);
             if let Some(o) = outputs.remove(&output)
                 && !o.media.is_empty()
             {
@@ -610,6 +624,9 @@ fn handle(
                     }
                 }
             }
+        }
+        Msg::Resident { output, rasters } => {
+            renderer.keep_resident(&output, &rasters);
         }
         Msg::RemoveSource { id } => {
             renderer.remove_source(id);

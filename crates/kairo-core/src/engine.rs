@@ -727,7 +727,7 @@ fn dispatch(inner: &Inner, message: FromEngine) {
                         web.url = url.clone();
                     }
                 }
-                Event::Health(_) | Event::Stats(_) => {}
+                Event::PageSwapped { .. } | Event::Health(_) | Event::Stats(_) => {}
             }
             let _ = inner.events.send(EngineEvent::Engine(event));
         }

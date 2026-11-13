@@ -224,6 +224,9 @@ pub struct Renderer {
     sampler: Sampler,
     white: BindGroup,
     images: HashMap<u64, Cached>,
+    /// Rasters each owner wants kept on the GPU though nothing draws them
+    /// yet (document pages decoded ahead of the click).
+    resident: HashMap<String, Vec<u64>>,
     sources: HashMap<u64, SourceTexture>,
     /// YUV to RGBA, made on the first video frame.
     yuv: Option<ComputePipeline>,
@@ -372,6 +375,7 @@ impl Renderer {
             blur_pipeline,
             sampler,
             images: HashMap::new(),
+            resident: HashMap::new(),
             sources: HashMap::new(),
             yuv: None,
             temps: HashMap::new(),
@@ -748,6 +752,25 @@ impl Renderer {
         self.sources.remove(&id);
     }
 
+    /// Uploads `rasters` now and keeps them on the GPU for `owner` until
+    /// its next call (an empty list releases them to the usual expiry).
+    pub fn keep_resident(&mut self, owner: &str, rasters: &[std::sync::Arc<Raster>]) {
+        for raster in rasters {
+            self.image(raster);
+        }
+        if rasters.is_empty() {
+            self.resident.remove(owner);
+        } else {
+            self.resident
+                .insert(owner.to_owned(), rasters.iter().map(|r| r.id()).collect());
+        }
+    }
+
+    /// Whether `raster` has a texture now (tests).
+    pub fn has_texture(&self, raster: &Raster) -> bool {
+        self.images.contains_key(&raster.id())
+    }
+
     fn image(&mut self, raster: &Raster) {
         let frames = self.frames;
         if let Some(cached) = self.images.get_mut(&raster.id()) {
@@ -818,6 +841,15 @@ impl Renderer {
             &mut draws,
             scene,
             Slot::Background,
+            frame,
+            size,
+            content,
+            now,
+        );
+        self.slot(
+            &mut draws,
+            scene,
+            Slot::DocumentVideos,
             frame,
             size,
             content,
@@ -1182,8 +1214,10 @@ impl Renderer {
         );
         // Rasters no longer drawn by any output for a while are released.
         let frames = self.frames;
-        self.images
-            .retain(|_, c| frames.saturating_sub(c.used) < 240);
+        let resident = &self.resident;
+        self.images.retain(|id, c| {
+            frames.saturating_sub(c.used) < 240 || resident.values().any(|ids| ids.contains(id))
+        });
         self.temps
             .retain(|_, t| frames.saturating_sub(t.used) < 240);
         self.blurred

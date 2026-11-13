@@ -15,6 +15,9 @@ use std::time::{Duration, Instant};
 pub enum Slot {
     /// `#pa-bg-layer`, alone in `#pa-content-bg`.
     Background,
+    /// `[data-document-videos]`: a document page's embedded videos, inside
+    /// `#pa-bg-layer` above the page.
+    DocumentVideos,
     /// `#pa-camera-layer`: between background and words, or above all in pip.
     Camera,
     // `#pa-content-fore`, in DOM order:
@@ -36,8 +39,9 @@ pub enum Slot {
 }
 
 impl Slot {
-    pub const ALL: [Slot; 15] = [
+    pub const ALL: [Slot; 16] = [
         Slot::Background,
+        Slot::DocumentVideos,
         Slot::Camera,
         Slot::Web,
         Slot::WebPointer,
@@ -518,7 +522,7 @@ pub fn clamp_transition(ms: f64) -> u32 {
 
 #[derive(Default, Debug)]
 pub struct Stack {
-    slots: [Vec<Node>; 15],
+    slots: [Vec<Node>; Slot::ALL.len()],
     next_id: u64,
 }
 

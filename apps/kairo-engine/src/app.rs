@@ -1,13 +1,13 @@
 //! The engine's winit loop: surfaces, their windows, and the client.
 
 use crate::display;
-use crate::program::{Planned, Shell};
+use crate::program::{Planned, Role, Shell};
 use crate::server::{Message, Outbox};
 use crate::text::{Ordered, TextWork, Timing, Wait, text_slot};
 use crate::visuals::{Output, VisualWork};
 use kairo_compositor::thread::{Compositor, CompositorEvent, MediaControl, Sink, SourceFeed};
 use kairo_engine_proto::*;
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use winit::application::ApplicationHandler;
@@ -47,6 +47,31 @@ struct EngineSurface {
     queue: Ordered,
     /// Slides applied and not yet reported committed: for the trace line.
     traces: VecDeque<(u64, Instant, Timing)>,
+    /// Page turns waiting for their decode: job to command sequence.
+    pages: HashMap<u64, u64>,
+    /// Pages being decoded ahead of the click.
+    preloads: HashSet<u64>,
+    /// Decoded pages kept on the GPU, newest last (`PAGE_CACHE`).
+    resident: VecDeque<Arc<kairo_compositor::Raster>>,
+}
+
+/// Pages kept on the GPU per surface: the one shown, the ones either side
+/// and one spare, so back-and-forth turns never upload.
+const PAGE_CACHE: usize = 4;
+
+impl EngineSurface {
+    /// Remembers `raster` as the newest page; the oldest past the bound goes.
+    fn keep_page(
+        &mut self,
+        raster: Arc<kairo_compositor::Raster>,
+    ) -> Vec<Arc<kairo_compositor::Raster>> {
+        self.resident.retain(|r| !Arc::ptr_eq(r, &raster));
+        self.resident.push_back(raster);
+        while self.resident.len() > PAGE_CACHE {
+            self.resident.pop_front();
+        }
+        self.resident.iter().cloned().collect()
+    }
 }
 
 impl EngineSurface {
@@ -284,6 +309,9 @@ impl Engine {
                     shell: Shell::new(&spec.output, frame_height_of(&spec.sink)),
                     queue: Ordered::default(),
                     traces: VecDeque::new(),
+                    pages: HashMap::new(),
+                    preloads: HashSet::new(),
+                    resident: VecDeque::new(),
                 }),
             },
             Command::CloseSurface {
@@ -308,7 +336,7 @@ impl Engine {
                     return;
                 };
                 let before = surface.state.clone();
-                surface.state.apply(&command, true);
+                let applied = surface.state.apply(&command, true);
                 if let Command::SetCamera { camera, .. } = &command {
                     self.set_camera(&output, camera.as_ref());
                 }
@@ -327,10 +355,35 @@ impl Engine {
                 };
                 surface.seq = seq;
                 let planned = surface.shell.command(&command, &before, &surface.state);
+                // A turn the reducer refused, or one with no page to decode
+                // (no window, not a picture), is answered at once.
+                if matches!(command, Command::SwapPage { .. })
+                    && (!applied
+                        || surface.window.is_none()
+                        || !planned.visuals.iter().any(|v| v.role == Role::Page))
+                {
+                    self.send_event(Event::PageSwapped {
+                        output: output.clone(),
+                        seq,
+                        swapped: false,
+                    });
+                }
+                let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
+                    return;
+                };
                 // Every applied command gets a frame, so `FrameCommitted`
                 // follows even when no pixels change.
                 if surface.window.is_some() {
                     self.dispatch(&output, seq, planned);
+                }
+                if let Command::ControlDocumentVideo {
+                    video,
+                    command: control,
+                    ..
+                } = &command
+                    && applied
+                {
+                    self.control_document_video(&output, *video as usize, control);
                 }
                 if !matches!(
                     command,
@@ -341,6 +394,76 @@ impl Engine {
             }
         }
         self.reconcile(event_loop);
+    }
+
+    /// `__controlDocumentVideo` on `output`'s video `index`.
+    fn control_document_video(&mut self, output: &str, index: usize, command: &Json) {
+        let Ok(command) = command.decode::<kairo_domain::documents::DocumentVideoCommand>() else {
+            tracing::warn!(output, "document video command could not be read");
+            return;
+        };
+        let status = |this: &Self, id| this.videos.as_ref().and_then(|v| v.status(id));
+        let Some(surface) = self.surfaces.iter().find(|s| s.output() == output) else {
+            return;
+        };
+        let Some(videos) = surface.shell.doc_videos.as_ref() else {
+            return;
+        };
+        let Some(&id) = videos.sources.get(index) else {
+            return;
+        };
+        let range = videos.range(index).unwrap_or((0.0, None));
+        let plan = crate::documents::control(&command, range, status(self, id).as_ref());
+        for transport in plan.transport {
+            self.document_transport(id, transport);
+        }
+        let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
+            return;
+        };
+        if let Some(videos) = surface.shell.doc_videos.as_mut()
+            && let Some(slot) = videos.play_error.get_mut(index)
+        {
+            match plan.play_error {
+                crate::documents::PlayError::Clear => *slot = None,
+                crate::documents::PlayError::Set => {
+                    *slot = Some(crate::documents::PLAY_FAILED.into());
+                }
+                crate::documents::PlayError::Keep => {}
+            }
+        }
+        if let Some(visible) = plan.visible
+            && let Some(op) = surface.shell.document_video_visible(index, visible)
+        {
+            surface
+                .queue
+                .push_waiting(0, vec![op], Vec::new(), Instant::now());
+            self.flush(output);
+        }
+    }
+
+    /// Picture and sound of document video `id` take `transport`.
+    fn document_transport(&mut self, id: u64, transport: crate::documents::Transport) {
+        use crate::documents::Transport;
+        if let Some(videos) = self.videos.as_ref() {
+            videos.control(
+                id,
+                match transport {
+                    Transport::Pause => kairo_video::Control::Pause(true),
+                    Transport::Play => kairo_video::Control::Pause(false),
+                    Transport::Seek(s) => kairo_video::Control::Seek(s),
+                },
+            );
+        }
+        if let Some(sound) = self.sound.as_mut() {
+            sound.control(
+                id,
+                match transport {
+                    Transport::Pause => kairo_audio::ClipControl::Pause,
+                    Transport::Play => kairo_audio::ClipControl::Play,
+                    Transport::Seek(s) => kairo_audio::ClipControl::Seek(s),
+                },
+            );
+        }
     }
 
     /// `__setCamera` for `output`: the capture (shared by every output
@@ -403,6 +526,7 @@ impl Engine {
     fn dispatch(&mut self, output: &str, seq: u64, planned: Planned) {
         let received = Instant::now();
         let mut waits = Vec::new();
+        let mut roles = Vec::new();
         if let Some(request) = planned.text
             && let Some(slot) = text_slot(&planned.ops)
         {
@@ -422,6 +546,7 @@ impl Engine {
         for request in planned.visuals {
             let job = self.next_job;
             self.next_job += 1;
+            roles.push((job, request.role));
             let send = |proxy: winit::event_loop::EventLoopProxy<Message>,
                         owner: String,
                         slot,
@@ -459,6 +584,17 @@ impl Engine {
             }
         }
         if let Some(surface) = self.surface_mut(output) {
+            for (job, role) in roles {
+                match role {
+                    Role::Page => {
+                        surface.pages.insert(job, seq);
+                    }
+                    Role::Preload => {
+                        surface.preloads.insert(job);
+                    }
+                    Role::Node => {}
+                }
+            }
             surface
                 .queue
                 .push_waiting(seq, planned.ops, waits, received);
@@ -479,7 +615,71 @@ impl Engine {
         let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
             return;
         };
+        if let Some(seq) = surface.pages.remove(&job) {
+            // `__swapDocumentPage`: shown only if decoded and still the
+            // newest request for the page node.
+            let page = match result {
+                Output::Image(Some(content)) if surface.shell.is_current(slot, generation) => {
+                    Some(content)
+                }
+                _ => None,
+            };
+            let swapped = page.is_some();
+            let mut keep = None;
+            match page {
+                Some(content) => {
+                    surface.shell.page_shown(generation);
+                    if let kairo_compositor::Fill::Image(raster) = &content.fill {
+                        keep = Some(surface.keep_page(raster.clone()));
+                    }
+                    surface.queue.complete_visual(job, content);
+                }
+                None => {
+                    surface.queue.cancel_visual(job);
+                }
+            }
+            if let (Some(rasters), Some(compositor)) = (keep, self.compositor.as_ref()) {
+                compositor.keep_resident(output, rasters);
+            }
+            self.send_event(Event::PageSwapped {
+                output: output.to_owned(),
+                seq,
+                swapped,
+            });
+            self.flush(output);
+            return;
+        }
+        if surface.preloads.remove(&job) {
+            // A missed preload only costs the next turn its head start.
+            if let Output::Image(Some(content)) = result
+                && let kairo_compositor::Fill::Image(raster) = &content.fill
+            {
+                let rasters = surface.keep_page(raster.clone());
+                if let Some(compositor) = self.compositor.as_ref() {
+                    compositor.keep_resident(output, rasters);
+                }
+            }
+            return;
+        }
         match result {
+            // A document page the frame waits for (`__markDocument`).
+            Output::Image(Some(content)) if surface.queue.complete_visual(job, content.clone()) => {
+                if let kairo_compositor::Fill::Image(raster) = &content.fill {
+                    let rasters = surface.keep_page(raster.clone());
+                    if let Some(compositor) = self.compositor.as_ref() {
+                        compositor.keep_resident(output, rasters);
+                    }
+                }
+            }
+            // An unreadable page shows nothing on the black frame.
+            Output::Image(None)
+                if surface.queue.complete_visual(
+                    job,
+                    kairo_compositor::Content::new(kairo_compositor::Fill::Pending),
+                ) =>
+            {
+                tracing::warn!(output, "a document page could not be shown");
+            }
             // The first stage of an elements layer, which the slide waits for.
             Output::Fast(content) if surface.queue.complete_visual(job, content.clone()) => {}
             Output::Fast(_) => {}
@@ -587,9 +787,15 @@ impl Engine {
                 Some(_) => Reply::VideoEnded(self.videos.as_ref().is_none_or(|v| v.ended(&output))),
                 None => Reply::UnknownSurface,
             },
-            // Document video playback arrives with prompt 058.
             Query::DocumentPlayback { output } => match has(&output) {
-                Some(_) => Reply::DocumentPlayback(None),
+                Some(surface) => Reply::DocumentPlayback(
+                    crate::documents::playback(
+                        surface.state.document_mode,
+                        &surface.shell,
+                        self.videos.as_ref(),
+                    )
+                    .map(|status| Json::encode(&status)),
+                ),
                 None => Reply::UnknownSurface,
             },
             Query::State => Reply::State(self.surfaces.iter().map(|s| s.state.clone()).collect()),
@@ -846,7 +1052,16 @@ impl Engine {
                     .get_or_insert_with(crate::sound::Sound::new)
                     .media(&output, &uses);
                 if let Some(videos) = self.videos.as_mut() {
-                    videos.sync(&output, uses);
+                    videos.sync(&output, uses.clone());
+                }
+                // Embedded document videos wait, paused at the clip start.
+                if let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) {
+                    let ids: Vec<u64> = uses.iter().map(|u| u.id).collect();
+                    let primed = crate::documents::prime(&mut surface.shell, &ids);
+                    for (id, start) in primed {
+                        self.document_transport(id, crate::documents::Transport::Pause);
+                        self.document_transport(id, crate::documents::Transport::Seek(start));
+                    }
                 }
             }
             CompositorEvent::Transport { id, control, .. } => {
