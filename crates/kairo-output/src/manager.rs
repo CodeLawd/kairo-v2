@@ -1298,6 +1298,15 @@ fn proto_binding(resolved: Option<f64>, binding: &DisplayBinding) -> proto::Disp
     }
 }
 
+/// `program.ndiAudioSupported`: whether NDI feeds can carry program sound.
+/// False when the engine has no NDI runtime or does not answer.
+pub async fn ndi_audio_supported(engine: &dyn OutputEngine) -> bool {
+    matches!(
+        engine.query(Query::NdiAudioSupported).await,
+        Some(Reply::NdiAudioSupported(true))
+    )
+}
+
 /// `videoDevices.listPorts`: refreshes the card list, then answers once the
 /// engine reports it (or after the query timeout).
 pub async fn list_ports(engine: &dyn OutputEngine) -> Vec<VideoPort> {

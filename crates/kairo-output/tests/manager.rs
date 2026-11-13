@@ -1149,3 +1149,11 @@ fn the_actor_serializes_reconciles_and_debounces_display_changes() {
             .unwrap();
         });
 }
+
+#[tokio::test]
+async fn ndi_audio_is_supported_only_when_the_engine_says_so() {
+    let r = rig();
+    assert!(!kairo_output::manager::ndi_audio_supported(r.engine.as_ref()).await);
+    r.engine.set_ndi_audio(true);
+    assert!(kairo_output::manager::ndi_audio_supported(r.engine.as_ref()).await);
+}

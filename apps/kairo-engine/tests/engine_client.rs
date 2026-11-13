@@ -107,6 +107,10 @@ async fn engine_client_follows_program_surface_rules() {
             surfaces.unavailable_reason(&ndi).as_deref(),
             Some("NDI sender unavailable")
         );
+        // No runtime, no NDI sound: the operator hides the NDI audio option.
+        assert!(!kairo_output::manager::ndi_audio_supported(&engine).await);
+    } else {
+        assert!(kairo_output::manager::ndi_audio_supported(&engine).await);
     }
     assert_eq!(surfaces.unavailable_reason(&screen), None);
     let live: Vec<String> = surfaces

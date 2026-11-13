@@ -445,6 +445,8 @@ pub enum Query {
     State,
     /// The video card snapshot (`VideoDeviceSnapshot`).
     VideoDevices,
+    /// `ndiAudioSupported`: can this engine's NDI feeds carry program sound.
+    NdiAudioSupported,
 }
 
 // ─── Engine to client ────────────────────────────────────────────────────────
@@ -478,6 +480,7 @@ pub enum Reply {
     State(Vec<SurfaceState>),
     /// `VideoDeviceSnapshot`.
     VideoDevices(Json),
+    NdiAudioSupported(bool),
     /// The query named a surface the engine does not have.
     UnknownSurface,
 }

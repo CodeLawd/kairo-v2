@@ -22,6 +22,7 @@ struct State {
     video_ended: HashMap<String, bool>,
     devices: Option<VideoDeviceSnapshot>,
     stopped: bool,
+    ndi_audio: bool,
     replays: usize,
     queries: usize,
 }
@@ -79,6 +80,11 @@ impl FakeEngine {
             output: output.into(),
             status,
         }));
+    }
+
+    /// Whether the engine says its NDI feeds carry sound.
+    pub fn set_ndi_audio(&self, supported: bool) {
+        self.lock().ndi_audio = supported;
     }
 
     pub fn set_video_ended(&self, output: &str, ended: bool) {
@@ -271,6 +277,7 @@ impl OutputEngine for FakeEngine {
                 .devices
                 .as_ref()
                 .map(|d| Reply::VideoDevices(Json::encode(d))),
+            Query::NdiAudioSupported => Some(Reply::NdiAudioSupported(state.ndi_audio)),
             Query::State => Some(Reply::State(
                 state.surfaces.iter().map(|s| s.0.clone()).collect(),
             )),

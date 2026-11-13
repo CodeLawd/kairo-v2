@@ -1302,6 +1302,6 @@ Decision: NDI and Syphon renames destroy the surface and open a new one (Electro
 
 Decision: card lobbies start when the engine's card snapshot says the output is ready (`Event::VideoDevices`), instead of Electron's re-run of the whole reconcile on every card change; card acquisition and release already happen in the engine on their own thread.
 
-Decision: `program.ndiAudioSupported` cannot read the engine's NDI runtime from the operator process. It is not done here (row left `todo`, for 067 with a query if needed). `program.pickImage` (a file dialog) and `program.onWebNavigated` forwarding are UI/wiring (067/089); `videoDevices.openDriverDownloads` opens `kairo_sinks::decklink::DRIVER_DOWNLOADS` from the shell (067).
+Decision: `program.ndiAudioSupported` is `Query::NdiAudioSupported` → `Reply::NdiAudioSupported(bool)` (protocol 6), answered true when the engine loaded the NDI runtime: every native sender carries audio, so Electron's adapter check reduces to the runtime being present. `kairo_output::manager::ndi_audio_supported` returns false when the engine does not answer. `program.pickImage` (a file dialog) and `program.onWebNavigated` forwarding are UI/wiring (067/089); `videoDevices.openDriverDownloads` opens `kairo_sinks::decklink::DRIVER_DOWNLOADS` from the shell (067).
 
 Affects prompts: 066, 067, 075, 076.
