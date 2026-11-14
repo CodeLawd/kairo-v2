@@ -24,7 +24,7 @@ use ui_lyrics::backend::{
 use ui_lyrics::model::PickGesture;
 use ui_lyrics::quick_open::{self, QuickOpen};
 use ui_lyrics::rows::{Filter, ListFooter, Sort};
-use ui_lyrics::view::ids;
+use ui_lyrics::view::{ids, song_ids};
 use ui_lyrics::{Lyrics, LyricsEvent, LyricsWorkspace};
 
 // ─── The scripted core ──────────────────────────────────────────────────────
@@ -135,6 +135,7 @@ impl LyricsBackend for Core {
                     LyricsAnswer::Libraries(state.snapshot.libraries.clone())
                 }
                 LyricsCall::UsageList { .. } => LyricsAnswer::Usage(Vec::new()),
+                LyricsCall::Update(song) => LyricsAnswer::Song(song.clone()),
                 _ => LyricsAnswer::Done,
             })
         });
@@ -1363,5 +1364,374 @@ fn library_open_bench(cx: &mut TestAppContext) {
             "{n} songs: median {:?}, min {:?}, max {:?}",
             runs[2], runs[0], runs[4]
         );
+    }
+}
+
+// ─── The slide grid (081) ───────────────────────────────────────────────────
+
+fn sectioned(id: &str, title: &str) -> LyricsSong {
+    serde_json::from_value(json!({
+        "id": id, "title": title, "artist": "",
+        "sections": [
+            {"type": "verse", "label": "Verse 1", "lines": ["one", "two", "", "three", "four"]},
+            {"type": "chorus", "label": "Chorus", "lines": ["sing"], "hotkey": "C"},
+            {"type": "bridge", "label": "Bridge", "lines": ["bridge line"]}
+        ],
+        "createdAt": 1.0, "updatedAt": 1.0,
+    }))
+    .unwrap()
+}
+
+fn grid_core() -> Arc<Core> {
+    let mut snapshot = LyricsSnapshot {
+        songs: vec![sectioned("x", "Xylo"), sectioned("y", "Yonder")],
+        gloss_color: "#AABED7".into(),
+        ..Default::default()
+    };
+    snapshot.setlists = SetlistState {
+        lists: vec![list("p", "Service", &["x", "y"])],
+        active_id: Some("p".into()),
+        extra: Default::default(),
+    };
+    Core::new(snapshot)
+}
+
+fn pushes(core: &Core) -> Vec<(String, usize)> {
+    core.calls()
+        .into_iter()
+        .filter_map(|c| match c {
+            LyricsCall::PushSlide { song_id, index } => Some((song_id, index)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn updates(core: &Core) -> Vec<LyricsSong> {
+    core.calls()
+        .into_iter()
+        .filter_map(|c| match c {
+            LyricsCall::Update(s) => Some(s),
+            _ => None,
+        })
+        .collect()
+}
+
+fn focus_song(cx: &mut TestAppContext, opened: &Opened) {
+    let page = opened.page.clone();
+    cx.update_window(opened.handle, move |_, window, cx| {
+        let handle = page.read(cx).song_focus().clone();
+        handle.focus(window, cx);
+    })
+    .unwrap();
+}
+
+fn open_song(cx: &mut TestAppContext, core: Arc<Core>, id: &str) -> Opened {
+    let opened = open(cx, core);
+    let id = id.to_owned();
+    act(cx, &opened, |m, cx| m.select_song(id, cx));
+    opened
+}
+
+#[gpui_kit::test]
+fn the_grid_runs_one_card_per_slide_across_sections(cx: &mut TestAppContext) {
+    let opened = open_song(cx, grid_core(), "x");
+    assert!(exists(cx, &opened, song_ids::GRID));
+    for i in 0..4 {
+        assert!(exists(cx, &opened, &song_ids::slide(i)), "card {i}");
+    }
+    assert!(!exists(cx, &opened, &song_ids::slide(4)));
+    assert!(exists(cx, &opened, song_ids::HINT));
+}
+
+#[gpui_kit::test]
+fn a_click_pushes_the_slide_and_marks_it_live(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    click(cx, &opened, &song_ids::slide(2));
+    assert_eq!(pushes(&core), [("x".to_string(), 2)]);
+    assert_eq!(read(cx, &opened, |m| m.live_slide_of("x")), Some(2));
+    assert!(read(cx, &opened, |m| m.pushing().is_none()));
+}
+
+#[gpui_kit::test]
+fn a_failed_push_shows_the_error_and_keeps_the_old_live_slide(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    click(cx, &opened, &song_ids::slide(0));
+    core.script(|c| {
+        matches!(c, LyricsCall::PushSlide { .. }).then(|| Err("Error: No screens are on".into()))
+    });
+    click(cx, &opened, &song_ids::slide(1));
+    assert!(exists(cx, &opened, song_ids::SEND_ERROR));
+    assert_eq!(
+        read(cx, &opened, |m| m.error().map(str::to_owned)),
+        Some("No screens are on".into())
+    );
+    assert_eq!(read(cx, &opened, |m| m.live_slide_of("x")), Some(0));
+}
+
+#[gpui_kit::test]
+fn arrows_step_from_the_live_slide_and_hotkeys_jump_to_a_section(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    focus_song(cx, &opened);
+    press(cx, &opened, "right");
+    press(cx, &opened, "right");
+    press(cx, &opened, "left");
+    assert_eq!(
+        pushes(&core),
+        [("x".into(), 0), ("x".into(), 1), ("x".into(), 0)]
+    );
+    press(cx, &opened, "left");
+    assert_eq!(pushes(&core).len(), 3, "nothing before the first slide");
+    press(cx, &opened, "c");
+    assert_eq!(
+        pushes(&core).last(),
+        Some(&("x".to_string(), 2)),
+        "Chorus starts at slide 3"
+    );
+    press(cx, &opened, "z");
+    assert_eq!(pushes(&core).len(), 4, "an unassigned key does nothing");
+}
+
+#[gpui_kit::test]
+fn a_playlist_lays_out_every_song_and_arrows_carry_on_into_the_next(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open(cx, core.clone());
+    act(cx, &opened, |m, cx| m.select_setlist("p".into(), cx));
+    assert_eq!(read(cx, &opened, |m| m.playlist_songs().len()), 2);
+    assert!(exists(cx, &opened, &song_ids::divider("x")));
+    assert!(exists(cx, &opened, &song_ids::divider("y")));
+    assert!(exists(cx, &opened, &song_ids::other_slide("y", 0)));
+    act(cx, &opened, |m, cx| m.push_slide("x".into(), 3, cx));
+    focus_song(cx, &opened);
+    press(cx, &opened, "right");
+    assert_eq!(pushes(&core).last(), Some(&("y".to_string(), 0)));
+    assert_eq!(
+        read(cx, &opened, |m| m.selected_id().map(str::to_owned)),
+        Some("y".into())
+    );
+    press(cx, &opened, "left");
+    assert_eq!(pushes(&core).last(), Some(&("x".to_string(), 3)));
+    // A card of the other song pushes it and makes it the open one.
+    click(cx, &opened, &song_ids::other_slide("y", 1));
+    assert_eq!(pushes(&core).last(), Some(&("y".to_string(), 1)));
+    assert_eq!(
+        read(cx, &opened, |m| m.selected_id().map(str::to_owned)),
+        Some("y".into())
+    );
+    // The band of another song selects it.
+    click(cx, &opened, &song_ids::divider("x"));
+    assert_eq!(
+        read(cx, &opened, |m| m.selected_id().map(str::to_owned)),
+        Some("x".into())
+    );
+}
+
+#[gpui_kit::test]
+fn picks_select_without_going_live_and_escape_clears(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    act(cx, &opened, |m, cx| {
+        m.click_slide(0, Some(PickGesture::Toggle), cx)
+    });
+    act(cx, &opened, |m, cx| {
+        m.click_slide(2, Some(PickGesture::Range), cx)
+    });
+    assert_eq!(
+        read(cx, &opened, |m| m
+            .slide_picks()
+            .selected()
+            .iter()
+            .copied()
+            .collect::<Vec<_>>()),
+        [0, 1, 2]
+    );
+    assert!(pushes(&core).is_empty());
+    assert_eq!(read(cx, &opened, |m| m.menu_slides(1)), [0, 1, 2]);
+    assert_eq!(read(cx, &opened, |m| m.menu_slides(3)), [3]);
+    focus_song(cx, &opened);
+    press(cx, &opened, "escape");
+    assert!(read(cx, &opened, |m| m.slide_picks().is_empty()));
+    // Select mode: a plain click picks.
+    act(cx, &opened, |m, cx| m.start_selecting(cx));
+    assert!(exists(cx, &opened, song_ids::DONE));
+    click(cx, &opened, &song_ids::slide(3));
+    assert!(read(cx, &opened, |m| m.slide_picks().contains(&3)));
+    assert!(pushes(&core).is_empty());
+    click(cx, &opened, song_ids::DONE);
+    assert!(!read(cx, &opened, |m| m.selecting()));
+    // Another song starts with nothing picked.
+    act(cx, &opened, |m, cx| {
+        m.click_slide(0, Some(PickGesture::Toggle), cx)
+    });
+    act(cx, &opened, |m, cx| m.select_song("y".into(), cx));
+    assert!(read(cx, &opened, |m| m.slide_picks().is_empty()));
+}
+
+#[gpui_kit::test]
+fn grouping_and_deleting_slides_save_the_song(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    act(cx, &opened, |m, cx| {
+        m.click_slide(3, Some(PickGesture::Toggle), cx)
+    });
+    let target = ui_lyrics::grid::label_choices()[5].clone();
+    act(cx, &opened, |m, cx| m.label_slides(vec![3], target, cx));
+    let saved = updates(&core);
+    assert_eq!(saved.len(), 1);
+    assert_eq!(saved[0].sections.last().unwrap().label, "Chorus");
+    assert!(read(cx, &opened, |m| m.slide_picks().is_empty()));
+    act(cx, &opened, |m, cx| m.push_slide("x".into(), 0, cx));
+    act(cx, &opened, |m, cx| m.delete_slides(vec![0], cx));
+    let saved = updates(&core);
+    assert_eq!(saved.len(), 2);
+    assert_eq!(saved[1].sections[0].lines, ["three", "four"]);
+    assert!(
+        read(cx, &opened, |m| m.live().is_none()),
+        "live cleared after delete"
+    );
+}
+
+#[gpui_kit::test]
+fn hot_keys_are_set_moved_assigned_and_cleared(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    act(cx, &opened, |m, cx| m.set_hotkey(2, Some("C".into()), cx));
+    let s = &updates(&core)[0];
+    assert_eq!(s.sections[2].hotkey.as_deref(), Some("C"));
+    assert_eq!(s.sections[1].hotkey, None, "the key moved here");
+    act(cx, &opened, |m, cx| m.set_hotkeys(false, cx));
+    assert!(
+        updates(&core)[1]
+            .sections
+            .iter()
+            .all(|s| s.hotkey.is_none())
+    );
+    act(cx, &opened, |m, cx| m.set_hotkeys(true, cx));
+    assert!(
+        updates(&core)[2]
+            .sections
+            .iter()
+            .any(|s| s.hotkey.is_some())
+    );
+}
+
+#[gpui_kit::test]
+fn quick_edit_saves_and_repushes_a_live_slide(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    act(cx, &opened, |m, cx| m.push_slide("x".into(), 1, cx));
+    act(cx, &opened, |m, cx| m.start_quick_edit(1, cx));
+    assert!(exists(cx, &opened, song_ids::QUICK_EDIT));
+    assert_eq!(
+        read(cx, &opened, |m| m
+            .quick_edit()
+            .map(|(i, t)| (i, t.to_owned()))),
+        Some((1, "three\nfour".into()))
+    );
+    // Esc in the text box cancels.
+    press(cx, &opened, "escape");
+    assert!(read(cx, &opened, |m| m.quick_edit().is_none()));
+    assert!(updates(&core).is_empty());
+    act(cx, &opened, |m, cx| m.start_quick_edit(1, cx));
+    act(cx, &opened, |m, cx| {
+        m.save_quick_edit("three\nfour more".into(), cx)
+    });
+    assert_eq!(
+        updates(&core)[0].sections[0].lines,
+        ["one", "two", "", "three", "four more"]
+    );
+    assert_eq!(
+        pushes(&core),
+        [("x".into(), 1), ("x".into(), 1)],
+        "shown again with the new words"
+    );
+    // Unchanged text saves nothing.
+    act(cx, &opened, |m, cx| m.start_quick_edit(0, cx));
+    act(cx, &opened, |m, cx| {
+        m.save_quick_edit("one\ntwo".into(), cx)
+    });
+    assert_eq!(updates(&core).len(), 1);
+}
+
+#[gpui_kit::test]
+fn painting_colours_a_line_instead_of_going_live(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    act(cx, &opened, |m, cx| {
+        m.set_paint(Some(Some("#AABED7".into())), cx)
+    });
+    click(cx, &opened, &song_ids::line(0, 1));
+    assert!(pushes(&core).is_empty());
+    let colors = updates(&core)[0].sections[0].line_colors.clone().unwrap();
+    assert_eq!(colors[1].as_deref(), Some("#AABED7"));
+    assert_eq!(colors[0], None);
+    // Clearing the only colour drops the list.
+    act(cx, &opened, |m, cx| m.set_paint(Some(None), cx));
+    click(cx, &opened, &song_ids::line(0, 1));
+    assert_eq!(updates(&core)[1].sections[0].line_colors, None);
+    focus_song(cx, &opened);
+    press(cx, &opened, "escape");
+    assert!(read(cx, &opened, |m| m.paint().is_none()));
+}
+
+#[gpui_kit::test]
+fn moving_a_slide_saves_the_order_and_a_failed_save_says_so(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    act(cx, &opened, |m, cx| {
+        m.move_slide(3, 0, kairo_domain::lyrics::reorder::Side::Before, cx)
+    });
+    assert_eq!(updates(&core).len(), 1);
+    act(cx, &opened, |m, cx| {
+        m.move_slide(2, 2, kairo_domain::lyrics::reorder::Side::After, cx)
+    });
+    assert_eq!(updates(&core).len(), 1, "a slide onto itself saves nothing");
+    core.script(|c| matches!(c, LyricsCall::Update(_)).then(|| Err(String::new())));
+    act(cx, &opened, |m, cx| {
+        m.move_slide(1, 0, kairo_domain::lyrics::reorder::Side::Before, cx)
+    });
+    assert_eq!(
+        read(cx, &opened, |m| m.error().map(str::to_owned)),
+        Some("Could not save slide order".into())
+    );
+    assert!(!read(cx, &opened, |m| m.busy()));
+}
+
+#[gpui_kit::test]
+fn zoom_is_clamped(cx: &mut TestAppContext) {
+    let opened = open_song(cx, grid_core(), "x");
+    act(cx, &opened, |m, cx| m.set_zoom(500., cx));
+    assert_eq!(read(cx, &opened, |m| m.zoom()), 200.);
+    act(cx, &opened, |m, cx| m.set_zoom(10., cx));
+    assert_eq!(read(cx, &opened, |m| m.zoom()), 60.);
+}
+
+/// Key press to the push request leaving the UI. `press` also draws two
+/// frames, so this is an upper bound. The budget is checked on release
+/// builds; debug timings run the unoptimised GPUI layout.
+#[gpui_kit::test]
+fn a_key_press_asks_for_the_push_within_a_frame(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    focus_song(cx, &opened);
+    let mut times = Vec::new();
+    for _ in 0..20 {
+        let before = pushes(&core).len();
+        let t = Instant::now();
+        cx.update_window(opened.handle, |_, window, cx| window.press("c", cx))
+            .unwrap();
+        times.push(t.elapsed());
+        assert_eq!(pushes(&core).len(), before + 1);
+        draw(cx, &opened);
+    }
+    times.sort();
+    eprintln!(
+        "key to push request: median {:?}, max {:?}",
+        times[10], times[19]
+    );
+    if !cfg!(debug_assertions) {
+        assert!(times[10] < Duration::from_micros(16_667));
     }
 }

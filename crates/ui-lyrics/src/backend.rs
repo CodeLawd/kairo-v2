@@ -20,6 +20,8 @@ pub struct LyricsSnapshot {
     pub libraries: LibraryState,
     /// The setlists ("playlists" on screen).
     pub setlists: SetlistState,
+    /// `lyrics.glossColor`, normalised.
+    pub gloss_color: String,
 }
 
 /// A push from the core.
@@ -30,6 +32,8 @@ pub enum LyricsFeed {
     Songs(Vec<LyricsSong>),
     Libraries(LibraryState),
     Setlists(SetlistState),
+    /// `lyrics.glossColor` changed.
+    GlossColor(String),
 }
 
 /// A web hit to fetch or import (`{ provider, url, title, artist }`).
@@ -88,6 +92,11 @@ pub enum LyricsCall {
     ExportKairo(KairoExport),
     /// `importKairo()`.
     ImportKairo,
+    /// `lyrics.pushSlide(songId, slideIndex)`.
+    PushSlide { song_id: String, index: usize },
+    /// `lyrics.update(id, song)`; answers [`LyricsAnswer::Song`] (an error
+    /// when the song no longer exists).
+    Update(LyricsSong),
     /// `window.open(url)` for a web hit whose lyrics cannot be imported.
     OpenUrl(String),
 }

@@ -7,6 +7,7 @@
 //! implements it over its services.
 
 pub mod backend;
+pub mod grid;
 pub mod model;
 pub mod quick_open;
 pub mod rows;

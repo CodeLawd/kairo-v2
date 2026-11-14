@@ -47,15 +47,24 @@ pub enum PickGesture {
     Range,
 }
 
-/// `useMultiSelect` over song ids.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Picks {
-    selected: BTreeSet<String>,
-    anchor: Option<String>,
+/// `useMultiSelect` over song ids or slide indices.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Picks<K: Ord + Clone = String> {
+    selected: BTreeSet<K>,
+    anchor: Option<K>,
 }
 
-impl Picks {
-    pub fn pick(&mut self, key: String, gesture: PickGesture, order: &[String]) {
+impl<K: Ord + Clone> Default for Picks<K> {
+    fn default() -> Self {
+        Self {
+            selected: BTreeSet::new(),
+            anchor: None,
+        }
+    }
+}
+
+impl<K: Ord + Clone> Picks<K> {
+    pub fn pick(&mut self, key: K, gesture: PickGesture, order: &[K]) {
         match gesture {
             PickGesture::Toggle => {
                 if !self.selected.remove(&key) {
@@ -79,15 +88,21 @@ impl Picks {
             }
         }
     }
-    pub fn select_all(&mut self, order: &[String]) {
+    pub fn select_all(&mut self, order: &[K]) {
         self.selected = order.iter().cloned().collect();
     }
     pub fn clear(&mut self) {
         self.selected.clear();
         self.anchor = None;
     }
-    pub fn contains(&self, key: &str) -> bool {
+    pub fn contains<Q: Ord + ?Sized>(&self, key: &Q) -> bool
+    where
+        K: std::borrow::Borrow<Q>,
+    {
         self.selected.contains(key)
+    }
+    pub fn selected(&self) -> &BTreeSet<K> {
+        &self.selected
     }
     pub fn len(&self) -> usize {
         self.selected.len()
@@ -95,7 +110,7 @@ impl Picks {
     pub fn is_empty(&self) -> bool {
         self.selected.is_empty()
     }
-    fn retain(&mut self, keep: impl Fn(&str) -> bool) {
+    fn retain(&mut self, keep: impl Fn(&K) -> bool) {
         self.selected.retain(|k| keep(k));
     }
 }
@@ -208,6 +223,18 @@ pub struct Lyrics {
     landed_setlist: Option<String>,
     _landed: Option<Task<()>>,
     usage: Option<Usage>,
+    // The song view (081).
+    gloss: String,
+    live: Option<(String, usize)>,
+    pushing: Option<usize>,
+    push_seq: u64,
+    zoom: f32,
+    slide_picks: Picks<usize>,
+    selecting: bool,
+    /// `None`: paint off; `Some(None)`: clear a line's colour; `Some(c)`: apply.
+    paint: Option<Option<String>>,
+    busy: bool,
+    quick_edit: Option<(usize, String)>,
     _listening: Option<Listening>,
     _feed: Option<Task<()>>,
 }
@@ -249,6 +276,16 @@ impl Lyrics {
             landed_setlist: None,
             _landed: None,
             usage: None,
+            gloss: snapshot.gloss_color,
+            live: None,
+            pushing: None,
+            push_seq: 0,
+            zoom: crate::grid::ZOOM_DEFAULT,
+            slide_picks: Picks::default(),
+            selecting: false,
+            paint: None,
+            busy: false,
+            quick_edit: None,
             _listening: None,
             _feed: None,
         };
@@ -274,6 +311,7 @@ impl Lyrics {
             LyricsFeed::Songs(songs) => self.merge_songs(songs),
             LyricsFeed::Libraries(l) => self.libraries = l,
             LyricsFeed::Setlists(s) => self.set_setlists(s),
+            LyricsFeed::GlossColor(c) => self.gloss = c,
         }
         self.refresh();
         cx.notify();
@@ -525,6 +563,12 @@ impl Lyrics {
 
     /// `handleSelect`.
     pub fn select_song(&mut self, id: String, cx: &mut Context<Self>) {
+        if self.selected.as_deref() != Some(id.as_str()) {
+            // A different song starts with nothing picked and no quick edit.
+            self.slide_picks.clear();
+            self.selecting = false;
+            self.quick_edit = None;
+        }
         self.selected = Some(id);
         self.web_preview = None;
         self.error = None;
@@ -1097,7 +1141,7 @@ impl Lyrics {
     pub fn picked_ids(&self) -> Vec<String> {
         self.shown_ids()
             .into_iter()
-            .filter(|id| self.picks.contains(id))
+            .filter(|id| self.picks.contains(*id))
             .map(str::to_owned)
             .collect()
     }
@@ -1345,5 +1389,445 @@ impl Lyrics {
         })
         .detach();
         cx.notify();
+    }
+}
+
+// ─── The song view (081) ────────────────────────────────────────────────────
+
+use kairo_domain::lyrics::LyricsSongSection;
+use kairo_domain::lyrics::hotkeys::{
+    auto_assign_hotkeys, hotkey_from_event, section_for_hotkey, set_section_hotkey,
+};
+use kairo_domain::lyrics::reorder::{
+    Side, SlideLabel, delete_lyric_slides, label_lyric_slides, lyric_slide_lines, move_lyric_slide,
+    replace_lyric_slide,
+};
+
+impl Lyrics {
+    pub fn gloss(&self) -> &str {
+        &self.gloss
+    }
+    /// The song and slide last put on screen from here.
+    pub fn live(&self) -> Option<(&str, usize)> {
+        self.live.as_ref().map(|(s, i)| (s.as_str(), *i))
+    }
+    /// The live slide when it belongs to `song`.
+    pub fn live_slide_of(&self, song: &str) -> Option<usize> {
+        self.live().filter(|(s, _)| *s == song).map(|(_, i)| i)
+    }
+    pub fn pushing(&self) -> Option<usize> {
+        self.pushing
+    }
+    pub fn zoom(&self) -> f32 {
+        self.zoom
+    }
+    pub fn slide_picks(&self) -> &Picks<usize> {
+        &self.slide_picks
+    }
+    pub fn selecting(&self) -> bool {
+        self.selecting
+    }
+    pub fn paint(&self) -> Option<Option<&str>> {
+        self.paint.as_ref().map(|c| c.as_deref())
+    }
+    pub fn busy(&self) -> bool {
+        self.busy
+    }
+    pub fn quick_edit(&self) -> Option<(usize, &str)> {
+        self.quick_edit.as_ref().map(|(i, t)| (*i, t.as_str()))
+    }
+
+    /// The playlist's songs in order, when the open song is in the playlist
+    /// on screen and it has more than one (`showsSetlist`).
+    pub fn playlist_songs(&self) -> Vec<&LyricsSong> {
+        let Some(list) = self.viewing_setlist() else {
+            return Vec::new();
+        };
+        let songs: Vec<&LyricsSong> = list
+            .song_ids
+            .iter()
+            .filter_map(|id| self.song(id))
+            .collect();
+        let selected = self.selected.as_deref();
+        if songs.len() > 1 && selected.is_some_and(|id| songs.iter().any(|s| s.id == id)) {
+            songs
+        } else {
+            Vec::new()
+        }
+    }
+
+    pub fn set_zoom(&mut self, zoom: f32, cx: &mut Context<Self>) {
+        self.zoom = zoom.clamp(crate::grid::ZOOM_MIN, crate::grid::ZOOM_MAX);
+        cx.notify();
+    }
+
+    /// Puts slide `index` of `song_id` on screen. Another song becomes the
+    /// selected one. Errors show where the page shows send errors.
+    pub fn push_slide(&mut self, song_id: String, index: usize, cx: &mut Context<Self>) {
+        if self.song(&song_id).is_none() {
+            return;
+        }
+        if self.selected.as_deref() != Some(song_id.as_str()) {
+            self.select_song(song_id.clone(), cx);
+        }
+        self.push_seq += 1;
+        let seq = self.push_seq;
+        self.pushing = Some(index);
+        self.error = None;
+        let call = ask(
+            &self.backend,
+            LyricsCall::PushSlide {
+                song_id: song_id.clone(),
+                index,
+            },
+        );
+        cx.spawn(async move |this, cx| {
+            let answer = call.await;
+            let _ = this.update(cx, |this, cx| {
+                if this.push_seq == seq {
+                    this.pushing = None;
+                }
+                match answer {
+                    Ok(_) => this.live = Some((song_id, index)),
+                    Err(e) => this.error = Some(clean_error(&e)),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    /// A plain click on a card of the open song: go live, or pick while
+    /// selecting. A click while painting does nothing (lines take it).
+    pub fn click_slide(
+        &mut self,
+        index: usize,
+        gesture: Option<PickGesture>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(song) = self.selected.clone() else {
+            return;
+        };
+        if self.busy {
+            return;
+        }
+        if let Some(g) = gesture {
+            self.pick_slide(index, g, cx);
+        } else if self.selecting {
+            self.pick_slide(index, PickGesture::Toggle, cx);
+        } else if self.paint.is_none() {
+            self.push_slide(song, index, cx);
+        }
+    }
+
+    pub fn pick_slide(&mut self, index: usize, gesture: PickGesture, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        let order: Vec<usize> = (0..crate::grid::slide_count(song)).collect();
+        self.slide_picks.pick(index, gesture, &order);
+        cx.notify();
+    }
+
+    /// ⋯ → Select slides.
+    pub fn start_selecting(&mut self, cx: &mut Context<Self>) {
+        self.selecting = true;
+        cx.notify();
+    }
+
+    /// Done, or Esc: picks clear and select mode ends.
+    pub fn clear_slide_picks(&mut self, cx: &mut Context<Self>) {
+        self.slide_picks.clear();
+        self.selecting = false;
+        cx.notify();
+    }
+
+    /// Esc in the song view: paint off first, then picks, then select mode.
+    pub fn escape(&mut self, cx: &mut Context<Self>) -> bool {
+        if self.paint.is_some() {
+            self.paint = None;
+        } else if !self.slide_picks.is_empty() || self.selecting {
+            self.slide_picks.clear();
+            self.selecting = false;
+        } else {
+            return false;
+        }
+        cx.notify();
+        true
+    }
+
+    /// ← → ↑ ↓: step from what is live, across playlist songs.
+    pub fn arrow(&mut self, forward: bool, cx: &mut Context<Self>) -> Option<crate::grid::Step> {
+        if self.busy || self.pushing.is_some() || self.quick_edit.is_some() {
+            return None;
+        }
+        let selected = self.selected.clone()?;
+        let playlist: Vec<(String, usize)> = self
+            .playlist_songs()
+            .iter()
+            .map(|s| (s.id.clone(), crate::grid::slide_count(s)))
+            .collect();
+        let live = self.live.clone().filter(|(id, _)| self.song(id).is_some());
+        let step = crate::grid::step(
+            live.as_ref().map(|(s, i)| (s.as_str(), *i)),
+            &selected,
+            &playlist,
+            |id| self.song(id).map_or(0, crate::grid::slide_count),
+            forward,
+        )?;
+        self.push_slide(step.song.clone(), step.slide, cx);
+        Some(step)
+    }
+
+    /// A letter or digit: that section's first slide goes live.
+    pub fn hotkey(&mut self, key: &str, cx: &mut Context<Self>) -> Option<usize> {
+        if self.busy || self.pushing.is_some() || self.quick_edit.is_some() {
+            return None;
+        }
+        let key = hotkey_from_event(key)?;
+        let song = self.selected_song()?;
+        let section = section_for_hotkey(&song.sections, &key)?;
+        let first = *crate::grid::section_starts(song).get(section)?;
+        if first >= crate::grid::slide_count(song) {
+            return None;
+        }
+        let id = song.id.clone();
+        self.push_slide(id, first, cx);
+        Some(first)
+    }
+
+    /// Saves new sections for the open song, one write at a time.
+    fn save_sections(
+        &mut self,
+        sections: Vec<LyricsSongSection>,
+        failure: &'static str,
+        cx: &mut Context<Self>,
+        then: impl FnOnce(&mut Self, &mut Context<Self>) + 'static,
+    ) {
+        let Some(song) = self.selected_song().cloned() else {
+            return;
+        };
+        if self.busy {
+            return;
+        }
+        self.busy = true;
+        self.error = None;
+        let call = ask(
+            &self.backend,
+            LyricsCall::Update(LyricsSong { sections, ..song }),
+        );
+        cx.spawn(async move |this, cx| {
+            let answer = call.await;
+            let _ = this.update(cx, |this, cx| {
+                this.busy = false;
+                match answer {
+                    Ok(LyricsAnswer::Song(updated)) => {
+                        this.upsert(updated);
+                        this.refresh();
+                        then(this, cx);
+                    }
+                    Ok(_) => this.error = Some(failure.into()),
+                    Err(e) => {
+                        this.error = Some(if e.is_empty() {
+                            failure.into()
+                        } else {
+                            clean_error(&e)
+                        })
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    /// Drag a slide beside another; it joins that slide's section.
+    pub fn move_slide(&mut self, from: usize, target: usize, side: Side, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        if from == target {
+            return;
+        }
+        let sections = move_lyric_slide(&song.sections, from as i64, target as i64, side);
+        if sections == song.sections {
+            return;
+        }
+        self.save_sections(sections, "Could not save slide order", cx, |this, _| {
+            this.live = None;
+        });
+    }
+
+    /// The slides a menu action on `slide` applies to: the picks when it is
+    /// one of them, else that slide.
+    pub fn menu_slides(&self, slide: usize) -> Vec<usize> {
+        if self.slide_picks.contains(&slide) {
+            self.slide_picks.selected().iter().copied().collect()
+        } else {
+            vec![slide]
+        }
+    }
+
+    /// Group: relabel the slides.
+    pub fn label_slides(&mut self, slides: Vec<usize>, target: SlideLabel, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        if slides.is_empty() {
+            return;
+        }
+        let sections =
+            label_lyric_slides(&song.sections, slides.iter().map(|&i| i as i64), &target);
+        self.save_sections(sections, "Could not label those slides", cx, |this, cx| {
+            this.clear_slide_picks(cx)
+        });
+    }
+
+    /// Delete (the view confirms first).
+    pub fn delete_slides(&mut self, slides: Vec<usize>, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        if slides.is_empty() {
+            return;
+        }
+        let sections = delete_lyric_slides(&song.sections, slides.iter().map(|&i| i as i64));
+        self.save_sections(sections, "Could not delete those slides", cx, |this, cx| {
+            this.clear_slide_picks(cx);
+            this.live = None;
+        });
+    }
+
+    /// Hot Key: `None` removes it; a key on another section moves here.
+    pub fn set_hotkey(&mut self, section: usize, key: Option<String>, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        let sections = set_section_hotkey(&song.sections, section, key.as_deref());
+        self.save_sections(sections, "Could not save the hot key", cx, |_, _| {});
+    }
+
+    /// ⋯ → Assign hotkeys, or Clear hotkeys.
+    pub fn set_hotkeys(&mut self, assign: bool, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        let sections = if assign {
+            auto_assign_hotkeys(&song.sections)
+        } else {
+            song.sections
+                .iter()
+                .cloned()
+                .map(|s| LyricsSongSection { hotkey: None, ..s })
+                .collect()
+        };
+        self.save_sections(sections, "Could not save the hotkeys", cx, |_, _| {});
+    }
+
+    /// The slide's own lines, as Copy text puts them on the clipboard.
+    pub fn slide_text(&self, slide: usize) -> Option<String> {
+        let song = self.selected_song()?;
+        let grid = crate::grid::song_grid(song, &self.gloss);
+        grid.into_iter().find_map(|g| match g {
+            crate::grid::GridItem::Card(c) if c.index == slide => Some(
+                c.lines
+                    .iter()
+                    .map(|l| l.text.clone())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ),
+            _ => None,
+        })
+    }
+
+    pub fn start_quick_edit(&mut self, slide: usize, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        if let Some(lines) = lyric_slide_lines(&song.sections, slide as i64) {
+            self.quick_edit = Some((slide, lines.join("\n")));
+            cx.notify();
+        }
+    }
+
+    pub fn cancel_quick_edit(&mut self, cx: &mut Context<Self>) {
+        self.quick_edit = None;
+        cx.notify();
+    }
+
+    /// Saves a quick edit; a slide on screen is pushed again with the new
+    /// words.
+    pub fn save_quick_edit(&mut self, text: String, cx: &mut Context<Self>) {
+        let Some((slide, initial)) = self.quick_edit.take() else {
+            return;
+        };
+        cx.notify();
+        if text == initial {
+            return;
+        }
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        let lines: Vec<String> = text.split('\n').map(str::to_owned).collect();
+        let sections = replace_lyric_slide(&song.sections, slide as i64, &lines);
+        if sections == song.sections {
+            return;
+        }
+        let id = song.id.clone();
+        let live = self.live_slide_of(&id) == Some(slide);
+        self.save_sections(
+            sections,
+            "Could not save that slide",
+            cx,
+            move |this, cx| {
+                if live {
+                    this.push_slide(id, slide, cx);
+                }
+            },
+        );
+    }
+
+    /// Paint mode: `Some(None)` clears a line's colour, `None` turns it off.
+    pub fn set_paint(&mut self, paint: Option<Option<String>>, cx: &mut Context<Self>) {
+        self.paint = paint;
+        cx.notify();
+    }
+
+    /// A line clicked while painting.
+    pub fn paint_line(&mut self, section: usize, line: usize, cx: &mut Context<Self>) {
+        let Some(color) = self.paint.clone() else {
+            return;
+        };
+        let Some(song) = self.selected_song() else {
+            return;
+        };
+        let sections = song
+            .sections
+            .iter()
+            .enumerate()
+            .map(|(i, s)| {
+                if i != section {
+                    return s.clone();
+                }
+                let mut colors = s
+                    .line_colors
+                    .clone()
+                    .unwrap_or_else(|| vec![None; s.lines.len()]);
+                colors.resize(s.lines.len().max(colors.len()), None);
+                if let Some(c) = colors.get_mut(line) {
+                    *c = color.clone();
+                }
+                let any = colors
+                    .iter()
+                    .any(|c| c.as_deref().is_some_and(|c| !c.trim().is_empty()));
+                LyricsSongSection {
+                    line_colors: any.then_some(colors),
+                    ..s.clone()
+                }
+            })
+            .collect();
+        self.save_sections(sections, "Could not save the line colour", cx, |_, _| {});
     }
 }

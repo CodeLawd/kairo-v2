@@ -28,13 +28,16 @@ use kairo_ui_kit::components::{
     ConfirmRequest, LibraryDragItem, LibraryKind, LibraryRow, LibrarySection, LibrarySectionEvent,
     SelectionAction, SelectionBar, confirm, messages,
 };
-use kairo_ui_kit::tokens::{Hue, TextStep, radius, section_color, section_text, text};
+use kairo_ui_kit::tokens::{Hue, TextStep, radius, text};
 use kairo_ui_kit::{KairoColors, KairoIcon, KairoThemeExt};
 
 use crate::backend::LyricsBackend;
 use crate::model::{Lyrics, PickGesture};
 use crate::quick_open::{QuickOpen, section_block};
 use crate::rows::{self, Filter, ListFooter, ReviewNotice, Sort};
+
+mod song_view;
+pub use song_view::{SlideDrag, ids as song_ids};
 
 /// Element ids, for tests and the coach tour.
 pub mod ids {
@@ -143,6 +146,8 @@ pub struct LyricsWorkspace {
     drop_over: Option<String>,
     drop_end: bool,
     quick_open: Option<(Entity<QuickOpen>, Subscription)>,
+    song: song_view::SongControls,
+    song_focus: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -240,7 +245,10 @@ impl LyricsWorkspace {
                 }
             }
         }));
+        let song = song_view::SongControls::new(&model, window, cx);
         Self {
+            song,
+            song_focus: cx.focus_handle(),
             model,
             rail: None,
             query,
@@ -262,6 +270,11 @@ impl LyricsWorkspace {
 
     pub fn model(&self) -> &Entity<Lyrics> {
         &self.model
+    }
+
+    /// The song view's focus: arrows, hotkeys and Esc answer while it has it.
+    pub fn song_focus(&self) -> &FocusHandle {
+        &self.song_focus
     }
 
     /// The song list's focus: ↑/↓, ⌘A, Delete and Esc answer while it has it.
@@ -1630,97 +1643,7 @@ impl LyricsWorkspace {
                 )
                 .into_any_element();
         };
-        let credits = [
-            Some(song.artist.clone()).filter(|a| !a.is_empty()),
-            song.copyright.clone().filter(|c| !c.is_empty()),
-            song.ccli_number
-                .clone()
-                .filter(|c| !c.is_empty())
-                .map(|c| format!("CCLI #{c}")),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" · ");
-        v_flex()
-            .id(ids::SONG)
-            .test_support()
-            .flex_1()
-            .min_h_0()
-            .min_w_0()
-            .child(
-                v_flex()
-                    .flex_none()
-                    .px_4()
-                    .py_3()
-                    .child(
-                        div()
-                            .text_size(text::BASE.size)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(k.text_primary)
-                            .child(song.title.clone()),
-                    )
-                    .when(!credits.is_empty(), |d| {
-                        d.child(
-                            div()
-                                .text_size(text::XS.size)
-                                .text_color(k.text(TextStep::T400))
-                                .child(credits),
-                        )
-                    }),
-            )
-            .child(
-                div()
-                    .id("lyrics-song-body")
-                    .flex_1()
-                    .min_h_0()
-                    .overflow_y_scroll()
-                    .px_4()
-                    .pb_4()
-                    .child(if song.sections.is_empty() {
-                        div()
-                            .text_size(text::XS.size)
-                            .text_color(k.text(TextStep::T600))
-                            .child("This song has no lyrics saved yet.")
-                            .into_any_element()
-                    } else {
-                        v_flex()
-                            .gap_4()
-                            .children(song.sections.iter().map(|s| {
-                                let kind = rows::section_kind(s.kind);
-                                v_flex()
-                                    .gap_1()
-                                    .child(
-                                        div()
-                                            .flex_none()
-                                            .self_start()
-                                            .rounded(radius::sm())
-                                            .px_1p5()
-                                            .bg(section_color(kind))
-                                            .text_color(section_text())
-                                            .text_size(text::MICRO.size)
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .child(if s.label.is_empty() {
-                                                s.kind.as_str().to_owned()
-                                            } else {
-                                                s.label.clone()
-                                            }),
-                                    )
-                                    .child(
-                                        v_flex()
-                                            .text_size(text::SM.size)
-                                            .text_color(k.text(TextStep::T200))
-                                            .children(
-                                                s.lines
-                                                    .iter()
-                                                    .map(|l| div().min_h_2().child(l.clone())),
-                                            ),
-                                    )
-                            }))
-                            .into_any_element()
-                    }),
-            )
-            .into_any_element()
+        self.render_song_view(song, cx)
     }
 
     // ─── Song usage ─────────────────────────────────────────────────────────
@@ -2087,6 +2010,7 @@ fn web_row(
 impl Render for LyricsWorkspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.sync(window, cx);
+        self.song.sync(&self.model, window, cx);
         let k = *cx.kairo();
         let sidebar = self.render_sidebar(window, cx);
         let pane = match self.render_preview_pane(cx) {

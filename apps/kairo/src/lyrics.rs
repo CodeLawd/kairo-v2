@@ -46,6 +46,13 @@ fn review_credential(services: &ApplicationServices) -> String {
         .to_owned()
 }
 
+/// `lyrics.glossColor`, normalised.
+fn gloss_of(all: &Value) -> String {
+    kairo_domain::lyrics::style::normalize_gloss_color(
+        all.pointer("/lyrics/glossColor").and_then(Value::as_str),
+    )
+}
+
 fn source(s: OnlineSource) -> kairo_lyrics::online::OnlineSource {
     kairo_lyrics::online::OnlineSource {
         provider: s.provider,
@@ -70,6 +77,13 @@ impl LyricsBackend for ServicesLyrics {
             songs: Vec::new(),
             libraries: services.libraries.snapshot().songs,
             setlists: services.setlist.snapshot(),
+            gloss_color: gloss_of(
+                &services
+                    .settings_wiring
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .get_all(),
+            ),
         }
     }
 
@@ -85,6 +99,16 @@ impl LyricsBackend for ServicesLyrics {
                 }
             }
         });
+        let gloss = {
+            let mut values = services.core.watch::<crate::services::SettingsChanged>();
+            let sink = sink.clone();
+            services.runtime().spawn(async move {
+                while let Some(value) = values.next().await {
+                    let crate::services::SettingsChanged(value) = &*value;
+                    sink(LyricsFeed::GlossColor(gloss_of(value)));
+                }
+            })
+        };
         let libraries = sink.clone();
         services
             .libraries
@@ -93,13 +117,15 @@ impl LyricsBackend for ServicesLyrics {
         services
             .setlist
             .on_changed(move |state| setlists(LyricsFeed::Setlists(state.clone())));
-        struct Feed(tokio::task::JoinHandle<()>);
+        struct Feed(Vec<tokio::task::JoinHandle<()>>);
         impl Drop for Feed {
             fn drop(&mut self) {
-                self.0.abort();
+                for task in &self.0 {
+                    task.abort();
+                }
             }
         }
-        Box::new(Feed(task))
+        Box::new(Feed(vec![task, gloss]))
     }
 
     fn call(&self, call: LyricsCall, reply: Reply) {
@@ -227,6 +253,22 @@ async fn run(
                     .emit(kairo_transfer::KairoOpened::Preview(Box::new(preview)));
             }
             Ok(LyricsAnswer::Done)
+        }
+        LyricsCall::PushSlide { song_id, index } => {
+            services
+                .actions()
+                .push_lyrics(&song_id, index as f64)
+                .await?;
+            Ok(LyricsAnswer::Done)
+        }
+        LyricsCall::Update(song) => {
+            let id = song.id.clone();
+            lyrics
+                .update_song(&id, song)
+                .await
+                .map_err(|e| text(&e))?
+                .map(LyricsAnswer::Song)
+                .ok_or_else(String::new)
         }
         LyricsCall::OpenUrl(url) => {
             // Only web pages: a hit's URL comes from a remote catalogue.
