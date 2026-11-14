@@ -37,39 +37,16 @@ fn luma(r: i32, g: i32, b: i32) -> u8 {
 /// `src` to straight-alpha BGRA at `dst`, each pixel the rounded mean of at
 /// most 8 × 8 evenly spaced source pixels under it.
 pub fn preview_reference(rgba: &[u8], src: (u32, u32), dst: (u32, u32)) -> Vec<u8> {
-    let (sw, sh) = src;
-    let (dw, dh) = dst;
-    let mut out = Vec::with_capacity(dw as usize * dh as usize * 4);
-    for y in 0..dh {
-        let y0 = y * sh / dh;
-        let y1 = ((y + 1) * sh / dh).max(y0 + 1);
-        let ny = (y1 - y0).min(8);
-        for x in 0..dw {
-            let x0 = x * sw / dw;
-            let x1 = ((x + 1) * sw / dw).max(x0 + 1);
-            let nx = (x1 - x0).min(8);
-            let mut sum = [0u32; 4];
-            for j in 0..ny {
-                let sy = y0 + j * (y1 - y0) / ny;
-                for i in 0..nx {
-                    let sx = x0 + i * (x1 - x0) / nx;
-                    let at = (sy as usize * sw as usize + sx as usize) * 4;
-                    for (c, s) in sum.iter_mut().enumerate() {
-                        *s += u32::from(rgba[at + c]);
-                    }
-                }
-            }
-            let n = nx * ny;
-            let c = sum.map(|s| (s + n / 2) / n);
-            let (r, g, b, a) = match c[3] {
-                0 => (0, 0, 0, 0),
-                255 => (c[0], c[1], c[2], 255),
-                a => {
-                    let un = |v: u32| ((v * 255 + a / 2) / a).min(255);
-                    (un(c[0]), un(c[1]), un(c[2]), a)
-                }
-            };
-            out.extend_from_slice(&[b as u8, g as u8, r as u8, a as u8]);
+    let sample = |x: u32, y: u32| {
+        let at = (y as usize * src.0 as usize + x as usize) * 4;
+        [0, 1, 2, 3].map(|c| u32::from(rgba[at + c]))
+    };
+    let mut out = Vec::with_capacity(dst.0 as usize * dst.1 as usize * 4);
+    for y in 0..dst.1 {
+        for x in 0..dst.0 {
+            out.extend_from_slice(&kairo_engine_proto::preview::box_pixel(
+                sample, src, dst, x, y,
+            ));
         }
     }
     out

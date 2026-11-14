@@ -5,86 +5,22 @@ use gpui_kit::{
     AnyWindowHandle, AppContext, Bounds, Entity, TestAppContext, WindowBounds, WindowOptions, px,
     size,
 };
-use kairo_core::engine::{EngineEvent, EngineFuture, OutputEngine, Sent};
 use kairo_core::preview::PreviewHub;
 use kairo_core_gpui::preview::LivePreview;
 use kairo_core_gpui::thumbnails::{Thumbnail, ThumbnailRequest, Thumbnails};
 use kairo_domain::overlay_defaults::DEFAULT_OVERLAY_THEME;
 use kairo_engine_proto::preview::PreviewMap;
 use kairo_engine_proto::*;
-use std::sync::{Arc, Mutex};
+use kairo_output::fake::FakeEngine;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::broadcast;
 
-struct Fake {
-    commands: Mutex<Vec<Command>>,
-    events: broadcast::Sender<EngineEvent>,
-}
-
-impl Fake {
-    fn new() -> Arc<Self> {
-        Arc::new(Self {
-            commands: Mutex::default(),
-            events: broadcast::channel(4).0,
-        })
-    }
-    fn last_preview(&self) -> Option<Option<PreviewTarget>> {
-        self.commands
-            .lock()
-            .unwrap()
-            .iter()
-            .rev()
-            .find_map(|c| match c {
-                Command::SetPreview { preview, .. } => Some(preview.clone()),
-                _ => None,
-            })
-    }
-}
-
-impl OutputEngine for Fake {
-    fn command(&self, command: Command) -> Sent {
-        self.commands.lock().unwrap().push(command);
-        Sent {
-            accepted: true,
-            seq: 0,
-        }
-    }
-    fn is_available(&self, _: &str) -> bool {
-        true
-    }
-    fn unavailable_reason(&self, _: &str) -> Option<String> {
-        None
-    }
-    fn surface_state(&self, _: &str) -> Option<SurfaceState> {
-        None
-    }
-    fn surface_status(&self, _: &str) -> Option<SurfaceStatus> {
-        None
-    }
-    fn surfaces(&self) -> Vec<String> {
-        Vec::new()
-    }
-    fn displays(&self) -> Vec<DisplayInfo> {
-        Vec::new()
-    }
-    fn running(&self) -> bool {
-        true
-    }
-    fn subscribe(&self) -> broadcast::Receiver<EngineEvent> {
-        self.events.subscribe()
-    }
-    fn query(&self, _: Query) -> EngineFuture<'_, Option<Reply>> {
-        Box::pin(async { None })
-    }
-    fn wait_frame<'a>(&'a self, _: &'a str, _: u64, _: Duration) -> EngineFuture<'a, bool> {
-        Box::pin(async { false })
-    }
-    fn identify_displays(&self) -> bool {
-        false
-    }
-    fn show_display_test_pattern(&self, _: &kairo_domain::overlay::TestPatternInput) -> bool {
-        false
-    }
+/// The last preview request the engine was sent.
+fn last_preview(fake: &FakeEngine) -> Option<Option<PreviewTarget>> {
+    fake.commands().into_iter().rev().find_map(|c| match c {
+        Command::SetPreview { preview, .. } => Some(preview),
+        _ => None,
+    })
 }
 
 fn open(cx: &mut TestAppContext, hub: PreviewHub) -> (AnyWindowHandle, Entity<LivePreview>) {
@@ -110,18 +46,18 @@ fn frame(cx: &mut TestAppContext, handle: AnyWindowHandle) {
 
 #[gpui_kit::test]
 fn the_preview_shows_new_frames_evicts_old_ones_and_lets_go_when_hidden(cx: &mut TestAppContext) {
-    let fake = Fake::new();
+    let fake = Arc::new(FakeEngine::new());
     let hub = PreviewHub::new(fake.clone()).unwrap();
     let (handle, view) = open(cx, hub.clone());
     frame(cx, handle);
-    assert!(fake.last_preview().is_none(), "no output, no preview");
+    assert!(last_preview(&fake).is_none(), "no output, no preview");
 
     cx.update_window(handle, |_, window, cx| {
         view.update(cx, |v, cx| v.set_output(Some("main".into()), window, cx))
     })
     .unwrap();
     frame(cx, handle);
-    let target = fake.last_preview().unwrap().expect("subscribed when drawn");
+    let target = last_preview(&fake).unwrap().expect("subscribed when drawn");
     assert_eq!(target.fps, 30);
     let engine = PreviewMap::open(std::path::Path::new(&target.path)).unwrap();
 
@@ -143,7 +79,7 @@ fn the_preview_shows_new_frames_evicts_old_ones_and_lets_go_when_hidden(cx: &mut
     std::thread::sleep(Duration::from_millis(1100));
     cx.executor().advance_clock(Duration::from_millis(50));
     cx.run_until_parked();
-    assert_eq!(fake.last_preview(), Some(None));
+    assert_eq!(last_preview(&fake), Some(None));
     assert!(hub.active().is_empty());
     let stats = cx.update(|cx| view.read(cx).stats());
     assert_eq!(stats.images_dropped, 10);
@@ -157,7 +93,7 @@ fn the_preview_shows_new_frames_evicts_old_ones_and_lets_go_when_hidden(cx: &mut
     })
     .unwrap();
     frame(cx, handle);
-    assert!(matches!(fake.last_preview(), Some(Some(_))));
+    assert!(matches!(last_preview(&fake), Some(Some(_))));
     assert_eq!(hub.active(), ["main"]);
 }
 

@@ -20,6 +20,7 @@
 use gpui_kit::*;
 use image::{Frame, RgbaImage};
 use kairo_domain::overlay::OverlayTheme;
+use kairo_engine_proto::preview::box_pixel;
 use kairo_scene::{ColoredLine, RasterPool, SlideScene, TextRaster};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, VecDeque};
@@ -127,14 +128,13 @@ pub struct Thumbnails {
 impl Thumbnails {
     /// Thumbnails of `size` pixels (the card's device pixels), at most
     /// `capacity` kept, drawn on `workers` threads.
-    pub fn new(size: (u32, u32), capacity: usize, workers: usize, cx: &mut Context<Self>) -> Self {
+    pub fn new(size: (u32, u32), capacity: usize, workers: usize, _cx: &mut Context<Self>) -> Self {
         let size = (size.0.max(1), size.1.max(1));
         // The pool's own cache holds full-size rasters; the thumbnails are
         // cached here, so it keeps no more than the one it just drew.
         let pool = Arc::new(RasterPool::new(workers, 0, move |raster| {
             Arc::new(downscale(raster.as_ref(), FRAME, size))
         }));
-        let _ = cx;
         Self {
             size,
             capacity: capacity.max(1),
@@ -146,10 +146,6 @@ impl Thumbnails {
             stats: ThumbnailStats::default(),
             drain: None,
         }
-    }
-
-    pub fn size(&self) -> (u32, u32) {
-        self.size
     }
 
     pub fn stats(&self) -> ThumbnailStats {
@@ -248,7 +244,11 @@ impl Thumbnails {
             return;
         }
         let (w, h) = self.size;
-        let Some(buffer) = RgbaImage::from_raw(w, h, pixels.as_ref().clone()) else {
+        let Some(buffer) = RgbaImage::from_raw(
+            w,
+            h,
+            Arc::try_unwrap(pixels).unwrap_or_else(|shared| (*shared).clone()),
+        ) else {
             self.slots.insert(key, Slot::Failed);
             self.stats.failed += 1;
             return;
@@ -293,56 +293,15 @@ pub fn downscale(raster: Option<&TextRaster>, frame: (u32, u32), size: (u32, u32
             return [0; 4];
         }
         let at = (((sy - r.y) * r.width + (sx - r.x)) * 4) as usize;
-        [
-            u32::from(r.pixels[at]),
-            u32::from(r.pixels[at + 1]),
-            u32::from(r.pixels[at + 2]),
-            u32::from(r.pixels[at + 3]),
-        ]
+        [0, 1, 2, 3].map(|c| u32::from(r.pixels[at + c]))
     };
     // Only the rows and columns the raster covers can be non-transparent.
-    let first_row = (r.y * dh / fh).min(dh);
-    let last_row = ((r.y + r.height) * dh).div_ceil(fh).min(dh);
-    let first_col = (r.x * dw / fw).min(dw);
-    let last_col = ((r.x + r.width) * dw).div_ceil(fw).min(dw);
-    for y in first_row..last_row {
-        let y0 = y * fh / dh;
-        let y1 = ((y + 1) * fh / dh).max(y0 + 1);
-        let ny = (y1 - y0).min(8);
-        for x in first_col..last_col {
-            let x0 = x * fw / dw;
-            let x1 = ((x + 1) * fw / dw).max(x0 + 1);
-            let nx = (x1 - x0).min(8);
-            let mut sum = [0u32; 4];
-            for j in 0..ny {
-                let sy = y0 + j * (y1 - y0) / ny;
-                for i in 0..nx {
-                    let s = sample(x0 + i * (x1 - x0) / nx, sy);
-                    for c in 0..4 {
-                        sum[c] += s[c];
-                    }
-                }
-            }
-            let n = nx * ny;
-            let c = sum.map(|s| (s + n / 2) / n);
-            let a = c[3];
-            if a == 0 {
-                continue;
-            }
-            let un = |v: u32| {
-                if a == 255 {
-                    v
-                } else {
-                    ((v * 255 + a / 2) / a).min(255)
-                }
-            };
+    let rows = (r.y * dh / fh).min(dh)..((r.y + r.height) * dh).div_ceil(fh).min(dh);
+    let cols = (r.x * dw / fw).min(dw)..((r.x + r.width) * dw).div_ceil(fw).min(dw);
+    for y in rows {
+        for x in cols.clone() {
             let at = (y as usize * dw as usize + x as usize) * 4;
-            out[at..at + 4].copy_from_slice(&[
-                un(c[2]) as u8,
-                un(c[1]) as u8,
-                un(c[0]) as u8,
-                a as u8,
-            ]);
+            out[at..at + 4].copy_from_slice(&box_pixel(sample, frame, size, x, y));
         }
     }
     out

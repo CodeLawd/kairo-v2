@@ -12,15 +12,10 @@ use kairo_engine_proto::*;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-const ENGINE: &str = env!("CARGO_BIN_EXE_kairo-engine");
+mod common;
+use common::until;
 
-async fn until(what: &str, mut done: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(15);
-    while !done() {
-        assert!(Instant::now() < deadline, "timed out waiting for {what}");
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
-}
+const ENGINE: &str = env!("CARGO_BIN_EXE_kairo-engine");
 
 fn slide(color: &str) -> Command {
     Command::ShowSlide {
