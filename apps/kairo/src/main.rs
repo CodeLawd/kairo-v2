@@ -28,6 +28,7 @@ mod operator;
 mod power;
 mod quote_detector;
 pub mod services;
+mod scripture;
 mod settings;
 
 /// When `main` began, for the launch-to-first-paint log line.
@@ -241,6 +242,9 @@ fn open_operator_window(
         services.clone(),
         ui_state.clone(),
     ));
+    let scripture_backend: Arc<dyn ui_scripture::ScriptureBackend> = Arc::new(
+        scripture::ServicesScripture::new(services.clone(), ui_state.clone()),
+    );
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
@@ -290,6 +294,10 @@ fn open_operator_window(
         )
         .detach();
         booth::install(booth_backend, &workspace, &shell, booth_account, window, cx);
+        let scripture_page = scripture::install(scripture_backend, &workspace, &shell, window, cx);
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Scripture, scripture_page.into(), cx)
+        });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Operator, workspace.into(), cx)
         });

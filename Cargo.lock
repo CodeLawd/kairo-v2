@@ -5087,6 +5087,7 @@ dependencies = [
  "tracing",
  "ui-account",
  "ui-operator",
+ "ui-scripture",
  "ui-settings",
  "ui-shell",
  "ui-web",
@@ -10817,6 +10818,15 @@ version = "0.1.0"
 [[package]]
 name = "ui-scripture"
 version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "gpui-kit",
+ "kairo-domain",
+ "kairo-ui-kit",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "ui-settings"

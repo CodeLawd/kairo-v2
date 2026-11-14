@@ -14,6 +14,7 @@ kairo-ui-kit = { path = "../../crates/kairo-ui-kit" }
 ui-web = { path = "../../crates/ui-web" }
 ui-shell = { path = "../../crates/ui-shell" }
 ui-operator = { path = "../../crates/ui-operator" }
+ui-scripture = { path = "../../crates/ui-scripture" }
 ui-account = { path = "../../crates/ui-account" }
 ui-settings = { path = "../../crates/ui-settings" }
 futures-channel = "0.3"

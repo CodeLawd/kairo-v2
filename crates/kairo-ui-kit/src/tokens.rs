@@ -219,6 +219,10 @@ pub struct KairoColors {
     pub success_text: Hsla,
     /// `text-yellow-300`: the startup warning bar (stock in both themes).
     pub warning_text: Hsla,
+    /// The scripture grid card's checkerboard, light squares (`#303030`), both themes.
+    pub checker_light: Hsla,
+    /// The checkerboard's dark squares (`#242424`), both themes.
+    pub checker_dark: Hsla,
     /// `text-teal-400`: a quiet positive notice (password reset sent, Get a key).
     pub notice_text: Hsla,
     /// `rgb(113 113 122)`: the launch screen's "Powering up" line, and the
@@ -391,6 +395,8 @@ impl KairoColors {
             danger_text_soft: rgb(0xfd, 0xa4, 0xaf),
             success_text: rgb(0x34, 0xd3, 0x99),
             warning_text: rgb(0xfd, 0xe0, 0x47),
+            checker_light: rgb(0x30, 0x30, 0x30),
+            checker_dark: rgb(0x24, 0x24, 0x24),
             notice_text: rgb(0x2d, 0xd4, 0xbf),
             splash_boot: rgb(113, 113, 122),
             white: rgb(255, 255, 255),
@@ -496,6 +502,8 @@ impl KairoColors {
             danger_text_soft: rgb(0xb9, 0x1c, 0x1c),
             success_text: rgb(0x04, 0x78, 0x57),
             warning_text: rgb(0xfd, 0xe0, 0x47),
+            checker_light: rgb(0x30, 0x30, 0x30),
+            checker_dark: rgb(0x24, 0x24, 0x24),
             notice_text: rgb(0x2d, 0xd4, 0xbf),
             splash_boot: rgb(113, 113, 122),
             white: rgb(255, 255, 255),
