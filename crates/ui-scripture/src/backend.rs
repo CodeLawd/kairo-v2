@@ -10,7 +10,7 @@ use std::sync::Arc;
 use kairo_domain::collections::{LibrariesCommand, LibraryState};
 use kairo_domain::scripture::{
     LivePlanState, PassagesCommand, SavedPassage, ScriptureResult, ScriptureSuggestion,
-    ScriptureTranslationOption, SermonPlan, SermonPlanDraft,
+    ScriptureTranslationOption, SermonNotesAnalysis, SermonPlan, SermonPlanDraft,
 };
 use serde_json::Value;
 
@@ -105,6 +105,9 @@ pub enum ScriptureCall {
     /// `scripture.importSermonNotes`: the file dialog and the scan; answers
     /// [`ScriptureAnswer::Draft`] (`None` when the dialog was cancelled).
     ImportSermonNotes,
+    /// `scripture.scanSermonNotes(text)`, off the UI thread; answers
+    /// [`ScriptureAnswer::Analysis`].
+    ScanSermonNotes(String),
     /// `exportKairo({ kind: 'playlist', planId })`.
     ExportPlaylist(String),
     /// `importKairo()`.
@@ -121,6 +124,7 @@ pub enum ScriptureAnswer {
     Passages(Vec<SavedPassage>),
     Libraries(LibraryState),
     Draft(Option<SermonPlanDraft>),
+    Analysis(SermonNotesAnalysis),
 }
 
 pub type Reply = Box<dyn FnOnce(Result<ScriptureAnswer, String>) + Send>;

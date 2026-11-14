@@ -37,11 +37,13 @@ use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
 use crate::backend::{OptionChange, ScriptureBackend};
 use crate::card::VerseCard;
-use crate::model::{PickGesture, Scripture, ScrollTarget, Source};
+use crate::model::{PickGesture, Scripture, ScriptureEvent, ScrollTarget, Source};
+use crate::review::{ReviewEvent, SermonReview};
 use crate::rows::{
     self, BarItem, CARD_ZOOM_DEFAULT, CARD_ZOOM_MAX, CARD_ZOOM_MIN, GridKey, GridLine, Scope,
     SendStatus,
 };
+use kairo_domain::scripture::SermonPlanDraft;
 
 /// Element ids, for tests and the coach tour.
 pub mod ids {
@@ -155,6 +157,8 @@ pub struct ScriptureWorkspace {
     passages_focus: FocusHandle,
     bar: Bar,
     drag_over: Option<(String, DropPosition)>,
+    backend: Arc<dyn ScriptureBackend>,
+    review: Option<(Entity<SermonReview>, Subscription)>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -164,7 +168,7 @@ impl ScriptureWorkspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let model = cx.new(|cx| Scripture::new(backend, cx));
+        let model = cx.new(|cx| Scripture::new(backend.clone(), cx));
         let query = cx.new(|cx| InputState::new(window, cx).placeholder("Scripture Lookup"));
         let rename = cx.new(|cx| InputState::new(window, cx));
         let filter = cx.new(|cx| InputState::new(window, cx).placeholder("Filter"));
@@ -191,6 +195,25 @@ impl ScriptureWorkspace {
         });
         let mut subs = Vec::new();
         subs.push(cx.observe(&model, |_, _, cx| cx.notify()));
+        subs.push(cx.subscribe_in(
+            &model,
+            window,
+            |this, _, event: &ScriptureEvent, window, cx| match event {
+                ScriptureEvent::ReviewSermonNotes(draft) => {
+                    this.open_review(draft.clone(), window, cx)
+                }
+                ScriptureEvent::ImportFinished(true) => {
+                    this.review = None;
+                    cx.notify();
+                }
+                ScriptureEvent::ImportFinished(false) => {
+                    if let Some((review, _)) = &this.review {
+                        review.update(cx, |r, cx| r.set_confirming(false, cx));
+                    }
+                }
+                _ => {}
+            },
+        ));
         subs.push(
             cx.subscribe_in(&query, window, |this, _, event: &InputEvent, window, cx| {
                 let value = this.query.read(cx).value().to_string();
@@ -283,6 +306,8 @@ impl ScriptureWorkspace {
             passages_focus: cx.focus_handle(),
             bar: Bar::default(),
             drag_over: None,
+            backend,
+            review: None,
             _subscriptions: subs,
         }
     }
@@ -294,6 +319,37 @@ impl ScriptureWorkspace {
 
     pub fn model(&self) -> &Entity<Scripture> {
         &self.model
+    }
+
+    /// The open sermon notes review, if any.
+    pub fn review(&self) -> Option<&Entity<SermonReview>> {
+        self.review.as_ref().map(|(r, _)| r)
+    }
+
+    fn open_review(&mut self, draft: SermonPlanDraft, window: &mut Window, cx: &mut Context<Self>) {
+        let review = cx.new(|cx| SermonReview::new(self.backend.clone(), draft, window, cx));
+        let sub = cx.subscribe(
+            &review,
+            |this, review, event: &ReviewEvent, cx| match event {
+                ReviewEvent::Cancel => {
+                    this.review = None;
+                    cx.notify();
+                }
+                ReviewEvent::Confirm {
+                    title,
+                    text,
+                    analysis,
+                } => {
+                    let draft = review.read(cx).draft().clone();
+                    let (title, text, items) =
+                        (title.clone(), text.clone(), analysis.items.clone());
+                    this.model
+                        .update(cx, |m, cx| m.confirm_import(&draft, title, text, items, cx));
+                }
+            },
+        );
+        self.review = Some((review, sub));
+        cx.notify();
     }
 
     /// The live rail beside the page (`BoothWorkspace`'s rail).
@@ -2574,5 +2630,6 @@ impl Render for ScriptureWorkspace {
                     ),
             )
             .children(self.rail.clone())
+            .children(self.review.as_ref().map(|(r, _)| r.clone()))
     }
 }

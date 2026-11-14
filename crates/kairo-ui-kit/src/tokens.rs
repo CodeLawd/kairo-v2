@@ -223,6 +223,12 @@ pub struct KairoColors {
     pub checker_light: Hsla,
     /// The checkerboard's dark squares (`#242424`), both themes.
     pub checker_dark: Hsla,
+    /// `paper` (`#F9FAFB`): the sermon notes page, both themes.
+    pub paper: Hsla,
+    /// A detected reference in the sermon notes (`#CAD5E2`), both themes.
+    pub sermon_mark: Hsla,
+    /// The active reference and the notes selection (`#B9D7FF`), both themes.
+    pub sermon_mark_active: Hsla,
     /// `text-teal-400`: a quiet positive notice (password reset sent, Get a key).
     pub notice_text: Hsla,
     /// `rgb(113 113 122)`: the launch screen's "Powering up" line, and the
@@ -397,6 +403,9 @@ impl KairoColors {
             warning_text: rgb(0xfd, 0xe0, 0x47),
             checker_light: rgb(0x30, 0x30, 0x30),
             checker_dark: rgb(0x24, 0x24, 0x24),
+            paper: rgb(0xf9, 0xfa, 0xfb),
+            sermon_mark: rgb(0xca, 0xd5, 0xe2),
+            sermon_mark_active: rgb(0xb9, 0xd7, 0xff),
             notice_text: rgb(0x2d, 0xd4, 0xbf),
             splash_boot: rgb(113, 113, 122),
             white: rgb(255, 255, 255),
@@ -504,6 +513,9 @@ impl KairoColors {
             warning_text: rgb(0xfd, 0xe0, 0x47),
             checker_light: rgb(0x30, 0x30, 0x30),
             checker_dark: rgb(0x24, 0x24, 0x24),
+            paper: rgb(0xf9, 0xfa, 0xfb),
+            sermon_mark: rgb(0xca, 0xd5, 0xe2),
+            sermon_mark_active: rgb(0xb9, 0xd7, 0xff),
             notice_text: rgb(0x2d, 0xd4, 0xbf),
             splash_boot: rgb(113, 113, 122),
             white: rgb(255, 255, 255),

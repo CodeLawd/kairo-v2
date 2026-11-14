@@ -8,6 +8,7 @@
 pub mod backend;
 pub mod card;
 pub mod model;
+pub mod review;
 pub mod rows;
 pub mod view;
 

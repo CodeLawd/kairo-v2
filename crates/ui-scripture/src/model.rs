@@ -88,6 +88,8 @@ pub enum ScriptureEvent {
     Notify(String),
     /// Focus the lookup field (after Clear).
     FocusQuery,
+    /// The review's playlist was created (`true`) or failed (`false`).
+    ImportFinished(bool),
 }
 
 /// The shift or ⌘ gesture on a card or row (`selectGesture`).
@@ -2090,9 +2092,11 @@ impl Scripture {
                         this.plans.retain(|p| p.id != plan.id);
                         this.plans.insert(0, plan.clone());
                         this.show_plan(plan);
+                        cx.emit(ScriptureEvent::ImportFinished(true));
                     }
                     Err(error) => {
-                        this.error = Some(plain_error(error, "Could not import sermon notes."))
+                        this.error = Some(plain_error(error, "Could not import sermon notes."));
+                        cx.emit(ScriptureEvent::ImportFinished(false));
                     }
                 }
                 cx.notify();

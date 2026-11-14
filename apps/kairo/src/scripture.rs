@@ -259,6 +259,15 @@ async fn run(
             .import_sermon_notes()
             .await
             .map(ScriptureAnswer::Draft),
+        ScriptureCall::ScanSermonNotes(text) => {
+            let translation = options_of(&all_settings(services)).default_translation;
+            tokio::task::spawn_blocking(move || {
+                kairo_scripture::sermon_notes::scan_sermon_notes(&text, &translation)
+            })
+            .await
+            .map(ScriptureAnswer::Analysis)
+            .map_err(|e| e.to_string())
+        }
         ScriptureCall::ExportPlaylist(plan_id) => {
             services
                 .transfer
@@ -312,7 +321,7 @@ pub fn install(
         }
     })
     .detach();
-    cx.subscribe(&model, move |model, event: &ScriptureEvent, cx| {
+    cx.subscribe(&model, move |_, event: &ScriptureEvent, cx| {
         let event = event.clone();
         let (target, focus) = (target.clone(), focus.clone());
         let _ = handle.update(cx, move |_, window, cx| match event {
@@ -326,17 +335,8 @@ pub fn install(
             ScriptureEvent::FocusQuery => {
                 let _ = focus.update(cx, |p, cx| p.focus_query(window, cx));
             }
-            // Until 079's review lands, the detected references become the
-            // playlist as they were read (DECISIONS 078).
-            ScriptureEvent::ReviewSermonNotes(draft) => model.update(cx, |m, cx| {
-                m.confirm_import(
-                    &draft,
-                    draft.title.clone(),
-                    draft.text.clone(),
-                    draft.items.clone(),
-                    cx,
-                )
-            }),
+            // 079: the page itself opens the review and creates the playlist.
+            ScriptureEvent::ReviewSermonNotes(_) | ScriptureEvent::ImportFinished(_) => {}
         });
     })
     .detach();
