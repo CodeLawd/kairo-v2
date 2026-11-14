@@ -86,6 +86,16 @@ fn playlist(item_ids: &[&str]) -> MediaPlaylist {
     }
 }
 
+/// An absolute path on this platform for a Unix-style one: `C:\\…` on
+/// Windows, where `/media` has no drive and resolves against the current one.
+fn abs(unix: &str) -> PathBuf {
+    if cfg!(windows) {
+        PathBuf::from(format!("C:{}", unix.replace('/', "\\")))
+    } else {
+        PathBuf::from(unix)
+    }
+}
+
 fn strings(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
 }
@@ -94,10 +104,10 @@ fn strings(v: &[&str]) -> Vec<String> {
 
 #[test]
 fn files_already_in_the_media_folder_are_reused_not_copied() {
-    let root = Path::new("/media/backgrounds");
-    let inside = root.join("Motion/loop.mp4");
+    let root = abs("/media/backgrounds");
+    let inside = abs("/media/backgrounds/Motion/loop.mp4");
     assert_eq!(
-        plan_media_import(&inside, root, &HashSet::new()),
+        plan_media_import(&inside, &root, &HashSet::new()),
         MediaImportPlan::Reuse(inside)
     );
 }
@@ -105,15 +115,11 @@ fn files_already_in_the_media_folder_are_reused_not_copied() {
 #[test]
 fn files_outside_the_media_folder_are_copied_in() {
     let taken = HashSet::from(["sunset.mp4".to_string()]);
-    let plan = plan_media_import(
-        Path::new("/Downloads/sunset.mp4"),
-        Path::new("/media/bg"),
-        &taken,
-    );
+    let plan = plan_media_import(&abs("/Downloads/sunset.mp4"), &abs("/media/bg"), &taken);
     assert_eq!(
         plan,
         MediaImportPlan::Copy {
-            from: "/Downloads/sunset.mp4".into(),
+            from: abs("/Downloads/sunset.mp4"),
             dest_name: "sunset 1.mp4".into()
         }
     );
@@ -139,11 +145,11 @@ fn unsupported_types_are_skipped() {
 #[test]
 fn paste_duplicates_a_file_already_in_the_library() {
     let taken = HashSet::from(["loop.mp4".to_string()]);
-    let plan = plan_media_paste(Path::new("/m/bg/loop.mp4"), &taken);
+    let plan = plan_media_paste(&abs("/m/bg/loop.mp4"), &taken);
     assert_eq!(
         plan,
         MediaImportPlan::Copy {
-            from: "/m/bg/loop.mp4".into(),
+            from: abs("/m/bg/loop.mp4"),
             dest_name: "loop 1.mp4".into()
         }
     );

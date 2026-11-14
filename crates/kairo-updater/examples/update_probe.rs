@@ -23,6 +23,12 @@ fn version(bundle: &std::path::Path) -> String {
 
 #[tokio::main]
 async fn main() {
+    // The updater's warnings (the raw error behind a shown message) go to
+    // stderr, which the test inherits, so a failure shows its cause.
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .with_ansi(false)
+        .init();
     let exe = std::env::current_exe().expect("exe");
     let bundle = bundle_from_executable(&exe).expect("run from inside a .app");
     let version = version(&bundle);

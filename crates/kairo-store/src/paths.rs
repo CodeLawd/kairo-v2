@@ -343,10 +343,14 @@ mod tests {
             "/Users/ada/Documents/Kairo Presenter"
         );
         assert_eq!(s(p.videos.as_ref().unwrap()), "/Users/ada/Movies");
-        assert_eq!(
-            s(&p.recovery_file()),
-            "/Users/ada/Library/Application Support/Kairo/session-recovery.json"
-        );
+        // `recovery_file` joins with the host's separator: these are macOS
+        // paths only on a Unix host.
+        if cfg!(unix) {
+            assert_eq!(
+                s(&p.recovery_file()),
+                "/Users/ada/Library/Application Support/Kairo/session-recovery.json"
+            );
+        }
         assert!(!p.dev_profile);
     }
 

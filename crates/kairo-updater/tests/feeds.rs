@@ -305,24 +305,27 @@ async fn valid_feed_checks_downloads_on_request_and_replaces_the_appimage() {
         InstallOutcome::NeedsConfirmation
     );
     assert!(!released.load(Ordering::SeqCst));
-    assert_eq!(rig.service.install(true).await, InstallOutcome::Started);
-    assert_eq!(quits.load(Ordering::SeqCst), 1);
-    let installed = rig.appimage.clone();
-    wait_until("the AppImage swap", || {
-        std::fs::read(&installed).ok().as_deref() == Some(&bytes[..])
-    })
-    .await;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        assert_eq!(
-            std::fs::metadata(&installed).unwrap().permissions().mode() & 0o777,
-            0o755
-        );
+    // The swap is a shell script: a Linux install runs on Unix hosts only.
+    if cfg!(unix) {
+        assert_eq!(rig.service.install(true).await, InstallOutcome::Started);
+        assert_eq!(quits.load(Ordering::SeqCst), 1);
+        let installed = rig.appimage.clone();
+        wait_until("the AppImage swap", || {
+            std::fs::read(&installed).ok().as_deref() == Some(&bytes[..])
+        })
+        .await;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&installed).unwrap().permissions().mode() & 0o777,
+                0o755
+            );
+        }
+        wait_until("staging cleaned", || leftovers(&rig.temp) == 0).await;
+        // A second install does nothing.
+        assert_eq!(rig.service.install(true).await, InstallOutcome::Ignored);
     }
-    wait_until("staging cleaned", || leftovers(&rig.temp) == 0).await;
-    // A second install does nothing.
-    assert_eq!(rig.service.install(true).await, InstallOutcome::Ignored);
     drop(rig.root);
 }
 
@@ -524,13 +527,16 @@ async fn an_interrupted_download_is_discarded_and_offered_again() {
         relaunched.download().await,
         UpdateStatus::Downloaded { .. }
     ));
-    // An ordinary quit installs it without reopening.
-    relaunched.on_quit();
-    let installed = rig.appimage.clone();
-    wait_until("swap on quit", || {
-        std::fs::read(&installed).ok().as_deref() == Some(&bytes[..])
-    })
-    .await;
+    // An ordinary quit installs it without reopening. The swap is a shell
+    // script: a Linux install runs on Unix hosts only.
+    if cfg!(unix) {
+        relaunched.on_quit();
+        let installed = rig.appimage.clone();
+        wait_until("swap on quit", || {
+            std::fs::read(&installed).ok().as_deref() == Some(&bytes[..])
+        })
+        .await;
+    }
 }
 
 #[tokio::test]
@@ -631,6 +637,8 @@ async fn windows_stages_the_verified_installer() {
         .unwrap()
         .flat_map(|d| std::fs::read_dir(d.unwrap().path()).unwrap())
         .map(|e| e.unwrap().path())
+        // The folder's lock file marks it in use; it is not staged content.
+        .filter(|p| p.file_name().unwrap() != ".lock")
         .collect();
     assert_eq!(staged.len(), 1);
     assert_eq!(staged[0].file_name().unwrap(), "Kairo-Setup-1.0.34.exe");

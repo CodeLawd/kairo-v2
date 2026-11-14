@@ -20,5 +20,6 @@ tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt",
 tracing = "0.1"
 
 [dev-dependencies]
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
 tempfile = "3"
 tokio = { version = "1", features = ["io-util", "macros", "net", "process", "rt-multi-thread", "time"] }

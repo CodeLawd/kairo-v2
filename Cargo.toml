@@ -114,3 +114,10 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.kairo-compositor]
 opt-level = 3
+# ffmpeg-sys-next's build script (with bindgen) overflows the 1 MiB main
+# thread stack on Windows when built without optimisation.
+[profile.dev.package.ffmpeg-sys-next]
+opt-level = 3
+
+[profile.dev.package.bindgen]
+opt-level = 3

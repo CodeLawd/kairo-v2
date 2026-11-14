@@ -3,15 +3,24 @@
 
 use kairo_compositor::thread::{Compositor, CompositorEvent, Op, Sink};
 use kairo_compositor::*;
-use std::sync::mpsc;
+use std::sync::{Mutex, MutexGuard, mpsc};
 use std::time::{Duration, Instant};
 
-fn start() -> Option<(Compositor, mpsc::Receiver<CompositorEvent>)> {
+/// One test at a time holds the GPU: these tests time frames, and on a
+/// shared virtual GPU (hosted CI) parallel compositors slow each other.
+static GPU: Mutex<()> = Mutex::new(());
+
+fn start() -> Option<(
+    Compositor,
+    mpsc::Receiver<CompositorEvent>,
+    MutexGuard<'static, ()>,
+)> {
+    let gpu = GPU.lock().unwrap_or_else(|e| e.into_inner());
     let (tx, rx) = mpsc::channel();
     match Compositor::start(move |event| {
         let _ = tx.send(event);
     }) {
-        Ok(compositor) => Some((compositor, rx)),
+        Ok(compositor) => Some((compositor, rx, gpu)),
         Err(error) => {
             assert!(
                 !std::env::var("KAIRO_REQUIRE_GPU").is_ok_and(|v| !v.is_empty()),
@@ -40,7 +49,7 @@ fn solid(color: [f32; 4]) -> Option<Content> {
 
 #[test]
 fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
-    let Some((compositor, rx)) = start() else {
+    let Some((compositor, rx, _gpu)) = start() else {
         return;
     };
     compositor.open("out", 1080, Sink::Offscreen);
@@ -54,6 +63,36 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
         }],
     );
     committed(&rx, 1);
+    // What a frame costs on this GPU: ten instant swaps, apply to commit,
+    // averaged (one alone is too noisy on a shared virtual GPU).
+    let samples = 10u64;
+    let mut spent = Duration::ZERO;
+    for i in 0..samples {
+        let seq = 2 + i;
+        compositor.apply(
+            "out",
+            seq,
+            vec![Op::Swap {
+                slot: Slot::Background,
+                content: solid([1.0, 0.0, (i % 2) as f32, 1.0]),
+                ms: 0,
+            }],
+        );
+        spent += committed(&rx, seq);
+    }
+    // Offscreen frames are paced by a timed wait, which a busy virtual
+    // machine oversleeps: a frame comes no faster than that wait returns.
+    let (_keep, idle) = mpsc::channel::<()>();
+    let mut waited = Duration::ZERO;
+    for _ in 0..samples {
+        let at = Instant::now();
+        let _ = idle.recv_timeout(Duration::from_micros(16_667));
+        waited += at.elapsed();
+    }
+    let frame_cost = (spent / samples as u32)
+        .max(waited / samples as u32)
+        .max(Duration::from_micros(16_667));
+    let fade_seq = 2 + samples;
     let settled = compositor.frames("out").unwrap();
     std::thread::sleep(Duration::from_millis(300));
     assert_eq!(
@@ -64,23 +103,30 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
 
     compositor.apply(
         "out",
-        2,
+        fade_seq,
         vec![Op::Swap {
             slot: Slot::Background,
             content: solid([0.0, 0.0, 1.0, 1.0]),
             ms: 300,
         }],
     );
-    committed(&rx, 2);
-    std::thread::sleep(Duration::from_millis(500));
+    committed(&rx, fade_seq);
+    // The fade, then time for the frame at rest after it: a slow GPU
+    // (WARP draws a frame in about 250 ms) is still drawing at 500 ms.
+    let settle = (Duration::from_millis(300) + frame_cost * 3).max(Duration::from_millis(500));
+    std::thread::sleep(settle);
     let after_fade = compositor.frames("out").unwrap();
     let drawn = after_fade - settled;
-    // About 60 frames a second for 300 ms; at least a dozen.
+    // Frames all through the fade: about 60 a second (18 in 300 ms) where
+    // the GPU keeps up, at least two thirds of what it can draw (a dozen on
+    // real hardware) where it does not, and never unpaced.
+    let possible = (300.0 / (frame_cost.as_secs_f64() * 1000.0)).round() as u64;
+    let least = (possible * 2 / 3).max(2);
     assert!(
-        (12..=40).contains(&drawn),
-        "{drawn} frames for a 300 ms fade"
+        (least..=40).contains(&drawn),
+        "{drawn} frames for a 300 ms fade (a frame costs {frame_cost:?}, at least {least} expected)"
     );
-    std::thread::sleep(Duration::from_millis(300));
+    std::thread::sleep((frame_cost * 2).max(Duration::from_millis(300)));
     assert_eq!(
         compositor.frames("out").unwrap(),
         after_fade,
@@ -94,7 +140,7 @@ fn idle_draws_nothing_and_a_fade_draws_until_it_ends() {
 
 #[test]
 fn ops_for_an_unknown_output_are_reported() {
-    let Some((compositor, rx)) = start() else {
+    let Some((compositor, rx, _gpu)) = start() else {
         return;
     };
     compositor.apply("missing", 1, vec![]);
@@ -106,7 +152,7 @@ fn ops_for_an_unknown_output_are_reported() {
 
 #[test]
 fn a_reopened_output_keeps_its_scene_and_a_closed_one_is_gone() {
-    let Some((compositor, rx)) = start() else {
+    let Some((compositor, rx, _gpu)) = start() else {
         return;
     };
     compositor.open("out", 720, Sink::Offscreen);
@@ -126,7 +172,7 @@ fn a_reopened_output_keeps_its_scene_and_a_closed_one_is_gone() {
 
 #[test]
 fn commands_reach_the_gpu_quickly() {
-    let Some((compositor, rx)) = start() else {
+    let Some((compositor, rx, _gpu)) = start() else {
         return;
     };
     compositor.open("out", 1080, Sink::Offscreen);
@@ -155,7 +201,7 @@ fn commands_reach_the_gpu_quickly() {
 #[test]
 fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
     use std::sync::{Arc, Mutex};
-    let Some((compositor, rx)) = start() else {
+    let Some((compositor, rx, _gpu)) = start() else {
         return;
     };
     compositor.open("out", 1080, Sink::Offscreen);

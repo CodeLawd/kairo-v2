@@ -62,6 +62,8 @@ async fn main() {
     tracing_subscriber::fmt().with_target(true).init();
     let index: usize = value("--display").unwrap_or(0);
     let secs: u64 = value("--secs").unwrap_or(10);
+    // Killing the engine is Unix-only (SIGKILL).
+    #[cfg_attr(not(unix), allow(unused_variables))]
     let kill_after: Option<u64> = value("--kill-after");
     let full = std::env::args().any(|a| a == "--full");
     let fade: Option<f64> = value("--fade");

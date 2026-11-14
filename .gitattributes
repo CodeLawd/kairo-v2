@@ -1,0 +1,7 @@
+# Check text out with LF on every platform. Tests read fixtures, goldens and
+# oracle inputs byte for byte; Windows' default CRLF conversion changed them
+# and so the oracle cache keys.
+* text=auto eol=lf
+
+# A fixture that is CRLF on purpose.
+crates/kairo-scripture/tests/fixtures/sermon-notes/crlf.md -text
