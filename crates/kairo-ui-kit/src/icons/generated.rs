@@ -153,6 +153,40 @@ pub enum KairoIcon {
     Palette,
     /// `phosphor Pause`
     Pause,
+    /// `phosphor BookOpen`
+    PhBookOpen,
+    /// `phosphor Broadcast`
+    PhBroadcast,
+    /// `phosphor ChatCircleDots`
+    PhChatCircleDots,
+    /// `phosphor ChatsCircle`
+    PhChatsCircle,
+    /// `phosphor CheckCircle`
+    PhCheckCircle,
+    /// `phosphor Cloud`
+    PhCloud,
+    /// `phosphor FileText`
+    PhFileText,
+    /// `phosphor Gauge`
+    PhGauge,
+    /// `phosphor Globe`
+    PhGlobe,
+    /// `phosphor Heart`
+    PhHeart,
+    /// `phosphor Lightbulb`
+    PhLightbulb,
+    /// `phosphor Lightning`
+    PhLightning,
+    /// `phosphor Monitor`
+    PhMonitor,
+    /// `phosphor MusicNotes`
+    PhMusicNotes,
+    /// `phosphor Palette`
+    PhPalette,
+    /// `phosphor Presentation`
+    PhPresentation,
+    /// `phosphor WarningCircle`
+    PhWarningCircle,
     /// `phosphor Play`
     Play,
     /// `hugeicons PlusSignIcon`
@@ -300,6 +334,23 @@ impl KairoIcon {
         KairoIcon::ObjectAlignTop,
         KairoIcon::Palette,
         KairoIcon::Pause,
+        KairoIcon::PhBookOpen,
+        KairoIcon::PhBroadcast,
+        KairoIcon::PhChatCircleDots,
+        KairoIcon::PhChatsCircle,
+        KairoIcon::PhCheckCircle,
+        KairoIcon::PhCloud,
+        KairoIcon::PhFileText,
+        KairoIcon::PhGauge,
+        KairoIcon::PhGlobe,
+        KairoIcon::PhHeart,
+        KairoIcon::PhLightbulb,
+        KairoIcon::PhLightning,
+        KairoIcon::PhMonitor,
+        KairoIcon::PhMusicNotes,
+        KairoIcon::PhPalette,
+        KairoIcon::PhPresentation,
+        KairoIcon::PhWarningCircle,
         KairoIcon::Play,
         KairoIcon::Plus,
         KairoIcon::Presentation,
@@ -413,6 +464,23 @@ impl KairoIcon {
             KairoIcon::ObjectAlignTop => "object_align_top",
             KairoIcon::Palette => "palette",
             KairoIcon::Pause => "pause",
+            KairoIcon::PhBookOpen => "ph_book_open",
+            KairoIcon::PhBroadcast => "ph_broadcast",
+            KairoIcon::PhChatCircleDots => "ph_chat_circle_dots",
+            KairoIcon::PhChatsCircle => "ph_chats_circle",
+            KairoIcon::PhCheckCircle => "ph_check_circle",
+            KairoIcon::PhCloud => "ph_cloud",
+            KairoIcon::PhFileText => "ph_file_text",
+            KairoIcon::PhGauge => "ph_gauge",
+            KairoIcon::PhGlobe => "ph_globe",
+            KairoIcon::PhHeart => "ph_heart",
+            KairoIcon::PhLightbulb => "ph_lightbulb",
+            KairoIcon::PhLightning => "ph_lightning",
+            KairoIcon::PhMonitor => "ph_monitor",
+            KairoIcon::PhMusicNotes => "ph_music_notes",
+            KairoIcon::PhPalette => "ph_palette",
+            KairoIcon::PhPresentation => "ph_presentation",
+            KairoIcon::PhWarningCircle => "ph_warning_circle",
             KairoIcon::Play => "play",
             KairoIcon::Plus => "plus",
             KairoIcon::Presentation => "presentation",
@@ -731,6 +799,84 @@ impl KairoIcon {
             (KairoIcon::Palette, true) => include_bytes!("../../assets/icons/palette-fill.svg"),
             (KairoIcon::Pause, false) => include_bytes!("../../assets/icons/pause.svg"),
             (KairoIcon::Pause, true) => include_bytes!("../../assets/icons/pause-fill.svg"),
+            (KairoIcon::PhBookOpen, false) => include_bytes!("../../assets/icons/ph_book_open.svg"),
+            (KairoIcon::PhBookOpen, true) => {
+                include_bytes!("../../assets/icons/ph_book_open-fill.svg")
+            }
+            (KairoIcon::PhBroadcast, false) => {
+                include_bytes!("../../assets/icons/ph_broadcast.svg")
+            }
+            (KairoIcon::PhBroadcast, true) => {
+                include_bytes!("../../assets/icons/ph_broadcast-fill.svg")
+            }
+            (KairoIcon::PhChatCircleDots, false) => {
+                include_bytes!("../../assets/icons/ph_chat_circle_dots.svg")
+            }
+            (KairoIcon::PhChatCircleDots, true) => {
+                include_bytes!("../../assets/icons/ph_chat_circle_dots-fill.svg")
+            }
+            (KairoIcon::PhChatsCircle, false) => {
+                include_bytes!("../../assets/icons/ph_chats_circle.svg")
+            }
+            (KairoIcon::PhChatsCircle, true) => {
+                include_bytes!("../../assets/icons/ph_chats_circle-fill.svg")
+            }
+            (KairoIcon::PhCheckCircle, false) => {
+                include_bytes!("../../assets/icons/ph_check_circle.svg")
+            }
+            (KairoIcon::PhCheckCircle, true) => {
+                include_bytes!("../../assets/icons/ph_check_circle-fill.svg")
+            }
+            (KairoIcon::PhCloud, false) => include_bytes!("../../assets/icons/ph_cloud.svg"),
+            (KairoIcon::PhCloud, true) => include_bytes!("../../assets/icons/ph_cloud-fill.svg"),
+            (KairoIcon::PhFileText, false) => include_bytes!("../../assets/icons/ph_file_text.svg"),
+            (KairoIcon::PhFileText, true) => {
+                include_bytes!("../../assets/icons/ph_file_text-fill.svg")
+            }
+            (KairoIcon::PhGauge, false) => include_bytes!("../../assets/icons/ph_gauge.svg"),
+            (KairoIcon::PhGauge, true) => include_bytes!("../../assets/icons/ph_gauge-fill.svg"),
+            (KairoIcon::PhGlobe, false) => include_bytes!("../../assets/icons/ph_globe.svg"),
+            (KairoIcon::PhGlobe, true) => include_bytes!("../../assets/icons/ph_globe-fill.svg"),
+            (KairoIcon::PhHeart, false) => include_bytes!("../../assets/icons/ph_heart.svg"),
+            (KairoIcon::PhHeart, true) => include_bytes!("../../assets/icons/ph_heart-fill.svg"),
+            (KairoIcon::PhLightbulb, false) => {
+                include_bytes!("../../assets/icons/ph_lightbulb.svg")
+            }
+            (KairoIcon::PhLightbulb, true) => {
+                include_bytes!("../../assets/icons/ph_lightbulb-fill.svg")
+            }
+            (KairoIcon::PhLightning, false) => {
+                include_bytes!("../../assets/icons/ph_lightning.svg")
+            }
+            (KairoIcon::PhLightning, true) => {
+                include_bytes!("../../assets/icons/ph_lightning-fill.svg")
+            }
+            (KairoIcon::PhMonitor, false) => include_bytes!("../../assets/icons/ph_monitor.svg"),
+            (KairoIcon::PhMonitor, true) => {
+                include_bytes!("../../assets/icons/ph_monitor-fill.svg")
+            }
+            (KairoIcon::PhMusicNotes, false) => {
+                include_bytes!("../../assets/icons/ph_music_notes.svg")
+            }
+            (KairoIcon::PhMusicNotes, true) => {
+                include_bytes!("../../assets/icons/ph_music_notes-fill.svg")
+            }
+            (KairoIcon::PhPalette, false) => include_bytes!("../../assets/icons/ph_palette.svg"),
+            (KairoIcon::PhPalette, true) => {
+                include_bytes!("../../assets/icons/ph_palette-fill.svg")
+            }
+            (KairoIcon::PhPresentation, false) => {
+                include_bytes!("../../assets/icons/ph_presentation.svg")
+            }
+            (KairoIcon::PhPresentation, true) => {
+                include_bytes!("../../assets/icons/ph_presentation-fill.svg")
+            }
+            (KairoIcon::PhWarningCircle, false) => {
+                include_bytes!("../../assets/icons/ph_warning_circle.svg")
+            }
+            (KairoIcon::PhWarningCircle, true) => {
+                include_bytes!("../../assets/icons/ph_warning_circle-fill.svg")
+            }
             (KairoIcon::Play, false) => include_bytes!("../../assets/icons/play.svg"),
             (KairoIcon::Play, true) => include_bytes!("../../assets/icons/play-fill.svg"),
             (KairoIcon::Plus, false) => include_bytes!("../../assets/icons/plus.svg"),
@@ -842,6 +988,8 @@ impl KairoIcon {
     pub const MediaLibrary: KairoIcon = KairoIcon::Images;
     /// Same glyph as [`KairoIcon::Edit2`].
     pub const Pencil: KairoIcon = KairoIcon::Edit2;
+    /// Same glyph as [`KairoIcon::Film`].
+    pub const PhFilmStrip: KairoIcon = KairoIcon::Film;
     /// Same glyph as [`KairoIcon::ScanSearch`].
     pub const Search: KairoIcon = KairoIcon::ScanSearch;
 }

@@ -201,6 +201,20 @@ impl CloudSession {
         settings: Option<Settings>,
         topics: Publisher,
     ) -> Result<Self, ApiError> {
+        let session = Self::open_local(config, user_data, protector, settings, topics).await?;
+        session.start().await;
+        Ok(session)
+    }
+
+    /// Restore local account state without starting network hydration. The
+    /// application calls `start` after live-plan and onboarding migration.
+    pub async fn open_local(
+        config: CloudConfig,
+        user_data: PathBuf,
+        protector: Arc<dyn KeyProtector>,
+        settings: Option<Settings>,
+        topics: Publisher,
+    ) -> Result<Self, ApiError> {
         let api = CloudApiClient::new(&config.api, config.fallback.as_deref())?;
         let audience = if config.audience == config.api {
             api.clone()
@@ -249,15 +263,23 @@ impl CloudSession {
             device,
             topics,
         });
-        let result = Self(inner);
-        // The initial refresh is independent of first paint, as are later ticks.
-        let weak = Arc::downgrade(&result.0);
+        Ok(Self(inner))
+    }
+
+    /// Begin initial refresh and the quiet refresh loop, once. Never await
+    /// the network: only installation of the task is awaited.
+    pub async fn start(&self) {
+        let mut state = self.0.state.lock().await;
+        if state.periodic.is_some() || !state.running {
+            return;
+        }
+        let weak = Arc::downgrade(&self.0);
         let jitter = u64::from(u16::from_le_bytes(
             uuid::Uuid::new_v4().as_bytes()[..2]
                 .try_into()
                 .expect("two bytes"),
         )) % 60_000;
-        result.0.state.lock().await.periodic = Some(
+        state.periodic = Some(
             tokio::spawn(async move {
                 loop {
                     let Some(session) = weak.upgrade().map(CloudSession) else {
@@ -270,7 +292,6 @@ impl CloudSession {
             })
             .abort_handle(),
         );
-        Ok(result)
     }
 
     pub fn device_id(&self) -> &str {

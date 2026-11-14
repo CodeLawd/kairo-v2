@@ -8,5 +8,37 @@ publish = false
 gpui-kit.workspace = true
 kairo-core = { path = "../../crates/kairo-core" }
 kairo-engine-proto = { path = "../../crates/kairo-engine-proto" }
+kairo-domain = { path = "../../crates/kairo-domain" }
 kairo-store = { path = "../../crates/kairo-store" }
+kairo-ui-kit = { path = "../../crates/kairo-ui-kit" }
+ui-web = { path = "../../crates/ui-web" }
+ui-shell = { path = "../../crates/ui-shell" }
 tracing = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+kairo-audio = { path = "../../crates/kairo-audio" }
+kairo-cloud = { path = "../../crates/kairo-cloud" }
+kairo-orchestrator = { path = "../../crates/kairo-orchestrator" }
+kairo-lyrics = { path = "../../crates/kairo-lyrics" }
+kairo-media = { path = "../../crates/kairo-media" }
+kairo-scripture = { path = "../../crates/kairo-scripture" }
+kairo-stt = { path = "../../crates/kairo-stt" }
+kairo-output = { path = "../../crates/kairo-output" }
+kairo-audience = { path = "../../crates/kairo-audience" }
+kairo-updater = { path = "../../crates/kairo-updater" }
+kairo-documents = { path = "../../crates/kairo-documents" }
+kairo-transfer = { path = "../../crates/kairo-transfer" }
+kairo-native-sys = { path = "../../crates/kairo-native-sys" }
+kairo-net = { path = "../../crates/kairo-net" }
+serde_json = "1"
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSImage", "NSResponder", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSWindow", "NSView", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSArray", "NSURL", "NSString", "NSNotification", "NSOperation"] }
+
+[dev-dependencies]
+tempfile = "3"
+kairo-output = { path = "../../crates/kairo-output", features = ["fake"] }

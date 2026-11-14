@@ -61,13 +61,15 @@ mod platform {
         };
         let (tx, rx) = tokio::sync::oneshot::channel();
         let tx = std::sync::Mutex::new(Some(tx));
-        let block = RcBlock::new(move |granted: Bool| {
-            if let Some(tx) = tx.lock().ok().and_then(|mut t| t.take()) {
-                let _ = tx.send(granted.as_bool());
-            }
-        });
-        // SAFETY: the block is retained by AVFoundation until it runs once.
-        unsafe { AVCaptureDevice::requestAccessForMediaType_completionHandler(audio, &block) };
+        {
+            let block = RcBlock::new(move |granted: Bool| {
+                if let Some(tx) = tx.lock().ok().and_then(|mut t| t.take()) {
+                    let _ = tx.send(granted.as_bool());
+                }
+            });
+            // SAFETY: the block is retained by AVFoundation until it runs once.
+            unsafe { AVCaptureDevice::requestAccessForMediaType_completionHandler(audio, &block) };
+        }
         rx.await.unwrap_or(false)
     }
 }

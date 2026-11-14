@@ -358,15 +358,22 @@ impl LiveDetector {
         });
     }
 
-    fn process(&self, kind: TranscriptKind, text: &str, epoch: Option<f64>) {
+    fn process(
+        &self,
+        kind: TranscriptKind,
+        text: &str,
+        epoch: Option<f64>,
+        submit_model: bool,
+    ) -> (bool, Option<ModelWork>) {
         let now = self.now();
         let plan = (self.plan)();
         let evidence = self.evidence.clone();
-        let (found, progress, unresolved) = {
+        let (found, progress, work, claimed) = {
             let mut state = self.lock();
             if state.destroyed {
-                return;
+                return (false, None);
             }
+            let generation_before = state.live.generation();
             let event = TranscriptEvent {
                 at_ms: now,
                 kind,
@@ -398,33 +405,78 @@ impl LiveDetector {
             };
             let progress = state.live.take_plan_progress();
             let unresolved = state.live.take_unresolved();
-            if let Some(transcript) = unresolved.clone() {
-                let generation = state.live.generation();
-                state.queue.submit(ModelWork {
-                    transcript,
-                    generation,
-                });
+            let work = unresolved.map(|transcript| ModelWork {
+                transcript,
+                generation: state.live.generation(),
+            });
+            if submit_model && let Some(work) = &work {
+                state.queue.submit(work.clone());
             }
-            (found, progress, unresolved)
+            let claimed =
+                state.live.generation() != generation_before || state.live.next_due_ms().is_some();
+            (found, progress, work, claimed)
         };
-        let _ = unresolved;
         self.wake.notify_one();
         if let Some((reference, item_id)) = progress {
             let _ = self
                 .events
                 .send(DetectorEvent::PlanProgress { reference, item_id });
         }
+        let claimed = claimed || !found.is_empty();
         self.emit(found);
+        (claimed, work)
+    }
+
+    /// Run authoritative local paths now, leaving the managed fallback queued
+    /// only after the application's general-corpus lookup has had first refusal.
+    pub fn final_before_model(&self, result: &TranscriptResult) -> (bool, Option<ModelWork>) {
+        self.process(
+            TranscriptKind::Final,
+            &result.text,
+            result.audio_epoch,
+            false,
+        )
+    }
+
+    /// Interim citations are authoritative and bypass the debounced quote pass.
+    pub fn interim_before_quote(&self, result: &InterimResult) -> bool {
+        self.process(
+            TranscriptKind::Interim,
+            &result.text,
+            result.audio_epoch,
+            false,
+        )
+        .0
+    }
+
+    /// A final search may complete after newer local speech. Such work must
+    /// never re-enter the model queue for an obsolete resolution generation.
+    pub fn submit_model_work(&self, work: ModelWork) {
+        let mut state = self.lock();
+        if !state.destroyed && state.live.generation() == work.generation {
+            state.queue.submit(work);
+            self.wake.notify_one();
+        }
     }
 }
 
 impl Detector for LiveDetector {
     fn on_final(&self, result: &TranscriptResult) {
-        self.process(TranscriptKind::Final, &result.text, result.audio_epoch);
+        self.process(
+            TranscriptKind::Final,
+            &result.text,
+            result.audio_epoch,
+            true,
+        );
     }
 
     fn on_interim(&self, result: &InterimResult) {
-        self.process(TranscriptKind::Interim, &result.text, result.audio_epoch);
+        self.process(
+            TranscriptKind::Interim,
+            &result.text,
+            result.audio_epoch,
+            true,
+        );
     }
 
     fn release(&self, book: &str, chapter: f64, verse_start: f64) {

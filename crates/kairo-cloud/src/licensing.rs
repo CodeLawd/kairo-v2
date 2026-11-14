@@ -402,7 +402,31 @@ impl LicensingService {
         topics: Publisher,
         trusted_key: Option<&str>,
     ) -> Self {
-        let sessions = topics.watch::<SessionSnapshot>();
+        let service =
+            Self::open_local_with_trusted_key(session, profile, protector, topics, trusted_key)
+                .await;
+        service.start();
+        service
+    }
+
+    /// Read the licence vault without starting background refresh.
+    pub async fn open_local(
+        session: CloudSession,
+        profile: PathBuf,
+        protector: Arc<dyn KeyProtector>,
+        topics: Publisher,
+    ) -> Self {
+        Self::open_local_with_trusted_key(session, profile, protector, topics, LICENSE_PUBLIC_KEY)
+            .await
+    }
+
+    async fn open_local_with_trusted_key(
+        session: CloudSession,
+        profile: PathBuf,
+        protector: Arc<dyn KeyProtector>,
+        topics: Publisher,
+        trusted_key: Option<&str>,
+    ) -> Self {
         let vault = Vault { profile, protector };
         let (mut snapshot, stored_key, highest_time) = vault.read().await;
         let (epoch, current) = session.account_identity().await;
@@ -432,9 +456,18 @@ impl LicensingService {
             monitor: std::sync::OnceLock::new(),
         }));
         service.emit().await;
-        let task = tokio::spawn(monitor(Arc::downgrade(&service.0), sessions));
-        let _ = service.0.monitor.set(task.abort_handle());
         service
+    }
+
+    /// Start watching account and lease changes, once, after local bootstrap.
+    pub fn start(&self) {
+        self.0.monitor.get_or_init(|| {
+            tokio::spawn(monitor(
+                Arc::downgrade(&self.0),
+                self.0.topics.watch::<SessionSnapshot>(),
+            ))
+            .abort_handle()
+        });
     }
 
     /// Returns the snapshot with activation recomputed against the signed

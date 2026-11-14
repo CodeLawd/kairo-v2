@@ -98,6 +98,19 @@ pub async fn spawn_surface_manager(
     media: Arc<dyn LobbyMedia>,
     routing: Option<Arc<dyn RoutingSink>>,
 ) -> Result<(), CoreError> {
+    init_surface_manager(core, engine, settings, media, routing)?;
+    core.call(Reconcile { outputs: None }).await
+}
+
+/// Register output services after the operator window exists. Reconciliation
+/// is separate so application startup preserves the main-entry ordering.
+pub fn init_surface_manager(
+    core: &AppCore,
+    engine: Arc<dyn OutputEngine>,
+    settings: Arc<dyn OutputSettings>,
+    media: Arc<dyn LobbyMedia>,
+    routing: Option<Arc<dyn RoutingSink>>,
+) -> Result<(), CoreError> {
     let mut manager = SurfaceManager::new(engine.clone(), settings, media, core.publisher());
     if let Some(routing) = routing {
         manager = manager.with_routing(routing);
@@ -109,7 +122,7 @@ pub async fn spawn_surface_manager(
         NonZeroUsize::new(256).expect("non-zero"),
     )?;
     tokio::spawn(pump(core.clone(), events));
-    core.call(Reconcile { outputs: None }).await
+    Ok(())
 }
 
 /// Engine events into actor messages. Display changes are debounced.

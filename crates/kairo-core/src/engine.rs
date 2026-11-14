@@ -174,6 +174,14 @@ pub struct EngineHandle {
 impl EngineHandle {
     /// Starts supervising a new engine process.
     pub fn spawn(options: EngineOptions) -> Self {
+        let handle = Self::new(options);
+        handle.start();
+        handle
+    }
+
+    /// Build the command mirror before launch. Application startup calls
+    /// `start` at the NDI step, after local services have opened.
+    pub fn new(options: EngineOptions) -> Self {
         let (status, _) = watch::channel(EngineStatus::Starting);
         let (events, _) = broadcast::channel(256);
         let inner = Arc::new(Inner {
@@ -191,15 +199,25 @@ impl EngineHandle {
             restart: AtomicBool::new(false),
             child: Mutex::new(None),
         });
-        let thread_inner = inner.clone();
-        let supervisor = std::thread::Builder::new()
-            .name("engine-supervisor".into())
-            .spawn(move || supervise(thread_inner))
-            .expect("spawn the engine supervisor");
         Self {
             inner,
-            supervisor: Arc::new(Mutex::new(Some(supervisor))),
+            supervisor: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Begin supervision once. A handle shut down before launch stays stopped.
+    pub fn start(&self) {
+        let mut supervisor = lock(&self.supervisor);
+        if supervisor.is_some() || self.inner.stopping.load(Ordering::Acquire) {
+            return;
+        }
+        let inner = self.inner.clone();
+        *supervisor = Some(
+            std::thread::Builder::new()
+                .name("engine-supervisor".into())
+                .spawn(move || supervise(inner))
+                .expect("spawn the engine supervisor"),
+        );
     }
 
     pub fn status(&self) -> EngineStatus {

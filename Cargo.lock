@@ -2143,6 +2143,13 @@ name = "electron-sync"
 version = "0.1.0"
 
 [[package]]
+name = "embed-changelog"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "embed-resource"
 version = "3.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5047,11 +5054,37 @@ dependencies = [
 name = "kairo"
 version = "0.1.0"
 dependencies = [
+ "block2 0.6.2",
+ "chrono",
  "gpui-kit",
+ "kairo-audience",
+ "kairo-audio",
+ "kairo-cloud",
  "kairo-core",
+ "kairo-documents",
+ "kairo-domain",
  "kairo-engine-proto",
+ "kairo-lyrics",
+ "kairo-media",
+ "kairo-native-sys",
+ "kairo-net",
+ "kairo-orchestrator",
+ "kairo-output",
+ "kairo-scripture",
  "kairo-store",
+ "kairo-stt",
+ "kairo-transfer",
+ "kairo-ui-kit",
+ "kairo-updater",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "serde_json",
+ "tempfile",
+ "tokio",
  "tracing",
+ "ui-shell",
+ "ui-web",
 ]
 
 [[package]]
@@ -10754,6 +10787,15 @@ version = "0.1.0"
 [[package]]
 name = "ui-shell"
 version = "0.1.0"
+dependencies = [
+ "gpui-kit",
+ "kairo-core",
+ "kairo-domain",
+ "kairo-ui-kit",
+ "serde",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "ui-theme"
