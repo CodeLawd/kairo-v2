@@ -184,6 +184,13 @@ impl FeedbackKind {
 /// owns it once prompt 067 composes them.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ShellRequest {
+    /// Load the startup snapshot. Answer with
+    /// [`crate::Shell::bootstrap_progress`] and
+    /// [`crate::Shell::bootstrap_finished`] under the same generation.
+    Bootstrap {
+        /// Which load this is; reports for other loads are ignored.
+        generation: u64,
+    },
     /// The window gained focus: pull org secrets (throttled), wake the
     /// sermon uploader and usage.
     WindowFocused,

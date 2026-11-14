@@ -21,6 +21,7 @@ pub mod dialogs;
 mod display_reporting;
 mod dock;
 pub mod handlers;
+mod motion;
 mod power;
 mod quote_detector;
 pub mod services;
@@ -104,6 +105,11 @@ fn handle_request(
     let settings = &services.settings;
     match request {
         ShellRequest::OpenExternal(url) => cx.open_url(url),
+        ShellRequest::WindowFocused => {
+            // The system setting may have changed while Kairo was away.
+            motion::apply(cx);
+            services.request(request.clone());
+        }
         ShellRequest::MarkWhatsNewSeen(version) => {
             let mut store = settings.lock().unwrap_or_else(|e| e.into_inner());
             let value = WhatsNewSettings {
@@ -160,6 +166,7 @@ fn open_operator_window(
         version: env!("CARGO_PKG_VERSION").into(),
         dev: !paths.packaged,
         user_data: Some(paths.user_data.clone()),
+        splash: true,
     };
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
@@ -192,6 +199,7 @@ fn open_operator_window(
     let _ = handle.update(cx, |_, window, cx| {
         shell.update(cx, |shell, cx| {
             shell.set_state(state, cx);
+            shell.begin_launch(cx);
             shell.open_kairo_files(pending, cx);
             shell.mark_ready(window, cx);
         });
@@ -325,6 +333,23 @@ fn watch_services(events: std::sync::mpsc::Receiver<services::UiEvent>, cx: &mut
                             shell.update(cx, |shell, cx| shell.set_state(*state, cx));
                         }
                     }
+                    services::UiEvent::Bootstrap { generation, report } => {
+                        if let Some(shell) = cx
+                            .default_global::<OperatorWindow>()
+                            .shell
+                            .as_ref()
+                            .and_then(|s| s.upgrade())
+                        {
+                            shell.update(cx, |shell, cx| match report {
+                                services::BootstrapReport::Progress(progress) => {
+                                    shell.bootstrap_progress(generation, progress, cx)
+                                }
+                                services::BootstrapReport::Finished(result) => {
+                                    shell.bootstrap_finished(generation, result.map(|s| *s), cx)
+                                }
+                            });
+                        }
+                    }
                     services::UiEvent::Feedback(result) => {
                         if let Some(shell) = cx
                             .default_global::<OperatorWindow>()
@@ -429,6 +454,7 @@ fn main() {
         cx.set_app_identity(APP_ID, "Kairo");
         gpui_kit::init(cx);
         kairo_ui_kit::init(kairo_ui_kit::Appearance::Dark, cx);
+        motion::apply(cx);
         ui_shell::keymap::bind(cx);
         cx.set_menus(ui_shell::menus::app_menus(cfg!(target_os = "macos")));
         dock::set_icon(include_bytes!("../resources/icon.png"));

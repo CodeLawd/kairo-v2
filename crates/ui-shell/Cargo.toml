@@ -14,4 +14,5 @@ serde_json = "1"
 tracing = "0.1"
 
 [dev-dependencies]
+tokio = { version = "1", features = ["rt", "time", "test-util"] }
 gpui-kit = { workspace = true, features = ["test-support"] }

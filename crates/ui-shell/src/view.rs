@@ -36,9 +36,40 @@ impl Render for Shell {
             });
         }
         let k = *cx.kairo();
-        let header = self.render_header(window, cx);
-        let rail = self.render_rail(cx);
-        let workspace = self.render_workspace(cx);
+        let launching = !self.launch.ready();
+        let (opacity, fading) = if launching {
+            (1.0, false)
+        } else {
+            self.opening_opacity(cx)
+        };
+        if fading {
+            window.request_animation_frame();
+        }
+        let mut content: Vec<AnyElement> = Vec::new();
+        if launching {
+            content.push(self.render_launch(window, cx));
+        } else {
+            let header = self.render_header(window, cx);
+            let rail = self.render_rail(cx);
+            let workspace = self.render_workspace(cx);
+            content.push(header);
+            content.push(
+                h_flex()
+                    .items_stretch()
+                    .min_h_0()
+                    .w_full()
+                    .flex_1()
+                    .overflow_hidden()
+                    .child(rail)
+                    .child(workspace)
+                    .into_any_element(),
+            );
+            content.extend(self.render_startup_warning(cx));
+            content.extend(self.render_overlay(cx));
+            content.extend(self.render_notices(cx));
+            content.extend(self.render_whats_new(cx));
+        }
+        content.extend(self.render_quit(cx));
         div()
             .id("kairo-shell")
             .key_context(keymap::CONTEXT)
@@ -49,6 +80,7 @@ impl Render for Shell {
             .flex_col()
             .overflow_hidden()
             .bg(k.surface)
+            .opacity(opacity)
             .text_color(k.text_primary)
             .font_family(text::FAMILY)
             .text_size(text::BASE.size)
@@ -110,21 +142,7 @@ impl Render for Shell {
                     this.pending_import = Some(kind);
                 }
             }))
-            .child(header)
-            .child(
-                h_flex()
-                    .items_stretch()
-                    .min_h_0()
-                    .w_full()
-                    .flex_1()
-                    .overflow_hidden()
-                    .child(rail)
-                    .child(workspace),
-            )
-            .children(self.render_overlay(cx))
-            .children(self.render_notices(cx))
-            .children(self.render_whats_new(cx))
-            .children(self.render_quit(cx))
+            .children(content)
     }
 }
 

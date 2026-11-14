@@ -214,6 +214,11 @@ pub struct KairoColors {
     pub danger_text_soft: Hsla,
     /// `text-emerald-400` (`#047857` in light).
     pub success_text: Hsla,
+    /// `text-yellow-300`: the startup warning bar (stock in both themes).
+    pub warning_text: Hsla,
+    /// `rgb(113 113 122)`: the launch screen's "Powering up" line, and the
+    /// muted ends of its light band (`.splash-boot`).
+    pub splash_boot: Hsla,
     /// Pure white: the marquee band, slider thumbs and switch thumbs.
     pub white: Hsla,
     /// macOS traffic-light close (`#FF5F57`).
@@ -379,6 +384,8 @@ impl KairoColors {
             danger_text: rgb(0xf8, 0x71, 0x71),
             danger_text_soft: rgb(0xfd, 0xa4, 0xaf),
             success_text: rgb(0x34, 0xd3, 0x99),
+            warning_text: rgb(0xfd, 0xe0, 0x47),
+            splash_boot: rgb(113, 113, 122),
             white: rgb(255, 255, 255),
             traffic_close: rgb(0xff, 0x5f, 0x57),
             traffic_close_glyph: rgb(0x4d, 0x00, 0x00),
@@ -480,6 +487,8 @@ impl KairoColors {
             danger_text: rgb(0xb9, 0x1c, 0x1c),
             danger_text_soft: rgb(0xb9, 0x1c, 0x1c),
             success_text: rgb(0x04, 0x78, 0x57),
+            warning_text: rgb(0xfd, 0xe0, 0x47),
+            splash_boot: rgb(113, 113, 122),
             white: rgb(255, 255, 255),
             traffic_close: rgb(0xff, 0x5f, 0x57),
             traffic_close_glyph: rgb(0x4d, 0x00, 0x00),

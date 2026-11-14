@@ -13,6 +13,8 @@ pub mod components;
 pub mod fonts;
 pub mod gallery;
 pub mod icons;
+pub mod launch_mark;
+pub mod lockup_paths;
 pub mod motion;
 pub mod theme;
 pub mod tokens;

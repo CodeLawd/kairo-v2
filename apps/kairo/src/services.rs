@@ -64,6 +64,11 @@ pub enum UiEvent {
     MainThread(MainThreadJob),
     State(Box<ShellState>),
     Feedback(Result<(), String>),
+    /// A report for the launch screen's load `generation`.
+    Bootstrap {
+        generation: u64,
+        report: BootstrapReport,
+    },
     ConfirmInstall(Arc<ApplicationServices>),
     Quit,
 }
@@ -777,6 +782,34 @@ impl SettingsServices for SettingsAdapter {
 
 pub struct SettingsChanged(pub Value);
 
+/// What the launch screen hears about its load.
+pub enum BootstrapReport {
+    Progress(kairo_domain::status::BootstrapProgress),
+    Finished(Result<Box<kairo_domain::status::AppBootstrapSnapshot>, String>),
+}
+
+/// Answers a load that ends without a snapshot (its task dropped or
+/// panicked), so the launch screen opens with a warning instead of waiting
+/// for ever, as a failed `app:bootstrap` invoke does in Electron.
+struct BootstrapAnswer {
+    ui: UiBridge,
+    generation: u64,
+    answered: bool,
+}
+
+impl Drop for BootstrapAnswer {
+    fn drop(&mut self) {
+        if !self.answered {
+            let _ = self.ui.send(UiEvent::Bootstrap {
+                generation: self.generation,
+                report: BootstrapReport::Finished(
+                    Err("The startup request did not finish.".into()),
+                ),
+            });
+        }
+    }
+}
+
 async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, String> {
     let core = state.core.clone();
     kairo_core::resilience::ResilienceActor::register(
@@ -1354,6 +1387,79 @@ impl ApplicationServices {
             picked: self.picked.clone(),
         }
     }
+    /// The local reads behind `app:bootstrap`. None touches the network:
+    /// API.Bible authorization, devices and NDI settle afterwards.
+    pub fn bootstrap_loaders(self: &Arc<Self>) -> kairo_core::bootstrap::BootstrapLoaders {
+        let settings = self.clone();
+        let orchestrator = self.orchestrator.clone();
+        let stt = self.stt.clone();
+        let scripture = self.scripture.clone();
+        let sermon_plans = self.plans.clone();
+        let live_plan = self.plans.clone();
+        let lyrics = self.lyrics.clone();
+        let core = self.core.clone();
+        let cloud = self.cloud.clone();
+        kairo_core::bootstrap::BootstrapLoaders {
+            settings: Box::pin(async move {
+                let value =
+                    tokio::task::spawn_blocking(move || lock(&settings.settings_wiring).get_all())
+                        .await
+                        .map_err(|e| e.to_string())?;
+                serde_json::from_value(value).map_err(|e| e.to_string())
+            }),
+            orchestrator: Box::pin(async move { Ok(orchestrator.status().await) }),
+            transcription: Box::pin(async move { Ok(stt.history()) }),
+            // Offline: launch never waits on API.Bible.
+            translations: Box::pin(async move {
+                scripture
+                    .get_translation_options(false, false)
+                    .await
+                    .map_err(|e| e.to_string())
+            }),
+            sermon_plans: Box::pin(async move { Ok(sermon_plans.list_plans()) }),
+            live_plan: Box::pin(async move { Ok(live_plan.state()) }),
+            lyrics: Box::pin(async move { lyrics.get_library().await.map_err(|e| e.to_string()) }),
+            // A disk read, like everything here.
+            onboarding: Box::pin(async move {
+                core.call(kairo_cloud::onboarding::GetOnboarding)
+                    .await
+                    .map_err(|e| e.to_string())
+            }),
+            // The token vault on disk; validating it happens later.
+            account: Box::pin(async move { Ok(cloud.session().await) }),
+        }
+    }
+
+    /// Runs the launch screen's load `generation`, reporting progress and
+    /// then the snapshot to the window.
+    pub async fn bootstrap(self: &Arc<Self>, generation: u64) {
+        let mut answer = BootstrapAnswer {
+            ui: self.ui.clone(),
+            generation,
+            answered: false,
+        };
+        let progress = self.ui.clone();
+        let started = std::time::Instant::now();
+        let snapshot = kairo_core::bootstrap::run_bootstrap(self.bootstrap_loaders(), move |p| {
+            let _ = progress.send(UiEvent::Bootstrap {
+                generation,
+                report: BootstrapReport::Progress(p),
+            });
+        })
+        .await;
+        let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+        if snapshot.errors.is_empty() {
+            tracing::info!(elapsed_ms, "[Bootstrap] Completed");
+        } else {
+            tracing::warn!(elapsed_ms, errors = ?snapshot.errors, "[Bootstrap] Completed with failures");
+        }
+        answer.answered = true;
+        let _ = self.ui.send(UiEvent::Bootstrap {
+            generation,
+            report: BootstrapReport::Finished(Ok(Box::new(snapshot))),
+        });
+    }
+
     pub async fn focus(&self) {
         let cloud = self.cloud.clone();
         tokio::spawn(async move {
@@ -1453,6 +1559,7 @@ impl ApplicationServices {
         self.spawn(async move {
             use ui_shell::ShellRequest::*;
             match request {
+                Bootstrap { generation } => services.bootstrap(generation).await,
                 WindowFocused => {
                     services
                         .core

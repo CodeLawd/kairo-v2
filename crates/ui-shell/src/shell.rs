@@ -1,5 +1,6 @@
 //! The operator window's root view (`App.tsx`, `AppShell.tsx`, `main.tsx`).
 
+use crate::bootstrap::{Launch, SPLASH_FALLBACK_MS, SPLASH_MIN_VISIBLE_MS};
 use crate::crash::CrashGuard;
 use crate::keymap;
 use crate::route::{Route, import_route};
@@ -16,7 +17,7 @@ use kairo_core::quit::QuitConfirmation;
 use kairo_domain::import_menu::ImportKind;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// The update toast's time on screen.
 pub const TOAST_FOR: Duration = Duration::from_millis(12_000);
@@ -104,6 +105,12 @@ pub struct Shell {
     pub(crate) pending_import: Option<ImportKind>,
     pub(crate) pending_files: Vec<PathBuf>,
     pub(crate) crashes: HashMap<Route, (CrashGuard, SharedString, bool)>,
+    pub(crate) launch: Launch,
+    pub(crate) launch_epoch: Option<Instant>,
+    pub(crate) step_since: Instant,
+    pub(crate) launch_tasks: Vec<Task<()>>,
+    pub(crate) seen_openings: u64,
+    pub(crate) opened_at: Option<Instant>,
     pub(crate) _subscriptions: Vec<Subscription>,
 }
 
@@ -118,6 +125,9 @@ pub struct ShellOptions {
     pub dev: bool,
     /// The profile's user-data folder, for the interface scale.
     pub user_data: Option<PathBuf>,
+    /// Show the launch screen until [`Shell::begin_launch`]'s bootstrap
+    /// answers. Without it the shell opens at once with nothing loaded.
+    pub splash: bool,
 }
 
 impl Shell {
@@ -177,6 +187,16 @@ impl Shell {
             pending_import: None,
             pending_files: Vec::new(),
             crashes: HashMap::new(),
+            launch: if options.splash {
+                Launch::new()
+            } else {
+                Launch::skipped()
+            },
+            launch_epoch: None,
+            step_since: cx.background_executor().now(),
+            launch_tasks: Vec::new(),
+            seen_openings: if options.splash { 0 } else { 1 },
+            opened_at: None,
             _subscriptions: subscriptions,
         }
     }
@@ -211,6 +231,93 @@ impl Shell {
     /// The state the app last supplied.
     pub fn state(&self) -> &ShellState {
         &self.state
+    }
+
+    /// The launch screen's state.
+    pub fn launch(&self) -> &Launch {
+        &self.launch
+    }
+
+    // ── Launch ──────────────────────────────────────────────────────────
+
+    /// Starts the launch: asks for the startup snapshot
+    /// ([`ShellRequest::Bootstrap`]) and starts the splash's clock. Once per
+    /// window; later calls do nothing.
+    pub fn begin_launch(&mut self, cx: &mut Context<Self>) {
+        let Some(generation) = self.launch.start() else {
+            return;
+        };
+        let now = cx.background_executor().now();
+        self.launch_epoch = Some(now);
+        self.step_since = now;
+        cx.emit(ShellRequest::Bootstrap { generation });
+        // The splash's floor under reduced motion, otherwise the fallback in
+        // case the intro never reports (a hidden window draws no frames).
+        let hold = if kairo_ui_kit::KairoThemeExt::reduced_motion(&**cx) {
+            SPLASH_MIN_VISIBLE_MS
+        } else {
+            SPLASH_FALLBACK_MS
+        };
+        self.schedule_hold(hold, cx);
+        cx.notify();
+    }
+
+    /// Lets the splash close after `ms`.
+    pub(crate) fn schedule_hold(&mut self, ms: u64, cx: &mut Context<Self>) {
+        let task = cx.spawn(async move |this, cx| {
+            cx.background_executor()
+                .timer(Duration::from_millis(ms))
+                .await;
+            let _ = this.update(cx, |this, cx| {
+                if this.launch.hold_splash() {
+                    cx.notify();
+                }
+            });
+        });
+        self.launch_tasks.push(task);
+    }
+
+    /// Progress from the load `generation` asked for.
+    pub fn bootstrap_progress(
+        &mut self,
+        generation: u64,
+        progress: kairo_domain::status::BootstrapProgress,
+        cx: &mut Context<Self>,
+    ) {
+        let step_changed = self.launch.current_progress().step != progress.step;
+        if self.launch.progress(generation, progress) {
+            if step_changed {
+                self.step_since = cx.background_executor().now();
+            }
+            cx.notify();
+        }
+    }
+
+    /// The result of the load `generation` asked for. An error opens the
+    /// app with a warning naming settings.
+    pub fn bootstrap_finished(
+        &mut self,
+        generation: u64,
+        result: Result<kairo_domain::status::AppBootstrapSnapshot, String>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.launch.finish(generation, result) {
+            cx.notify();
+        }
+    }
+
+    /// Retry from the warning bar: the progress screen shows again.
+    pub fn retry_bootstrap(&mut self, cx: &mut Context<Self>) {
+        let generation = self.launch.retry();
+        self.step_since = cx.background_executor().now();
+        cx.emit(ShellRequest::Bootstrap { generation });
+        cx.notify();
+    }
+
+    /// Hides the warning bar until the next load.
+    pub fn dismiss_startup_warning(&mut self, cx: &mut Context<Self>) {
+        self.launch.dismiss_warning();
+        cx.notify();
     }
 
     // ── Feeding ─────────────────────────────────────────────────────────

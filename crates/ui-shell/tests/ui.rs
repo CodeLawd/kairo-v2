@@ -40,6 +40,7 @@ fn open(cx: &mut TestAppContext, version: &str) -> (AnyWindowHandle, Entity<Shel
         version: version.into(),
         dev: false,
         user_data: None,
+        splash: false,
     };
     let (handle, shell) = cx.update(|cx| {
         gpui_kit::open_window(

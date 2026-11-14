@@ -193,7 +193,9 @@ async fn load_until(
     snapshot
 }
 
-fn neutral_snapshot() -> AppBootstrapSnapshot {
+/// The snapshot with every resource at its neutral value and no errors:
+/// what a failed resource contributes.
+pub fn neutral_snapshot() -> AppBootstrapSnapshot {
     AppBootstrapSnapshot {
         settings: None,
         orchestrator: None,
