@@ -10762,6 +10762,12 @@ dependencies = [
 [[package]]
 name = "ui-account"
 version = "0.1.0"
+dependencies = [
+ "gpui-kit",
+ "kairo-domain",
+ "kairo-ui-kit",
+ "tracing",
+]
 
 [[package]]
 name = "ui-audience"

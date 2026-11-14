@@ -16,6 +16,7 @@ pub mod icons;
 pub mod launch_mark;
 pub mod lockup_paths;
 pub mod motion;
+pub mod onboarding;
 pub mod theme;
 pub mod tokens;
 

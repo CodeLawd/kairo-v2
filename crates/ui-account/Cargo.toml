@@ -3,3 +3,12 @@ name = "ui-account"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+gpui-kit.workspace = true
+kairo-domain = { path = "../kairo-domain" }
+kairo-ui-kit = { path = "../kairo-ui-kit" }
+tracing = "0.1"
+
+[dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }
