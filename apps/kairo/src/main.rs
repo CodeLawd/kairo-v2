@@ -25,6 +25,25 @@ mod power;
 mod quote_detector;
 pub mod services;
 
+/// When `main` began, for the launch-to-first-paint log line.
+static LAUNCHED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+
+/// Logs launch to first paint once: the callback after the first frame runs
+/// when that frame has been presented.
+fn report_first_paint(window: &mut Window) {
+    window.on_next_frame(|window, _| {
+        window.on_next_frame(|_, _| {
+            if let Some(launched) = LAUNCHED.get() {
+                let ms = launched.elapsed().as_secs_f64() * 1000.0;
+                tracing::info!(first_paint_ms = ms, "[Startup] first frame presented");
+                if std::env::var_os("KAIRO_REPORT_STARTUP").is_some() {
+                    eprintln!("kairo-first-paint-ms {ms:.1}");
+                }
+            }
+        });
+    });
+}
+
 /// `.kairo` files the operating system handed over before the window opened.
 static LAUNCH_FILES: LaunchQueue = LaunchQueue::new();
 /// macOS open events after the window opened, for the main thread to collect.
@@ -97,6 +116,7 @@ fn handle_request(
         }
         ShellRequest::FeaturePanicked { route, message } => {
             tracing::error!(route = route.as_str(), %message, "[Shell] workspace panic contained");
+            services.request(request.clone());
         }
         other => services.request(other.clone()),
     }
@@ -176,6 +196,7 @@ fn open_operator_window(
             shell.mark_ready(window, cx);
         });
         shell.read(cx).focus_handle(cx).focus(window, cx);
+        report_first_paint(window);
         // Every close asks first; confirming quits, as `respondToQuit` does.
         window.on_window_should_close(cx, move |window, cx| {
             let Some(shell) = close_shell.upgrade() else {
@@ -347,6 +368,7 @@ fn watch_services(events: std::sync::mpsc::Receiver<services::UiEvent>, cx: &mut
 }
 
 fn main() {
+    let _ = LAUNCHED.set(std::time::Instant::now());
     let paths = match paths::detect() {
         Ok(paths) => paths,
         Err(error) => {

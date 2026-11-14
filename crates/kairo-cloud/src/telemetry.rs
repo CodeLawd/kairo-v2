@@ -828,3 +828,20 @@ fn import_panics(local: &mut LocalReports, ledger: CrashLedger, flags: u8, syste
         store.set("nativePanicCursor", json!(ledger.count));
     });
 }
+
+#[cfg(test)]
+mod native_crash_tests {
+    use super::*;
+
+    /// A contained shell panic is reported as Electron's
+    /// `render-process-gone` was: a renderer crash of the main window that
+    /// also counts `renderer_gone`.
+    #[test]
+    fn a_contained_window_panic_reads_as_a_renderer_crash() {
+        let (kind, process, usage) = NativeCrash::Window.wire();
+        assert_eq!(kind, CrashKind::Renderer);
+        assert_eq!(process, "window");
+        assert_eq!(usage, UsageErrorKind::RendererGone);
+        assert_eq!(CrashReason::Panic.label(), "panic");
+    }
+}

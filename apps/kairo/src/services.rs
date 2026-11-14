@@ -1532,10 +1532,17 @@ impl ApplicationServices {
                 Import(kind) => {
                     services.core.publisher().emit(ImportRequested(kind));
                 }
+                // Electron's `render-process-gone`: a renderer crash for the
+                // main window, which also counts `renderer_gone` in usage.
+                // The panic text stays in the local log, not the report.
                 FeaturePanicked { .. } => {
                     services
                         .telemetry
-                        .track_error(kairo_domain::usage::UsageErrorKind::RendererGone)
+                        .record_crash(
+                            kairo_cloud::telemetry::NativeCrash::Window,
+                            kairo_cloud::telemetry::CrashReason::Panic,
+                            0,
+                        )
                         .await;
                 }
                 OpenExternal(_) | MarkWhatsNewSeen(_) => {}
