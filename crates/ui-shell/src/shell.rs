@@ -10,7 +10,7 @@ use crate::whats_new::{self, ChangelogEntry};
 use gpui_kit::component::Theme;
 use gpui_kit::component::input::TextareaState;
 use gpui_kit::{
-    App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, KeyDownEvent,
+    AnyView, App, AppContext, Context, Entity, EventEmitter, FocusHandle, Focusable, KeyDownEvent,
     SharedString, Subscription, Task, Window,
 };
 use kairo_core::quit::QuitConfirmation;
@@ -111,6 +111,8 @@ pub struct Shell {
     pub(crate) launch_tasks: Vec<Task<()>>,
     pub(crate) seen_openings: u64,
     pub(crate) opened_at: Option<Instant>,
+    /// Workspaces whose prompts have built them; the rest show a placeholder.
+    pub(crate) workspaces: HashMap<Route, AnyView>,
     pub(crate) _subscriptions: Vec<Subscription>,
 }
 
@@ -197,6 +199,7 @@ impl Shell {
             launch_tasks: Vec::new(),
             seen_openings: if options.splash { 0 } else { 1 },
             opened_at: None,
+            workspaces: HashMap::new(),
             _subscriptions: subscriptions,
         }
     }
@@ -383,6 +386,12 @@ impl Shell {
     }
 
     // ── Navigation ──────────────────────────────────────────────────────
+
+    /// Hands a route its real workspace view in place of the placeholder.
+    pub fn set_workspace(&mut self, route: Route, view: AnyView, cx: &mut Context<Self>) {
+        self.workspaces.insert(route, view);
+        cx.notify();
+    }
 
     /// Shows a workspace.
     pub fn navigate(&mut self, route: Route, cx: &mut Context<Self>) {
