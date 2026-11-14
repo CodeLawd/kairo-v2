@@ -78,7 +78,88 @@ pub fn set_appearance(appearance: Appearance, window: Option<&mut Window>, cx: &
         ThemeMode::Light
     };
     Theme::change(mode, window, cx);
-    Theme::update(cx, |theme| apply_tokens(theme, &colors));
+    let base = display_sizes(cx).interface_rem();
+    Theme::update(cx, |theme| {
+        apply_tokens(theme, &colors);
+        // Keep the operator's interface size across an appearance change.
+        theme.font_size = base;
+    });
+}
+
+/// The operator's text sizes (`display.fontSize`, `display.transcriptionFontSize`)
+/// and the View menu's zoom.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DisplaySizes {
+    /// `display.fontSize`: the interface's rem, 12–24 px.
+    pub interface: f32,
+    /// `display.transcriptionFontSize`: the live transcript, 12–48 px.
+    pub transcription: f32,
+    /// The View menu's zoom factor (Zoom In, Zoom Out, Actual Size).
+    pub zoom: f32,
+}
+
+impl Default for DisplaySizes {
+    fn default() -> Self {
+        Self {
+            interface: DEFAULT_INTERFACE_SIZE,
+            transcription: DEFAULT_TRANSCRIPTION_SIZE,
+            zoom: 1.0,
+        }
+    }
+}
+
+impl Global for DisplaySizes {}
+
+/// `display.fontSize`'s default.
+pub const DEFAULT_INTERFACE_SIZE: f32 = 16.0;
+/// `display.transcriptionFontSize`'s default.
+pub const DEFAULT_TRANSCRIPTION_SIZE: f32 = 18.0;
+
+fn clamp_size(value: f64, min: f32, max: f32, fallback: f32) -> f32 {
+    if value.is_finite() {
+        (value as f32).clamp(min, max)
+    } else {
+        fallback
+    }
+}
+
+impl DisplaySizes {
+    /// Sizes from the stored settings, clamped to the sliders' ranges; a
+    /// value that is not a number takes the default.
+    pub fn from_settings(interface: f64, transcription: f64, zoom: f32) -> Self {
+        Self {
+            interface: clamp_size(interface, 12.0, 24.0, DEFAULT_INTERFACE_SIZE),
+            transcription: clamp_size(transcription, 12.0, 48.0, DEFAULT_TRANSCRIPTION_SIZE),
+            zoom,
+        }
+    }
+
+    /// The rem every interface size is relative to.
+    pub fn interface_rem(&self) -> gpui_kit::Pixels {
+        gpui_kit::px(self.interface * self.zoom)
+    }
+
+    /// The live transcript's text size.
+    pub fn transcription_px(&self) -> gpui_kit::Pixels {
+        gpui_kit::px(self.transcription)
+    }
+}
+
+/// The sizes in effect.
+pub fn display_sizes(cx: &App) -> DisplaySizes {
+    cx.try_global::<DisplaySizes>().copied().unwrap_or_default()
+}
+
+/// Applies new sizes to every window. Text sized in rems follows the
+/// interface size; the transcript reads [`DisplaySizes::transcription_px`].
+pub fn set_display_sizes(sizes: DisplaySizes, cx: &mut App) {
+    if cx.try_global::<DisplaySizes>() == Some(&sizes) {
+        return;
+    }
+    cx.set_global(sizes);
+    let base = sizes.interface_rem();
+    Theme::update(cx, |theme| theme.font_size = base);
+    cx.refresh_windows();
 }
 
 /// Turns motion off or on (`prefers-reduced-motion: reduce`).
@@ -234,4 +315,22 @@ pub fn window_background(cx: &App) -> gpui_kit::Hsla {
 /// The base text size for body copy (`body { font-size: 0.9375rem }`).
 pub fn body_text_size() -> gpui_kit::Rems {
     text::BASE.size
+}
+
+#[cfg(test)]
+mod display_size_tests {
+    use super::*;
+
+    #[test]
+    fn display_sizes_clamp_to_the_sliders() {
+        let sizes = DisplaySizes::from_settings(40.0, f64::NAN, 1.25);
+        assert_eq!(sizes.interface, 24.0);
+        assert_eq!(sizes.transcription, DEFAULT_TRANSCRIPTION_SIZE);
+        assert_eq!(sizes.interface_rem(), gpui_kit::px(30.0));
+        assert_eq!(
+            DisplaySizes::from_settings(4.0, 60.0, 1.0).transcription,
+            48.0
+        );
+        assert_eq!(DisplaySizes::default().interface_rem(), text::rem());
+    }
 }

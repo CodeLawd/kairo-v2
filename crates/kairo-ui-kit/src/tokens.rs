@@ -206,6 +206,9 @@ pub struct KairoColors {
     pub neutral: [Hsla; 11],
     /// `--glass`: the frosted tone of a modal sidebar or small dialog.
     pub glass: Hsla,
+    /// `stone` in `tailwind.config.js` (`#374151`): the account avatar's
+    /// fill, the same in both themes.
+    pub stone: Hsla,
     /// `destructive` in `tailwind.config.js` (`#ef4444`).
     pub destructive: Hsla,
     /// `text-red-400` / `text-rose-400` (`#b91c1c` in light).
@@ -381,6 +384,7 @@ impl KairoColors {
                 rgb(9, 9, 11),
             ],
             glass: rgb(30, 30, 33),
+            stone: rgb(0x37, 0x41, 0x51),
             destructive: rgb(0xef, 0x44, 0x44),
             // Tailwind red-400 and rose-300; dark mode keeps the stock steps.
             danger_text: rgb(0xf8, 0x71, 0x71),
@@ -486,6 +490,7 @@ impl KairoColors {
                 rgb(250, 250, 250),
             ],
             glass: rgb(244, 244, 245),
+            stone: rgb(0x37, 0x41, 0x51),
             destructive: rgb(0xef, 0x44, 0x44),
             danger_text: rgb(0xb9, 0x1c, 0x1c),
             danger_text_soft: rgb(0xb9, 0x1c, 0x1c),

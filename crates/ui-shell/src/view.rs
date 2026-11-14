@@ -65,7 +65,7 @@ impl Render for Shell {
                     .into_any_element(),
             );
             content.extend(self.render_startup_warning(cx));
-            content.extend(self.render_overlay(cx));
+            content.extend(self.render_overlay(window, cx));
             content.extend(self.render_notices(cx));
             content.extend(self.render_whats_new(cx));
             content.extend(self.front.clone().map(|front| front.into_any_element()));
@@ -582,8 +582,7 @@ impl Shell {
                             .icon(Icon::new(KairoIcon::Settings).size_3())
                             .label("Account settings")
                             .on_click(move |_, _, cx| {
-                                entity
-                                    .update(cx, |this, cx| this.open_overlay(Overlay::Settings, cx))
+                                entity.update(cx, |this, cx| this.open_settings("account", cx))
                             }),
                     )
             })
@@ -907,8 +906,25 @@ impl Shell {
             .into_any_element()
     }
 
-    fn render_overlay(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
+    fn render_overlay(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
         let overlay = self.overlay?;
+        if self.overlay_view.is_none()
+            && let Some(build) = self.overlay_builders.get(&overlay)
+        {
+            let section = if overlay == Overlay::Settings {
+                self.settings_section
+            } else {
+                None
+            };
+            self.overlay_view = Some(build(section, window, cx));
+        }
+        if let Some(view) = self.overlay_view.clone() {
+            return Some(view.into_any_element());
+        }
         let k = *cx.kairo();
         Some(
             div()

@@ -15,6 +15,8 @@ ui-web = { path = "../../crates/ui-web" }
 ui-shell = { path = "../../crates/ui-shell" }
 ui-operator = { path = "../../crates/ui-operator" }
 ui-account = { path = "../../crates/ui-account" }
+ui-settings = { path = "../../crates/ui-settings" }
+futures-channel = "0.3"
 iana-time-zone = "0.1"
 tracing = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
@@ -45,3 +47,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = ["std
 [dev-dependencies]
 tempfile = "3"
 kairo-output = { path = "../../crates/kairo-output", features = ["fake"] }
+
+[features]
+# Test-only launch hooks (`KAIRO_OPEN_SETTINGS`). Never enable in a shipped build.
+dev-hooks = []

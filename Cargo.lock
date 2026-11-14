@@ -5056,6 +5056,7 @@ version = "0.1.0"
 dependencies = [
  "block2 0.6.2",
  "chrono",
+ "futures-channel",
  "gpui-kit",
  "iana-time-zone",
  "kairo-audience",
@@ -5086,6 +5087,7 @@ dependencies = [
  "tracing",
  "ui-account",
  "ui-operator",
+ "ui-settings",
  "ui-shell",
  "ui-web",
 ]
@@ -10817,6 +10819,17 @@ version = "0.1.0"
 [[package]]
 name = "ui-settings"
 version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "gpui-kit",
+ "kairo-domain",
+ "kairo-ui-kit",
+ "serde_json",
+ "tracing",
+ "ui-account",
+ "ui-shell",
+]
 
 [[package]]
 name = "ui-shell"

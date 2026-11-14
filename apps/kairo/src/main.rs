@@ -27,6 +27,7 @@ mod operator;
 mod power;
 mod quote_detector;
 pub mod services;
+mod settings;
 
 /// When `main` began, for the launch-to-first-paint log line.
 static LAUNCHED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
@@ -88,13 +89,47 @@ fn receive_files(files: Vec<PathBuf>, cx: &mut App) {
 }
 
 /// Settings the shell shows, read from the store.
-fn read_shell_settings(settings: &Settings, state: &mut ShellState) -> DisplayTheme {
+fn read_shell_settings(settings: &Settings, state: &mut ShellState) -> DisplaySettings {
     let store = settings.lock().unwrap_or_else(|e| e.into_inner());
     let display: DisplaySettings = store.section("display").unwrap_or_default();
     let whats_new: WhatsNewSettings = store.section("whatsNew").unwrap_or_default();
-    state.shortcuts = display.shortcuts.unwrap_or_default();
+    state.shortcuts = display.shortcuts.clone().unwrap_or_default();
     state.whats_new_last_seen = Some(whats_new.last_seen_version.into());
-    display.theme
+    display
+}
+
+/// Applies the stored interface and transcript sizes, keeping the View
+/// menu's zoom.
+fn apply_display_sizes(display: &DisplaySettings, cx: &mut App) {
+    let zoom = kairo_ui_kit::theme::display_sizes(cx).zoom;
+    kairo_ui_kit::theme::set_display_sizes(
+        kairo_ui_kit::theme::DisplaySizes::from_settings(
+            display.font_size,
+            display.transcription_font_size,
+            zoom,
+        ),
+        cx,
+    );
+}
+
+/// The Settings window's remembered size (`kairo.frame.settings.v2`),
+/// clamped to the operator window.
+fn settings_frame(state: &dyn ui_operator::UiState, window: &Window) -> (f32, f32) {
+    use ui_operator::layout::{FrameSize, clamp_frame_size, read_frame_size};
+    let viewport = window.viewport_size();
+    let size = read_frame_size(state, "kairo.frame.settings.v2").unwrap_or(FrameSize {
+        w: ui_settings::FRAME.0,
+        h: ui_settings::FRAME.1,
+    });
+    let size = clamp_frame_size(
+        size,
+        FrameSize {
+            w: ui_settings::FRAME_MIN.0,
+            h: ui_settings::FRAME_MIN.1,
+        },
+        (f32::from(viewport.width), f32::from(viewport.height)),
+    );
+    (size.w, size.h)
 }
 
 /// Requests the shell raises. Services composed by prompt 067 take over the
@@ -138,7 +173,9 @@ fn open_operator_window(
     cx: &mut App,
 ) {
     let mut state = ShellState::default();
-    let theme = read_shell_settings(&settings, &mut state);
+    let display = read_shell_settings(&settings, &mut state);
+    let theme = display.theme;
+    apply_display_sizes(&display, cx);
     kairo_ui_kit::set_appearance(
         if theme == DisplayTheme::Light {
             kairo_ui_kit::Appearance::Light
@@ -186,9 +223,30 @@ fn open_operator_window(
             model
         }
     };
+    // One settings backend for the app's life: it subscribes to the
+    // services once and fans pushes out to each Settings window.
+    let settings_backend: Arc<dyn ui_settings::SettingsBackend> =
+        match cx.try_global::<SettingsBackendHandle>() {
+            Some(handle) => handle.0.clone(),
+            None => {
+                let backend: Arc<dyn ui_settings::SettingsBackend> =
+                    Arc::new(settings::ServicesSettings::new(services.clone()));
+                cx.set_global(SettingsBackendHandle(backend.clone()));
+                backend
+            }
+        };
+    let settings_ui_state = ui_state.clone();
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
-        let flow = cx.new(|cx| ui_account::AccountFlow::new(account, window, cx));
+        let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
+        install_settings(
+            &shell,
+            &flow,
+            account,
+            settings_backend,
+            settings_ui_state,
+            cx,
+        );
         let target = shell.downgrade();
         cx.subscribe(&flow, move |_, event: &ui_account::FlowEvent, cx| {
             let _ = target.update(cx, |shell, cx| match *event {
@@ -260,6 +318,41 @@ fn open_operator_window(
             shell.begin_launch(cx);
             shell.open_kairo_files(pending, cx);
             shell.mark_ready(window, cx);
+            // Builds with the `dev-hooks` feature only (never shipped):
+            // `KAIRO_OPEN_SETTINGS=<pane>` drops setup and the sign-in wall
+            // for this launch and opens Settings, for measuring and
+            // screenshots (074).
+            #[cfg(feature = "dev-hooks")]
+            if let Some(section) = std::env::var("KAIRO_OPEN_SETTINGS")
+                .ok()
+                .and_then(|id| ui_settings::Section::from_id(&id))
+            {
+                // After the launch screen, as an operator would open it.
+                cx.spawn(async move |shell, cx| {
+                    cx.background_executor()
+                        .timer(std::time::Duration::from_secs(5))
+                        .await;
+                    // Three opens: the first pays one-time costs (glyphs,
+                    // icons); the others are what an operator sees later.
+                    for _ in 0..3 {
+                        let _ = shell.update(cx, |shell, cx| {
+                            shell.set_front(None, cx);
+                            shell.open_settings(section.id(), cx);
+                        });
+                        cx.background_executor()
+                            .timer(std::time::Duration::from_secs(1))
+                            .await;
+                        let _ = shell.update(cx, |shell, cx| shell.close_overlay(cx));
+                        cx.background_executor()
+                            .timer(std::time::Duration::from_millis(500))
+                            .await;
+                    }
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.open_settings(section.id(), cx);
+                    });
+                })
+                .detach();
+            }
         });
         shell.read(cx).focus_handle(cx).focus(window, cx);
         report_first_paint(window);
@@ -273,6 +366,51 @@ fn open_operator_window(
             }
             false
         });
+    });
+}
+
+/// The app's Settings backend, kept for a reopened window.
+struct SettingsBackendHandle(Arc<dyn ui_settings::SettingsBackend>);
+impl Global for SettingsBackendHandle {}
+
+/// Gives the shell the Settings window (074) in place of its placeholder.
+fn install_settings(
+    shell: &Entity<Shell>,
+    flow: &Entity<ui_account::AccountFlow>,
+    account: Entity<ui_account::Account>,
+    backend: Arc<dyn ui_settings::SettingsBackend>,
+    ui_state: Arc<dyn ui_operator::UiState>,
+    cx: &mut App,
+) {
+    let target = shell.downgrade();
+    let flow = flow.downgrade();
+    let build = move |section: Option<&'static str>, window: &mut Window, cx: &mut App| {
+        let frame = settings_frame(&*ui_state, window);
+        let initial = section.and_then(ui_settings::Section::from_id);
+        let backend = backend.clone();
+        let account = account.clone();
+        let view = cx.new(|cx| {
+            ui_settings::SettingsWindow::new(backend, account, initial, frame, window, cx)
+        });
+        let target = target.clone();
+        let flow = flow.clone();
+        cx.subscribe(
+            &view,
+            move |view, event: &ui_settings::SettingsEvent, cx| {
+                view.update(cx, |view, cx| view.close(cx));
+                let _ = target.update(cx, |shell, cx| shell.close_overlay(cx));
+                if *event == ui_settings::SettingsEvent::ShowTips {
+                    let _ = flow.update(cx, |flow, cx| flow.replay_tips(cx));
+                }
+                // `RunSetup`: the reset onboarding state reaches the account
+                // model, and the flow opens setup over the booth.
+            },
+        )
+        .detach();
+        AnyView::from(view)
+    };
+    shell.update(cx, |shell, _| {
+        shell.set_overlay_builder(ui_shell::Overlay::Settings, Box::new(build))
     });
 }
 
@@ -452,6 +590,9 @@ fn watch_services(events: std::sync::mpsc::Receiver<services::UiEvent>, cx: &mut
                                     model.set_onboarding(v, cx)
                                 }
                                 account::AccountUpdate::Settings(v) => {
+                                    // `display.fontSize` and `transcriptionFontSize`
+                                    // take effect once saved (074).
+                                    apply_display_sizes(&v.settings.display, cx);
                                     model.set_settings(v.settings, cx)
                                 }
                                 account::AccountUpdate::Displays(v) => model.set_displays(v, cx),

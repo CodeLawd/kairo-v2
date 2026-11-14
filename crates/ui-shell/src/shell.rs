@@ -116,10 +116,21 @@ pub struct Shell {
     /// Drawn over everything but the quit question once launched: setup,
     /// the sign-in wall and the coach tips (073).
     pub(crate) front: Option<AnyView>,
+    /// Builds an overlay window's view when it opens (074 onward): the
+    /// pane to open first, if one was asked for.
+    pub(crate) overlay_builders: HashMap<Overlay, OverlayBuilder>,
+    /// The open overlay's built view.
+    pub(crate) overlay_view: Option<AnyView>,
+    /// The Settings pane asked for by the last [`Shell::open_settings`].
+    pub(crate) settings_section: Option<&'static str>,
     pub(crate) _subscriptions: Vec<Subscription>,
 }
 
 impl EventEmitter<ShellRequest> for Shell {}
+
+/// Builds an overlay window's view; the argument is the Settings pane asked
+/// for (`openSettings(section)`), if any.
+pub type OverlayBuilder = Box<dyn Fn(Option<&'static str>, &mut Window, &mut App) -> AnyView>;
 
 /// What the app supplies at startup.
 #[derive(Clone, Debug)]
@@ -204,6 +215,9 @@ impl Shell {
             opened_at: None,
             workspaces: HashMap::new(),
             front: None,
+            overlay_builders: HashMap::new(),
+            overlay_view: None,
+            settings_section: None,
             _subscriptions: subscriptions,
         }
     }
@@ -410,15 +424,36 @@ impl Shell {
         cx.notify();
     }
 
+    /// Installs the view an overlay window shows in place of its placeholder.
+    pub fn set_overlay_builder(&mut self, overlay: Overlay, builder: OverlayBuilder) {
+        self.overlay_builders.insert(overlay, builder);
+    }
+
     /// Opens an overlay window (one at a time).
     pub fn open_overlay(&mut self, overlay: Overlay, cx: &mut Context<Self>) {
+        if self.overlay != Some(overlay) {
+            self.overlay_view = None;
+        }
+        if overlay == Overlay::Settings {
+            self.settings_section = None;
+        }
         self.overlay = Some(overlay);
+        cx.notify();
+    }
+
+    /// Opens Settings at a pane (`openSettings(section)`): `general`,
+    /// `apikeys`, `account`, `audio`, `scripture`, …
+    pub fn open_settings(&mut self, section: &'static str, cx: &mut Context<Self>) {
+        self.overlay_view = None;
+        self.overlay = Some(Overlay::Settings);
+        self.settings_section = Some(section);
         cx.notify();
     }
 
     /// Closes the overlay window.
     pub fn close_overlay(&mut self, cx: &mut Context<Self>) {
         self.overlay = None;
+        self.overlay_view = None;
         cx.notify();
     }
 
@@ -431,6 +466,7 @@ impl Shell {
         // Settings closes so the import is seen.
         if self.overlay == Some(Overlay::Settings) {
             self.overlay = None;
+            self.overlay_view = None;
         }
         if let Some(route) = import_route(kind) {
             self.navigate(route, cx);
@@ -654,8 +690,15 @@ pub(crate) fn placeholder(kind: FeedbackKind) -> &'static str {
     }
 }
 
+/// The View menu's zoom on top of the operator's interface size
+/// (`display.fontSize`, 074).
 fn apply_scale(scale: UiScale, cx: &mut App) {
-    let base = kairo_ui_kit::tokens::text::rem() * scale.factor();
+    let sizes = kairo_ui_kit::theme::DisplaySizes {
+        zoom: scale.factor(),
+        ..kairo_ui_kit::theme::display_sizes(cx)
+    };
+    kairo_ui_kit::theme::set_display_sizes(sizes, cx);
+    let base = sizes.interface_rem();
     Theme::update(cx, |theme| theme.font_size = base);
 }
 
