@@ -169,6 +169,12 @@ impl Videos {
         }
     }
 
+    /// The output's background video status, when it has one.
+    pub fn background_status(&self, output: &str) -> Option<Status> {
+        let id = self.background(output)?;
+        self.status(id)
+    }
+
     pub fn status(&self, id: u64) -> Option<Status> {
         self.players.get(&id).map(|e| e.player.status())
     }

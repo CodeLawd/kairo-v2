@@ -796,6 +796,9 @@ impl Shell {
         if let Some((_, message, _)) = self.crashes.get(&route).filter(|(_, _, failed)| *failed) {
             return self.fallback(route, message.clone(), cx);
         }
+        if let Some(view) = self.workspaces.get(&route) {
+            return view.clone().into_any_element();
+        }
         let build = std::panic::AssertUnwindSafe(|| workspace_placeholder(route, &*cx));
         match std::panic::catch_unwind(build) {
             Ok(element) => element,

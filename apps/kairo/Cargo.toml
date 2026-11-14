@@ -13,6 +13,7 @@ kairo-store = { path = "../../crates/kairo-store" }
 kairo-ui-kit = { path = "../../crates/kairo-ui-kit" }
 ui-web = { path = "../../crates/ui-web" }
 ui-shell = { path = "../../crates/ui-shell" }
+ui-operator = { path = "../../crates/ui-operator" }
 tracing = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 kairo-audio = { path = "../../crates/kairo-audio" }
