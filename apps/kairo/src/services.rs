@@ -70,6 +70,8 @@ pub enum UiEvent {
         report: BootstrapReport,
     },
     ConfirmInstall(Arc<ApplicationServices>),
+    /// A change for the account and setup views.
+    Account(Box<crate::account::AccountUpdate>),
     Quit,
 }
 

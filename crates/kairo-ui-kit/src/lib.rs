@@ -9,6 +9,7 @@
 //! [`KairoAssets`] to the application so the icons load.
 
 pub mod brand;
+pub mod coach;
 pub mod components;
 pub mod fonts;
 pub mod gallery;
@@ -16,6 +17,7 @@ pub mod icons;
 pub mod launch_mark;
 pub mod lockup_paths;
 pub mod motion;
+pub mod onboarding;
 pub mod theme;
 pub mod tokens;
 

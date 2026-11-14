@@ -820,6 +820,10 @@ impl Render for LiveRail {
                     .bg(k.surface_rail)
                     .child(
                         v_flex()
+                            .relative()
+                            .child(kairo_ui_kit::coach::coach_anchor(
+                                kairo_ui_kit::coach::anchors::LIVE_PREVIEW,
+                            ))
                             .flex_shrink_0()
                             .border_b(kairo_ui_kit::tokens::metrics::panel_border_width())
                             .border_color(k.panel_border)

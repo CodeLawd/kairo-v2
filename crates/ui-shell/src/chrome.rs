@@ -31,6 +31,7 @@ pub enum Tone {
 #[derive(IntoElement)]
 pub struct ToolbarButton {
     id: ElementId,
+    coach: Option<&'static str>,
     label: SharedString,
     title: SharedString,
     icon: AnyElement,
@@ -50,6 +51,7 @@ impl ToolbarButton {
     ) -> Self {
         Self {
             id: id.into(),
+            coach: None,
             label: label.into(),
             title: title.into(),
             icon: icon.into_any_element(),
@@ -58,6 +60,12 @@ impl ToolbarButton {
             disabled: false,
             on_click: None,
         }
+    }
+
+    /// Marks the button as a coach-tour target.
+    pub fn coach_anchor(mut self, name: &'static str) -> Self {
+        self.coach = Some(name);
+        self
     }
 
     /// A status dot on the icon's corner.
@@ -109,6 +117,10 @@ impl RenderOnce for ToolbarButton {
         v_flex()
             .id(self.id)
             .test_support()
+            .relative()
+            .when_some(self.coach, |this, name| {
+                this.child(kairo_ui_kit::coach::coach_anchor(name))
+            })
             // Pressing a tool never drags the window.
             .occlude()
             .group(group.clone())

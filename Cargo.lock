@@ -5057,6 +5057,7 @@ dependencies = [
  "block2 0.6.2",
  "chrono",
  "gpui-kit",
+ "iana-time-zone",
  "kairo-audience",
  "kairo-audio",
  "kairo-cloud",
@@ -5083,6 +5084,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "ui-account",
  "ui-operator",
  "ui-shell",
  "ui-web",
@@ -10763,6 +10765,12 @@ dependencies = [
 [[package]]
 name = "ui-account"
 version = "0.1.0"
+dependencies = [
+ "gpui-kit",
+ "kairo-domain",
+ "kairo-ui-kit",
+ "tracing",
+]
 
 [[package]]
 name = "ui-audience"
