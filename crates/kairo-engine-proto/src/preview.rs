@@ -136,7 +136,7 @@ impl PreviewMap {
     }
 
     fn word(&self, offset: usize) -> &AtomicU32 {
-        debug_assert!(offset % 4 == 0 && offset + 4 <= HEADER);
+        debug_assert!(offset.is_multiple_of(4) && offset + 4 <= HEADER);
         // SAFETY: an aligned header word inside the mapping; the mapping is
         // page-aligned and outlives the reference.
         unsafe { &*(self.map.as_ptr().add(offset) as *const AtomicU32) }
@@ -370,7 +370,11 @@ mod tests {
         let mut seen = 0;
         let mut read = 0;
         let started = std::time::Instant::now();
-        while started.elapsed() < std::time::Duration::from_millis(300) {
+        // At least 300 ms, and until some clean frames were read (a loaded
+        // machine may tear every read for a while).
+        while started.elapsed() < std::time::Duration::from_millis(300)
+            || (read < 10 && started.elapsed() < std::time::Duration::from_secs(10))
+        {
             if let Some(frame) = reader.read_new(seen) {
                 let first = frame.pixels[0];
                 assert!(frame.pixels.iter().all(|&b| b == first), "mixed frame");

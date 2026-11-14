@@ -371,3 +371,47 @@ fn a_stage_view_is_retained_while_parked_and_replayed_without_a_program_slide() 
     }
     assert_eq!(fresh, state);
 }
+
+#[test]
+fn a_preview_follows_a_parked_surface_and_is_replayed_until_stopped() {
+    let mut state = SurfaceState::new(display_spec());
+    state.apply(
+        &Command::CloseSurface {
+            output: "screen".into(),
+            destroy: false,
+        },
+        true,
+    );
+    let target = PreviewTarget {
+        path: "/tmp/kairo-preview/1.map".into(),
+        width: 640,
+        height: 360,
+        fps: 30,
+    };
+    let start = Command::SetPreview {
+        output: "screen".into(),
+        preview: Some(target.clone()),
+    };
+    // Applied even while the surface takes no pushes.
+    assert!(state.apply(&start, false));
+    assert_eq!(state.preview, Some(target));
+    assert!(state.replay().contains(&start));
+    let mut fresh = SurfaceState::new(display_spec());
+    for command in state.replay() {
+        fresh.apply(&command, true);
+    }
+    assert_eq!(fresh, state);
+
+    let stop = Command::SetPreview {
+        output: "screen".into(),
+        preview: None,
+    };
+    assert!(state.apply(&stop, true));
+    assert!(state.preview.is_none());
+    assert!(
+        !state
+            .replay()
+            .iter()
+            .any(|c| matches!(c, Command::SetPreview { .. }))
+    );
+}

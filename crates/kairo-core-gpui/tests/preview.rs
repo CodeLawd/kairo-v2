@@ -1,8 +1,9 @@
 //! The live preview view and the thumbnail service in a GPUI test window.
 
+use gpui_kit::test::TestWindowExt;
 use gpui_kit::{
-    AnyWindowHandle, AppContext, Bounds, Entity, TestAppContext, WindowBounds, WindowOptions,
-    prelude::*, px, size,
+    AnyWindowHandle, AppContext, Bounds, Entity, TestAppContext, WindowBounds, WindowOptions, px,
+    size,
 };
 use kairo_core::engine::{EngineEvent, EngineFuture, OutputEngine, Sent};
 use kairo_core::preview::PreviewHub;
@@ -170,8 +171,9 @@ fn thumbnails_are_drawn_off_thread_shared_and_evicted(cx: &mut TestAppContext) {
     let wait = |cx: &mut TestAppContext, r: &ThumbnailRequest| {
         let started = Instant::now();
         loop {
+            cx.executor().advance_clock(Duration::from_millis(20));
             cx.run_until_parked();
-            if let Thumbnail::Ready(image) = thumbs.update(cx, |t, _| t.get(r)) {
+            if let Thumbnail::Ready(image) = thumbs.update(cx, |t, cx| t.get(r, cx)) {
                 return image;
             }
             assert!(started.elapsed() < Duration::from_secs(10), "never drawn");
@@ -180,7 +182,7 @@ fn thumbnails_are_drawn_off_thread_shared_and_evicted(cx: &mut TestAppContext) {
     };
     // Pending at first: the card shows its placeholder.
     assert!(matches!(
-        thumbs.update(cx, |t, _| t.get(&a)),
+        thumbs.update(cx, |t, cx| t.get(&a, cx)),
         Thumbnail::Pending
     ));
     let image = wait(cx, &a);
@@ -208,14 +210,18 @@ fn thumbnails_are_drawn_off_thread_shared_and_evicted(cx: &mut TestAppContext) {
     let stats = cx.update(|cx| thumbs.read(cx).stats());
     assert_eq!((stats.drawn, stats.evicted), (3, 1));
     assert!(matches!(
-        thumbs.update(cx, |t, _| t.get(&a)),
+        thumbs.update(cx, |t, cx| t.get(&a, cx)),
         Thumbnail::Pending
     ));
     let redrawn = wait(cx, &a);
     assert_ne!(redrawn.id, image.id);
     assert_eq!(cx.update(|cx| thumbs.read(cx).len()), 2);
 
-    // An empty slide is a clear thumbnail, not a failure.
-    let blank = wait(cx, &request(""));
+    // An empty slide (no words, no reference) is a clear thumbnail, not a
+    // failure.
+    let blank = wait(
+        cx,
+        &ThumbnailRequest::new(theme.clone(), "", "", Vec::new()),
+    );
     assert!(blank.as_bytes(0).unwrap().chunks(4).all(|p| p[3] == 0));
 }

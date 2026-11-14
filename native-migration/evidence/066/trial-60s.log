@@ -1,0 +1,12 @@
+sample t=5s ui_cpu=5.16% engine_cpu=NaN% ui_footprint=63.6MB ui_rss=126704KiB engine_rss=111488KiB shown=135 dropped=133 on_screen=true subscribed=true load={27.5921.6918.45}
+sample t=10s ui_cpu=7.54% engine_cpu=11.31% ui_footprint=63.6MB ui_rss=126768KiB engine_rss=117760KiB shown=271 dropped=269 on_screen=true subscribed=true load={25.8621.4318.38}
+sample t=15s ui_cpu=4.37% engine_cpu=7.55% ui_footprint=63.7MB ui_rss=126496KiB engine_rss=124064KiB shown=406 dropped=404 on_screen=true subscribed=true load={26.0321.5418.44}
+sample t=20s ui_cpu=3.19% engine_cpu=5.37% ui_footprint=63.7MB ui_rss=126528KiB engine_rss=130224KiB shown=543 dropped=541 on_screen=false subscribed=true load={24.6721.3318.38}
+sample t=25s ui_cpu=0.19% engine_cpu=7.43% ui_footprint=51.7MB ui_rss=113152KiB engine_rss=126928KiB shown=569 dropped=569 on_screen=false subscribed=false load={23.0221.0418.30}
+sample t=30s ui_cpu=0.19% engine_cpu=9.14% ui_footprint=51.7MB ui_rss=113152KiB engine_rss=134464KiB shown=569 dropped=569 on_screen=false subscribed=false load={21.6520.7918.22}
+sample t=35s ui_cpu=0.19% engine_cpu=15.80% ui_footprint=51.4MB ui_rss=112816KiB engine_rss=141936KiB shown=569 dropped=569 on_screen=false subscribed=false load={19.4220.3418.09}
+sample t=40s ui_cpu=0.00% engine_cpu=8.09% ui_footprint=51.4MB ui_rss=112816KiB engine_rss=148240KiB shown=569 dropped=569 on_screen=true subscribed=false load={19.4220.3418.09}
+sample t=45s ui_cpu=3.19% engine_cpu=5.18% ui_footprint=63.4MB ui_rss=126224KiB engine_rss=166144KiB shown=704 dropped=702 on_screen=true subscribed=true load={18.1820.0718.01}
+sample t=50s ui_cpu=2.97% engine_cpu=4.95% ui_footprint=63.4MB ui_rss=126224KiB engine_rss=173168KiB shown=838 dropped=836 on_screen=true subscribed=true load={17.4519.8817.96}
+sample t=55s ui_cpu=3.18% engine_cpu=5.18% ui_footprint=63.3MB ui_rss=126224KiB engine_rss=180608KiB shown=974 dropped=972 on_screen=true subscribed=true load={16.2919.6017.87}
+sample t=60s ui_cpu=2.99% engine_cpu=4.98% ui_footprint=63.4MB ui_rss=126240KiB engine_rss=188480KiB shown=1108 dropped=1106 on_screen=false subscribed=true load={16.5119.5917.87}

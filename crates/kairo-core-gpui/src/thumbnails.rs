@@ -24,7 +24,11 @@ use kairo_scene::{ColoredLine, RasterPool, SlideScene, TextRaster};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+/// How often finished drawings are looked for while some are outstanding.
+const DRAIN_EVERY: Duration = Duration::from_millis(16);
 
 /// The frame every thumbnail is laid out in (`OVERLAY_FRAME_WIDTH/HEIGHT`).
 pub const FRAME: (u32, u32) = (1920, 1080);
@@ -110,9 +114,14 @@ pub struct Thumbnails {
     slots: HashMap<u64, Slot>,
     /// Least recently used first.
     images: VecDeque<(u64, Arc<RenderImage>)>,
-    done: futures_channel::mpsc::UnboundedSender<Finished>,
+    /// Drawings the workers finished, taken on the UI thread. Workers never
+    /// wake a UI task themselves.
+    done: Arc<Mutex<Vec<Finished>>>,
+    /// Jobs submitted and not yet taken.
+    outstanding: usize,
     stats: ThumbnailStats,
-    _drain: Task<()>,
+    /// Looks for finished drawings while any are outstanding.
+    drain: Option<Task<()>>,
 }
 
 impl Thumbnails {
@@ -125,30 +134,17 @@ impl Thumbnails {
         let pool = Arc::new(RasterPool::new(workers, 0, move |raster| {
             Arc::new(downscale(raster.as_ref(), FRAME, size))
         }));
-        let (done, mut finished) = futures_channel::mpsc::unbounded::<Finished>();
-        let drain = cx.spawn(async move |this, cx| {
-            use futures_util::StreamExt;
-            while let Some(result) = finished.next().await {
-                if this
-                    .update(cx, |this, cx| {
-                        this.finish(result, cx);
-                        cx.notify();
-                    })
-                    .is_err()
-                {
-                    break;
-                }
-            }
-        });
+        let _ = cx;
         Self {
             size,
             capacity: capacity.max(1),
             pool,
             slots: HashMap::new(),
             images: VecDeque::new(),
-            done,
+            done: Arc::default(),
+            outstanding: 0,
             stats: ThumbnailStats::default(),
-            _drain: drain,
+            drain: None,
         }
     }
 
@@ -171,7 +167,7 @@ impl Thumbnails {
 
     /// The thumbnail for `request`, starting it if it is not drawn yet.
     /// The entity is notified when a pending one is ready.
-    pub fn get(&mut self, request: &ThumbnailRequest) -> Thumbnail {
+    pub fn get(&mut self, request: &ThumbnailRequest, cx: &mut Context<Self>) -> Thumbnail {
         match self.slots.get(&request.key).copied() {
             Some(Slot::Pending) => return Thumbnail::Pending,
             Some(Slot::Failed) => return Thumbnail::Failed,
@@ -201,10 +197,43 @@ impl Thumbnails {
             }),
             move |finished| {
                 let result = finished.value.map(|pixels| (finished.hash, pixels));
-                let _ = done.unbounded_send((key, result));
+                done.lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push((key, result));
             },
         );
+        self.outstanding += 1;
+        if self.drain.is_none() {
+            self.drain = Some(cx.spawn(async move |this, cx| {
+                loop {
+                    cx.background_executor().timer(DRAIN_EVERY).await;
+                    let more = this
+                        .update(cx, |this, cx| this.take_finished(cx))
+                        .unwrap_or(false);
+                    if !more {
+                        break;
+                    }
+                }
+            }));
+        }
         Thumbnail::Pending
+    }
+
+    /// Takes what the workers finished. False when nothing is outstanding.
+    fn take_finished(&mut self, cx: &mut Context<Self>) -> bool {
+        let finished = std::mem::take(&mut *self.done.lock().unwrap_or_else(|e| e.into_inner()));
+        if !finished.is_empty() {
+            self.outstanding = self.outstanding.saturating_sub(finished.len());
+            for result in finished {
+                self.finish(result, cx);
+            }
+            cx.notify();
+        }
+        if self.outstanding == 0 {
+            self.drain = None;
+            return false;
+        }
+        true
     }
 
     fn finish(&mut self, (key, result): Finished, cx: &mut Context<Self>) {

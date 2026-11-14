@@ -169,7 +169,9 @@ fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
         }],
     );
     committed(&rx, 1);
-    let got: Arc<Mutex<Vec<(Instant, u32, u32, [u8; 4])>>> = Arc::default();
+    // When each frame came, its size and its first pixel.
+    type Got = Vec<(Instant, u32, u32, [u8; 4])>;
+    let got: Arc<Mutex<Got>> = Arc::default();
     let sink = got.clone();
     compositor.preview(
         "out",
@@ -185,6 +187,13 @@ fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
             ));
         })),
     );
+    // The current picture comes at once (allowing for a loaded machine),
+    // then nothing while the program is still.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while got.lock().unwrap().is_empty() {
+        assert!(Instant::now() < deadline, "no preview frame");
+        std::thread::sleep(Duration::from_millis(5));
+    }
     std::thread::sleep(Duration::from_millis(300));
     {
         let frames = got.lock().unwrap();

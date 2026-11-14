@@ -273,7 +273,7 @@ impl LivePreview {
         let mut pixels = Vec::with_capacity(w as usize * h as usize * 4);
         for y in 0..h {
             for x in 0..w {
-                let v = if ((x / square) + (y / square)) % 2 == 0 {
+                let v = if ((x / square) + (y / square)).is_multiple_of(2) {
                     0x1a
                 } else {
                     0x0d

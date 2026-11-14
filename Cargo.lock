@@ -5172,13 +5172,15 @@ name = "kairo-core-gpui"
 version = "0.1.0"
 dependencies = [
  "futures-channel",
- "futures-util",
  "gpui-kit",
  "image",
  "kairo-core",
  "kairo-domain",
+ "kairo-engine-proto",
  "kairo-scene",
+ "libc",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 

@@ -8,7 +8,6 @@ publish = false
 futures-channel = "0.3"
 gpui-kit.workspace = true
 kairo-core = { path = "../kairo-core" }
-futures-util = "0.3"
 image = { version = "0.25", default-features = false }
 kairo-domain = { path = "../kairo-domain" }
 kairo-scene = { path = "../kairo-scene" }
@@ -18,4 +17,5 @@ tracing = "0.1"
 [dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support"] }
 kairo-engine-proto = { path = "../kairo-engine-proto" }
-tokio = { version = "1", features = ["sync"] }
+tokio = { version = "1", features = ["sync", "rt-multi-thread"] }
+libc = "0.2"
