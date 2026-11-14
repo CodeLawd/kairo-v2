@@ -29,7 +29,7 @@ Read these before writing code. They are the specification.
 
 ## 4. Implementation requirements
 
-1. Build `tools/soak`: a scripted 4-hour service with video background, verses, lyrics, timers, messages, doc turns, on all outputs available.
+1. Build `tools/soak`: a scripted 10-minute service (owner limit: no run longer than 10 minutes; the script can loop for longer runs later) with video background, verses, lyrics, timers, messages, doc turns, on all outputs available.
 2. Chaos during the soak: kill the engine, the OS web view content processes and the helper; block the UI thread; lose network; replug displays; disk nearly full; sleep and wake; Deepgram disconnect.
 3. Track memory, handles, GPU memory, dropped frames.
 
@@ -52,7 +52,7 @@ Edge cases: list every error, empty and failure path you find in the source abov
 
 Specific to this prompt:
 
-- 4 hours run twice, with no leak trend and correct recoveries.
+- 10 minutes run twice, with no leak trend and correct recoveries.
 
 Required gates, all of which must pass before this prompt is finished:
 
@@ -65,7 +65,7 @@ If a gate fails, debug and fix the cause. Do not disable a test, weaken an asser
 
 ## 8. Performance considerations
 
-- RSS growth under 5% after the first 30 minutes.
+- RSS growth under 5% after the first 2 minutes.
 
 Record measured numbers in PROGRESS.md notes. Do not state a number you did not measure.
 

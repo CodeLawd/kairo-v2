@@ -63,7 +63,7 @@ Edge cases: list every error, empty and failure path you find in the source abov
 
 Specific to this prompt:
 
-- 20-minute page with video playing; log frame cadence, RSS and clean shutdown of all helpers.
+- 10-minute page with video playing (owner limit: no run longer than 10 minutes); log frame cadence, RSS and clean shutdown of all helpers.
 
 Required gates, all of which must pass before this prompt is finished:
 

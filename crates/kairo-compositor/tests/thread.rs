@@ -149,3 +149,104 @@ fn commands_reach_the_gpu_quickly() {
         samples[99], samples[197]
     );
 }
+
+/// The operator preview: at most its rate during a fade, the frame at rest
+/// always sent, nothing while still, and nothing once removed.
+#[test]
+fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
+    use std::sync::{Arc, Mutex};
+    let Some((compositor, rx)) = start() else {
+        return;
+    };
+    compositor.open("out", 1080, Sink::Offscreen);
+    compositor.apply(
+        "out",
+        1,
+        vec![Op::Swap {
+            slot: Slot::Background,
+            content: solid([1.0, 0.0, 0.0, 1.0]),
+            ms: 0,
+        }],
+    );
+    committed(&rx, 1);
+    // When each frame came, its size and its first pixel.
+    type Got = Vec<(Instant, u32, u32, [u8; 4])>;
+    let got: Arc<Mutex<Got>> = Arc::default();
+    let sink = got.clone();
+    compositor.preview(
+        "out",
+        (640, 360),
+        10,
+        Some(Arc::new(move |frame| {
+            let d = frame.data();
+            sink.lock().unwrap().push((
+                Instant::now(),
+                frame.width,
+                frame.height,
+                [d[0], d[1], d[2], d[3]],
+            ));
+        })),
+    );
+    // The current picture comes at once (allowing for a loaded machine),
+    // then nothing while the program is still.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while got.lock().unwrap().is_empty() {
+        assert!(Instant::now() < deadline, "no preview frame");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    std::thread::sleep(Duration::from_millis(300));
+    {
+        let frames = got.lock().unwrap();
+        assert_eq!(frames.len(), 1, "the current picture at once, then nothing");
+        assert_eq!((frames[0].1, frames[0].2), (640, 360));
+        assert_eq!(frames[0].3, [0, 0, 255, 255], "red as straight BGRA");
+    }
+
+    // A 500 ms fade at 60 frames a second: at 10 a second, about 6 frames,
+    // and the last one is the blue at rest.
+    got.lock().unwrap().clear();
+    compositor.apply(
+        "out",
+        2,
+        vec![Op::Swap {
+            slot: Slot::Background,
+            content: solid([0.0, 0.0, 1.0, 1.0]),
+            ms: 500,
+        }],
+    );
+    std::thread::sleep(Duration::from_millis(900));
+    {
+        let frames = got.lock().unwrap();
+        assert!(
+            (4..=8).contains(&frames.len()),
+            "{} preview frames in a 500 ms fade at 10 fps",
+            frames.len()
+        );
+        for pair in frames.windows(2) {
+            let gap = pair[1].0 - pair[0].0;
+            assert!(gap >= Duration::from_millis(90), "frames {gap:?} apart");
+        }
+        assert_eq!(
+            frames.last().unwrap().3,
+            [255, 0, 0, 255],
+            "the frame at rest"
+        );
+    }
+
+    // Removed: no more frames, whatever changes.
+    compositor.preview("out", (640, 360), 10, None);
+    std::thread::sleep(Duration::from_millis(100));
+    got.lock().unwrap().clear();
+    compositor.apply(
+        "out",
+        3,
+        vec![Op::Swap {
+            slot: Slot::Background,
+            content: solid([0.0, 1.0, 0.0, 1.0]),
+            ms: 200,
+        }],
+    );
+    committed(&rx, 3);
+    std::thread::sleep(Duration::from_millis(400));
+    assert!(got.lock().unwrap().is_empty());
+}

@@ -5173,7 +5173,15 @@ version = "0.1.0"
 dependencies = [
  "futures-channel",
  "gpui-kit",
+ "image",
  "kairo-core",
+ "kairo-domain",
+ "kairo-engine-proto",
+ "kairo-scene",
+ "libc",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -5279,6 +5287,7 @@ name = "kairo-engine-proto"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "memmap2",
  "postcard",
  "serde",
  "serde_json",

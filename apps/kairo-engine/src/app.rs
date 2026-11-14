@@ -130,6 +130,8 @@ pub struct Engine {
     next_report: Instant,
     /// Live → Start Capture (prompt 064).
     capture: crate::capture::Capture,
+    /// Operator preview maps by output (prompt 066).
+    previews: HashMap<String, crate::preview::Feed>,
     next_capture: Instant,
     next_tick: Instant,
     /// Program sound; made with the first surface.
@@ -178,6 +180,7 @@ impl Engine {
             next_scan: now,
             next_report: now + REPORT_EVERY,
             capture: crate::capture::Capture::new(Arc::new(crate::capture::System)),
+            previews: HashMap::new(),
             next_capture: now,
             next_tick: now,
             sound: None,
@@ -437,6 +440,8 @@ impl Engine {
                 }
                 self.surfaces
                     .retain(|s| outputs.iter().any(|o| o == s.output()));
+                self.previews
+                    .retain(|o, _| outputs.iter().any(|kept| kept == o));
                 if let Some(sound) = self.sound.as_mut() {
                     sound.retain(outputs);
                 }
@@ -474,12 +479,28 @@ impl Engine {
                     self.close_window(index);
                 }
                 self.surfaces.retain(|s| s.output() != output);
+                self.previews.remove(output.as_str());
                 if let Some(sound) = self.sound.as_mut() {
                     sound.forget(output);
                 }
                 if let Some(cameras) = self.cameras.as_ref() {
                     cameras.want(output, None);
                 }
+            }
+            // Not a picture change: no frame, no commit.
+            Command::SetPreview { output, .. } => {
+                let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
+                    self.error(
+                        Some(output),
+                        format!("command for unknown surface {output}"),
+                    );
+                    return;
+                };
+                surface.state.apply(&command, true);
+                surface.seq = seq;
+                let output = output.clone();
+                self.attach_preview(&output);
+                return;
             }
             _ => {
                 let output = command.output().expect("surface command").to_owned();
@@ -1275,8 +1296,9 @@ impl Engine {
         let planned = surface.shell.rebuild(&surface.state);
         let seq = surface.seq;
         self.dispatch(&output, seq, planned);
-        // A recording follows its output through rebuilds.
+        // A recording and a preview follow their output through rebuilds.
         self.attach_capture(&output);
+        self.attach_preview(&output);
         Ok(())
     }
 
@@ -1434,8 +1456,9 @@ impl Engine {
         let planned = surface.shell.rebuild(&surface.state);
         let seq = surface.seq;
         self.dispatch(&output, seq, planned);
-        // A recording follows its output through rebuilds.
+        // A recording and a preview follow their output through rebuilds.
         self.attach_capture(&output);
+        self.attach_preview(&output);
     }
 
     /// `createDisplayWindow`: borderless over the whole display, or a
@@ -1940,6 +1963,51 @@ impl Engine {
         if let (Some(compositor), Some(sink)) = (self.compositor.as_ref(), self.capture.sink()) {
             compositor.tap(output, kairo_compositor::thread::Tap::Record, Some(sink));
         }
+    }
+
+    /// Feeds `output`'s operator preview, or stops it, as its state says.
+    fn attach_preview(&mut self, output: &str) {
+        let Some(surface) = self.surfaces.iter().find(|s| s.output() == output) else {
+            self.previews.remove(output);
+            return;
+        };
+        let target = surface.state.preview.clone();
+        let height = match &surface.state.spec.sink {
+            SinkSpec::Ndi { .. } => NDI_HEIGHT,
+            sink => frame_height_of(sink),
+        };
+        let Some(target) = target else {
+            if self.previews.remove(output).is_some()
+                && let Some(compositor) = self.compositor.as_ref()
+            {
+                compositor.preview(output, (4, 1), 1, None);
+            }
+            return;
+        };
+        let feed = match self.previews.get(output) {
+            Some(feed) if feed.path == target.path => feed.clone(),
+            _ => match crate::preview::Feed::open(&target.path) {
+                Ok(feed) => {
+                    self.previews.insert(output.to_owned(), feed.clone());
+                    feed
+                }
+                Err(error) => {
+                    self.previews.remove(output);
+                    self.error(Some(output), format!("preview map: {error}"));
+                    return;
+                }
+            },
+        };
+        let Some(compositor) = self.compositor.as_ref() else {
+            // Attached when the output's window or sink is built.
+            return;
+        };
+        let size = crate::preview::fit(
+            (kairo_compositor::FRAME_WIDTH, height),
+            (target.width, target.height),
+            feed.capacity(),
+        );
+        compositor.preview(output, size, target.fps, Some(feed.sink(output)));
     }
 
     fn send_capture(&self) {

@@ -1,0 +1,10 @@
+sample t=60s ui_cpu=4.70% engine_cpu=NaN% ui_footprint=63.2MB ui_rss=74656KiB engine_rss=71440KiB shown=1455 dropped=1453 on_screen=true subscribed=true load={14.8418.2717.56}
+sample t=120s ui_cpu=5.17% engine_cpu=9.13% ui_footprint=63.2MB ui_rss=70784KiB engine_rss=144368KiB shown=3059 dropped=3057 on_screen=true subscribed=true load={20.2719.4818.07}
+sample t=180s ui_cpu=4.76% engine_cpu=9.28% ui_footprint=61.3MB ui_rss=58416KiB engine_rss=62048KiB shown=4679 dropped=4677 on_screen=true subscribed=true load={23.5220.2518.44}
+sample t=240s ui_cpu=4.86% engine_cpu=8.52% ui_footprint=64.4MB ui_rss=53984KiB engine_rss=44000KiB shown=6182 dropped=6180 on_screen=true subscribed=true load={44.1426.6520.95}
+sample t=300s ui_cpu=2.81% engine_cpu=2.65% ui_footprint=64.7MB ui_rss=61104KiB engine_rss=64016KiB shown=6823 dropped=6821 on_screen=true subscribed=true load={46.5431.7723.33}
+sample t=360s ui_cpu=3.63% engine_cpu=4.01% ui_footprint=64.5MB ui_rss=57200KiB engine_rss=51552KiB shown=7664 dropped=7662 on_screen=true subscribed=true load={25.9128.1922.54}
+sample t=420s ui_cpu=2.57% engine_cpu=2.21% ui_footprint=64.5MB ui_rss=44672KiB engine_rss=54736KiB shown=8266 dropped=8264 on_screen=true subscribed=true load={24.5627.8422.82}
+sample t=480s ui_cpu=1.80% engine_cpu=1.57% ui_footprint=64.5MB ui_rss=44640KiB engine_rss=142304KiB shown=8855 dropped=8853 on_screen=true subscribed=true load={20.4125.9822.46}
+sample t=540s ui_cpu=1.89% engine_cpu=1.72% ui_footprint=64.5MB ui_rss=44640KiB engine_rss=158576KiB shown=9454 dropped=9452 on_screen=false subscribed=true load={16.1723.7521.86}
+sample t=600s ui_cpu=0.10% engine_cpu=1.59% ui_footprint=52.2MB ui_rss=29088KiB engine_rss=126144KiB shown=9463 dropped=9463 on_screen=true subscribed=false load={12.1921.4821.16}

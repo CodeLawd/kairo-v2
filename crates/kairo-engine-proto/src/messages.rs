@@ -257,6 +257,19 @@ pub enum VideoTransport {
 }
 
 /// Architecture section 5.3, one to one with the Electron shell.
+/// Where and how an output's operator preview goes (prompt 066).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct PreviewTarget {
+    /// The preview map the UI process made.
+    pub path: String,
+    /// The box the frame is fitted into, in pixels; the frame keeps the
+    /// output's shape and is at most the map's capacity.
+    pub width: u32,
+    pub height: u32,
+    /// Frames a second at most; 1 to 60.
+    pub fps: u32,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum Command {
     /// Native control-window display (CGDirectDisplayID or Windows HMONITOR).
@@ -388,6 +401,13 @@ pub enum Command {
         output: String,
         pattern: Option<TestPattern>,
     },
+    /// Send downscaled frames of this output to an operator preview map
+    /// (`preview::PreviewMap`), or stop with `None`. Kept with the surface,
+    /// so a relaunched engine resumes it.
+    SetPreview {
+        output: String,
+        preview: Option<PreviewTarget>,
+    },
     /// Close every window and exit now.
     Shutdown,
 }
@@ -420,6 +440,7 @@ impl Command {
             | WebInput { output, .. }
             | WebScroll { output, .. }
             | SetTestPattern { output, .. }
+            | SetPreview { output, .. }
             | SetStage { output, .. } => Some(output),
             RetainSurfaces { .. }
             | Shutdown
