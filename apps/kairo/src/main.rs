@@ -18,6 +18,7 @@ use ui_shell::{Shell, ShellOptions, ShellRequest, ShellState};
 
 mod account;
 pub mod actions;
+mod booth;
 pub mod dialogs;
 mod display_reporting;
 mod dock;
@@ -236,9 +237,14 @@ fn open_operator_window(
             }
         };
     let settings_ui_state = ui_state.clone();
+    let booth_backend: Arc<dyn ui_operator::BoothBackend> = Arc::new(booth::ServicesBooth::new(
+        services.clone(),
+        ui_state.clone(),
+    ));
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
+        let booth_account = account.clone();
         install_settings(
             &shell,
             &flow,
@@ -283,6 +289,7 @@ fn open_operator_window(
             },
         )
         .detach();
+        booth::install(booth_backend, &workspace, &shell, booth_account, window, cx);
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Operator, workspace.into(), cx)
         });

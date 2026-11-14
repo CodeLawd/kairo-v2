@@ -1370,6 +1370,10 @@ impl ApplicationServices {
     pub fn spawn(&self, future: impl std::future::Future<Output = ()> + Send + 'static) {
         self.runtime.spawn(future);
     }
+    /// The services' runtime, for work started off it (the UI thread).
+    pub fn runtime(&self) -> &tokio::runtime::Handle {
+        &self.runtime
+    }
     pub fn actions(&self) -> crate::actions::Actions {
         crate::actions::Actions {
             settings: self.settings.clone(),

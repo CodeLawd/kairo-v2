@@ -1429,4 +1429,22 @@ Decision: the input meter runs only while the Audio pane shows, through `kairo_s
 Differences: the sidebar search glyph is `ScanSearch` (Kairo's icon set has no plain search glyph). The meter's green, amber and red are the `Green` and `Amber` hues and `destructive`. Switches use Kit's accent, not `teal-500`. The Saved button turns primary instead of `#2f6b3a`. Removing a Bible download asks with Kairo's `confirm`; a removal error shows on the row, not inside the dialog. Cancelling the folder picker shows no note (the source said "Workspace moved." even when nothing moved). The English flag beside the library heading is not drawn. The frame keeps its remembered size but has no resize edges. The "Integrations" heading never showed (`INTEGRATION_SECTIONS` is empty) and is not ported. Space or Enter on a focused shortcut button both records the key and, in GPUI, activates the button; the activation that follows a recorded key is ignored so it does not start recording again.
 Affects prompts: 067, 071, 073, 075, 077.
 
+## 2026-11-14 — 077 — Operator booth: transcript, detections, queue and program panels
+
+Decision: `ui_operator::booth` holds one `Booth` model (every flow of `Operator.tsx`'s second half) and the views read it: `TranscriptPanel` (with `ServicePanel`), `DetectedPanel`, `Toolbox` (`QueuePanel`, `TimersPanel`, `MessagesPanel`, `PropsPanel`, `VideoPanel`, `SoundPanel`). The core is reached only through `BoothBackend`; `apps/kairo/src/booth.rs` implements it over the services and core topics. `BoothViews::install` fills the workspace slots from 076.
+
+Decision: the operator shortcuts use `cx.observe_keystrokes`, filtered to the operator window while it is active. A key that an action already used is skipped (`defaultPrevented`). The key-context stack stands the shortcuts down for text fields (`Input`), dialogs (`MovableDialog`) and menus (`PopupMenu`, `Popover`). `window.on_key_event` was not usable because it binds to its own dispatch node, not to the window. Difference: GPUI's `KeystrokeEvent` carries no repeat flag, so a held key repeats (Electron ignored `e.repeat`). A clicker sends separate presses, so this does not affect it.
+
+Decision: `markSuggestionRendered` becomes `Booth::flush_marks`, which runs from the detected view's render and stamps after two `window.on_next_frame` callbacks, as the source's two `requestAnimationFrame`s did. The GPUI test platform runs no platform frames, so tests check that a mark is scheduled after the paint and not stamped on arrival (`marks_in_flight`).
+
+Decision: the activation prompt (`DeepgramKeyDialog`) is `ui_account::ActivationDialog`, opened by the app on `BoothEvent::OpenActivation` in a new window-wide `OperatorWorkspace::set_dialog` slot, so `ui-operator` does not depend on `ui-account`. Service dialogs and the activation dialog draw over the whole window through `deferred(anchored())` (Radix portal).
+
+Decision: `report` (`window.alert`) becomes `BoothEvent::Alert`, which the toolbox shows with `kairo_ui_kit::alert`. Retranslation failures are `BoothEvent::Toast` (a Kit error notification).
+
+Not ported: the "N new" held-detections button. The source only ever sets `heldSuggestions` to `[]`, so it never shows. `DefaultBoothSearch` (the toolbox search on screens other than the Operator) is not ported; it belongs to the screens that use it.
+
+Differences: prop thumbnails show the prop's background and an icon until 088 provides the prop renderer (`PropPreview`). The Audio tab shows program sound, with a `Toolbox::set_tracks` slot for 084's tracks list. Colour inputs use the Kit `ColorPicker`, and selects use dropdown menus. `downloadFile` writes to `~/Downloads` (numbered on repeat) and reveals the file. Video-input labels come from the engine process, so "Allow video access" reports that rather than prompting. Listing cameras in the app is left to 075/091. The recovery banner sits at the top of the detected column rather than above the whole workspace.
+
+Affects prompts: 073, 075, 078, 084, 088, 091.
+
 Amendment (074, owner review): the content pane is solid `surface`, not `.modal-glass`. Electron's glass blurs the darker booth behind the window, so its pane reads darker than the `surface-secondary` group boxes; GPUI has no backdrop blur here, and the glass over the frame's own fill came out the same colour as the boxes, hiding them. The sidebar keeps its glass tone.

@@ -10795,7 +10795,9 @@ version = "0.1.0"
 name = "ui-operator"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "futures-channel",
+ "futures-util",
  "gpui-kit",
  "kairo-core",
  "kairo-core-gpui",

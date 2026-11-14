@@ -48,6 +48,8 @@ pub struct OperatorWorkspace {
     transcript: Option<AnyView>,
     content: Option<AnyView>,
     dock: Option<AnyView>,
+    /// A dialog over the whole window (the activation prompt).
+    dialog: Option<AnyView>,
     press: Option<(Pixels, f32)>,
     edge_focus: FocusHandle,
     ticks: u64,
@@ -88,6 +90,7 @@ impl OperatorWorkspace {
             transcript: None,
             content: None,
             dock: None,
+            dialog: None,
             press: None,
             edge_focus: cx.focus_handle(),
             ticks: 0,
@@ -117,6 +120,15 @@ impl OperatorWorkspace {
     pub fn set_content(&mut self, view: Option<AnyView>, cx: &mut Context<Self>) {
         self.content = view;
         cx.notify();
+    }
+
+    pub fn set_dialog(&mut self, view: Option<AnyView>, cx: &mut Context<Self>) {
+        self.dialog = view;
+        cx.notify();
+    }
+
+    pub fn dialog(&self) -> Option<&AnyView> {
+        self.dialog.as_ref()
     }
 
     pub fn set_dock(&mut self, view: Option<AnyView>, cx: &mut Context<Self>) {
@@ -170,8 +182,12 @@ impl OperatorWorkspace {
 }
 
 impl Render for OperatorWorkspace {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let k = *cx.kairo();
+        let dialog = self
+            .dialog
+            .clone()
+            .map(|view| crate::booth::widgets::window_layer(view, window));
         h_flex()
             .id("workspace-operator")
             .relative()
@@ -279,6 +295,7 @@ impl Render for OperatorWorkspace {
                     .when_some(self.dock.clone(), |this, dock| this.child(dock)),
             )
             .child(self.rail.clone())
+            .children(dialog)
     }
 }
 
