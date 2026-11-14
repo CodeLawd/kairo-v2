@@ -4,62 +4,205 @@
 //! logging, install crash handling, then (packaged builds only) make sure
 //! this is the one Kairo for the profile, forwarding the launch otherwise.
 
-use gpui_kit::component::ActiveTheme;
 use gpui_kit::*;
+use kairo_domain::settings::{DisplaySettings, DisplayTheme, WhatsNewSettings};
 use kairo_store::crash::{CrashConfig, install_panic_hook};
 use kairo_store::instance::{Forwarded, Instance, PrimaryInstance, acquire};
 use kairo_store::launch::{LaunchQueue, kairo_paths_from_urls};
 use kairo_store::paths::{self, AppPaths, Os};
+use kairo_store::settings::SettingsStore;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use ui_shell::{Shell, ShellOptions, ShellRequest, ShellState};
+
+pub mod actions;
+pub mod dialogs;
+mod display_reporting;
+mod dock;
+pub mod handlers;
+mod power;
+mod quote_detector;
+pub mod services;
 
 /// `.kairo` files the operating system handed over before the window opened.
 static LAUNCH_FILES: LaunchQueue = LaunchQueue::new();
 /// macOS open events after the window opened, for the main thread to collect.
 static LATE_FILES: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
 
-/// `.kairo` files waiting for the importer, which opens them (`openKairoFiles`).
-#[derive(Default)]
-pub struct PendingKairoFiles(pub Vec<PathBuf>);
+/// The window's default and smallest sizes (`createWindow`).
+const DEFAULT_SIZE: (f32, f32) = (1280., 800.);
+const MIN_SIZE: (f32, f32) = (960., 600.);
+/// `com.kairo.app`, as `setAppUserModelId` set it.
+const APP_ID: &str = "com.kairo.app";
 
-impl Global for PendingKairoFiles {}
+/// The settings store, opened once and shared.
+type Settings = Arc<Mutex<SettingsStore>>;
+
+/// The operator window, once it exists.
+#[derive(Default)]
+struct OperatorWindow {
+    handle: Option<AnyWindowHandle>,
+    shell: Option<WeakEntity<Shell>>,
+    pending: Vec<PathBuf>,
+}
+
+impl Global for OperatorWindow {}
 
 fn receive_files(files: Vec<PathBuf>, cx: &mut App) {
     if files.is_empty() {
         return;
     }
     tracing::info!(count = files.len(), "[Open] .kairo files received");
-    cx.default_global::<PendingKairoFiles>().0.extend(files);
+    let shell = cx
+        .default_global::<OperatorWindow>()
+        .shell
+        .clone()
+        .and_then(|s| s.upgrade());
+    match shell {
+        Some(shell) => shell.update(cx, |shell, cx| shell.open_kairo_files(files, cx)),
+        None => cx.default_global::<OperatorWindow>().pending.extend(files),
+    }
 }
 
-mod display_reporting;
-struct HelloWorld {
-    _display: display_reporting::ControlDisplayReporter,
+/// Settings the shell shows, read from the store.
+fn read_shell_settings(settings: &Settings, state: &mut ShellState) -> DisplayTheme {
+    let store = settings.lock().unwrap_or_else(|e| e.into_inner());
+    let display: DisplaySettings = store.section("display").unwrap_or_default();
+    let whats_new: WhatsNewSettings = store.section("whatsNew").unwrap_or_default();
+    state.shortcuts = display.shortcuts.unwrap_or_default();
+    state.whats_new_last_seen = Some(whats_new.last_seen_version.into());
+    display.theme
 }
-impl HelloWorld {
-    fn new(
-        window: &mut Window,
-        cx: &mut Context<Self>,
-        engine: kairo_core::engine::EngineHandle,
-    ) -> Self {
-        Self {
-            _display: display_reporting::ControlDisplayReporter::new(window, cx, engine),
+
+/// Requests the shell raises. Services composed by prompt 067 take over the
+/// ones logged here as waiting.
+fn handle_request(
+    request: &ShellRequest,
+    services: &Arc<services::ApplicationServices>,
+    cx: &mut App,
+) {
+    let settings = &services.settings;
+    match request {
+        ShellRequest::OpenExternal(url) => cx.open_url(url),
+        ShellRequest::MarkWhatsNewSeen(version) => {
+            let mut store = settings.lock().unwrap_or_else(|e| e.into_inner());
+            let value = WhatsNewSettings {
+                last_seen_version: version.to_string(),
+                ..Default::default()
+            };
+            if let Err(error) = store.set_section("whatsNew", &value) {
+                tracing::warn!(%error, "[Shell] could not record What's New as seen");
+            }
         }
+        ShellRequest::FeaturePanicked { route, message } => {
+            tracing::error!(route = route.as_str(), %message, "[Shell] workspace panic contained");
+        }
+        other => services.request(other.clone()),
     }
 }
 
-impl Render for HelloWorld {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .flex()
-            .size_full()
-            .items_center()
-            .justify_center()
-            .bg(cx.theme().background)
-            .text_color(cx.theme().foreground)
-            .child("Hello, world!")
-    }
+fn open_operator_window(
+    engine: kairo_core::engine::EngineHandle,
+    settings: Settings,
+    paths: &AppPaths,
+    services: Arc<services::ApplicationServices>,
+    cx: &mut App,
+) {
+    let mut state = ShellState::default();
+    let theme = read_shell_settings(&settings, &mut state);
+    kairo_ui_kit::set_appearance(
+        if theme == DisplayTheme::Light {
+            kairo_ui_kit::Appearance::Light
+        } else {
+            kairo_ui_kit::Appearance::Dark
+        },
+        None,
+        cx,
+    );
+    let options = WindowOptions {
+        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+            None,
+            size(px(DEFAULT_SIZE.0), px(DEFAULT_SIZE.1)),
+            cx,
+        ))),
+        window_min_size: Some(size(px(MIN_SIZE.0), px(MIN_SIZE.1))),
+        titlebar: Some(TitlebarOptions {
+            title: Some("Kairo".into()),
+            // macOS: the window buttons sit in the header (`hiddenInset`).
+            appears_transparent: cfg!(target_os = "macos"),
+            traffic_light_position: Some(point(px(18.), px(24.))),
+        }),
+        app_id: Some(APP_ID.into()),
+        ..Default::default()
+    };
+    let shell_options = ShellOptions {
+        version: env!("CARGO_PKG_VERSION").into(),
+        dev: !paths.packaged,
+        user_data: Some(paths.user_data.clone()),
+    };
+    let opened = gpui_kit::open_window(options, cx, move |window, cx| {
+        let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
+        let reporter = display_reporting::ControlDisplayReporter::new(window, cx, engine);
+        cx.set_global(DisplayReporter {
+            _reporter: reporter,
+        });
+        shell
+    });
+    let (handle, shell) = match opened {
+        Ok(opened) => opened,
+        Err(error) => {
+            tracing::error!(%error, "[Shell] could not open the operator window");
+            cx.quit();
+            return;
+        }
+    };
+    let requests_services = services.clone();
+    cx.subscribe(&shell, move |_, request: &ShellRequest, cx| {
+        handle_request(request, &requests_services, cx)
+    })
+    .detach();
+    let pending = {
+        let window = cx.default_global::<OperatorWindow>();
+        window.handle = Some(handle);
+        window.shell = Some(shell.downgrade());
+        std::mem::take(&mut window.pending)
+    };
+    let close_shell = shell.downgrade();
+    let _ = handle.update(cx, |_, window, cx| {
+        shell.update(cx, |shell, cx| {
+            shell.set_state(state, cx);
+            shell.open_kairo_files(pending, cx);
+            shell.mark_ready(window, cx);
+        });
+        shell.read(cx).focus_handle(cx).focus(window, cx);
+        // Every close asks first; confirming quits, as `respondToQuit` does.
+        window.on_window_should_close(cx, move |window, cx| {
+            let Some(shell) = close_shell.upgrade() else {
+                return true;
+            };
+            if shell.update(cx, |shell, cx| shell.request_quit(window, cx)) {
+                cx.quit();
+            }
+            false
+        });
+    });
 }
+
+/// What reopening the window from the Dock needs.
+struct Reopen {
+    engine: kairo_core::engine::EngineHandle,
+    settings: Settings,
+    paths: AppPaths,
+    services: Arc<services::ApplicationServices>,
+}
+impl Global for Reopen {}
+
+/// Keeps the control-display reporter alive with the window.
+struct DisplayReporter {
+    _reporter: display_reporting::ControlDisplayReporter,
+}
+impl Global for DisplayReporter {}
 
 fn start(paths: &AppPaths) -> Option<kairo_store::logging::LogGuard> {
     let guard = match kairo_store::logging::init(&paths.log_file, paths.packaged) {
@@ -116,51 +259,87 @@ fn watch_incoming(instance: Option<PrimaryInstance>, cx: &mut App) {
     .detach();
 }
 
-fn watch_display_rebindings(
-    engine: kairo_core::engine::EngineHandle,
-    user_data: PathBuf,
-    cx: &mut App,
-) {
-    let mut events = engine.subscribe();
-    let settings = std::sync::Arc::new(std::sync::Mutex::new(
-        None::<kairo_store::settings::SettingsStore>,
-    ));
+/// Main-thread work is delivered explicitly; services never retain a GPUI
+/// context or block a worker on the event loop.
+fn watch_services(events: std::sync::mpsc::Receiver<services::UiEvent>, cx: &mut App) {
     cx.spawn(async move |cx| {
         loop {
             cx.background_executor()
-                .timer(Duration::from_millis(100))
+                .timer(Duration::from_millis(16))
                 .await;
             while let Ok(event) = events.try_recv() {
-                if let kairo_core::engine::EngineEvent::Engine(
-                    kairo_engine_proto::Event::DisplayRebound {
-                        output,
-                        old_id,
-                        new_id,
-                        stage,
-                    },
-                ) = event
-                {
-                    let settings = settings.clone();
-                    let user_data = user_data.clone();
-                    cx.background_spawn(async move {
-                        let mut settings = settings.lock().unwrap_or_else(|e| e.into_inner());
-                        let settings = settings.get_or_insert_with(|| {
-                            let mut new_id = kairo_store::settings::random_uuid;
-                            kairo_store::settings::SettingsStore::open(
-                                &user_data,
-                                &mut kairo_store::settings::LaunchContext {
-                                    now_ms: kairo_store::settings::now_ms(),
-                                    new_id: &mut new_id,
-                                },
-                            )
-                        });
-                        settings.persist_display_rebinding(&output, old_id, new_id, stage);
-                    })
-                    .await;
-                }
-            }
-            if engine.status() == kairo_core::engine::EngineStatus::Stopped {
-                break;
+                cx.update(|cx| match event {
+                    services::UiEvent::OpenWindow { services, ready } => {
+                        let paths = services.paths().clone();
+                        open_operator_window(
+                            services.engine.clone(),
+                            services.settings.clone(),
+                            &paths,
+                            services.clone(),
+                            cx,
+                        );
+                        if cx.default_global::<OperatorWindow>().handle.is_some() {
+                            cx.set_global(Reopen {
+                                engine: services.engine.clone(),
+                                settings: services.settings.clone(),
+                                paths,
+                                services: services.clone(),
+                            });
+                            power::observe(services.clone(), cx);
+                            receive_files(LAUNCH_FILES.mark_ready(), cx);
+                            let _ = ready.send(Ok(()));
+                            cx.activate(true);
+                        } else {
+                            let _ = ready.send(Err("The operator window did not open.".into()));
+                        }
+                    }
+                    services::UiEvent::MainThread(job) => job(),
+                    services::UiEvent::State(state) => {
+                        if let Some(shell) = cx
+                            .default_global::<OperatorWindow>()
+                            .shell
+                            .as_ref()
+                            .and_then(|s| s.upgrade())
+                        {
+                            shell.update(cx, |shell, cx| shell.set_state(*state, cx));
+                        }
+                    }
+                    services::UiEvent::Feedback(result) => {
+                        if let Some(shell) = cx
+                            .default_global::<OperatorWindow>()
+                            .shell
+                            .as_ref()
+                            .and_then(|s| s.upgrade())
+                        {
+                            shell.update(cx, |shell, cx| {
+                                shell.feedback_result(result.err().map(Into::into), cx)
+                            });
+                        }
+                    }
+                    services::UiEvent::ConfirmInstall(services) => {
+                        if let Some(handle) = cx.default_global::<OperatorWindow>().handle {
+                            let _ = handle.update(cx, |_, window, cx| {
+                                let response = window.prompt(
+                                    PromptLevel::Warning,
+                                    "Install the update and restart Kairo?",
+                                    Some("Live output is running. Restarting stops the output."),
+                                    &["Install and restart", "Cancel"],
+                                    cx,
+                                );
+                                let updater = services.updater.clone();
+                                cx.spawn(async move |_| {
+                                    if response.await == Ok(0) {
+                                        services.spawn(async move {
+                                            updater.install(true).await;
+                                        });
+                                    }
+                                })
+                                .detach();
+                            });
+                        }
+                    }
+                    services::UiEvent::Quit => cx.quit(),
+                });
             }
         }
     })
@@ -197,7 +376,7 @@ fn main() {
         LAUNCH_FILES.push(Forwarded::current().kairo_paths());
     }
 
-    let application = application().with_assets(assets::Assets);
+    let application = application().with_assets(kairo_ui_kit::KairoAssets);
     // macOS can deliver the launching file before the window exists.
     application.on_open_urls(|urls| {
         let late = LAUNCH_FILES.push(kairo_paths_from_urls(&urls));
@@ -206,11 +385,40 @@ fn main() {
             .unwrap_or_else(|e| e.into_inner())
             .extend(late);
     });
+    // macOS: the Dock icon brings the window back if it was closed.
+    application.on_reopen(|cx| {
+        if !cx.windows().is_empty() || !cx.has_global::<Reopen>() {
+            return;
+        }
+        let reopen = cx.global::<Reopen>();
+        let (engine, settings, paths, services) = (
+            reopen.engine.clone(),
+            reopen.settings.clone(),
+            reopen.paths.clone(),
+            reopen.services.clone(),
+        );
+        open_operator_window(engine, settings, &paths, services.clone(), cx);
+        let core = services.core.clone();
+        services.spawn(async move {
+            let _ = core.call(kairo_output::actor::ReopenScreens {}).await;
+        });
+    });
     application.run(move |cx| {
-        init(cx);
+        cx.set_app_identity(APP_ID, "Kairo");
+        gpui_kit::init(cx);
+        kairo_ui_kit::init(kairo_ui_kit::Appearance::Dark, cx);
+        ui_shell::keymap::bind(cx);
+        cx.set_menus(ui_shell::menus::app_menus(cfg!(target_os = "macos")));
+        dock::set_icon(include_bytes!("../resources/icon.png"));
 
-        // Output supervision lives outside GPUI's event loop. The shell owns
-        // this handle; feature/routing services are composed by prompt 067.
+        let core = match kairo_core::AppCore::new() {
+            Ok(core) => core,
+            Err(error) => {
+                tracing::error!(%error, "Could not start application services");
+                cx.quit();
+                return;
+            }
+        };
         let binary = std::env::var_os("KAIRO_ENGINE_BINARY")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
@@ -223,23 +431,61 @@ fn main() {
                     })
             });
         let engine =
-            kairo_core::engine::EngineHandle::spawn(kairo_core::engine::EngineOptions::new(binary));
-        let window_engine = engine.clone();
-        open_window(WindowOptions::default(), cx, move |window, cx| {
-            cx.new(|cx| HelloWorld::new(window, cx, window_engine))
+            kairo_core::engine::EngineHandle::new(kairo_core::engine::EngineOptions::new(binary));
+        let (bridge, events) = services::UiBridge::channel();
+        let bridge = bridge.with_slido(ui_web::SlidoWebHost::install(
+            cx,
+            ui_web::HostOptions::new(paths.user_data.join("Partitions/audience-slido")),
+        ));
+        watch_services(events, cx);
+        let boot_core = core.clone();
+        let boot_engine = engine.clone();
+        let boot_paths = paths.clone();
+        let failure_bridge = bridge.clone();
+        cx.background_spawn(async move {
+            let run_core = boot_core.clone();
+            let result = boot_core
+                .run(async move {
+                    let profile = boot_paths.user_data.clone();
+                    let settings = tokio::task::spawn_blocking(move || {
+                        let mut new_id = kairo_store::settings::random_uuid;
+                        Arc::new(Mutex::new(SettingsStore::open(
+                            &profile,
+                            &mut kairo_store::settings::LaunchContext {
+                                now_ms: kairo_store::settings::now_ms(),
+                                new_id: &mut new_id,
+                            },
+                        )))
+                    })
+                    .await
+                    .map_err(|e| e.to_string())?;
+                    services::Startup::new(run_core, boot_paths, settings, boot_engine, bridge)?
+                        .start()
+                        .await
+                })
+                .await;
+            if !matches!(&result, Ok(Ok(()))) {
+                tracing::error!(?result, "Application startup failed");
+                let _ = failure_bridge.send(services::UiEvent::Quit);
+            }
         })
-        .expect("failed to open the Kairo bootstrap window");
+        .detach();
         let shutdown = engine.clone();
         cx.on_app_quit(move |cx| {
             let shutdown = shutdown.clone();
+            let services = cx.try_global::<Reopen>().map(|r| r.services.clone());
             cx.background_spawn(async move {
+                if let Some(services) = services {
+                    services.updater.on_quit();
+                    let core = services.core.clone();
+                    if let Err(error) = core.shutdown(services).await {
+                        tracing::warn!(%error, "Application teardown failed");
+                    }
+                }
                 shutdown.shutdown();
             })
         })
         .detach();
-        watch_display_rebindings(engine, paths.user_data.clone(), cx);
-
-        receive_files(LAUNCH_FILES.mark_ready(), cx);
         watch_incoming(instance, cx);
         cx.activate(true);
     });

@@ -34,6 +34,7 @@ const canonical = {}; // dedupe aliases (CheckIcon = Check)
 for (const name of used.sort()) {
   let d = def[name];
   if (name === 'Bible') d = { kind: 'bible', glyph: 'Bible' };
+  if (!d && name.startsWith('Ph')) d = { kind: 'wrapPhosphor', glyph: name.slice(2) };
   if (!d) { console.error('unmapped', name); process.exitCode = 1; continue; }
   const key = d.kind + ':' + d.glyph;
   if (canonical[key]) { manifest.push([name, canonical[key], d]); continue; }

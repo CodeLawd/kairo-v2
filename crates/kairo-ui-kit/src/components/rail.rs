@@ -98,7 +98,7 @@ impl RenderOnce for RailItem {
                 }
             })
             .focus_visible(move |s| s.border_2().border_color(hue.opacity(0.6)))
-            .child(Icon::new(self.icon.weight(self.active)).size_5())
+            .child(Icon::new(self.icon.fill()).size_5())
             .child(
                 div()
                     .max_w_full()

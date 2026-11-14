@@ -3,12 +3,17 @@
 mod runtime;
 mod topic;
 
+pub mod application;
 pub mod bootstrap;
+pub mod dialogs;
 pub mod engine;
 pub mod listeners;
+pub mod media_access;
 pub mod preview;
 pub mod quit;
 pub mod resilience;
+pub mod scripture_traces;
+pub mod settings;
 pub mod shutdown;
 
 pub use listeners::{ListenerGuard, ListenerId, Listeners};

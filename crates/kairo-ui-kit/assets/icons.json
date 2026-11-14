@@ -405,6 +405,96 @@
   "source": "hugeicons:PencilEdit01Icon"
  },
  {
+  "name": "PhBookOpen",
+  "file": "ph_book_open",
+  "source": "phosphor:BookOpen"
+ },
+ {
+  "name": "PhBroadcast",
+  "file": "ph_broadcast",
+  "source": "phosphor:Broadcast"
+ },
+ {
+  "name": "PhChatCircleDots",
+  "file": "ph_chat_circle_dots",
+  "source": "phosphor:ChatCircleDots"
+ },
+ {
+  "name": "PhChatsCircle",
+  "file": "ph_chats_circle",
+  "source": "phosphor:ChatsCircle"
+ },
+ {
+  "name": "PhCheckCircle",
+  "file": "ph_check_circle",
+  "source": "phosphor:CheckCircle"
+ },
+ {
+  "name": "PhCloud",
+  "file": "ph_cloud",
+  "source": "phosphor:Cloud"
+ },
+ {
+  "name": "PhFileText",
+  "file": "ph_file_text",
+  "source": "phosphor:FileText"
+ },
+ {
+  "name": "PhFilmStrip",
+  "file": "film",
+  "source": "phosphor:FilmStrip"
+ },
+ {
+  "name": "PhGauge",
+  "file": "ph_gauge",
+  "source": "phosphor:Gauge"
+ },
+ {
+  "name": "PhGlobe",
+  "file": "ph_globe",
+  "source": "phosphor:Globe"
+ },
+ {
+  "name": "PhHeart",
+  "file": "ph_heart",
+  "source": "phosphor:Heart"
+ },
+ {
+  "name": "PhLightbulb",
+  "file": "ph_lightbulb",
+  "source": "phosphor:Lightbulb"
+ },
+ {
+  "name": "PhLightning",
+  "file": "ph_lightning",
+  "source": "phosphor:Lightning"
+ },
+ {
+  "name": "PhMonitor",
+  "file": "ph_monitor",
+  "source": "phosphor:Monitor"
+ },
+ {
+  "name": "PhMusicNotes",
+  "file": "ph_music_notes",
+  "source": "phosphor:MusicNotes"
+ },
+ {
+  "name": "PhPalette",
+  "file": "ph_palette",
+  "source": "phosphor:Palette"
+ },
+ {
+  "name": "PhPresentation",
+  "file": "ph_presentation",
+  "source": "phosphor:Presentation"
+ },
+ {
+  "name": "PhWarningCircle",
+  "file": "ph_warning_circle",
+  "source": "phosphor:WarningCircle"
+ },
+ {
   "name": "Play",
   "file": "play",
   "source": "phosphor:Play"
