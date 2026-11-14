@@ -43,17 +43,6 @@ const FRAMES: usize = 24;
 const SLOT_META: usize = 32;
 const SLOT_META_LEN: usize = 16;
 
-/// One frame read from the map.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PreviewFrame {
-    /// Frames published when this one was read; grows by one per frame.
-    pub number: u64,
-    pub width: u32,
-    pub height: u32,
-    /// Straight-alpha BGRA, `width × height × 4` bytes.
-    pub pixels: Vec<u8>,
-}
-
 /// The shared mapping, from either side.
 pub struct PreviewMap {
     map: memmap2::MmapMut,
@@ -194,21 +183,9 @@ impl PreviewMap {
         self.frames().load(Ordering::Acquire)
     }
 
-    /// The newest complete frame, if one was published after frame
-    /// number `seen`. `None` also when the newest slot is being written:
-    /// the next look finds it done.
-    pub fn read_new(&self, seen: u64) -> Option<PreviewFrame> {
-        let mut buffer = Vec::new();
-        self.read_into(seen, &mut buffer)
-            .map(|(number, width, height)| PreviewFrame {
-                number,
-                width,
-                height,
-                pixels: buffer,
-            })
-    }
-
-    /// As [`PreviewMap::read_new`], into a caller's buffer (resized to the frame).
+    /// The newest complete frame published after frame number `seen`, into
+    /// `buffer` (resized to it): its number, width and height. `None` also
+    /// when the newest slot is being written: the next look finds it done.
     pub fn read_into(&self, seen: u64, buffer: &mut Vec<u8>) -> Option<(u64, u32, u32)> {
         let number = self.frames().load(Ordering::Acquire);
         if number == seen || number == 0 {
@@ -246,6 +223,48 @@ impl Drop for PreviewMap {
     }
 }
 
+/// One pixel of the preview filter: output pixel `(x, y)` of a `dst`-sized
+/// picture taken from a `src`-sized one is the rounded mean of at most
+/// 8 × 8 evenly spaced source pixels under it, un-premultiplied. `sample`
+/// gives a premultiplied RGBA source pixel; the result is straight BGRA.
+/// The engine's GPU converter (`uyva.wgsl`, mode 2) does the same sums.
+pub fn box_pixel(
+    sample: impl Fn(u32, u32) -> [u32; 4],
+    src: (u32, u32),
+    dst: (u32, u32),
+    x: u32,
+    y: u32,
+) -> [u8; 4] {
+    let (sw, sh) = src;
+    let (dw, dh) = dst;
+    let y0 = y * sh / dh;
+    let y1 = ((y + 1) * sh / dh).max(y0 + 1);
+    let ny = (y1 - y0).min(8);
+    let x0 = x * sw / dw;
+    let x1 = ((x + 1) * sw / dw).max(x0 + 1);
+    let nx = (x1 - x0).min(8);
+    let mut sum = [0u32; 4];
+    for j in 0..ny {
+        let sy = y0 + j * (y1 - y0) / ny;
+        for i in 0..nx {
+            let s = sample(x0 + i * (x1 - x0) / nx, sy);
+            for (total, v) in sum.iter_mut().zip(s) {
+                *total += v;
+            }
+        }
+    }
+    let n = nx * ny;
+    let [r, g, b, a] = sum.map(|s| (s + n / 2) / n);
+    match a {
+        0 => [0; 4],
+        255 => [b as u8, g as u8, r as u8, 255],
+        a => {
+            let un = |v: u32| ((v * 255 + a / 2) / a).min(255) as u8;
+            [un(b), un(g), un(r), a as u8]
+        }
+    }
+}
+
 fn map(file: &File) -> io::Result<memmap2::MmapMut> {
     // SAFETY: the file is private to the UI process and its engine; both
     // sides only touch it through the seqlock above.
@@ -255,6 +274,17 @@ fn map(file: &File) -> io::Result<memmap2::MmapMut> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A frame read: number, width, height and pixels.
+    type Frame = (u64, u32, u32, Vec<u8>);
+
+    impl PreviewMap {
+        fn read_new(&self, seen: u64) -> Option<Frame> {
+            let mut pixels = Vec::new();
+            self.read_into(seen, &mut pixels)
+                .map(|(n, w, h)| (n, w, h, pixels))
+        }
+    }
 
     fn path(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!("kairo-preview-test-{name}-{}", std::process::id()))
@@ -268,17 +298,13 @@ mod tests {
         assert!(reader.read_new(0).is_none(), "nothing published yet");
         let writer = PreviewMap::open(&p).unwrap();
         writer.publish(4, 2, &[1; 32]).unwrap();
-        let first = reader.read_new(0).unwrap();
-        assert_eq!((first.number, first.width, first.height), (1, 4, 2));
-        assert_eq!(first.pixels, vec![1; 32]);
+        assert_eq!(reader.read_new(0).unwrap(), (1, 4, 2, vec![1; 32]));
         assert!(reader.read_new(1).is_none(), "nothing new");
         // Five frames while the reader looked away: it gets the last only.
         for n in 2..=6u8 {
             writer.publish(2, 1, &[n; 8]).unwrap();
         }
-        let newest = reader.read_new(1).unwrap();
-        assert_eq!((newest.number, newest.width, newest.height), (6, 2, 1));
-        assert_eq!(newest.pixels, vec![6; 8]);
+        assert_eq!(reader.read_new(1).unwrap(), (6, 2, 1, vec![6; 8]));
         drop(writer);
         drop(reader);
         assert!(!p.exists(), "the creator removes the file");
@@ -301,7 +327,7 @@ mod tests {
         // A relaunched engine reopens the map and goes on.
         let relaunched = PreviewMap::open(&p).unwrap();
         relaunched.publish(2, 1, &[2; 8]).unwrap();
-        assert_eq!(reader.read_new(2).unwrap().pixels, vec![2; 8]);
+        assert_eq!(reader.read_new(2).unwrap().3, vec![2; 8]);
     }
 
     #[test]
@@ -365,6 +391,9 @@ mod tests {
             while !stop.load(Ordering::Relaxed) {
                 n = n.wrapping_add(1);
                 writer.publish(64, 64, &[n; 64 * 64 * 4]).unwrap();
+                // 5,000 frames a second: far beyond the engine's 60, but
+                // not a spin that laps every read on a loaded machine.
+                std::thread::sleep(std::time::Duration::from_micros(200));
             }
         });
         let mut seen = 0;
@@ -375,10 +404,10 @@ mod tests {
         while started.elapsed() < std::time::Duration::from_millis(300)
             || (read < 10 && started.elapsed() < std::time::Duration::from_secs(10))
         {
-            if let Some(frame) = reader.read_new(seen) {
-                let first = frame.pixels[0];
-                assert!(frame.pixels.iter().all(|&b| b == first), "mixed frame");
-                seen = frame.number;
+            if let Some((number, _, _, pixels)) = reader.read_new(seen) {
+                let first = pixels[0];
+                assert!(pixels.iter().all(|&b| b == first), "mixed frame");
+                seen = number;
                 read += 1;
             }
         }

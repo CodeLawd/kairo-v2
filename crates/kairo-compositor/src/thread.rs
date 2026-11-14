@@ -474,17 +474,29 @@ impl Compositor {
     }
 
     /// Sends `output`'s frames, downscaled to `size` and at most `fps` a
-    /// second, to `sink` (the operator preview), or stops with `None`. A
+    /// second, to `sink` (the operator preview). A
     /// change that lands between two preview frames is still sent, once the
     /// interval has passed.
-    pub fn preview(&self, output: &str, size: (u32, u32), fps: u32, sink: Option<CaptureSink>) {
+    pub fn preview(&self, output: &str, size: (u32, u32), fps: u32, sink: CaptureSink) {
         self.send(Msg::Capture {
             output: output.into(),
             tap: Tap::Preview,
-            sink,
+            sink: Some(sink),
             raster: Some(size),
             alpha: true,
             interval: Some(Duration::from_secs(1) / fps.clamp(1, 60)),
+        });
+    }
+
+    /// Stops `output`'s preview tap.
+    pub fn stop_preview(&self, output: &str) {
+        self.send(Msg::Capture {
+            output: output.into(),
+            tap: Tap::Preview,
+            sink: None,
+            raster: None,
+            alpha: true,
+            interval: None,
         });
     }
 

@@ -5141,6 +5141,7 @@ name = "kairo-compositor"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "kairo-engine-proto",
  "libc",
  "png 0.18.1",
  "pollster 0.4.0",
@@ -5177,6 +5178,7 @@ dependencies = [
  "kairo-core",
  "kairo-domain",
  "kairo-engine-proto",
+ "kairo-output",
  "kairo-scene",
  "libc",
  "serde_json",

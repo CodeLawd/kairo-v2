@@ -89,7 +89,6 @@ pub struct LivePreview {
     subscription: Option<PreviewSubscription>,
     frames: FrameSwap,
     seen: u64,
-    buffer: Vec<u8>,
     painted: Rc<Painted>,
     poll: Option<Task<()>>,
     checker: Option<((u32, u32), Arc<RenderImage>)>,
@@ -116,7 +115,6 @@ impl LivePreview {
             subscription: None,
             frames: FrameSwap::default(),
             seen: 0,
-            buffer: Vec::new(),
             painted: Rc::default(),
             poll: None,
             checker: None,
@@ -231,9 +229,10 @@ impl LivePreview {
         sub.ensure();
         let wanted = wanted_size(self.painted.size.get());
         sub.update(wanted, self.fps);
-        if let Some((number, width, height)) = sub.read_into(self.seen, &mut self.buffer) {
+        // Each frame needs its own bytes: the `RenderImage` keeps them.
+        let mut pixels = Vec::new();
+        if let Some((number, width, height)) = sub.read_into(self.seen, &mut pixels) {
             self.seen = number;
-            let pixels = std::mem::take(&mut self.buffer);
             if let Some(buffer) = RgbaImage::from_raw(width, height, pixels) {
                 // GPUI reads these bytes as BGRA, which is what the engine sent.
                 let image = Arc::new(RenderImage::new([Frame::new(buffer)]));

@@ -7,6 +7,7 @@ publish = false
 # The engine's GPU compositor. Engine-side only: no settings, network or
 # database crates.
 [dependencies]
+kairo-engine-proto = { path = "../kairo-engine-proto" }
 bytemuck = { version = "1", features = ["derive"] }
 pollster = "0.4"
 serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }

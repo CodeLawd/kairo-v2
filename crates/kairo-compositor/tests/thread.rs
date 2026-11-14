@@ -177,7 +177,7 @@ fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
         "out",
         (640, 360),
         10,
-        Some(Arc::new(move |frame| {
+        Arc::new(move |frame| {
             let d = frame.data();
             sink.lock().unwrap().push((
                 Instant::now(),
@@ -185,7 +185,7 @@ fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
                 frame.height,
                 [d[0], d[1], d[2], d[3]],
             ));
-        })),
+        }),
     );
     // The current picture comes at once (allowing for a loaded machine),
     // then nothing while the program is still.
@@ -234,7 +234,7 @@ fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
     }
 
     // Removed: no more frames, whatever changes.
-    compositor.preview("out", (640, 360), 10, None);
+    compositor.stop_preview("out");
     std::thread::sleep(Duration::from_millis(100));
     got.lock().unwrap().clear();
     compositor.apply(

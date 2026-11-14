@@ -9,6 +9,9 @@ use kairo_orchestrator::clients::{EngineClient, ShowKind};
 use kairo_orchestrator::engine::EngineSurfaces;
 use std::time::{Duration, Instant};
 
+mod common;
+use common::until;
+
 const ENGINE: &str = env!("CARGO_BIN_EXE_kairo-engine");
 
 fn display_surface(output: &str, binding: DisplayBinding) -> Command {
@@ -21,14 +24,6 @@ fn display_surface(output: &str, binding: DisplayBinding) -> Command {
             frame_height: 1080,
         }),
     })
-}
-
-async fn until(what: &str, mut done: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done() {
-        assert!(Instant::now() < deadline, "timed out waiting for {what}");
-        tokio::time::sleep(Duration::from_millis(10)).await;
-    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

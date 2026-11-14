@@ -18,6 +18,9 @@ use kairo_output::{LobbyMedia, OutputSettings, SurfaceManager};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+mod common;
+use common::until;
+
 const ENGINE: &str = env!("CARGO_BIN_EXE_kairo-engine");
 
 struct Settings(Mutex<Vec<OverlayOutput>>);
@@ -42,14 +45,6 @@ impl LobbyMedia for NoMedia {
     }
     fn playback(&self, _: &str) -> MediaPlayback {
         MediaPlayback::default()
-    }
-}
-
-async fn until(what: &str, mut done: impl FnMut() -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(15);
-    while !done() {
-        assert!(Instant::now() < deadline, "timed out waiting for {what}");
-        tokio::time::sleep(Duration::from_millis(10)).await;
     }
 }
 

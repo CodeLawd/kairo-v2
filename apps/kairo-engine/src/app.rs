@@ -1968,7 +1968,7 @@ impl Engine {
     /// Feeds `output`'s operator preview, or stops it, as its state says.
     fn attach_preview(&mut self, output: &str) {
         let Some(surface) = self.surfaces.iter().find(|s| s.output() == output) else {
-            self.previews.remove(output);
+            self.stop_preview(output);
             return;
         };
         let target = surface.state.preview.clone();
@@ -1977,11 +1977,7 @@ impl Engine {
             sink => frame_height_of(sink),
         };
         let Some(target) = target else {
-            if self.previews.remove(output).is_some()
-                && let Some(compositor) = self.compositor.as_ref()
-            {
-                compositor.preview(output, (4, 1), 1, None);
-            }
+            self.stop_preview(output);
             return;
         };
         let feed = match self.previews.get(output) {
@@ -2007,7 +2003,16 @@ impl Engine {
             (target.width, target.height),
             feed.capacity(),
         );
-        compositor.preview(output, size, target.fps, Some(feed.sink(output)));
+        compositor.preview(output, size, target.fps, feed.sink(output));
+    }
+
+    /// Stops `output`'s preview and lets go of its map.
+    fn stop_preview(&mut self, output: &str) {
+        if self.previews.remove(output).is_some()
+            && let Some(compositor) = self.compositor.as_ref()
+        {
+            compositor.stop_preview(output);
+        }
     }
 
     fn send_capture(&self) {

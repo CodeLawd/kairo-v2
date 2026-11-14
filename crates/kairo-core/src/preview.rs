@@ -164,6 +164,7 @@ impl PreviewHub {
             id,
             map,
             checked: Instant::now(),
+            asked: (size, fps),
         })
     }
 
@@ -195,6 +196,8 @@ pub struct PreviewSubscription {
     id: u64,
     map: Arc<PreviewMap>,
     checked: Instant,
+    /// What this view last asked for.
+    asked: ((u32, u32), u32),
 }
 
 impl PreviewSubscription {
@@ -215,6 +218,10 @@ impl PreviewSubscription {
 
     /// The view changed size or rate.
     pub fn update(&mut self, size: (u32, u32), fps: u32) {
+        if self.asked == (size, fps) {
+            return;
+        }
+        self.asked = (size, fps);
         let mut entries = self
             .shared
             .entries
