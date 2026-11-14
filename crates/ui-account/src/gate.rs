@@ -1,4 +1,4 @@
-//! The account wall (\`AccountGate.tsx\`): full screen until the operator has
+//! The account wall (`AccountGate.tsx`): full screen until the operator has
 //! a confirmed session. Sign-in first; a new account stays here for the
 //! email code; only then do setup and the booth open.
 
@@ -52,7 +52,7 @@ pub struct AccountGate {
 }
 
 impl AccountGate {
-    /// A gate over \`account\`.
+    /// A gate over `account`.
     pub fn new(account: Entity<Account>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let auth = cx.new(|cx| AuthPanel::new(account.clone(), AuthMode::SignIn, window, cx));
         let subscription = cx.observe(&account, |_, _, cx| cx.notify());
@@ -103,18 +103,20 @@ impl Render for AccountGate {
                 .gap_4()
                 .child(verify)
                 .child(
-                    div().text_size(text::XS.size).child(crate::style::text_button(
-                        ids::DIFFERENT_EMAIL,
-                        if self.signing_out {
-                            "Signing out…"
-                        } else {
-                            "Use a different email"
-                        },
-                        k.text(TextStep::T500),
-                        k.text(TextStep::T300),
-                        self.signing_out,
-                        cx.listener(|this, _, _, cx| this.sign_out(cx)),
-                    )),
+                    div()
+                        .text_size(text::XS.size)
+                        .child(crate::style::text_button(
+                            ids::DIFFERENT_EMAIL,
+                            if self.signing_out {
+                                "Signing out…"
+                            } else {
+                                "Use a different email"
+                            },
+                            k.text(TextStep::T500),
+                            k.text(TextStep::T300),
+                            self.signing_out,
+                            cx.listener(|this, _, _, cx| this.sign_out(cx)),
+                        )),
                 )
                 .into_any_element()
         } else {

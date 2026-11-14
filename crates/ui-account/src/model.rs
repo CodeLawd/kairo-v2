@@ -1,7 +1,7 @@
-//! Account and setup state (\`useAccountStore\`, \`useLicenseStore\` and the
-//! parts of \`useBootstrapStore\` setup reads): one entity per window, fed by
+//! Account and setup state (`useAccountStore`, `useLicenseStore` and the
+//! parts of `useBootstrapStore` setup reads): one entity per window, fed by
 //! the app from the startup snapshot and the push subscriptions, and written
-//! back through [\`AccountBackend\`].
+//! back through [`AccountBackend`].
 
 use crate::backend::AccountBackend;
 use gpui_kit::{App, Context, Entity, EventEmitter, Global};
@@ -12,7 +12,7 @@ use kairo_domain::overlay::DisplayInfo;
 use kairo_domain::settings::{AppSettings, OnboardingState};
 use std::sync::Arc;
 
-/// \`EMPTY_SESSION\`.
+/// `EMPTY_SESSION`.
 pub fn signed_out() -> SessionSnapshot {
     SessionSnapshot {
         state: CloudSessionState::SignedOut,
@@ -24,7 +24,7 @@ pub fn signed_out() -> SessionSnapshot {
     }
 }
 
-/// \`IDLE_PAIRING\`.
+/// `IDLE_PAIRING`.
 pub fn idle_pairing() -> DevicePairingState {
     DevicePairingState {
         status: DevicePairingStatus::Idle,
@@ -67,8 +67,8 @@ pub struct Account {
 impl EventEmitter<AccountChanged> for Account {}
 
 impl Account {
-    /// Signed out, with nothing loaded. \`local_zone\` is this computer's IANA
-    /// zone (\`LOCAL_ZONE\`).
+    /// Signed out, with nothing loaded. `local_zone` is this computer's IANA
+    /// zone (`LOCAL_ZONE`).
     pub fn new(backend: Arc<dyn AccountBackend>, local_zone: impl Into<String>) -> Self {
         Self {
             backend,
@@ -115,7 +115,7 @@ impl Account {
         &self.local_zone
     }
 
-    /// \`setSession\`.
+    /// `setSession`.
     pub fn set_session(&mut self, session: SessionSnapshot, cx: &mut Context<Self>) {
         if self.session != session {
             self.session = session;
@@ -123,7 +123,7 @@ impl Account {
             cx.notify();
         }
     }
-    /// \`setPairing\`.
+    /// `setPairing`.
     pub fn set_pairing(&mut self, pairing: DevicePairingState, cx: &mut Context<Self>) {
         if self.pairing != pairing {
             self.pairing = pairing;
@@ -131,7 +131,7 @@ impl Account {
             cx.notify();
         }
     }
-    /// \`useLicenseStore.setSnapshot\`.
+    /// `useLicenseStore.setSnapshot`.
     pub fn set_license(&mut self, license: LicenseSnapshot, cx: &mut Context<Self>) {
         if self.license.as_ref() != Some(&license) {
             self.license = Some(license);
@@ -139,7 +139,7 @@ impl Account {
             cx.notify();
         }
     }
-    /// \`setOnboarding\`.
+    /// `setOnboarding`.
     pub fn set_onboarding(&mut self, state: OnboardingState, cx: &mut Context<Self>) {
         if self.onboarding != state {
             self.onboarding = state;
@@ -147,7 +147,7 @@ impl Account {
             cx.notify();
         }
     }
-    /// \`setSettings\`.
+    /// `setSettings`.
     pub fn set_settings(&mut self, settings: AppSettings, cx: &mut Context<Self>) {
         if self.settings.as_ref() != Some(&settings) {
             self.settings = Some(settings);
@@ -155,15 +155,19 @@ impl Account {
             cx.notify();
         }
     }
-    /// \`patchSettings\`, after a successful save.
-    pub fn update_settings(&mut self, update: impl FnOnce(&mut AppSettings), cx: &mut Context<Self>) {
+    /// `patchSettings`, after a successful save.
+    pub fn update_settings(
+        &mut self,
+        update: impl FnOnce(&mut AppSettings),
+        cx: &mut Context<Self>,
+    ) {
         if let Some(settings) = self.settings.as_mut() {
             update(settings);
             cx.emit(AccountChanged::Settings);
             cx.notify();
         }
     }
-    /// \`displays.onChanged\`.
+    /// `displays.onChanged`.
     pub fn set_displays(&mut self, displays: Vec<DisplayInfo>, cx: &mut Context<Self>) {
         if self.displays != displays {
             self.displays = displays;
@@ -177,12 +181,12 @@ impl Account {
 pub struct AccountHandle(pub Entity<Account>);
 impl Global for AccountHandle {}
 
-/// The account entity installed with [\`install\`].
+/// The account entity installed with [`install`].
 pub fn account(cx: &App) -> Option<Entity<Account>> {
     cx.try_global::<AccountHandle>().map(|h| h.0.clone())
 }
 
-/// Makes \`account\` the app's account state.
+/// Makes `account` the app's account state.
 pub fn install(account: Entity<Account>, cx: &mut App) {
     cx.set_global(AccountHandle(account));
 }

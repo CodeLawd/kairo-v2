@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use ui_shell::{Shell, ShellOptions, ShellRequest, ShellState};
 
+mod account;
 pub mod actions;
 pub mod dialogs;
 mod display_reporting;
@@ -173,8 +174,43 @@ fn open_operator_window(
         Arc::new(operator::ServicesBackend::new(services.clone()));
     let ui_state: Arc<dyn ui_operator::UiState> =
         Arc::new(operator::UiStateStore::open(&paths.user_data));
+    // One account model for the app's life: a reopened window reuses it.
+    let account = match ui_account::model::account(cx) {
+        Some(account) => account,
+        None => {
+            let backend: Arc<dyn ui_account::AccountBackend> =
+                Arc::new(account::ServicesAccount(services.clone()));
+            let model = cx.new(|_| ui_account::Account::new(backend, account::local_zone()));
+            ui_account::model::install(model.clone(), cx);
+            account::feed(&services);
+            model
+        }
+    };
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
+        let flow = cx.new(|cx| ui_account::AccountFlow::new(account, window, cx));
+        let target = shell.downgrade();
+        cx.subscribe(&flow, move |_, event: &ui_account::FlowEvent, cx| {
+            let _ = target.update(cx, |shell, cx| match *event {
+                ui_account::FlowEvent::Navigate(route) => {
+                    use ui_account::wizard::QuickStart;
+                    shell.navigate(
+                        match route {
+                            None => ui_shell::Route::Operator,
+                            Some(QuickStart::Scripture) => ui_shell::Route::Scripture,
+                            Some(QuickStart::Lyrics) => ui_shell::Route::Lyrics,
+                            Some(QuickStart::Documents) => ui_shell::Route::Documents,
+                        },
+                        cx,
+                    )
+                }
+                ui_account::FlowEvent::OpenScreens => {
+                    shell.open_overlay(ui_shell::Overlay::Screens, cx)
+                }
+            });
+        })
+        .detach();
+        shell.update(cx, |shell, cx| shell.set_front(Some(flow.into()), cx));
         let workspace = cx
             .new(|cx| ui_operator::OperatorWorkspace::new(operator_backend, ui_state, window, cx));
         let screens = shell.downgrade();
@@ -403,6 +439,22 @@ fn watch_services(events: std::sync::mpsc::Receiver<services::UiEvent>, cx: &mut
                                     }
                                 })
                                 .detach();
+                            });
+                        }
+                    }
+                    services::UiEvent::Account(update) => {
+                        if let Some(model) = ui_account::model::account(cx) {
+                            model.update(cx, |model, cx| match *update {
+                                account::AccountUpdate::Session(v) => model.set_session(v, cx),
+                                account::AccountUpdate::Pairing(v) => model.set_pairing(v, cx),
+                                account::AccountUpdate::License(v) => model.set_license(*v, cx),
+                                account::AccountUpdate::Onboarding(v) => {
+                                    model.set_onboarding(v, cx)
+                                }
+                                account::AccountUpdate::Settings(v) => {
+                                    model.set_settings(v.settings, cx)
+                                }
+                                account::AccountUpdate::Displays(v) => model.set_displays(v, cx),
                             });
                         }
                     }

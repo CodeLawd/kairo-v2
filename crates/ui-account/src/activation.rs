@@ -1,4 +1,4 @@
-//! The activation panel as a modal (\`ActivationDialog.tsx\`), from the
+//! The activation panel as a modal (`ActivationDialog.tsx`), from the
 //! header chip or a feature that needs activation.
 
 use crate::license::LicensePanel;
@@ -46,7 +46,13 @@ impl ActivationDialog {
     ) -> Self {
         let title = title.unwrap_or_else(|| "Activate this computer".into());
         let frame = cx.new(|cx| {
-            MovableDialog::new("activation-dialog", title.clone(), size(px(448.), px(236.)), window, cx)
+            MovableDialog::new(
+                "activation-dialog",
+                title.clone(),
+                size(px(448.), px(236.)),
+                window,
+                cx,
+            )
         });
         let panel = cx.new(|cx| LicensePanel::new(account.clone(), true, window, cx));
         let subscriptions = vec![
@@ -77,7 +83,9 @@ impl ActivationDialog {
 impl Render for ActivationDialog {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let k = *cx.kairo();
-        let handle = self.frame.update(cx, |frame, cx| frame.drag_handle("activation-drag", cx));
+        let handle = self
+            .frame
+            .update(cx, |frame, cx| frame.drag_handle("activation-drag", cx));
         let content = v_flex()
             .relative()
             .size_full()

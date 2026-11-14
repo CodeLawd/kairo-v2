@@ -1,4 +1,4 @@
-//! Confirming the address with the emailed code (\`VerifyEmailNotice.tsx\`).
+//! Confirming the address with the emailed code (`VerifyEmailNotice.tsx`).
 //! Submits on the sixth digit; one request at a time.
 
 use crate::model::Account;
@@ -39,7 +39,7 @@ pub struct VerifyEmail {
 }
 
 impl VerifyEmail {
-    /// \`showEmail\` names the address; \`centered\` is setup's layout.
+    /// `showEmail` names the address; `centered` is setup's layout.
     pub fn new(
         account: Entity<Account>,
         show_email: bool,
@@ -49,11 +49,15 @@ impl VerifyEmail {
     ) -> Self {
         let field = cx.new(|cx| CodeField::new(CODE_LENGTH, "Confirmation code", window, cx));
         let subscriptions = vec![
-            cx.subscribe_in(&field, window, |this, _, event: &CodeFieldEvent, window, cx| {
-                if let CodeFieldEvent::Complete(code) = event {
-                    this.submit(code.to_string(), window, cx);
-                }
-            }),
+            cx.subscribe_in(
+                &field,
+                window,
+                |this, _, event: &CodeFieldEvent, window, cx| {
+                    if let CodeFieldEvent::Complete(code) = event {
+                        this.submit(code.to_string(), window, cx);
+                    }
+                },
+            ),
             cx.observe(&account, |_, _, cx| cx.notify()),
         ];
         Self {
@@ -65,7 +69,7 @@ impl VerifyEmail {
             in_flight: false,
             error: None,
             resent: false,
-            // \`autoFocus\`.
+            // `autoFocus`.
             focus_next_render: true,
             _subscriptions: subscriptions,
         }
@@ -76,15 +80,14 @@ impl VerifyEmail {
         if self.busy {
             return "Checking…".into();
         }
-        let lead = match (&self.error, self.resent) {
+        match (&self.error, self.resent) {
             (Some(error), _) => error.to_string(),
             (None, true) => "New code sent — use the newest one.".into(),
             (None, false) => "Didn’t get it?".into(),
-        };
-        lead
+        }
     }
 
-    /// Checks \`code\`.
+    /// Checks `code`.
     pub fn submit(&mut self, code: String, window: &mut Window, cx: &mut Context<Self>) {
         if self.in_flight {
             return;
@@ -93,7 +96,8 @@ impl VerifyEmail {
         self.busy = true;
         self.error = None;
         self.resent = false;
-        self.field.update(cx, |field, cx| field.set_disabled(true, cx));
+        self.field
+            .update(cx, |field, cx| field.set_disabled(true, cx));
         cx.notify();
         let request = self.account.read(cx).backend().verify_email_code(code);
         let window_handle = window.window_handle();
@@ -103,7 +107,8 @@ impl VerifyEmail {
                 let _ = this.update(cx, |this, cx| {
                     this.in_flight = false;
                     this.busy = false;
-                    this.field.update(cx, |field, cx| field.set_disabled(false, cx));
+                    this.field
+                        .update(cx, |field, cx| field.set_disabled(false, cx));
                     match result {
                         Ok(result) if result.ok && result.data.is_some() => {
                             let session = result.data.expect("checked");
@@ -151,7 +156,9 @@ impl VerifyEmail {
                             this.error = Some(
                                 result
                                     .error
-                                    .unwrap_or_else(|| "Could not send it. Try again shortly.".into())
+                                    .unwrap_or_else(|| {
+                                        "Could not send it. Try again shortly.".into()
+                                    })
                                     .into(),
                             );
                         }
@@ -220,15 +227,17 @@ impl Render for VerifyEmail {
                     // Always offered: an error such as "expired" is only fixed
                     // by a new code.
                     .when(!self.busy && !self.resent, |el| {
-                        el.child(crate::style::text_button(
-                            ids::RESEND,
-                            "Send a new code",
-                            k.text(TextStep::T300),
-                            k.text_primary,
-                            false,
-                            cx.listener(|this, _, window, cx| this.resend(window, cx)),
+                        el.child(
+                            crate::style::text_button(
+                                ids::RESEND,
+                                "Send a new code",
+                                k.text(TextStep::T300),
+                                k.text_primary,
+                                false,
+                                cx.listener(|this, _, window, cx| this.resend(window, cx)),
+                            )
+                            .font_weight(gpui_kit::FontWeight::MEDIUM),
                         )
-                        .font_weight(gpui_kit::FontWeight::MEDIUM))
                     }),
             )
     }

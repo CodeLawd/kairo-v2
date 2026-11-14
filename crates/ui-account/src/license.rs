@@ -1,4 +1,4 @@
-//! Activation for this computer (\`LicensePanel.tsx\`): paste a key, press
+//! Activation for this computer (`LicensePanel.tsx`): paste a key, press
 //! Activate. Keys come from the church's Licence & Devices page.
 
 use crate::model::Account;
@@ -53,7 +53,7 @@ pub struct LicensePanel {
 }
 
 impl LicensePanel {
-    /// \`bare\` drops the card and heading (the activation dialog).
+    /// `bare` drops the card and heading (the activation dialog).
     pub fn new(
         account: Entity<Account>,
         bare: bool,
@@ -62,11 +62,15 @@ impl LicensePanel {
     ) -> Self {
         let key = cx.new(|cx| InputState::new(window, cx).placeholder("Activation key"));
         let subscriptions = vec![
-            cx.subscribe_in(&key, window, |this, _, event: &InputEvent, window, cx| match event {
-                InputEvent::PressEnter { .. } => this.activate(window, cx),
-                InputEvent::Change => cx.notify(),
-                _ => {}
-            }),
+            cx.subscribe_in(
+                &key,
+                window,
+                |this, _, event: &InputEvent, window, cx| match event {
+                    InputEvent::PressEnter { .. } => this.activate(window, cx),
+                    InputEvent::Change => cx.notify(),
+                    _ => {}
+                },
+            ),
             cx.observe(&account, |_, _, cx| cx.notify()),
         ];
         Self {
@@ -108,8 +112,7 @@ impl LicensePanel {
                         }
                         Err(_) => {
                             this.error = Some(
-                                "Couldn’t reach Kairo. Check your connection and try again."
-                                    .into(),
+                                "Couldn’t reach Kairo. Check your connection and try again.".into(),
                             )
                         }
                     }
@@ -163,29 +166,37 @@ impl Render for LicensePanel {
                             Button::new(ids::ACTIVATE)
                                 .primary()
                                 .disabled(self.busy || empty)
-                                .label(if self.busy { "Activating…" } else { "Activate" })
-                                .on_click(cx.listener(|this, _, window, cx| this.activate(window, cx))),
+                                .label(if self.busy {
+                                    "Activating…"
+                                } else {
+                                    "Activate"
+                                })
+                                .on_click(
+                                    cx.listener(|this, _, window, cx| this.activate(window, cx)),
+                                ),
                         ),
                 )
                 .child(
-                    div().text_size(text::XS.size).child(crate::style::text_button(
-                        ids::GET_KEY,
-                        "Get a key ↗",
-                        k.notice_text,
-                        k.notice_text,
-                        false,
-                        cx.listener(|this, _, _, cx| {
-                            let request = this
-                                .account
-                                .read(cx)
-                                .backend()
-                                .open_web("/dashboard/licence".into());
-                            cx.background_spawn(async move {
-                                let _ = request.await;
-                            })
-                            .detach();
-                        }),
-                    )),
+                    div()
+                        .text_size(text::XS.size)
+                        .child(crate::style::text_button(
+                            ids::GET_KEY,
+                            "Get a key ↗",
+                            k.notice_text,
+                            k.notice_text,
+                            false,
+                            cx.listener(|this, _, _, cx| {
+                                let request = this
+                                    .account
+                                    .read(cx)
+                                    .backend()
+                                    .open_web("/dashboard/licence".into());
+                                cx.background_spawn(async move {
+                                    let _ = request.await;
+                                })
+                                .detach();
+                            }),
+                        )),
                 )
                 .into_any_element()
         };
@@ -196,16 +207,13 @@ impl Render for LicensePanel {
             .aria_label("Activation")
             .gap(if self.bare { px(8.) } else { px(12.) })
             .when(!self.bare, |el| {
-                el.rounded(radius::lg())
-                    .bg(k.surface_tertiary)
-                    .p_4()
-                    .child(
-                        div()
-                            .text_size(text::SM.size)
-                            .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                            .text_color(k.text_primary)
-                            .child("Activation"),
-                    )
+                el.rounded(radius::lg()).bg(k.surface_tertiary).p_4().child(
+                    div()
+                        .text_size(text::SM.size)
+                        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                        .text_color(k.text_primary)
+                        .child("Activation"),
+                )
             })
             .child(body)
             .when_some(self.error.clone(), |el, error| {

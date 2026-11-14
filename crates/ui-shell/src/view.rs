@@ -68,6 +68,7 @@ impl Render for Shell {
             content.extend(self.render_overlay(cx));
             content.extend(self.render_notices(cx));
             content.extend(self.render_whats_new(cx));
+            content.extend(self.front.clone().map(|front| front.into_any_element()));
         }
         content.extend(self.render_quit(cx));
         div()
@@ -236,14 +237,17 @@ impl Shell {
                             Icon::new(KairoIcon::MonitorPlay.fill()).size_4().text_color(k.hue(Hue::Cyan)),
                         )
                         .badge(dot)
+                        .coach_anchor(kairo_ui_kit::coach::anchors::HEADER_SCREENS)
                         .on_click(cx.listener(|this, _, _, cx| this.open_overlay(Overlay::Screens, cx))),
                     ),
             )
             .child(
                 h_flex()
+                    .relative()
                     .flex_shrink_0()
                     .gap_1()
                     .pl_1()
+                    .child(kairo_ui_kit::coach::coach_anchor(kairo_ui_kit::coach::anchors::HEADER_LIVE))
                     .when_some(self.state.house_track.clone(), |this, track| {
                         let paused = track.paused;
                         this.child(
@@ -463,6 +467,10 @@ impl Shell {
             .child(
                 v_flex()
                     .id("rail-workspaces")
+                    .relative()
+                    .child(kairo_ui_kit::coach::coach_anchor(
+                        kairo_ui_kit::coach::anchors::WORKSPACES,
+                    ))
                     .min_h_0()
                     .w_full()
                     .flex_1()

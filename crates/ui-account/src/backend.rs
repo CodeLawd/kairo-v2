@@ -43,7 +43,10 @@ pub trait AccountBackend: Send + Sync + 'static {
     /// `account.resendVerification`.
     fn resend_verification(&self) -> Reply<Result<CloudResult<()>, String>>;
     /// `account.verifyEmailCode`.
-    fn verify_email_code(&self, code: String) -> Reply<Result<CloudResult<SessionSnapshot>, String>>;
+    fn verify_email_code(
+        &self,
+        code: String,
+    ) -> Reply<Result<CloudResult<SessionSnapshot>, String>>;
     /// `account.startDevicePairing`.
     fn start_pairing(&self) -> Reply<Result<DevicePairingState, String>>;
     /// `account.cancelDevicePairing`.

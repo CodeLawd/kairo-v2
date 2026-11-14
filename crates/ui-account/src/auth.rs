@@ -1,4 +1,4 @@
-//! Email and password, and browser sign-in (\`AuthPanel.tsx\`). Used by the
+//! Email and password, and browser sign-in (`AuthPanel.tsx`). Used by the
 //! account gate and the account page of setup.
 
 use crate::model::Account;
@@ -21,16 +21,16 @@ use kairo_ui_kit::tokens::{TextStep, text};
 /// Creating an account or signing in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AuthMode {
-    /// \`signIn\`.
+    /// `signIn`.
     SignIn,
-    /// \`signUp\`.
+    /// `signUp`.
     SignUp,
 }
 
 /// What the panel reports.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AuthEvent {
-    /// Signed in or signed up (\`onDone\`).
+    /// Signed in or signed up (`onDone`).
     Done,
     /// The operator switched between creating an account and signing in.
     ModeChanged(AuthMode),
@@ -77,7 +77,7 @@ pub struct AuthPanel {
     email: Entity<InputState>,
     password: Entity<InputState>,
     busy: bool,
-    /// The synchronous single-flight gate (\`createSingleFlight\`).
+    /// The synchronous single-flight gate (`createSingleFlight`).
     in_flight: bool,
     error: Option<SharedString>,
     notice: Option<SharedString>,
@@ -87,7 +87,7 @@ pub struct AuthPanel {
 impl EventEmitter<AuthEvent> for AuthPanel {}
 
 impl AuthPanel {
-    /// A panel starting in \`mode\`.
+    /// A panel starting in `mode`.
     pub fn new(
         account: Entity<Account>,
         mode: AuthMode,
@@ -138,8 +138,9 @@ impl AuthPanel {
             AuthMode::SignUp => format!("At least {MIN_PASSWORD_LENGTH} characters"),
             AuthMode::SignIn => String::new(),
         };
-        self.password
-            .update(cx, |state, cx| state.set_placeholder(placeholder, window, cx));
+        self.password.update(cx, |state, cx| {
+            state.set_placeholder(placeholder, window, cx)
+        });
     }
 
     fn value(&self, input: &Entity<InputState>, cx: &Context<Self>) -> String {
@@ -220,7 +221,11 @@ impl AuthPanel {
             cx.notify();
             return;
         }
-        let request = self.account.read(cx).backend().request_password_reset(email);
+        let request = self
+            .account
+            .read(cx)
+            .backend()
+            .request_password_reset(email);
         cx.spawn(async move |this, cx| {
             let _ = request.await;
             // Deliberately unconditional: the API will not say whether the
@@ -455,7 +460,9 @@ impl Render for AuthPanel {
                     .min_h(px(16.))
                     .text_size(text::XS.size)
                     .when_some(message, |el, (message, color)| {
-                        el.aria_label(message.clone()).text_color(color).child(message)
+                        el.aria_label(message.clone())
+                            .text_color(color)
+                            .child(message)
                     }),
             )
             .child(

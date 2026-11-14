@@ -6,6 +6,7 @@ pub mod auth;
 pub mod backend;
 pub mod coach;
 pub mod display_picker;
+pub mod flow;
 pub mod gate;
 pub mod license;
 pub mod model;
@@ -16,4 +17,5 @@ pub mod verify;
 pub mod wizard;
 
 pub use backend::{AccountBackend, OnboardingWrite, Reply};
+pub use flow::{AccountFlow, FlowEvent};
 pub use model::{Account, AccountChanged};

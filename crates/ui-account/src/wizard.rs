@@ -1,5 +1,5 @@
-//! First-run setup (\`OnboardingWizard.tsx\`, \`StepAccount.tsx\`,
-//! \`StepOutput.tsx\`, \`WelcomeView.tsx\`): the tour, the account, this
+//! First-run setup (`OnboardingWizard.tsx`, `StepAccount.tsx`,
+//! `StepOutput.tsx`, `WelcomeView.tsx`): the tour, the account, this
 //! computer's screens, then the closing welcome. Shown signed out; the shell
 //! keeps it open across sign-in so the flow carries on.
 
@@ -19,7 +19,9 @@ use gpui_kit::{
     StatefulInteractiveElement, Styled, Subscription, Window, div, prelude::FluentBuilder, px,
     relative,
 };
-use kairo_domain::cloud::{can_enter_app, is_step_complete, needs_email_confirmation, onboarding_steps};
+use kairo_domain::cloud::{
+    can_enter_app, is_step_complete, needs_email_confirmation, onboarding_steps,
+};
 use kairo_domain::displays::DisplayBinding;
 use kairo_domain::overlay::OverlayOutputKind;
 use kairo_domain::overlay_defaults::make_projector_output;
@@ -31,7 +33,7 @@ use kairo_ui_kit::tokens::{TextStep, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 use std::time::Instant;
 
-/// Where a quick start goes (\`NavRoute\`).
+/// Where a quick start goes (`NavRoute`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum QuickStart {
     /// Find a verse.
@@ -45,7 +47,7 @@ pub enum QuickStart {
 /// What the wizard asks of the shell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WizardEvent {
-    /// Close setup (\`onDismiss\`): open \`route\` if given; \`coach\` runs the
+    /// Close setup (`onDismiss`): open `route` if given; `coach` runs the
     /// tips that follow.
     Dismiss {
         /// The workspace to open.
@@ -96,7 +98,9 @@ enum Job {
     Seed,
     Write(OnboardingWrite),
     /// Write the next step only when not signed in and ready.
-    LeaveTour { ready: bool },
+    LeaveTour {
+        ready: bool,
+    },
 }
 
 /// The wizard.
@@ -134,18 +138,24 @@ impl Focusable for OnboardingWizard {
 }
 
 impl OnboardingWizard {
-    /// The wizard over \`account\`, focused.
+    /// The wizard over `account`, focused.
     pub fn new(account: Entity<Account>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let focus = cx.focus_handle();
         focus.focus(window, cx);
-        let subscriptions = vec![cx.subscribe_in(&account, window, |this, _, event: &AccountChanged, window, cx| {
-            match event {
-                AccountChanged::Displays | AccountChanged::Settings => this.refresh_pickers(window, cx),
-                _ => {}
-            }
-            this.carry_on_from_account(cx);
-            cx.notify();
-        })];
+        let subscriptions = vec![cx.subscribe_in(
+            &account,
+            window,
+            |this, _, event: &AccountChanged, window, cx| {
+                match event {
+                    AccountChanged::Displays | AccountChanged::Settings => {
+                        this.refresh_pickers(window, cx)
+                    }
+                    _ => {}
+                }
+                this.carry_on_from_account(cx);
+                cx.notify();
+            },
+        )];
         let now = Instant::now();
         let mut wizard = Self {
             account,
@@ -188,7 +198,10 @@ impl OnboardingWizard {
 
     fn index(&self, cx: &gpui_kit::App) -> usize {
         let current = self.state(cx).current_step;
-        Self::steps().iter().position(|s| *s == current).unwrap_or(0)
+        Self::steps()
+            .iter()
+            .position(|s| *s == current)
+            .unwrap_or(0)
     }
 
     fn current(&self, cx: &gpui_kit::App) -> OnboardingStepId {
@@ -207,7 +220,8 @@ impl OnboardingWizard {
 
     /// Nothing past the account opens until the session can enter the app.
     fn on_account(&self, cx: &gpui_kit::App) -> bool {
-        !self.touring(cx) && (self.current(cx) == OnboardingStepId::Account || !self.account_ready(cx))
+        !self.touring(cx)
+            && (self.current(cx) == OnboardingStepId::Account || !self.account_ready(cx))
     }
 
     fn locked(&self) -> bool {
@@ -240,8 +254,13 @@ impl OnboardingWizard {
 
     // ── Writes ──────────────────────────────────────────────────────────
 
-    /// \`apply\`: one write at a time; \`then\` runs on success.
-    fn apply(&mut self, jobs: Vec<Job>, then: impl FnOnce(&mut Self, &mut Context<Self>) + 'static, cx: &mut Context<Self>) -> bool {
+    /// `apply`: one write at a time; `then` runs on success.
+    fn apply(
+        &mut self,
+        jobs: Vec<Job>,
+        then: impl FnOnce(&mut Self, &mut Context<Self>) + 'static,
+        cx: &mut Context<Self>,
+    ) -> bool {
         if self.pending {
             return false;
         }
@@ -259,8 +278,10 @@ impl OnboardingWizard {
                         match request {
                             Some((request, church)) => match request.await {
                                 Ok(()) => {
-                                    let _ = cx.update(|cx| {
-                                        account.update(cx, |a, cx| a.update_settings(|s| s.church = church, cx))
+                                    cx.update(|cx| {
+                                        account.update(cx, |a, cx| {
+                                            a.update_settings(|s| s.church = church, cx)
+                                        })
                                     });
                                     Ok(None)
                                 }
@@ -275,13 +296,17 @@ impl OnboardingWizard {
                     }
                     Job::LeaveTour { ready } => {
                         let writes: &[OnboardingWrite] = if ready {
-                            &[OnboardingWrite::Complete(OnboardingStepId::Account), OnboardingWrite::SetCurrent(OnboardingStepId::Output)]
+                            &[
+                                OnboardingWrite::Complete(OnboardingStepId::Account),
+                                OnboardingWrite::SetCurrent(OnboardingStepId::Output),
+                            ]
                         } else {
                             &[OnboardingWrite::SetCurrent(OnboardingStepId::Account)]
                         };
                         let mut last = Ok(None);
                         for write in writes {
-                            let request = cx.update(|cx| account.read(cx).backend().onboarding(*write));
+                            let request =
+                                cx.update(|cx| account.read(cx).backend().onboarding(*write));
                             last = request.await.map(Some);
                             if last.is_err() {
                                 break;
@@ -312,7 +337,8 @@ impl OnboardingWizard {
                     }
                     Err(error) => {
                         tracing::warn!(%error, "[Onboarding] setup could not be saved");
-                        this.error = Some("Your setup could not be saved. Please try again.".into());
+                        this.error =
+                            Some("Your setup could not be saved. Please try again.".into());
                         this.error_at = Instant::now();
                     }
                 }
@@ -340,7 +366,7 @@ impl OnboardingWizard {
         );
     }
 
-    /// Ends setup; finishing lands on the welcome unless \`welcome\` is false.
+    /// Ends setup; finishing lands on the welcome unless `welcome` is false.
     pub fn finish(&mut self, welcome: bool, cx: &mut Context<Self>) -> bool {
         if !self.account_ready(cx) || self.saving_screen {
             return false;
@@ -353,7 +379,10 @@ impl OnboardingWizard {
                     this.welcomed = true;
                     this.page_at = Instant::now();
                 } else {
-                    cx.emit(WizardEvent::Dismiss { route: None, coach: false });
+                    cx.emit(WizardEvent::Dismiss {
+                        route: None,
+                        coach: false,
+                    });
                     cx.emit(WizardEvent::OpenScreens);
                 }
             },
@@ -361,7 +390,7 @@ impl OnboardingWizard {
         )
     }
 
-    /// Moves to tour slide \`next\`, clamped.
+    /// Moves to tour slide `next`, clamped.
     pub fn go_to_slide(&mut self, next: isize, cx: &mut Context<Self>) {
         let clamped = next.clamp(0, TOUR_SLIDES.len() as isize - 1) as usize;
         if clamped == self.slide {
@@ -382,7 +411,10 @@ impl OnboardingWizard {
         self.dir = 1.0;
         let ready = self.account_ready(cx);
         self.apply(
-            vec![Job::Write(OnboardingWrite::Complete(OnboardingStepId::Welcome)), Job::LeaveTour { ready }],
+            vec![
+                Job::Write(OnboardingWrite::Complete(OnboardingStepId::Welcome)),
+                Job::LeaveTour { ready },
+            ],
             |_, _| {},
             cx,
         );
@@ -411,7 +443,9 @@ impl OnboardingWizard {
             jobs.push(Job::Seed);
             jobs.push(Job::Write(OnboardingWrite::Finish));
         } else {
-            jobs.push(Job::Write(OnboardingWrite::SetCurrent(Self::steps()[index + 1])));
+            jobs.push(Job::Write(OnboardingWrite::SetCurrent(
+                Self::steps()[index + 1],
+            )));
         }
         self.apply(
             jobs,
@@ -427,7 +461,9 @@ impl OnboardingWizard {
 
     /// Back, skipping the account page once signed in.
     pub fn back(&mut self, cx: &mut Context<Self>) {
-        let Some(target) = self.back_target(cx) else { return };
+        let Some(target) = self.back_target(cx) else {
+            return;
+        };
         if self.locked() {
             return;
         }
@@ -437,13 +473,20 @@ impl OnboardingWizard {
             self.slide = TOUR_SLIDES.len() - 1;
             self.leaving = None;
         }
-        self.apply(vec![Job::Write(OnboardingWrite::SetCurrent(target))], |_, _| {}, cx);
+        self.apply(
+            vec![Job::Write(OnboardingWrite::SetCurrent(target))],
+            |_, _| {},
+            cx,
+        );
     }
 
     fn escape(&mut self, cx: &mut Context<Self>) {
         // The account cannot be skipped; once in, Escape is "set up later".
         if self.welcomed {
-            cx.emit(WizardEvent::Dismiss { route: None, coach: true });
+            cx.emit(WizardEvent::Dismiss {
+                route: None,
+                coach: true,
+            });
         } else if self.account_ready(cx) {
             self.finish(true, cx);
         }
@@ -457,7 +500,11 @@ impl OnboardingWizard {
             }
             "right" | "left" if self.touring(cx) && !self.typing(window, cx) => {
                 cx.stop_propagation();
-                let step = if event.keystroke.key == "right" { 1 } else { -1 };
+                let step = if event.keystroke.key == "right" {
+                    1
+                } else {
+                    -1
+                };
                 self.go_to_slide(self.slide as isize + step, cx);
             }
             _ => {}
@@ -466,8 +513,7 @@ impl OnboardingWizard {
 
     fn typing(&self, window: &Window, cx: &gpui_kit::App) -> bool {
         // Arrow keys belong to a focused text field.
-        window.focused(cx).is_some_and(|f| f != self.focus)
-            && !self.touring(cx)
+        window.focused(cx).is_some_and(|f| f != self.focus) && !self.touring(cx)
     }
 
     // ── Pages ───────────────────────────────────────────────────────────
@@ -481,12 +527,13 @@ impl OnboardingWizard {
         let account = self.account.clone();
         let mode = self.auth_mode;
         let auth = cx.new(|cx| AuthPanel::new(account, mode, window, cx));
-        self._subscriptions.push(cx.subscribe(&auth, |this, _, event: &AuthEvent, cx| {
-            if let AuthEvent::ModeChanged(mode) = event {
-                this.auth_mode = *mode;
-                cx.notify();
-            }
-        }));
+        self._subscriptions
+            .push(cx.subscribe(&auth, |this, _, event: &AuthEvent, cx| {
+                if let AuthEvent::ModeChanged(mode) = event {
+                    this.auth_mode = *mode;
+                    cx.notify();
+                }
+            }));
         self.auth = Some(auth.clone());
         auth
     }
@@ -509,13 +556,24 @@ impl OnboardingWizard {
         .detach();
     }
 
-    fn render_account(&mut self, clock: Clock, ob: &OnboardingColors, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    fn render_account(
+        &mut self,
+        clock: Clock,
+        ob: &OnboardingColors,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let k = *cx.kairo();
         let session = self.account.read(cx).session().clone();
         let ready = can_enter_app(&session);
         let verifying = needs_email_confirmation(&session);
         let sign_up = self.auth_mode == AuthMode::SignUp;
-        let (title, blurb) = account_copy(ready, verifying, sign_up, session.user.as_ref().map(|u| u.email.as_str()));
+        let (title, blurb) = account_copy(
+            ready,
+            verifying,
+            sign_up,
+            session.user.as_ref().map(|u| u.email.as_str()),
+        );
         let body = if ready {
             let account = self.account.clone();
             let license = self
@@ -527,13 +585,26 @@ impl OnboardingWizard {
             let account = self.account.clone();
             let verify = self
                 .verify
-                .get_or_insert_with(|| cx.new(|cx| VerifyEmail::new(account, false, true, window, cx)))
+                .get_or_insert_with(|| {
+                    cx.new(|cx| VerifyEmail::new(account, false, true, window, cx))
+                })
                 .clone();
             v_flex()
                 .items_center()
                 .gap_6()
                 .child(verify)
-                .child(text_link(ids::DIFFERENT_EMAIL, if self.signing_out { "Signing out…" } else { "Use a different email" }, self.signing_out, None, cx.listener(|this, _, _, cx| this.use_different_email(cx)), &k))
+                .child(text_link(
+                    ids::DIFFERENT_EMAIL,
+                    if self.signing_out {
+                        "Signing out…"
+                    } else {
+                        "Use a different email"
+                    },
+                    self.signing_out,
+                    None,
+                    cx.listener(|this, _, _, cx| this.use_different_email(cx)),
+                    &k,
+                ))
                 .into_any_element()
         } else {
             self.auth(window, cx).into_any_element()
@@ -545,13 +616,42 @@ impl OnboardingWizard {
             .pt(px(44.))
             .px(px(32.))
             .pb(px(32.))
+            .child(
+                clock.ob_in(
+                    div()
+                        .id(ids::TITLE)
+                        .test_support()
+                        .role(Role::Heading)
+                        .aria_label(SharedString::from(title.clone()))
+                        .text_size(px(32.))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(ob.text)
+                        .text_center()
+                        .child(title),
+                    0,
+                    0.0,
+                    28.0,
+                ),
+            )
+            .child(
+                clock.rise(
+                    div()
+                        .mt_2()
+                        .max_w(px(44.0 * 7.5))
+                        .text_center()
+                        .text_size(px(14.))
+                        .text_color(k.text(TextStep::T400))
+                        .child(blurb),
+                    1,
+                    0.0,
+                ),
+            )
             .child(clock.ob_in(
-                div().id(ids::TITLE).test_support().role(Role::Heading).aria_label(SharedString::from(title.clone()))
-                    .text_size(px(32.)).font_weight(FontWeight::MEDIUM).text_color(ob.text).text_center().child(title),
-                0, 0.0, 28.0,
+                div().mt_8().w_full().max_w(px(380.)).child(body),
+                2,
+                0.0,
+                28.0,
             ))
-            .child(clock.rise(div().mt_2().max_w(px(44.0 * 7.5)).text_center().text_size(px(14.)).text_color(k.text(TextStep::T400)).child(blurb), 1, 0.0))
-            .child(clock.ob_in(div().mt_8().w_full().max_w(px(380.)).child(body), 2, 0.0, 28.0))
             .into_any_element()
     }
 
@@ -561,27 +661,46 @@ impl OnboardingWizard {
     }
 
     fn refresh_pickers(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(targets) = self.output_targets(cx) else { return };
+        let Some(targets) = self.output_targets(cx) else {
+            return;
+        };
         let displays = self.account.read(cx).displays().to_vec();
         if let Some(audience) = &self.audience {
-            audience.update(cx, |p, cx| p.update(&targets.audience, &displays, &targets.audience_others, window, cx));
+            audience.update(cx, |p, cx| {
+                p.update(
+                    &targets.audience,
+                    &displays,
+                    &targets.audience_others,
+                    window,
+                    cx,
+                )
+            });
         }
         if let Some(stage) = &self.stage {
-            stage.update(cx, |p, cx| p.update(&targets.stage, &displays, &targets.stage_others, window, cx));
+            stage.update(cx, |p, cx| {
+                p.update(&targets.stage, &displays, &targets.stage_others, window, cx)
+            });
         }
     }
 
     fn save_output(&mut self, audience: bool, binding: DisplayBinding, cx: &mut Context<Self>) {
-        let Some(settings) = self.account.read(cx).settings().cloned() else { return };
+        let Some(settings) = self.account.read(cx).settings().cloned() else {
+            return;
+        };
         let backend = self.account.read(cx).backend();
         let enabled = binding.display_id.is_some();
         enum Save {
-            Overlay(kairo_domain::settings::OverlaySettings),
-            Presentation(kairo_domain::program::PresentationSettings),
+            Overlay(Box<kairo_domain::settings::OverlaySettings>),
+            Presentation(Box<kairo_domain::program::PresentationSettings>),
         }
         let save = if audience {
             let mut overlay = settings.overlay.clone();
-            let screen = overlay.outputs.iter().find(|o| o.kind == OverlayOutputKind::Screen).cloned().unwrap_or_else(|| make_projector_output(0.0));
+            let screen = overlay
+                .outputs
+                .iter()
+                .find(|o| o.kind == OverlayOutputKind::Screen)
+                .cloned()
+                .unwrap_or_else(|| make_projector_output(0.0));
             let mut next = screen.clone();
             next.display_id = binding.display_id;
             next.display_label = binding.display_label.clone();
@@ -596,7 +715,7 @@ impl OnboardingWizard {
             } else {
                 overlay.outputs.push(next);
             }
-            Save::Overlay(overlay)
+            Save::Overlay(Box::new(overlay))
         } else {
             let mut presentation = settings.presentation.clone();
             if let Some(first) = presentation.stage_displays.first_mut() {
@@ -609,15 +728,15 @@ impl OnboardingWizard {
             } else {
                 return;
             }
-            Save::Presentation(presentation)
+            Save::Presentation(Box::new(presentation))
         };
         self.saving_screen = true;
         self.output_error = None;
         self.set_pickers_disabled(true, cx);
         cx.notify();
         let request = match &save {
-            Save::Overlay(o) => backend.save_overlay(o.clone()),
-            Save::Presentation(p) => backend.save_presentation(p.clone()),
+            Save::Overlay(o) => backend.save_overlay((**o).clone()),
+            Save::Presentation(p) => backend.save_presentation((**p).clone()),
         };
         cx.spawn(async move |this, cx| {
             let result = request.await;
@@ -628,14 +747,15 @@ impl OnboardingWizard {
                     Ok(()) => this.account.update(cx, |a, cx| {
                         a.update_settings(
                             |s| match save {
-                                Save::Overlay(o) => s.overlay = o,
-                                Save::Presentation(p) => s.presentation = p,
+                                Save::Overlay(o) => s.overlay = *o,
+                                Save::Presentation(p) => s.presentation = *p,
                             },
                             cx,
                         )
                     }),
                     Err(_) => {
-                        this.output_error = Some("The screen could not be saved. Please try again.".into());
+                        this.output_error =
+                            Some("The screen could not be saved. Please try again.".into());
                         this.error_at = Instant::now();
                     }
                 }
@@ -651,7 +771,13 @@ impl OnboardingWizard {
         }
     }
 
-    fn render_output(&mut self, clock: Clock, ob: &OnboardingColors, window: &mut Window, cx: &mut Context<Self>) -> AnyElement {
+    fn render_output(
+        &mut self,
+        clock: Clock,
+        ob: &OnboardingColors,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let k = *cx.kairo();
         let displays = self.account.read(cx).displays().to_vec();
         let targets = self.output_targets(cx);
@@ -659,19 +785,48 @@ impl OnboardingWizard {
             if self.audience.is_none() {
                 let t = targets.clone();
                 let d = displays.clone();
-                let picker = cx.new(|cx| DisplayPicker::new("ob-audience", "Audience Screen", &t.audience, &d, &t.audience_others, window, cx));
-                self._subscriptions.push(cx.subscribe(&picker, |this, _, Picked(binding), cx| this.save_output(true, binding.clone(), cx)));
+                let picker = cx.new(|cx| {
+                    DisplayPicker::new(
+                        "ob-audience",
+                        "Audience Screen",
+                        &t.audience,
+                        &d,
+                        &t.audience_others,
+                        window,
+                        cx,
+                    )
+                });
+                self._subscriptions
+                    .push(cx.subscribe(&picker, |this, _, Picked(binding), cx| {
+                        this.save_output(true, binding.clone(), cx)
+                    }));
                 self.audience = Some(picker);
             }
             if self.stage.is_none() {
                 let t = targets.clone();
                 let d = displays.clone();
-                let picker = cx.new(|cx| DisplayPicker::new("ob-stage", "Stage Screen", &t.stage, &d, &t.stage_others, window, cx));
-                self._subscriptions.push(cx.subscribe(&picker, |this, _, Picked(binding), cx| this.save_output(false, binding.clone(), cx)));
+                let picker = cx.new(|cx| {
+                    DisplayPicker::new(
+                        "ob-stage",
+                        "Stage Screen",
+                        &t.stage,
+                        &d,
+                        &t.stage_others,
+                        window,
+                        cx,
+                    )
+                });
+                self._subscriptions
+                    .push(cx.subscribe(&picker, |this, _, Picked(binding), cx| {
+                        this.save_output(false, binding.clone(), cx)
+                    }));
                 self.stage = Some(picker);
             }
         }
-        let row = |label: &'static str, hint: &'static str, picker: Option<Entity<DisplayPicker>>, i: usize| {
+        let row = |label: &'static str,
+                   hint: &'static str,
+                   picker: Option<Entity<DisplayPicker>>,
+                   i: usize| {
             clock.ob_in(
                 h_flex()
                     .w_full()
@@ -684,8 +839,20 @@ impl OnboardingWizard {
                     .child(
                         v_flex()
                             .flex_1()
-                            .child(div().text_size(px(16.)).font_weight(FontWeight::SEMIBOLD).text_color(k.text(TextStep::T200)).child(label))
-                            .child(div().mt_1().text_size(px(13.)).text_color(k.text(TextStep::T500)).child(hint)),
+                            .child(
+                                div()
+                                    .text_size(px(16.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(k.text(TextStep::T200))
+                                    .child(label),
+                            )
+                            .child(
+                                div()
+                                    .mt_1()
+                                    .text_size(px(13.))
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(hint),
+                            ),
                     )
                     .child(div().flex_basis(relative(0.565)).children(picker)),
                 i,
@@ -743,11 +910,32 @@ impl OnboardingWizard {
             .into_any_element()
     }
 
-    fn render_welcome(&mut self, clock: Clock, ob: &OnboardingColors, cx: &mut Context<Self>) -> AnyElement {
+    fn render_welcome(
+        &mut self,
+        clock: Clock,
+        ob: &OnboardingColors,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let k = *cx.kairo();
-        let settings_name = self.account.read(cx).settings().map(|s| s.church.name.clone()).unwrap_or_default();
-        let org = self.account.read(cx).session().org.as_ref().map(|o| o.name.clone()).unwrap_or_default();
-        let church = if settings_name.is_empty() { org } else { settings_name };
+        let settings_name = self
+            .account
+            .read(cx)
+            .settings()
+            .map(|s| s.church.name.clone())
+            .unwrap_or_default();
+        let org = self
+            .account
+            .read(cx)
+            .session()
+            .org
+            .as_ref()
+            .map(|o| o.name.clone())
+            .unwrap_or_default();
+        let church = if settings_name.is_empty() {
+            org
+        } else {
+            settings_name
+        };
         let church = church.trim().to_owned();
         let ready_line = if church.is_empty() {
             "You’re ready for your next service.".to_owned()
@@ -755,61 +943,164 @@ impl OnboardingWizard {
             format!("{church} is ready for your next service.")
         };
         let quick = [
-            (QuickStart::Scripture, "Find a verse", "Search by reference or words", KairoIcon::BookOpen, "quickstart-scripture"),
-            (QuickStart::Lyrics, "Add a song", "Import or type in lyrics", KairoIcon::Music2, "quickstart-lyrics"),
-            (QuickStart::Documents, "Import slides", "PowerPoint or PDF", KairoIcon::Presentation, "quickstart-documents"),
+            (
+                QuickStart::Scripture,
+                "Find a verse",
+                "Search by reference or words",
+                KairoIcon::BookOpen,
+                "quickstart-scripture",
+            ),
+            (
+                QuickStart::Lyrics,
+                "Add a song",
+                "Import or type in lyrics",
+                KairoIcon::Music2,
+                "quickstart-lyrics",
+            ),
+            (
+                QuickStart::Documents,
+                "Import slides",
+                "PowerPoint or PDF",
+                KairoIcon::Presentation,
+                "quickstart-documents",
+            ),
         ];
-        let focus_progress = if clock.still { 1.0 } else { kairo_ui_kit::motion::OB_FOCUS.sample((clock.t / 1100.0).clamp(0.0, 1.0)).opacity };
+        let focus_progress = if clock.still {
+            1.0
+        } else {
+            kairo_ui_kit::motion::OB_FOCUS
+                .sample((clock.t / 1100.0).clamp(0.0, 1.0))
+                .opacity
+        };
         v_flex()
             .size_full()
             .items_center()
             .justify_center()
             .py(px(40.))
             .px(px(32.))
-            .child(div().opacity(focus_progress).child(KairoMark::new(MarkSize::Large)))
-            .child(animated_title("Welcome to Kairo", clock, ob))
-            .child(clock.rise(div().mt_3().text_center().text_size(px(17.)).text_color(k.text(TextStep::T400)).child(ready_line), 0, 1350.0))
             .child(
-                h_flex().mt(px(40.)).w_full().max_w(px(640.)).gap_3().children(quick.into_iter().enumerate().map(|(i, (route, title, detail, icon, id))| {
-                    clock.rise(
-                        v_flex()
-                            .id(id)
-                            .test_support()
-                            .role(Role::Button)
-                            .aria_label(title)
-                            .flex_1()
-                            .items_start()
-                            .p(px(18.))
-                            .rounded(px(16.))
-                            .bg(ob.card[0])
-                            .cursor_pointer()
-                            .hover(|s| s.bg(ob.card[1]))
-                            .on_click(cx.listener(move |_, _, _, cx| cx.emit(WizardEvent::Dismiss { route: Some(route), coach: true })))
-                            .child(Icon::new(icon).size(px(18.)).text_color(k.text(TextStep::T300)))
-                            .child(div().mt_4().text_size(px(15.)).font_weight(FontWeight::SEMIBOLD).text_color(k.text(TextStep::T200)).child(title))
-                            .child(div().mt_1().text_size(px(12.)).text_color(k.text(TextStep::T500)).child(detail)),
-                        i,
-                        1550.0,
-                    )
-                })),
+                div()
+                    .opacity(focus_progress)
+                    .child(KairoMark::new(MarkSize::Large)),
             )
-            .child(clock.rise(cta(ids::START, "Start using Kairo", false, ob, cx.listener(|_, _, _, cx| cx.emit(WizardEvent::Dismiss { route: None, coach: true }))).mt(px(40.)), 0, 1850.0))
+            .child(animated_title("Welcome to Kairo", clock, ob))
+            .child(
+                clock.rise(
+                    div()
+                        .mt_3()
+                        .text_center()
+                        .text_size(px(17.))
+                        .text_color(k.text(TextStep::T400))
+                        .child(ready_line),
+                    0,
+                    1350.0,
+                ),
+            )
+            .child(
+                h_flex()
+                    .mt(px(40.))
+                    .w_full()
+                    .max_w(px(640.))
+                    .gap_3()
+                    .children(quick.into_iter().enumerate().map(
+                        |(i, (route, title, detail, icon, id))| {
+                            clock.rise(
+                                v_flex()
+                                    .id(id)
+                                    .test_support()
+                                    .role(Role::Button)
+                                    .aria_label(title)
+                                    .flex_1()
+                                    .items_start()
+                                    .p(px(18.))
+                                    .rounded(px(16.))
+                                    .bg(ob.card[0])
+                                    .cursor_pointer()
+                                    .hover(|s| s.bg(ob.card[1]))
+                                    .on_click(cx.listener(move |_, _, _, cx| {
+                                        cx.emit(WizardEvent::Dismiss {
+                                            route: Some(route),
+                                            coach: true,
+                                        })
+                                    }))
+                                    .child(
+                                        Icon::new(icon)
+                                            .size(px(18.))
+                                            .text_color(k.text(TextStep::T300)),
+                                    )
+                                    .child(
+                                        div()
+                                            .mt_4()
+                                            .text_size(px(15.))
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(k.text(TextStep::T200))
+                                            .child(title),
+                                    )
+                                    .child(
+                                        div()
+                                            .mt_1()
+                                            .text_size(px(12.))
+                                            .text_color(k.text(TextStep::T500))
+                                            .child(detail),
+                                    ),
+                                i,
+                                1550.0,
+                            )
+                        },
+                    )),
+            )
+            .child(
+                clock.rise(
+                    cta(
+                        ids::START,
+                        "Start using Kairo",
+                        false,
+                        ob,
+                        cx.listener(|_, _, _, cx| {
+                            cx.emit(WizardEvent::Dismiss {
+                                route: None,
+                                coach: true,
+                            })
+                        }),
+                    )
+                    .mt(px(40.)),
+                    0,
+                    1850.0,
+                ),
+            )
             .into_any_element()
     }
 
-    fn render_tour(&mut self, ob: &OnboardingColors, width: f32, still: bool, cx: &mut Context<Self>) -> AnyElement {
+    fn render_tour(
+        &mut self,
+        ob: &OnboardingColors,
+        width: f32,
+        still: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let now = Instant::now();
         let clock = clock_since(self.page_at, self.dir, still, now);
-        let mut stage = div().relative().flex_1().min_h_0().child(
-            div().absolute().inset_0().child(tour::render_slide(&TOUR_SLIDES[self.slide], clock, width, ob, cx)),
-        );
+        let mut stage =
+            div()
+                .relative()
+                .flex_1()
+                .min_h_0()
+                .child(div().absolute().inset_0().child(tour::render_slide(
+                    &TOUR_SLIDES[self.slide],
+                    clock,
+                    width,
+                    ob,
+                    cx,
+                )));
         if let Some((leaving, since)) = self.leaving {
             let t = now.saturating_duration_since(since).as_secs_f32() * 1000.0;
             if still || !tour::leaving_visible(t) {
                 self.leaving = None;
             } else {
                 let rest = Clock::still();
-                stage = stage.child(ob::out(div().absolute().inset_0(), t, self.dir).child(tour::render_slide(&TOUR_SLIDES[leaving], rest, width, ob, cx)));
+                stage = stage.child(ob::out(div().absolute().inset_0(), t, self.dir).child(
+                    tour::render_slide(&TOUR_SLIDES[leaving], rest, width, ob, cx),
+                ));
             }
         }
         let k = *cx.kairo();
@@ -828,16 +1119,35 @@ impl OnboardingWizard {
                     .id(SharedString::from(format!("onboarding-dot-{i}")))
                     .test_support()
                     .role(Role::Button)
-                    .aria_label(SharedString::from(format!("{}, slide {} of {}", slide.headline, i + 1, TOUR_SLIDES.len())))
+                    .aria_label(SharedString::from(format!(
+                        "{}, slide {} of {}",
+                        slide.headline,
+                        i + 1,
+                        TOUR_SLIDES.len()
+                    )))
                     .h(px(8.))
                     .w(px(if current { 24.0 } else { 8.0 }))
                     .rounded_full()
-                    .bg(if current { k.text_primary } else { ob.text.opacity(0.2) })
+                    .bg(if current {
+                        k.text_primary
+                    } else {
+                        ob.text.opacity(0.2)
+                    })
                     .cursor_pointer()
-                    .hover(move |s| if current { s } else { s.bg(ob_text_hover(ob.text)) })
+                    .hover(move |s| {
+                        if current {
+                            s
+                        } else {
+                            s.bg(ob_text_hover(ob.text))
+                        }
+                    })
                     .on_click(cx.listener(move |this, _, _, cx| this.go_to_slide(i as isize, cx)))
             }));
-        v_flex().size_full().child(stage).child(dots).into_any_element()
+        v_flex()
+            .size_full()
+            .child(stage)
+            .child(dots)
+            .into_any_element()
     }
 }
 
@@ -845,33 +1155,61 @@ fn ob_text_hover(text: gpui_kit::Hsla) -> gpui_kit::Hsla {
     text.opacity(0.45)
 }
 
-/// Time since \`since\` as a [\`Clock\`].
+/// Time since `since` as a [`Clock`].
 fn clock_since(since: Instant, dir: f32, still: bool, now: Instant) -> Clock {
     if still {
         return Clock::still();
     }
-    Clock { t: now.saturating_duration_since(since).as_secs_f32() * 1000.0, dir, still }
+    Clock {
+        t: now.saturating_duration_since(since).as_secs_f32() * 1000.0,
+        dir,
+        still,
+    }
 }
 
 /// The account page's title and blurb.
-pub fn account_copy(ready: bool, verifying: bool, sign_up: bool, email: Option<&str>) -> (String, String) {
+pub fn account_copy(
+    ready: bool,
+    verifying: bool,
+    sign_up: bool,
+    email: Option<&str>,
+) -> (String, String) {
     if ready {
-        return ("Activate this computer".into(), "Turn on live transcription, scripture lookup and lyric tools for your church.".into());
+        return (
+            "Activate this computer".into(),
+            "Turn on live transcription, scripture lookup and lyric tools for your church.".into(),
+        );
     }
     if verifying {
-        return ("Confirm your email".into(), format!("Enter the 6-digit code we sent to {}.", email.unwrap_or("your email")));
+        return (
+            "Confirm your email".into(),
+            format!(
+                "Enter the 6-digit code we sent to {}.",
+                email.unwrap_or("your email")
+            ),
+        );
     }
     if sign_up {
-        ("Create your account".into(), "Your church’s songs, themes and settings follow you to every Kairo computer.".into())
+        (
+            "Create your account".into(),
+            "Your church’s songs, themes and settings follow you to every Kairo computer.".into(),
+        )
     } else {
-        (format!("Sign in to {PRODUCT_NAME}"), "Welcome back. Your church’s library comes with you.".into())
+        (
+            format!("Sign in to {PRODUCT_NAME}"),
+            "Welcome back. Your church’s library comes with you.".into(),
+        )
     }
 }
 
 /// The church profile to save before setup moves on: the org's name and
-/// this computer's zone, filling only what is empty. \`None\` when nothing
+/// this computer's zone, filling only what is empty. `None` when nothing
 /// changes.
-pub fn seeded_church(settings: &AppSettings, org: Option<&str>, local_zone: &str) -> Option<kairo_domain::settings::ChurchProfile> {
+pub fn seeded_church(
+    settings: &AppSettings,
+    org: Option<&str>,
+    local_zone: &str,
+) -> Option<kairo_domain::settings::ChurchProfile> {
     let church = &settings.church;
     let mut next = church.clone();
     if church.name.trim().is_empty() {
@@ -885,7 +1223,10 @@ pub fn seeded_church(settings: &AppSettings, org: Option<&str>, local_zone: &str
     (next.name != church.name || next.timezone != church.timezone).then_some(next)
 }
 
-type SeedRequest = (crate::Reply<Result<(), String>>, kairo_domain::settings::ChurchProfile);
+type SeedRequest = (
+    crate::Reply<Result<(), String>>,
+    kairo_domain::settings::ChurchProfile,
+);
 
 fn seed_church(account: &Entity<Account>, cx: &gpui_kit::App) -> Option<SeedRequest> {
     let account = account.read(cx);
@@ -908,24 +1249,76 @@ pub struct OutputTargets {
     pub stage_others: Vec<DisplayBound>,
 }
 
-fn bound_of(name: &str, id: Option<f64>, label: &str, size: Option<kairo_domain::overlay::Size>) -> DisplayBound {
-    DisplayBound { name: name.into(), binding: DisplayBinding { display_id: id, display_label: label.into(), display_size: size } }
+fn bound_of(
+    name: &str,
+    id: Option<f64>,
+    label: &str,
+    size: Option<kairo_domain::overlay::Size>,
+) -> DisplayBound {
+    DisplayBound {
+        name: name.into(),
+        binding: DisplayBinding {
+            display_id: id,
+            display_label: label.into(),
+            display_size: size,
+        },
+    }
 }
 
-/// \`StepOutput\`'s targets from settings.
+/// `StepOutput`'s targets from settings.
 pub fn output_targets(settings: &AppSettings) -> OutputTargets {
     let outputs = &settings.overlay.outputs;
-    let screen = outputs.iter().find(|o| o.kind == OverlayOutputKind::Screen).cloned().unwrap_or_else(|| make_projector_output(0.0));
+    let screen = outputs
+        .iter()
+        .find(|o| o.kind == OverlayOutputKind::Screen)
+        .cloned()
+        .unwrap_or_else(|| make_projector_output(0.0));
     let stages = &settings.presentation.stage_displays;
-    let enabled_screens: Vec<_> = outputs.iter().filter(|o| o.kind == OverlayOutputKind::Screen && o.enabled).collect();
+    let enabled_screens: Vec<_> = outputs
+        .iter()
+        .filter(|o| o.kind == OverlayOutputKind::Screen && o.enabled)
+        .collect();
     let enabled_stages: Vec<_> = stages.iter().filter(|s| s.enabled).collect();
-    let screen_bound = |o: &kairo_domain::overlay::OverlayOutput| bound_of(&o.name, o.display_id, &o.display_label, o.display_size.clone());
-    let stage_bound = |s: &StageDisplayConfig| bound_of(&s.name, s.display_id, &s.display_label, s.display_size.clone());
-    let audience_others = enabled_screens.iter().filter(|o| o.id != screen.id).map(|o| screen_bound(o)).chain(enabled_stages.iter().map(|s| stage_bound(s))).collect();
+    let screen_bound = |o: &kairo_domain::overlay::OverlayOutput| {
+        bound_of(
+            &o.name,
+            o.display_id,
+            &o.display_label,
+            o.display_size.clone(),
+        )
+    };
+    let stage_bound = |s: &StageDisplayConfig| {
+        bound_of(
+            &s.name,
+            s.display_id,
+            &s.display_label,
+            s.display_size.clone(),
+        )
+    };
+    let audience_others = enabled_screens
+        .iter()
+        .filter(|o| o.id != screen.id)
+        .map(|o| screen_bound(o))
+        .chain(enabled_stages.iter().map(|s| stage_bound(s)))
+        .collect();
     let first_stage = stages.first();
-    let stage_others = enabled_screens.iter().map(|o| screen_bound(o)).chain(enabled_stages.iter().filter(|s| Some(s.id.as_str()) != first_stage.map(|f| f.id.as_str())).map(|s| stage_bound(s))).collect();
+    let stage_others = enabled_screens
+        .iter()
+        .map(|o| screen_bound(o))
+        .chain(
+            enabled_stages
+                .iter()
+                .filter(|s| Some(s.id.as_str()) != first_stage.map(|f| f.id.as_str()))
+                .map(|s| stage_bound(s)),
+        )
+        .collect();
     OutputTargets {
-        audience: bound_of("Audience screen", screen.display_id, &screen.display_label, screen.display_size.clone()),
+        audience: bound_of(
+            "Audience screen",
+            screen.display_id,
+            &screen.display_label,
+            screen.display_size.clone(),
+        ),
         audience_others,
         stage: match first_stage {
             Some(s) => stage_bound(s),
@@ -935,9 +1328,12 @@ pub fn output_targets(settings: &AppSettings) -> OutputTargets {
     }
 }
 
-/// \`stage-<Date.now() base 36>\`.
+/// `stage-<Date.now() base 36>`.
 fn new_stage_display(binding: &DisplayBinding) -> StageDisplayConfig {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
     let mut config: StageDisplayConfig = serde_default_stage();
     config.id = format!("stage-{}", base36(now));
     config.name = "Stage display".into();
@@ -966,7 +1362,7 @@ fn serde_default_stage() -> StageDisplayConfig {
     }
 }
 
-/// \`Number.prototype.toString(36)\`.
+/// `Number.prototype.toString(36)`.
 pub fn base36(mut value: u64) -> String {
     if value == 0 {
         return "0".into();
@@ -981,10 +1377,19 @@ pub fn base36(mut value: u64) -> String {
     String::from_utf8(out).unwrap_or_default()
 }
 
-fn error_line(error: SharedString, since: Instant, color: gpui_kit::Hsla) -> gpui_kit::Stateful<gpui_kit::Div> {
-    // \`.onboarding-error\`: shakes once.
-    let t = Instant::now().saturating_duration_since(since).as_secs_f32() * 1000.0;
-    let x = kairo_ui_kit::motion::OB_SHAKE.sample((t / 350.0).clamp(0.0, 1.0)).x;
+fn error_line(
+    error: SharedString,
+    since: Instant,
+    color: gpui_kit::Hsla,
+) -> impl gpui_kit::Styled + gpui_kit::IntoElement {
+    // `.onboarding-error`: shakes once.
+    let t = Instant::now()
+        .saturating_duration_since(since)
+        .as_secs_f32()
+        * 1000.0;
+    let x = kairo_ui_kit::motion::OB_SHAKE
+        .sample((t / 350.0).clamp(0.0, 1.0))
+        .x;
     div()
         .id(ids::ERROR)
         .test_support()
@@ -1004,7 +1409,7 @@ fn text_link(
     icon: Option<KairoIcon>,
     on_click: impl Fn(&gpui_kit::ClickEvent, &mut Window, &mut gpui_kit::App) + 'static,
     k: &kairo_ui_kit::KairoColors,
-) -> gpui_kit::Stateful<gpui_kit::Div> {
+) -> impl gpui_kit::Styled + gpui_kit::IntoElement {
     let hover = k.text_primary;
     let el = h_flex()
         .id(id)
@@ -1015,13 +1420,19 @@ fn text_link(
         .gap(px(6.))
         .text_size(px(13.))
         .text_color(k.text(TextStep::T400))
-        .when_some(icon.filter(|i| *i == KairoIcon::ChevronLeft), |el, icon| el.child(Icon::new(icon).size(px(14.))))
+        .when_some(icon.filter(|i| *i == KairoIcon::ChevronLeft), |el, icon| {
+            el.child(Icon::new(icon).size(px(14.)))
+        })
         .child(label)
-        .when_some(icon.filter(|i| *i != KairoIcon::ChevronLeft), |el, icon| el.child(Icon::new(icon).size(px(14.))));
+        .when_some(icon.filter(|i| *i != KairoIcon::ChevronLeft), |el, icon| {
+            el.child(Icon::new(icon).size(px(14.)))
+        });
     if disabled {
         el.opacity(0.4)
     } else {
-        el.cursor_pointer().hover(move |s| s.text_color(hover)).on_click(on_click)
+        el.cursor_pointer()
+            .hover(move |s| s.text_color(hover))
+            .on_click(on_click)
     }
 }
 
@@ -1031,7 +1442,7 @@ fn cta(
     disabled: bool,
     ob: &OnboardingColors,
     on_click: impl Fn(&gpui_kit::ClickEvent, &mut Window, &mut gpui_kit::App) + 'static,
-) -> gpui_kit::Stateful<gpui_kit::Div> {
+) -> impl gpui_kit::Styled + gpui_kit::IntoElement {
     let (fill, text_color, hover) = ob.cta;
     let el = div()
         .id(id)
@@ -1052,7 +1463,9 @@ fn cta(
     if disabled {
         el.opacity(0.5)
     } else {
-        el.cursor_pointer().hover(move |s| s.bg(hover)).on_click(on_click)
+        el.cursor_pointer()
+            .hover(move |s| s.bg(hover))
+            .on_click(on_click)
     }
 }
 
@@ -1062,7 +1475,7 @@ fn secondary(
     disabled: bool,
     ob: &OnboardingColors,
     on_click: impl Fn(&gpui_kit::ClickEvent, &mut Window, &mut gpui_kit::App) + 'static,
-) -> gpui_kit::Stateful<gpui_kit::Div> {
+) -> impl gpui_kit::Styled + gpui_kit::IntoElement {
     let text_color = ob.text;
     let el = div()
         .id(id)
@@ -1082,7 +1495,9 @@ fn secondary(
     if disabled {
         el.opacity(0.5)
     } else {
-        el.cursor_pointer().hover(move |s| s.bg(text_color.opacity(0.16))).on_click(on_click)
+        el.cursor_pointer()
+            .hover(move |s| s.bg(text_color.opacity(0.16)))
+            .on_click(on_click)
     }
 }
 
@@ -1096,12 +1511,20 @@ fn animated_title(source: &'static str, clock: Clock, ob: &OnboardingColors) -> 
         let letters = word.chars().map(|c| {
             let index = k;
             k += 1;
-            let e = if clock.still { 1.0 } else {
-                kairo_ui_kit::motion::OUT_EXPO.sample(((clock.t - (550.0 + index as f32 * 38.0)) / 900.0).clamp(0.0, 1.0))
+            let e = if clock.still {
+                1.0
+            } else {
+                kairo_ui_kit::motion::OUT_EXPO
+                    .sample(((clock.t - (550.0 + index as f32 * 38.0)) / 900.0).clamp(0.0, 1.0))
             };
             let shade = index as f32 / (total - 1) as f32;
             let color = kairo_ui_kit::onboarding::mix(ob.text, ob.text.opacity(0.72), shade);
-            div().relative().top(px(size * 1.1 * 1.05 * (1.0 - e))).opacity(e).text_color(color).child(c.to_string())
+            div()
+                .relative()
+                .top(px(size * 1.1 * 1.05 * (1.0 - e)))
+                .opacity(e)
+                .text_color(color)
+                .child(c.to_string())
         });
         h_flex()
             .overflow_hidden()
@@ -1151,45 +1574,78 @@ impl Render for OnboardingWizard {
         let back_target = if touring { None } else { self.back_target(cx) };
         let last_slide = self.slide == TOUR_SLIDES.len() - 1;
         let setup_count = steps.len() - 1;
-        let progress = if setup_count > 0 { index as f32 / setup_count as f32 } else { 1.0 };
+        let progress = if setup_count > 0 {
+            index as f32 / setup_count as f32
+        } else {
+            1.0
+        };
         let footer = (!self.welcomed).then(|| {
             let left = v_flex()
                 .min_w_0()
                 .items_start()
                 .gap_1()
                 .when_some(back_target, |el, target| {
-                    el.child(text_link(ids::BACK, step_name(target), locked, Some(KairoIcon::ChevronLeft), cx.listener(|this, _, _, cx| this.back(cx)), &k))
+                    el.child(text_link(
+                        ids::BACK,
+                        step_name(target),
+                        locked,
+                        Some(KairoIcon::ChevronLeft),
+                        cx.listener(|this, _, _, cx| this.back(cx)),
+                        &k,
+                    ))
                 })
-                .when_some(self.error.clone(), |el, error| el.child(error_line(error, self.error_at, k.danger_text)));
+                .when_some(self.error.clone(), |el, error| {
+                    el.child(error_line(error, self.error_at, k.danger_text))
+                });
             let center: AnyElement = if on_account {
                 div().into_any_element()
             } else {
-                cta(ids::CONTINUE, if self.busy { "Saving…" } else { "Continue" }, locked, &ob, cx.listener(move |this, _, _, cx| {
-                    if this.touring(cx) {
-                        if this.slide == TOUR_SLIDES.len() - 1 {
-                            this.leave_tour(cx);
+                cta(
+                    ids::CONTINUE,
+                    if self.busy { "Saving…" } else { "Continue" },
+                    locked,
+                    &ob,
+                    cx.listener(move |this, _, _, cx| {
+                        if this.touring(cx) {
+                            if this.slide == TOUR_SLIDES.len() - 1 {
+                                this.leave_tour(cx);
+                            } else {
+                                this.go_to_slide(this.slide as isize + 1, cx);
+                            }
                         } else {
-                            this.go_to_slide(this.slide as isize + 1, cx);
+                            this.advance(cx);
                         }
-                    } else {
-                        this.advance(cx);
-                    }
-                }))
+                    }),
+                )
                 .into_any_element()
             };
             let right = h_flex().justify_end().map(|el| {
                 if touring {
-                    el.child(secondary(ids::SKIP_TOUR, "Skip Tour", locked, &ob, cx.listener(|this, _, _, cx| this.leave_tour(cx))))
+                    el.child(secondary(
+                        ids::SKIP_TOUR,
+                        "Skip Tour",
+                        locked,
+                        &ob,
+                        cx.listener(|this, _, _, cx| this.leave_tour(cx)),
+                    ))
                 } else if ready && !on_account {
-                    el.child(secondary(ids::LATER, "Set Up Later", locked, &ob, cx.listener(|this, _, _, cx| {
-                        this.finish(true, cx);
-                    })))
+                    el.child(secondary(
+                        ids::LATER,
+                        "Set Up Later",
+                        locked,
+                        &ob,
+                        cx.listener(|this, _, _, cx| {
+                            this.finish(true, cx);
+                        }),
+                    ))
                 } else {
                     el
                 }
             });
             let _ = last_slide;
-            let fill = if still { progress } else {
+            let fill = if still {
+                progress
+            } else {
                 kairo_ui_kit::motion::OUT_EXPO.sample((opened.t / 800.0).clamp(0.0, 1.0)) * progress
             };
             div()
@@ -1201,20 +1657,43 @@ impl Render for OnboardingWizard {
                 .pt_4()
                 .px(px(22.))
                 .pb(px(20.))
-                .when(!touring, |el| el.child(div().absolute().left_0().top_0().h(px(2.)).w(relative(fill)).bg(ob.blue)))
+                .when(!touring, |el| {
+                    el.child(
+                        div()
+                            .absolute()
+                            .left_0()
+                            .top_0()
+                            .h(px(2.))
+                            .w(relative(fill))
+                            .bg(ob.blue),
+                    )
+                })
                 .child(div().flex_1().child(left))
                 .child(center)
                 .child(div().flex_1().child(right))
         });
 
         // Keep drawing while anything settles or loops.
-        if !still && (clock.settling() || self.leaving.is_some() || (touring && TOUR_SLIDES[self.slide].id == "screens") || (touring && TOUR_SLIDES[self.slide].id == "scripture")) {
+        if !still
+            && (clock.settling()
+                || self.leaving.is_some()
+                || (touring && TOUR_SLIDES[self.slide].id == "screens")
+                || (touring && TOUR_SLIDES[self.slide].id == "scripture"))
+        {
             window.request_animation_frame();
         }
 
         let dialog_h = (height - 40.0).min(680.0);
-        let dialog_in = if still { 1.0 } else { kairo_ui_kit::motion::OUT_EXPO.sample((opened.t / 450.0).clamp(0.0, 1.0)) };
-        let scrim_in = if still { 1.0 } else { (opened.t / 250.0).clamp(0.0, 1.0) };
+        let dialog_in = if still {
+            1.0
+        } else {
+            kairo_ui_kit::motion::OUT_EXPO.sample((opened.t / 450.0).clamp(0.0, 1.0))
+        };
+        let scrim_in = if still {
+            1.0
+        } else {
+            (opened.t / 250.0).clamp(0.0, 1.0)
+        };
         div()
             .id("onboarding-scrim")
             .absolute()
@@ -1255,11 +1734,26 @@ impl Render for OnboardingWizard {
                             .px(px(22.))
                             .py(px(14.))
                             .child(KairoMark::new(MarkSize::Small))
-                            .child(div().text_size(px(14.)).font_weight(FontWeight::SEMIBOLD).text_color(k.text(TextStep::T300)).child("Welcome to Kairo")),
+                            .child(
+                                div()
+                                    .text_size(px(14.))
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(k.text(TextStep::T300))
+                                    .child("Welcome to Kairo"),
+                            ),
                     )
-                    .child(div().id("onboarding-body").relative().flex_1().min_h_0().overflow_y_scroll().child(body))
+                    .child(
+                        div()
+                            .id("onboarding-body")
+                            .relative()
+                            .flex_1()
+                            .min_h_0()
+                            .overflow_y_scroll()
+                            .child(body),
+                    )
                     .children(footer)
-                    .focus_trap("onboarding-trap", &self.focus),
+                    // The trap takes the element's id, so it carries the dialog's.
+                    .focus_trap(ids::DIALOG, &self.focus),
             )
     }
 }
@@ -1273,15 +1767,30 @@ mod tests {
         assert_eq!(base36(0), "0");
         assert_eq!(base36(35), "z");
         assert_eq!(base36(36), "10");
-        assert_eq!(base36(1_731_571_200_000), "m3hf8ttc");
+        assert_eq!(base36(1_731_571_200_000), "m3h0s8w0");
     }
 
     #[test]
     fn account_page_copy() {
-        assert_eq!(account_copy(true, false, true, None).0, "Activate this computer");
-        assert_eq!(account_copy(false, true, true, Some("a@b.c")).1, "Enter the 6-digit code we sent to a@b.c.");
-        assert_eq!(account_copy(false, true, true, None).1, "Enter the 6-digit code we sent to your email.");
-        assert_eq!(account_copy(false, false, true, None).0, "Create your account");
-        assert_eq!(account_copy(false, false, false, None).0, "Sign in to Kairo");
+        assert_eq!(
+            account_copy(true, false, true, None).0,
+            "Activate this computer"
+        );
+        assert_eq!(
+            account_copy(false, true, true, Some("a@b.c")).1,
+            "Enter the 6-digit code we sent to a@b.c."
+        );
+        assert_eq!(
+            account_copy(false, true, true, None).1,
+            "Enter the 6-digit code we sent to your email."
+        );
+        assert_eq!(
+            account_copy(false, false, true, None).0,
+            "Create your account"
+        );
+        assert_eq!(
+            account_copy(false, false, false, None).0,
+            "Sign in to Kairo"
+        );
     }
 }

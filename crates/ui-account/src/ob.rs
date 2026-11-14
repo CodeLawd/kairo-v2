@@ -1,10 +1,10 @@
-//! \`onboarding.css\`'s motion primitives as functions of time: \`ob-in\`,
-//! \`ob-rise\`, \`ob-pop\`, \`ob-select\`, \`ob-line\`, \`ob-out\`, the caret and the
+//! `onboarding.css`'s motion primitives as functions of time: `ob-in`,
+//! `ob-rise`, `ob-pop`, `ob-select`, `ob-line`, `ob-out`, the caret and the
 //! typing and countdown hooks of the tour's mock-ups.
 //!
-//! \`--dir\` is the direction of travel, \`--i\` staggers siblings (55 ms; 60 ms
-//! for \`ob-pop\`), \`--base\` delays a group. GPUI has no transforms, so
-//! \`ob-pop\` (scale 0.9 to 1) and \`ob-line\` (scaleY) play as a fade and a
+//! `--dir` is the direction of travel, `--i` staggers siblings (55 ms; 60 ms
+//! for `ob-pop`), `--base` delays a group. GPUI has no transforms, so
+//! `ob-pop` (scale 0.9 to 1) and `ob-line` (scaleY) play as a fade and a
 //! growing height. Under reduced motion everything is at rest.
 
 use gpui_kit::{Styled, px};
@@ -16,7 +16,7 @@ use kairo_ui_kit::motion::Timing;
 pub struct Clock {
     /// Milliseconds since it appeared.
     pub t: f32,
-    /// \`--dir\`: 1 forward, -1 back.
+    /// `--dir`: 1 forward, -1 back.
     pub dir: f32,
     /// Reduced motion: everything at rest.
     pub still: bool,
@@ -29,7 +29,11 @@ pub const SETTLE_MS: f32 = 3_200.0;
 impl Clock {
     /// A clock at rest.
     pub fn still() -> Self {
-        Self { t: f32::MAX, dir: 1.0, still: true }
+        Self {
+            t: f32::MAX,
+            dir: 1.0,
+            still: true,
+        }
     }
 
     fn progress(&self, delay: f32, duration: f32) -> f32 {
@@ -39,46 +43,48 @@ impl Clock {
         ((self.t - delay) / duration).clamp(0.0, 1.0)
     }
 
-    /// \`ob-in\` eased progress (0.6 s, \`--ease\`).
+    /// `ob-in` eased progress (0.6 s, `--ease`).
     pub fn in_progress(&self, i: usize, base: f32) -> f32 {
         OUT_EXPO.sample(self.progress(base + i as f32 * 55.0, 600.0))
     }
 
-    /// \`ob-in\`: enters \`dist\` px from the direction of travel.
+    /// `ob-in`: enters `dist` px from the direction of travel.
     pub fn ob_in<E: Styled>(&self, el: E, i: usize, base: f32, dist: f32) -> E {
         let e = self.in_progress(i, base);
-        el.opacity(e).relative().left(px(self.dir * dist * (1.0 - e)))
+        el.opacity(e)
+            .relative()
+            .left(px(self.dir * dist * (1.0 - e)))
     }
 
-    /// \`ob-rise\`: rises 10 px (0.5 s).
+    /// `ob-rise`: rises 10 px (0.5 s).
     pub fn rise<E: Styled>(&self, el: E, i: usize, base: f32) -> E {
         let e = OUT_EXPO.sample(self.progress(base + i as f32 * 55.0, 500.0));
         el.opacity(e).relative().top(px(10.0 * (1.0 - e)))
     }
 
-    /// \`ob-pop\` (0.45 s, 60 ms stagger), as a fade.
+    /// `ob-pop` (0.45 s, 60 ms stagger), as a fade.
     pub fn pop<E: Styled>(&self, el: E, i: usize, base: f32) -> E {
         let e = OUT_EXPO.sample(self.progress(base + i as f32 * 60.0, 450.0));
         el.opacity(e)
     }
 
-    /// \`ob-select\`: how far a fill has arrived (0.4 s ease-out).
+    /// `ob-select`: how far a fill has arrived (0.4 s ease-out).
     pub fn select(&self, base: f32) -> f32 {
         Timing::EaseOut.sample(self.progress(base, 400.0))
     }
 
-    /// \`ob-line\`: a callout line's drawn fraction (0.5 s).
+    /// `ob-line`: a callout line's drawn fraction (0.5 s).
     pub fn line(&self, base: f32) -> f32 {
         OUT_EXPO.sample(self.progress(base, 500.0))
     }
 
-    /// \`ob-blink\`: whether the caret shows (1 s, steps).
+    /// `ob-blink`: whether the caret shows (1 s, steps).
     pub fn caret(&self) -> bool {
         self.still || (self.t % 1000.0) < 500.0
     }
 
-    /// \`useTypewriter\`: characters typed of \`len\`, one every \`speed\` ms after
-    /// \`delay\`; all at once under reduced motion.
+    /// `useTypewriter`: characters typed of `len`, one every `speed` ms after
+    /// `delay`; all at once under reduced motion.
     pub fn typed(&self, len: usize, delay: f32, speed: f32) -> usize {
         if self.still {
             return len;
@@ -89,7 +95,7 @@ impl Clock {
         (((self.t - delay) / speed).floor() as usize).min(len)
     }
 
-    /// \`useCountdown\`: seconds left of \`from\`, starting again after 0;
+    /// `useCountdown`: seconds left of `from`, starting again after 0;
     /// frozen under reduced motion.
     pub fn countdown(&self, from: u32) -> String {
         let left = if self.still {
@@ -106,7 +112,7 @@ impl Clock {
     }
 }
 
-/// \`ob-out\`: the leaving slide, \`t\` ms after it started leaving (0.3 s).
+/// `ob-out`: the leaving slide, `t` ms after it started leaving (0.3 s).
 pub fn out<E: Styled>(el: E, t: f32, dir: f32) -> E {
     let e = Timing::Bezier(0.4, 0.0, 1.0, 1.0).sample((t / 300.0).clamp(0.0, 1.0));
     el.opacity(1.0 - e).relative().left(px(dir * -40.0 * e))
@@ -117,7 +123,11 @@ mod tests {
     use super::*;
 
     fn at(t: f32) -> Clock {
-        Clock { t, dir: 1.0, still: false }
+        Clock {
+            t,
+            dir: 1.0,
+            still: false,
+        }
     }
 
     #[test]
