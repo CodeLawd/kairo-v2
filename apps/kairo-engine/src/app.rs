@@ -994,6 +994,15 @@ impl Engine {
                 Some(_) => Reply::VideoEnded(self.videos.as_ref().is_none_or(|v| v.ended(&output))),
                 None => Reply::UnknownSurface,
             },
+            Query::VideoTime { output } => match has(&output) {
+                Some(_) => Reply::VideoTime(
+                    self.videos
+                        .as_ref()
+                        .and_then(|v| v.background_status(&output))
+                        .map(|status| video_time(&status)),
+                ),
+                None => Reply::UnknownSurface,
+            },
             Query::DocumentPlayback { output } => match has(&output) {
                 Some(surface) => Reply::DocumentPlayback(
                     crate::documents::playback(
@@ -2027,4 +2036,18 @@ fn new_sound(ndi: &crate::ndi::Ndi) -> crate::sound::Sound {
     let mut sound = crate::sound::Sound::new();
     sound.send_ndi_audio(ndi.audio_route());
     sound
+}
+
+/// `OverlayVideoTime` from a transport status: the duration is the range's
+/// end once known, 0 before.
+fn video_time(status: &kairo_video::transport::Status) -> kairo_engine_proto::VideoTime {
+    kairo_engine_proto::VideoTime {
+        current_time: status.position,
+        duration: if status.end.is_finite() {
+            status.end
+        } else {
+            0.0
+        },
+        ended: status.video_ended(),
+    }
 }

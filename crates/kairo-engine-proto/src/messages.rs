@@ -460,6 +460,9 @@ pub enum Query {
     DisplayState,
     /// `__videoEnded`: has the background video finished, or is there none.
     VideoEnded { output: String },
+    /// The background video's clock for the operator's transport bar
+    /// (`OverlayVideoTime`: `currentTime`, `duration`, `ended`).
+    VideoTime { output: String },
     /// `__documentPlayback`.
     DocumentPlayback { output: String },
     /// Every surface's state, for diagnostics and replay checks.
@@ -496,6 +499,8 @@ pub enum Reply {
         sleep_blocked: bool,
     },
     VideoEnded(bool),
+    /// `None` while the output has no background video.
+    VideoTime(Option<VideoTime>),
     /// `DocumentPlaybackStatus`, or `None` outside document mode.
     DocumentPlayback(Option<Json>),
     State(Vec<SurfaceState>),
@@ -504,6 +509,14 @@ pub enum Reply {
     NdiAudioSupported(bool),
     /// The query named a surface the engine does not have.
     UnknownSurface,
+}
+
+/// `OverlayVideoTime`. `duration` is 0 until the stream's length is known.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct VideoTime {
+    pub current_time: f64,
+    pub duration: f64,
+    pub ended: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

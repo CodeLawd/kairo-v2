@@ -22,6 +22,7 @@ mod display_reporting;
 mod dock;
 pub mod handlers;
 mod motion;
+mod operator;
 mod power;
 mod quote_detector;
 pub mod services;
@@ -168,8 +169,29 @@ fn open_operator_window(
         user_data: Some(paths.user_data.clone()),
         splash: true,
     };
+    let operator_backend: Arc<dyn ui_operator::OperatorBackend> =
+        Arc::new(operator::ServicesBackend::new(services.clone()));
+    let ui_state: Arc<dyn ui_operator::UiState> =
+        Arc::new(operator::UiStateStore::open(&paths.user_data));
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
+        let workspace = cx
+            .new(|cx| ui_operator::OperatorWorkspace::new(operator_backend, ui_state, window, cx));
+        let screens = shell.downgrade();
+        cx.subscribe(
+            &workspace,
+            move |_, event: &ui_operator::OperatorEvent, cx| match event {
+                ui_operator::OperatorEvent::OpenScreens => {
+                    let _ = screens.update(cx, |shell, cx| {
+                        shell.open_overlay(ui_shell::Overlay::Screens, cx)
+                    });
+                }
+            },
+        )
+        .detach();
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Operator, workspace.into(), cx)
+        });
         let reporter = display_reporting::ControlDisplayReporter::new(window, cx, engine);
         cx.set_global(DisplayReporter {
             _reporter: reporter,

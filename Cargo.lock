@@ -5083,6 +5083,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "ui-operator",
  "ui-shell",
  "ui-web",
 ]
@@ -10788,6 +10789,19 @@ version = "0.1.0"
 [[package]]
 name = "ui-operator"
 version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "gpui-kit",
+ "kairo-core",
+ "kairo-core-gpui",
+ "kairo-domain",
+ "kairo-engine-proto",
+ "kairo-output",
+ "kairo-ui-kit",
+ "serde",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "ui-screens"

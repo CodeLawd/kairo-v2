@@ -599,6 +599,12 @@ impl KairoColors {
     pub fn scrim(&self) -> Hsla {
         rgba(0, 0, 0, 0.5)
     }
+
+    /// The live monitor's empty frame (`bg-black`): the screen's black in
+    /// both appearances.
+    pub fn monitor(&self) -> Hsla {
+        rgba(0, 0, 0, 1.0)
+    }
 }
 
 /// `.glass` alpha.

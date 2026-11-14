@@ -51,6 +51,18 @@ async fn ended(engine: &EngineHandle) -> bool {
     }
 }
 
+async fn time(engine: &EngineHandle) -> Option<VideoTime> {
+    match engine
+        .query(Query::VideoTime {
+            output: "main".into(),
+        })
+        .await
+    {
+        Some(Reply::VideoTime(t)) => t,
+        other => panic!("{other:?}"),
+    }
+}
+
 async fn becomes(engine: &EngineHandle, want: bool, within: Duration, what: &str) {
     let deadline = Instant::now() + within;
     while ended(engine).await != want {
@@ -107,8 +119,9 @@ async fn background_video_transport_and_ended() {
             frame_height: 1080,
         }),
     }));
-    // Nothing shown: no video counts as ended.
+    // Nothing shown: no video counts as ended, and there is no clock.
     assert!(ended(&engine).await);
+    assert_eq!(time(&engine).await, None);
 
     let show = |s: SlideContent| {
         engine.command(Command::ShowSlide {
@@ -129,6 +142,14 @@ async fn background_video_transport_and_ended() {
     show(slide(&short, None, false, "one"));
     becomes(&engine, false, Duration::from_secs(3), "playing").await;
     becomes(&engine, true, Duration::from_secs(4), "finished").await;
+    // The operator's transport reads the same clock: the end of the range.
+    let at_end = time(&engine).await.expect("a background video has a clock");
+    assert!(at_end.ended);
+    assert!((at_end.duration - 1.0).abs() < 0.05, "{at_end:?}");
+    assert!(
+        (at_end.current_time - at_end.duration).abs() < 0.05,
+        "{at_end:?}"
+    );
 
     // The lobby's repeat of the same item: seek(0) and resume.
     transport(VideoTransport::Seek(0.0));
@@ -138,6 +159,17 @@ async fn background_video_transport_and_ended() {
     transport(VideoTransport::Pause(true));
     tokio::time::sleep(Duration::from_millis(1500)).await;
     assert!(!ended(&engine).await, "paused part-way");
+    let paused = time(&engine).await.unwrap();
+    assert!(
+        !paused.ended && paused.current_time < paused.duration,
+        "{paused:?}"
+    );
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(
+        time(&engine).await.unwrap().current_time,
+        paused.current_time,
+        "a paused clock holds"
+    );
     transport(VideoTransport::Pause(false));
     becomes(&engine, true, Duration::from_secs(4), "finished again").await;
 
