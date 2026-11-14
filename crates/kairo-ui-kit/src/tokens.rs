@@ -225,6 +225,8 @@ pub struct KairoColors {
     pub checker_dark: Hsla,
     /// `paper` (`#F9FAFB`): the sermon notes page, both themes.
     pub paper: Hsla,
+    /// `text-yellow-400` (`#FACC15`): a favourite song's star, both themes.
+    pub favorite: Hsla,
     /// A detected reference in the sermon notes (`#CAD5E2`), both themes.
     pub sermon_mark: Hsla,
     /// The active reference and the notes selection (`#B9D7FF`), both themes.
@@ -404,6 +406,7 @@ impl KairoColors {
             checker_light: rgb(0x30, 0x30, 0x30),
             checker_dark: rgb(0x24, 0x24, 0x24),
             paper: rgb(0xf9, 0xfa, 0xfb),
+            favorite: rgb(0xfa, 0xcc, 0x15),
             sermon_mark: rgb(0xca, 0xd5, 0xe2),
             sermon_mark_active: rgb(0xb9, 0xd7, 0xff),
             notice_text: rgb(0x2d, 0xd4, 0xbf),
@@ -514,6 +517,7 @@ impl KairoColors {
             checker_light: rgb(0x30, 0x30, 0x30),
             checker_dark: rgb(0x24, 0x24, 0x24),
             paper: rgb(0xf9, 0xfa, 0xfb),
+            favorite: rgb(0xfa, 0xcc, 0x15),
             sermon_mark: rgb(0xca, 0xd5, 0xe2),
             sermon_mark_active: rgb(0xb9, 0xd7, 0xff),
             notice_text: rgb(0x2d, 0xd4, 0xbf),
@@ -756,4 +760,37 @@ pub mod metrics {
     pub fn pref_line_inset() -> Rems {
         rems(0.875)
     }
+}
+
+/// The lyric section kinds, for [`section_color`] (`LyricsSectionType`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SectionKind {
+    Verse,
+    Chorus,
+    PreChorus,
+    Bridge,
+    Tag,
+    Intro,
+    Outro,
+    Ending,
+}
+
+/// `SECTION_COLOR` (`section-colors.ts`): one solid fill per section type,
+/// the same in both themes, deep enough for [`section_text`] at 5:1.
+pub fn section_color(kind: SectionKind) -> Hsla {
+    match kind {
+        SectionKind::Verse => rgb(0x3b, 0x63, 0xd9),
+        SectionKind::Chorus => rgb(0xc8, 0x37, 0x2d),
+        SectionKind::PreChorus => rgb(0x0e, 0x74, 0x90),
+        SectionKind::Bridge => rgb(0x7c, 0x3a, 0xed),
+        SectionKind::Tag => rgb(0xa1, 0x5c, 0x07),
+        SectionKind::Intro => rgb(0x37, 0x41, 0x51),
+        SectionKind::Outro => rgb(0x4f, 0x46, 0xe5),
+        SectionKind::Ending => rgb(0xbe, 0x12, 0x3c),
+    }
+}
+
+/// `SECTION_TEXT` (`#F9FAFB`): text on a section fill.
+pub fn section_text() -> Hsla {
+    rgb(0xf9, 0xfa, 0xfb)
 }

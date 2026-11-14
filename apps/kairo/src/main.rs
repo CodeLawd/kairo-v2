@@ -23,6 +23,7 @@ pub mod dialogs;
 mod display_reporting;
 mod dock;
 pub mod handlers;
+mod lyrics;
 mod motion;
 mod operator;
 mod power;
@@ -242,6 +243,8 @@ fn open_operator_window(
         services.clone(),
         ui_state.clone(),
     ));
+    let lyrics_backend: Arc<dyn ui_lyrics::LyricsBackend> =
+        Arc::new(lyrics::ServicesLyrics::new(services.clone()));
     let scripture_backend: Arc<dyn ui_scripture::ScriptureBackend> = Arc::new(
         scripture::ServicesScripture::new(services.clone(), ui_state.clone()),
     );
@@ -297,6 +300,10 @@ fn open_operator_window(
         let scripture_page = scripture::install(scripture_backend, &workspace, &shell, window, cx);
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Scripture, scripture_page.into(), cx)
+        });
+        let lyrics_page = lyrics::install(lyrics_backend, &workspace, &shell, window, cx);
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Lyrics, lyrics_page.into(), cx)
         });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Operator, workspace.into(), cx)

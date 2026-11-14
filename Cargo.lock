@@ -5086,6 +5086,7 @@ dependencies = [
  "tokio",
  "tracing",
  "ui-account",
+ "ui-lyrics",
  "ui-operator",
  "ui-scripture",
  "ui-settings",
@@ -10787,6 +10788,17 @@ version = "0.1.0"
 [[package]]
 name = "ui-lyrics"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+ "feruca",
+ "futures-channel",
+ "futures-util",
+ "gpui-kit",
+ "kairo-domain",
+ "kairo-ui-kit",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "ui-media"
