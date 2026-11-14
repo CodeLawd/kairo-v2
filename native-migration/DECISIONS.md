@@ -1342,3 +1342,9 @@ Decision: the GPUI side is `kairo_core_gpui::preview::LivePreview`. Each new fra
 Decision: thumbnails (`kairo_core_gpui::thumbnails::Thumbnails`) hold the slide's text layer only, built with `SlideScene::build` at 1920 × 1080 (Electron's fixed thumbnail frame, so auto-fit does not treat the card as the frame) on `RasterPool` workers, reduced to the card size there and un-premultiplied. The card draws the theme background beneath. In Electron a video background was already a still. Requests carry a key computed once (`ThumbnailRequest::new`). Images are an LRU keyed by the scene's content hash; two requests with the same scene share an image; an evicted image is removed from every window's atlas (`App::drop_image`) and redrawn when asked for again. `get` answers `Pending` (placeholder) until the worker finishes; workers put results in a queue that a GPUI timer takes every 16 ms only while jobs are outstanding, because GPUI's scheduler must not be woken from foreign threads (its test scheduler rejects it). A scene that cannot be built stays `Failed` (placeholder).
 
 Affects prompts: 067, 076, 078, 081, 086.
+
+## 2026-11-14 — Owner — Long runs are capped at 10 minutes
+
+Decision: the owner limited every soak, spike and endurance run in the remaining prompts to 10 minutes. Prompt 006's web-host run is 10 minutes instead of 20; prompt 108's scripted service is 10 minutes instead of 4 hours, still run twice, with RSS growth measured after the first 2 minutes instead of 30. Prompt 110 already used 10-minute runs. Prompt 091's "2-hour service" is the size of transcript the view must handle, not a run length, and is unchanged. Results from these shorter runs are reported as 10-minute results; a leak slower than they can show is not ruled out.
+
+Affects prompts: 006, 108.
