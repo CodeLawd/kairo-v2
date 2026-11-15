@@ -482,3 +482,29 @@ fn seeks_and_pauses_on_a_playing_clip_are_not_glitches() {
     std::thread::sleep(Duration::from_millis(300));
     assert_eq!(source.underruns(), 0);
 }
+
+/// House audio with no output device at all (prompt 084): the track still
+/// loads and reports its length, the player names no device, and play,
+/// pause, seek and stop never panic.
+#[test]
+fn tracks_play_pause_seek_and_stop_with_no_audio_device() {
+    use crate::output::fake::FakeHost;
+    use crate::tracks::TracksPlayer;
+    let path = ramp("ramp-tracks-null.wav", 2.0);
+    let mut player = TracksPlayer::with_host(FakeHost::default());
+    assert_eq!(player.device(), None);
+    player.set_live(Some(("t1", path.clone())), false);
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while player.time().duration <= 0.0 && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let t = player.time();
+    assert!((t.duration - 2.0).abs() < 0.05, "{t:?}");
+    player.set_live(Some(("t1", path.clone())), true);
+    player.seek(1.5);
+    player.seek(-3.0);
+    player.set_live(Some(("t1", path)), false);
+    player.set_live(None, false);
+    assert_eq!(player.time(), crate::tracks::TrackTime::default());
+    assert_eq!(player.error(), None);
+}

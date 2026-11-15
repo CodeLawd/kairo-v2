@@ -33,6 +33,7 @@ pub mod services;
 mod scripture;
 mod settings;
 mod spell;
+mod tracks;
 
 /// When `main` began, for the launch-to-first-paint log line.
 static LAUNCHED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
@@ -254,6 +255,7 @@ fn open_operator_window(
     let scripture_backend: Arc<dyn ui_scripture::ScriptureBackend> = Arc::new(
         scripture::ServicesScripture::new(services.clone(), ui_state.clone()),
     );
+    let tracks_services = services.clone();
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
@@ -302,7 +304,11 @@ fn open_operator_window(
             },
         )
         .detach();
-        booth::install(booth_backend, &workspace, &shell, booth_account, window, cx);
+        let booth_views =
+            booth::install(booth_backend, &workspace, &shell, booth_account, window, cx);
+        let tracks_backend: Arc<dyn ui_media::tracks::TracksBackend> =
+            Arc::new(tracks::ServicesTracks::new(tracks_services.clone()));
+        tracks::install(tracks_backend, &tracks_services, &booth_views, window, cx);
         let scripture_page = scripture::install(scripture_backend, &workspace, &shell, window, cx);
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Scripture, scripture_page.clone().into(), cx)

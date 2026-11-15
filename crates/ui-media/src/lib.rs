@@ -12,6 +12,7 @@ pub mod inspector;
 pub mod model;
 pub mod player;
 pub mod rows;
+pub mod tracks;
 pub mod view;
 
 pub use backend::MediaBackend;

@@ -137,6 +137,9 @@ pub struct ApplicationServices {
     pub plans: LivePlanService,
     pub media: Media,
     pub tracks: Tracks,
+    /// The walk-in music player (056), shared so the Tracks panel can read
+    /// its position and seek (084).
+    pub track_player: Arc<Mutex<kairo_audio::tracks::TracksPlayer>>,
     pub documents: Arc<kairo_documents::service::DocumentsService>,
     pub converter: Arc<kairo_documents::slide_converter::SlideConverter>,
     pub program: Arc<ProgramService>,
@@ -1105,6 +1108,7 @@ async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, Strin
         plans: state.plans.clone(),
         media,
         tracks,
+        track_player: Arc::new(Mutex::new(kairo_audio::tracks::TracksPlayer::new())),
         documents,
         converter,
         program,
@@ -1194,10 +1198,13 @@ fn wire_events(
     });
     let tracks = lock(&services.tracks).subscribe();
     let topics = services.core.publisher();
+    let player = services.track_player.clone();
     tokio::spawn(async move {
-        let mut player = kairo_audio::tracks::TracksPlayer::new();
         while let Some(value) = tracks.next().await {
-            player.follow(&value);
+            player
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .follow(&value);
             topics.publish(value);
         }
     });

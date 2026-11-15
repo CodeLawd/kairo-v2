@@ -504,7 +504,7 @@ pub fn install(
     account: gpui_kit::Entity<ui_account::Account>,
     window: &mut gpui_kit::Window,
     cx: &mut gpui_kit::App,
-) {
+) -> ui_operator::BoothViews {
     use gpui_kit::AppContext;
     use gpui_kit::component::WindowExt;
     use ui_operator::BoothEvent;
@@ -557,4 +557,5 @@ pub fn install(
         });
     })
     .detach();
+    views
 }
