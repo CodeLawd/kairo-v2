@@ -348,9 +348,9 @@ impl Drop for AbortOnDrop {
     }
 }
 
-struct SampleLifetime {
-    engine: Arc<dyn kairo_core::engine::OutputEngine>,
-    output: String,
+pub(crate) struct SampleLifetime {
+    pub(crate) engine: Arc<dyn kairo_core::engine::OutputEngine>,
+    pub(crate) output: String,
 }
 impl Drop for SampleLifetime {
     fn drop(&mut self) {
@@ -364,7 +364,7 @@ impl Drop for SampleLifetime {
 
 /// Private preview media must not join a live output's decoder: changing
 /// a sample's loop/transport would otherwise affect the shared source.
-fn isolated_sample_theme(
+pub(crate) fn isolated_sample_theme(
     theme: &kairo_domain::overlay::OverlayTheme,
     namespace: &str,
 ) -> kairo_domain::overlay::OverlayTheme {

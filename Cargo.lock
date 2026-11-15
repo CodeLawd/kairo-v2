@@ -5072,12 +5072,14 @@ dependencies = [
  "kairo-net",
  "kairo-orchestrator",
  "kairo-output",
+ "kairo-scene",
  "kairo-scripture",
  "kairo-store",
  "kairo-stt",
  "kairo-transfer",
  "kairo-ui-kit",
  "kairo-updater",
+ "kairo-video",
  "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
  "objc2-foundation 0.3.2",
@@ -5094,6 +5096,7 @@ dependencies = [
  "ui-scripture",
  "ui-settings",
  "ui-shell",
+ "ui-theme",
  "ui-web",
 ]
 
@@ -10909,6 +10912,19 @@ dependencies = [
 [[package]]
 name = "ui-theme"
 version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "gpui-kit",
+ "image",
+ "kairo-core",
+ "kairo-core-gpui",
+ "kairo-domain",
+ "kairo-scene",
+ "kairo-ui-kit",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "ui-web"

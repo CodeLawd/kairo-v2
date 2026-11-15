@@ -35,6 +35,7 @@ mod scripture;
 pub mod services;
 mod settings;
 mod spell;
+mod theme;
 mod tracks;
 
 /// When `main` began, for the launch-to-first-paint log line.
@@ -264,6 +265,8 @@ fn open_operator_window(
     let documents_backend: Arc<dyn ui_documents::DocumentsBackend> = Arc::new(
         documents::ServicesDocuments::new(services.clone(), ui_state.clone()),
     );
+    let theme_backend: Arc<dyn ui_theme::ThemeBackend> =
+        Arc::new(theme::ServicesTheme::new(services.clone()));
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
@@ -340,6 +343,10 @@ fn open_operator_window(
         });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Documents, documents_page.into(), cx)
+        });
+        let theme_page = theme::install(theme_backend, window, cx);
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Theme, theme_page.into(), cx)
         });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Lyrics, lyrics_page.clone().into(), cx)

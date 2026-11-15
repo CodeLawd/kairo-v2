@@ -21,6 +21,9 @@ ui-media = { path = "../../crates/ui-media" }
 ui-account = { path = "../../crates/ui-account" }
 ui-settings = { path = "../../crates/ui-settings" }
 ui-screens = { path = "../../crates/ui-screens" }
+ui-theme = { path = "../../crates/ui-theme" }
+kairo-scene = { path = "../../crates/kairo-scene" }
+kairo-video = { path = "../../crates/kairo-video" }
 futures-channel = "0.3"
 iana-time-zone = "0.1"
 tracing = "0.1"

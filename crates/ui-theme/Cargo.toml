@@ -3,3 +3,20 @@ name = "ui-theme"
 version.workspace = true
 edition.workspace = true
 publish = false
+
+[dependencies]
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+image = { version = "0.25", default-features = false }
+gpui-kit.workspace = true
+kairo-core = { path = "../kairo-core" }
+kairo-core-gpui = { path = "../kairo-core-gpui" }
+kairo-domain = { path = "../kairo-domain" }
+kairo-scene = { path = "../kairo-scene" }
+kairo-ui-kit = { path = "../kairo-ui-kit" }
+serde_json = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }
+kairo-ui-kit = { path = "../kairo-ui-kit" }
