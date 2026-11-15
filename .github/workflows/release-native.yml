@@ -1,0 +1,312 @@
+name: Release (native)
+
+# Coordinated native release (prompt 104), the counterpart of the Electron
+# app's .github/workflows/release.yml.
+#
+# The platform workflows build, sign and verify on their own runners and
+# upload to workflow storage only. ONLY the `publish` job creates a release,
+# and only after the checks and every platform (including its install tests)
+# succeed: a partial matrix can never publish. `fail_job` fails one platform
+# on purpose, to prove that.
+#
+# Manual trigger only, until prompt 112 approves general release. Until then
+# every release is a DRAFT pre-release, never `latest`: the website's download
+# links and both updaters read `releases/latest` of CodeLawd/kairo-presenter,
+# which skips drafts and pre-releases, so Electron keeps publishing normally.
+# Prompt 112 changes `draft`/`prerelease`/`latest` below and nothing else.
+#
+# Start it with `cargo run -p kairo-release -- prepare <bump>`, which checks,
+# bumps, tags and pushes first, or by hand:
+#   gh workflow run release-native.yml --ref v2.0.0 -f release_tag=v2.0.0
+#
+# Where it publishes:
+#   CodeLawd/kairo-presenter (default) — where deployed apps and the website
+#     read releases. Needs KAIRO_PRESENTER_RELEASE_TOKEN in the `release`
+#     environment: a fine-grained token for that repository only, with
+#     Contents: read and write and nothing else.
+#   this repository — dry runs only, with a test tag (v2.0.0-test.1) and the
+#     workflow's own token.
+#
+# Secrets and variables are the platform workflows' (signing certificates,
+# notarization, PROD_API_URL, PROD_WEB_URL, …), inherited unchanged.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Tag to build (v2.0.0; v2.0.0-test.N for a dry run into this repository)
+        required: true
+        type: string
+      target_repo:
+        description: Where the draft release goes
+        required: true
+        type: choice
+        default: CodeLawd/kairo-presenter
+        options:
+          - CodeLawd/kairo-presenter
+          - CodeLawd/kairo-v2
+      skip_changelog:
+        description: Internal-only release with no What's New entry
+        required: false
+        type: boolean
+        default: false
+      fail_job:
+        description: Dry run only — fail this platform on purpose
+        required: false
+        type: choice
+        default: none
+        options:
+          - none
+          - macos-arm64
+          - macos-x86_64
+          - windows
+          - linux
+
+permissions:
+  contents: read
+
+concurrency:
+  # One release per tag at a time; never cancel a running publish.
+  group: release-native-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Version, changelog and target
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      test: ${{ steps.check.outputs.test }}
+    steps:
+      - name: Validate inputs
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+          FAIL_JOB: ${{ inputs.fail_job }}
+          OWN_REPO: ${{ github.repository }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-test\.[0-9]+)?$ ]] ||
+            { echo "::error::release_tag must look like v2.0.0 (or v2.0.0-test.1 for a dry run)"; exit 1; }
+          if [[ "$RELEASE_TAG" == *-test.* && "$TARGET_REPO" != "$OWN_REPO" ]]; then
+            echo "::error::a test tag may only publish a dry run to $OWN_REPO"; exit 1
+          fi
+          if [[ "$TARGET_REPO" != "$OWN_REPO" && "$RELEASE_TAG" != *-test.* && "$FAIL_JOB" != none ]]; then
+            echo "::error::fail_job is for dry runs; use a test tag and $OWN_REPO"; exit 1
+          fi
+          [[ "${{ github.ref }}" == "refs/tags/$RELEASE_TAG" ]] ||
+            { echo "::error::run this workflow on the tag itself (--ref $RELEASE_TAG), not on ${{ github.ref }}"; exit 1; }
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Select Rust toolchain
+        # The release tool reads feeds with kairo-updater, whose dependencies
+        # link D-Bus (the keyring) on Linux.
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config >/dev/null
+          rustup toolchain install stable --profile minimal
+
+      - name: Cache Cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Version, sequence and changelog
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SKIP_CHANGELOG: ${{ inputs.skip_changelog }}
+        run: |
+          # The release repository is public; the latest release is Electron's
+          # until cutover. Native versions must sort above it (DECISIONS 104).
+          electron="$(gh api repos/CodeLawd/kairo-presenter/releases/latest --jq .tag_name)"
+          [ -n "$electron" ] || { echo "::error::cannot read the latest CodeLawd/kairo-presenter release"; exit 1; }
+          args=(check-tag --tag "$RELEASE_TAG" --electron-latest "$electron")
+          [[ "$RELEASE_TAG" == *-test.* ]] && args+=(--allow-test)
+          [ "$SKIP_CHANGELOG" = true ] && args+=(--skip-changelog)
+          cargo build --locked -q -p kairo-release
+          version="$(target/debug/kairo-release "${args[@]}" | tail -1)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "test=$([[ "$RELEASE_TAG" == *-test.* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Native v$version (latest Electron: $electron)"
+
+      - name: DeckLink helper matches its sources
+        run: target/debug/kairo-release decklink
+
+      - name: Refuse to overwrite a published release
+        # A draft from an earlier attempt may be replaced; a published release never.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          TARGET_REPO: ${{ inputs.target_repo }}
+        run: |
+          # Drafts are invisible to this token on another repository, so only a
+          # published release can show up here.
+          if gh api "repos/$TARGET_REPO/releases/tags/$RELEASE_TAG" --jq .draft 2>/dev/null | grep -qx false; then
+            echo "::error::$TARGET_REPO already has a published $RELEASE_TAG release"; exit 1
+          fi
+          echo "no published $RELEASE_TAG on $TARGET_REPO"
+
+  checks:
+    name: Workspace checks
+    needs: prepare
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.release_tag }}
+
+  macos:
+    name: macOS
+    needs: prepare
+    uses: ./.github/workflows/package-macos.yml
+    secrets: inherit
+    with:
+      ref: ${{ inputs.release_tag }}
+      fail_for_test: ${{ inputs.fail_job }}
+
+  windows:
+    name: Windows
+    needs: prepare
+    uses: ./.github/workflows/package-windows.yml
+    secrets: inherit
+    with:
+      ref: ${{ inputs.release_tag }}
+      fail_for_test: ${{ inputs.fail_job }}
+
+  linux:
+    name: Linux
+    needs: prepare
+    uses: ./.github/workflows/package-linux.yml
+    secrets: inherit
+    with:
+      ref: ${{ inputs.release_tag }}
+      fail_for_test: ${{ inputs.fail_job }}
+
+  publish:
+    name: Publish draft release
+    # `needs` without `if: always()`: if any job failed or was cancelled,
+    # this job is skipped and nothing is published.
+    needs: [prepare, checks, macos, windows, linux]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write # only for a dry run into this repository
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      TARGET_REPO: ${{ inputs.target_repo }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_tag }}
+
+      - name: Select Rust toolchain
+        # The release tool reads feeds with kairo-updater, whose dependencies
+        # link D-Bus (the keyring) on Linux.
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config >/dev/null
+          rustup toolchain install stable --profile minimal
+
+      - name: Cache Cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Release tool
+        run: cargo build --locked -q -p kairo-release
+
+      # No `merge-multiple`: each platform's files land in dist/<artifact>/
+      # and are staged explicitly, so nothing is silently overwritten.
+      - name: Download platform artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          pattern: kairo-*
+
+      - name: Stage flat release directory
+        run: |
+          mkdir stage
+          for artifact in kairo-mac-arm64 kairo-mac-x86_64 kairo-windows-x64 kairo-linux-x64; do
+            [ -d "dist/$artifact" ] || { echo "::error::missing artifact $artifact"; exit 1; }
+            for f in "dist/$artifact"/*; do
+              name="$(basename "$f")"
+              [ ! -e "stage/$name" ] || { echo "::error::$name is uploaded by two platforms"; exit 1; }
+              cp "$f" stage/
+            done
+          done
+          ls -la stage
+
+      - name: macOS update metadata (arm64 + x64)
+        # What one dual-arch electron-builder run writes: one latest-mac.yml
+        # listing both architectures, plus minimumSystemVersion for macOS 13.
+        run: target/debug/kairo-release mac-feed --dir stage --version "$VERSION" --release-date "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+
+      - name: Verify complete release (no partial releases)
+        run: target/debug/kairo-release verify --dir stage --version "$VERSION"
+
+      - name: SHA-256 manifest
+        run: |
+          target/debug/kairo-release sha256sums --dir stage
+          target/debug/kairo-release verify --dir stage --version "$VERSION"
+
+      - name: Release notes
+        env:
+          INTERNAL: ${{ inputs.skip_changelog || needs.prepare.outputs.test == 'true' }}
+        run: |
+          args=(notes --version "$VERSION")
+          [ "$INTERNAL" = true ] && args+=(--internal)
+          target/debug/kairo-release "${args[@]}" > notes.md
+          cat notes.md
+
+      - name: Publish draft release
+        env:
+          # This repository: the workflow's own token. The release repository:
+          # a token scoped to it alone.
+          GH_TOKEN: ${{ inputs.target_repo == github.repository && github.token || secrets.KAIRO_PRESENTER_RELEASE_TOKEN }}
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "::error::KAIRO_PRESENTER_RELEASE_TOKEN is not set in the release environment"; exit 1; }
+          latest_before="$(gh api "repos/$TARGET_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
+
+          # Replace an earlier draft of this tag; a published one stops here.
+          existing="$(gh api --paginate "repos/$TARGET_REPO/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | \"\(.id) \(.draft)\"")"
+          if [ -n "$existing" ]; then
+            if echo "$existing" | grep -q ' false$'; then
+              echo "::error::$TARGET_REPO already has a published $RELEASE_TAG release"; exit 1
+            fi
+            for id in $(echo "$existing" | cut -d' ' -f1); do
+              echo "deleting earlier draft $id"
+              gh api -X DELETE "repos/$TARGET_REPO/releases/$id"
+            done
+          fi
+
+          # Until prompt 112: draft and pre-release, never latest.
+          gh release create "$RELEASE_TAG" stage/* \
+            --repo "$TARGET_REPO" \
+            --title "Kairo $VERSION (native)" \
+            --notes-file notes.md \
+            --draft --prerelease --latest=false
+
+          # Prove what was made: a draft with every asset, and latest unchanged.
+          view="$(gh release view "$RELEASE_TAG" --repo "$TARGET_REPO" --json isDraft,isPrerelease,assets \
+            --jq '"\(.isDraft) \(.isPrerelease) \(.assets | length)"')"
+          echo "release: draft prerelease assets = $view"
+          [ "$view" = "true true $(ls stage | wc -l | tr -d ' ')" ] ||
+            { echo "::error::the release is not a complete draft pre-release ($view)"; exit 1; }
+          latest_after="$(gh api "repos/$TARGET_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          [ "$latest_before" = "$latest_after" ] ||
+            { echo "::error::the latest release changed ($latest_before → $latest_after)"; exit 1; }
+          echo "latest release unchanged: ${latest_after:-none}"

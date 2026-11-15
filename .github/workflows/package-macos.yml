@@ -16,9 +16,21 @@ name: Package macOS
 # and LICENSE_PUBLIC_KEY, compiled into the binaries (public values only).
 
 on:
-  push:
-    tags:
-      - "v*"
+  # Called by release-native.yml (prompt 104), which publishes only when every
+  # platform succeeds, or run by hand to build without publishing. No tag
+  # trigger: a native release starts only from release-native.yml until 112.
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit or tag to build
+        type: string
+        required: false
+        default: ""
+      fail_for_test:
+        description: Dry run only — the job id to fail on purpose
+        type: string
+        required: false
+        default: ""
   workflow_dispatch:
 
 permissions:
@@ -52,6 +64,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Deliberate failure (release dry run)
+        # Proves a failed platform publishes nothing (prompt 104).
+        if: inputs.fail_for_test == format('macos-{0}', matrix.arch)
+        run: |
+          echo "::error::failing on purpose for the release dry run (fail_for_test=${{ inputs.fail_for_test }})"
+          exit 1
 
       - name: Check production endpoint configuration
         # A release pointing at localhost is worse than no release; the build
@@ -70,6 +91,24 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup target add ${{ matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+
+      - name: Cache the FFmpeg build
+        # build-ffmpeg.sh skips a build whose stamp matches (pins and flags), so
+        # a restored prefix saves the from-source build. The key covers the same inputs.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/package/ffmpeg-${{ matrix.arch }}
+          key: ffmpeg-macos-${{ matrix.arch }}-${{ hashFiles('packaging/common.sh', 'packaging/macos/build-ffmpeg.sh', 'packaging/macos/config.sh') }}
+
+      - name: Cache Cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Import signing certificate
         env:

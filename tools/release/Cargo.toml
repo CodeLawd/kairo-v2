@@ -1,0 +1,25 @@
+[package]
+name = "kairo-release"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "kairo-release"
+path = "src/main.rs"
+
+[dependencies]
+base64 = "0.22"
+kairo-updater = { path = "../../crates/kairo-updater" }
+regex = "1"
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+toml = "0.8"
+
+[dev-dependencies]
+tempfile = "3"

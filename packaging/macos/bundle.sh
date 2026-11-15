@@ -80,6 +80,10 @@ lipo "$inputs/ndi/libndi.dylib" -thin "$arch" -output "$contents/Frameworks/libn
 # The engine finds the helper at ../Resources/decklink (kairo-sinks decklink.rs).
 helper="$repo/native/decklink/prebuilt/decklink-helper"
 [[ -f "$helper" ]] || die "missing $helper (prompt 062)"
+# The committed helper must match its sources and be universal, as
+# prepare-mac-natives.mjs required of the Electron release (prompt 104).
+(cd "$repo" && CARGO_TARGET_DIR="$work/target-tools" cargo run --locked -q -p kairo-release -- decklink) ||
+  die "the prebuilt DeckLink helper does not match its sources"
 lipo "$helper" -thin "$arch" -output "$contents/Resources/decklink/decklink-helper"
 chmod 755 "$contents/Resources/decklink/decklink-helper"
 

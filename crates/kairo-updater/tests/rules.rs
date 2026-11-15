@@ -278,6 +278,28 @@ fn parses_a_real_mac_feed() {
 }
 
 #[test]
+fn parses_the_merged_mac_feed_the_electron_release_publishes() {
+    // The live 1.0.33 feed: the release workflow merges arm64 and x64 with
+    // PyYAML, which writes the `files` items at column 0 and sorts the keys.
+    let feed = parse_feed(include_str!("fixtures/latest-mac-1.0.33-merged.yml")).unwrap();
+    assert_eq!(feed.version, "1.0.33");
+    assert_eq!(feed.files.len(), 4);
+    assert_eq!(feed.files[3].url, "Kairo-1.0.33.dmg");
+    assert_eq!(feed.files[0].size, Some(117_587_557));
+    assert_eq!(feed.path.as_deref(), Some("Kairo-1.0.33-arm64-mac.zip"));
+    assert_eq!(
+        pick_mac_zip(&feed.files, Arch::Arm64).unwrap().url,
+        "Kairo-1.0.33-arm64-mac.zip"
+    );
+    assert_eq!(
+        pick_mac_zip(&feed.files, Arch::X64).unwrap().url,
+        "Kairo-1.0.33-mac.zip"
+    );
+    // A column-0 item outside `files` is still refused.
+    assert!(parse_feed("version: 1.0.1\n- url: x\n").is_err());
+}
+
+#[test]
 fn parses_windows_and_linux_feeds_and_refuses_broken_ones() {
     let win = "version: 1.0.34\nfiles:\n  - url: Kairo-Setup-1.0.34.exe\n    sha512: \"abc+/==\"\n    size: 99\n    isAdminRightsRequired: false\npath: Kairo-Setup-1.0.34.exe\nsha512: abc+/==\nreleaseDate: '2026-11-10T00:00:00.000Z'\n";
     let feed = parse_feed(win).unwrap();

@@ -48,6 +48,7 @@ members = [
     "tools/check-lib-coverage",
     "tools/electron-sync",
     "tools/embed-changelog",
+    "tools/release",
     "tools/ts-oracle",
     "tools/golden-capture",
     "tools/soak",

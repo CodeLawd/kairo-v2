@@ -1,0 +1,17 @@
+files:
+- sha512: i6UGtIUtvYCCp3CdOgZML0oQd/VhcmfQ4/cEXh6sZr7ENI4Zau72c4cFypaho7mIqfhA5JjGqLR7WD7OXGQCFw==
+  size: 117587557
+  url: Kairo-1.0.33-arm64-mac.zip
+- sha512: HXriO/WBZwZG+zPuE+3purrYK7UVNcirwJDYBPNn9/ulhW3iWHTNhVt1wxu5cW8WhlPENpGiTyORGT7qjEKIQA==
+  size: 117827800
+  url: Kairo-1.0.33-arm64.dmg
+- sha512: Z0kBJabpouPuGWgdJrcLtq2Mn9N5RPbNaVahSEzIoLptt958Nq73dC8rGStpFjMK1ayP1hz/hiKSm4VX5/xFDw==
+  size: 126436722
+  url: Kairo-1.0.33-mac.zip
+- sha512: +A2M5QbXd3R7LqdxSCDznA1EE7Ty2o9roCz9FeEK5d2Mzeqg7rnmpNu/xNH8dsNF9lL0UYKDf/SQ0y7+izTlDQ==
+  size: 126616497
+  url: Kairo-1.0.33.dmg
+path: Kairo-1.0.33-arm64-mac.zip
+releaseDate: '2026-11-08T10:50:16.910Z'
+sha512: i6UGtIUtvYCCp3CdOgZML0oQd/VhcmfQ4/cEXh6sZr7ENI4Zau72c4cFypaho7mIqfhA5JjGqLR7WD7OXGQCFw==
+version: 1.0.33

@@ -123,7 +123,7 @@ fn split_pair(line: &str) -> Option<(&str, &str)> {
 }
 
 /// Reads the subset of YAML electron-builder writes: top-level scalars and
-/// `files:`, a list of flat maps. Block scalars (`releaseNotes: |`) are read
+/// `files:`, a list of flat maps, indented (js-yaml) or not (PyYAML). Block scalars (`releaseNotes: |`) are read
 /// as text. Unknown keys are ignored; a feed without `version` is refused.
 pub fn parse_feed(text: &str) -> Result<UpdateFeed, FeedError> {
     let mut version = None;
@@ -155,7 +155,10 @@ pub fn parse_feed(text: &str) -> Result<UpdateFeed, FeedError> {
         }
         let indent = trimmed.len() - trimmed.trim_start().len();
         let content = trimmed.trim_start();
-        if indent == 0 {
+        // PyYAML (the release workflow's arm64 + x64 merge) writes the
+        // `files` items at column 0; js-yaml indents them.
+        let zero_indent_item = indent == 0 && in_files && content.starts_with("- ");
+        if indent == 0 && !zero_indent_item {
             if let Some(entry) = current.take() {
                 finish(entry, &mut files)?;
             }
