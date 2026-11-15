@@ -87,7 +87,7 @@ jobs:
       - name: MSYS2 UCRT64 build tools
         # Build tools only; nothing from MSYS2 is bundled.
         shell: cmd
-        run: C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-pkgconf make diffutils"
+        run: C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-pkgconf make diffutils perl"
 
       - name: Cache the FFmpeg build
         # build-ffmpeg.sh skips a build whose stamp matches (pins and flags), so

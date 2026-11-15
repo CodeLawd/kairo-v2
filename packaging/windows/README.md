@@ -18,7 +18,7 @@ On Windows with Visual Studio 2022 or its Build Tools (C++ x64 tools), Rust, Nod
 later and MSYS2:
 
 1. In an MSYS2 UCRT64 shell, from the repository root, after
-   `pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-pkgconf make diffutils`:
+   `pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-pkgconf make diffutils perl`:
 
    ```sh
    packaging/windows/build-ffmpeg.sh target/package-windows
