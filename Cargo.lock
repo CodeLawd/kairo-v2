@@ -3336,6 +3336,7 @@ dependencies = [
  "gpui-pre-shared-string",
  "gpui-pre-sum-tree",
  "gpui-pre-util",
+ "hdrhistogram",
  "heapless",
  "icu_segmenter",
  "image",
@@ -3632,6 +3633,7 @@ dependencies = [
  "gpui-component",
  "gpui-fast",
  "gpui-fast-platform",
+ "gpui-fast-web",
  "gpui-kit-assets",
  "gpui-pre",
  "gpui-pre-macros",
@@ -3646,6 +3648,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb5abe0bbd8f9226170c8726e529f6574519e297e9ed1bde86d5fd4d3536079a"
 dependencies = [
  "anyhow",
+ "gpui-fast",
  "gpui-pre",
  "gpui-pre-reqwest",
  "log",
@@ -3657,72 +3660,8 @@ dependencies = [
 [[package]]
 name = "gpui-pre"
 version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29db89613527079737f53752eab27fb65c9a7dd94979256c65a0e590c9fd34d8"
 dependencies = [
- "accesskit",
- "anyhow",
- "async-channel",
- "async-task",
- "backtrace",
- "bitflags 2.13.2",
- "chrono",
- "derive_more 2.1.1",
- "embed-resource",
- "etagere",
- "futures",
- "futures-concurrency",
- "getrandom 0.3.4",
- "gpui-pre-bench-metrics",
- "gpui-pre-collections",
- "gpui-pre-http-client",
- "gpui-pre-macros",
- "gpui-pre-refineable",
- "gpui-pre-scheduler",
- "gpui-pre-shared-string",
- "gpui-pre-sum-tree",
- "gpui-pre-util",
- "heapless",
- "icu_segmenter",
- "image",
- "inventory",
- "itertools 0.14.0",
- "libc",
- "log",
- "lyon",
- "num_cpus",
- "objc2-core-foundation",
- "objc2-core-video",
- "parking",
- "parking_lot",
- "pin-project",
- "pollster 0.4.0",
- "postage",
- "profiling",
- "proptest",
- "rand 0.9.5",
- "raw-window-handle",
- "regex",
- "resvg 0.46.0",
- "schemars",
- "seahash",
- "serde",
- "serde_json",
- "slotmap",
- "smallvec",
- "spin 0.10.1",
- "strum 0.28.0",
- "taffy",
- "thiserror 2.0.21",
- "ttf-parser",
- "unicode-segmentation",
- "url",
- "usvg 0.46.0",
- "uuid",
- "waker-fn",
- "web-time",
- "windows 0.62.2",
- "zed-scap",
+ "gpui-fast",
 ]
 
 [[package]]
@@ -3841,92 +3780,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui-pre-linux"
-version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54bab418d0b7c027af9495f278619b46887362b3bd6446e246c87c5b0fa167df"
-dependencies = [
- "accesskit",
- "accesskit_unix",
- "anyhow",
- "as-raw-xcb-connection",
- "ashpd",
- "bytemuck",
- "calloop 0.14.5",
- "calloop-wayland-source 0.4.1",
- "filedescriptor",
- "futures",
- "gpui-pre",
- "gpui-pre-collections",
- "gpui-pre-http-client",
- "gpui-pre-util",
- "gpui-pre-wgpu",
- "libc",
- "log",
- "notify-rust",
- "oo7",
- "open",
- "parking_lot",
- "raw-window-handle",
- "smallvec",
- "smol",
- "strum 0.28.0",
- "url",
- "uuid",
- "wayland-backend",
- "wayland-client",
- "wayland-cursor",
- "wayland-protocols",
- "wayland-protocols-plasma",
- "wayland-protocols-wlr",
- "x11rb",
- "xkbcommon",
- "zed-scap",
- "zed-xim",
-]
-
-[[package]]
-name = "gpui-pre-macos"
-version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2de7d3f4ad51ac387e822495db363fcc1188d349793365731d054444c4cb06ee"
-dependencies = [
- "accesskit",
- "accesskit_macos",
- "anyhow",
- "block2 0.6.2",
- "core-foundation 0.10.1",
- "core-foundation-sys",
- "core-graphics 0.24.0",
- "ctor",
- "dispatch2",
- "foreign-types",
- "futures",
- "gpui-pre",
- "gpui-pre-apple",
- "gpui-pre-collections",
- "gpui-pre-scheduler",
- "gpui-pre-util",
- "image",
- "itertools 0.14.0",
- "log",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-core-graphics",
- "objc2-core-video",
- "objc2-foundation 0.3.2",
- "objc2-quartz-core 0.3.2",
- "objc2-uniform-type-identifiers 0.3.2",
- "objc2-user-notifications 0.3.2",
- "parking_lot",
- "raw-window-handle",
- "semver",
- "smallvec",
- "strum 0.28.0",
- "uuid",
-]
-
-[[package]]
 name = "gpui-pre-macros"
 version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3942,18 +3795,8 @@ dependencies = [
 [[package]]
 name = "gpui-pre-platform"
 version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2b785bdcbd229f762096aebf4f9ae913bdaa9db49794907cabaf516eb55227b"
 dependencies = [
- "anyhow",
- "console_error_panic_hook",
- "gpui-pre",
- "gpui-pre-ios",
- "gpui-pre-linux",
- "gpui-pre-macos",
- "gpui-pre-web",
- "gpui-pre-wgpu",
- "gpui-pre-windows",
+ "gpui-fast-platform",
 ]
 
 [[package]]
@@ -4109,7 +3952,6 @@ dependencies = [
  "gpui-pre",
  "gpui-pre-collections",
  "gpui-pre-util",
- "image",
  "itertools 0.14.0",
  "log",
  "parking_lot",
@@ -4121,37 +3963,6 @@ dependencies = [
  "unicode-segmentation",
  "web-sys",
  "wgpu",
- "zed-font-kit",
-]
-
-[[package]]
-name = "gpui-pre-windows"
-version = "0.3.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7201762420222d5b5ce5bdf0056996199212a3349bfb2457a3a0238c688681f3"
-dependencies = [
- "accesskit",
- "accesskit_windows",
- "anyhow",
- "dunce",
- "etagere",
- "futures",
- "gpui-pre",
- "gpui-pre-collections",
- "gpui-pre-scheduler",
- "gpui-pre-util",
- "image",
- "itertools 0.14.0",
- "log",
- "parking_lot",
- "rand 0.9.5",
- "raw-window-handle",
- "smallvec",
- "uuid",
- "windows 0.62.2",
- "windows-core 0.62.2",
- "windows-numerics 0.3.1",
- "windows-registry 0.6.1",
 ]
 
 [[package]]
@@ -4182,7 +3993,9 @@ dependencies = [
  "gtk",
  "lb-wry",
  "log",
+ "objc2 0.6.5",
  "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
  "x11",
 ]
 
@@ -4355,6 +4168,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a596f1b20ed2cc5ecac41a164aaebc7258057060f06c0cf7a2ba3991ee7990fb"
 dependencies = [
  "hashbrown 0.17.1",
+]
+
+[[package]]
+name = "hdrhistogram"
+version = "7.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f49d1053f4708f0af3cf9fc5bffc7e68a914a3c45becb231c80068c9c3f78bea"
+dependencies = [
+ "byteorder",
+ "num-traits",
 ]
 
 [[package]]

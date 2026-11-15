@@ -9,16 +9,21 @@ use kairo_domain::settings::{DisplaySettings, DisplayTheme, WhatsNewSettings};
 use kairo_store::crash::{CrashConfig, install_panic_hook};
 use kairo_store::instance::{Forwarded, Instance, PrimaryInstance, acquire};
 use kairo_store::launch::{LaunchQueue, kairo_paths_from_urls};
-use kairo_store::paths::{self, AppPaths, Os};
+use kairo_store::paths::{AppPaths, Os};
 use kairo_store::settings::SettingsStore;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use ui_shell::{Shell, ShellOptions, ShellRequest, ShellState};
 
+// Keep application and embedded-webview types on the owner's selected backend.
+const _: () = assert!(gpui_kit::GPUI_FAST, "Kairo requires the GPUI Fast backend");
+
 mod account;
 pub mod actions;
 mod audience;
+#[cfg(feature = "dev-hooks")]
+mod benchmark;
 mod booth;
 mod capture;
 pub mod dialogs;
@@ -406,6 +411,15 @@ fn open_operator_window(
         });
         transfer::install(&transfer_services, &shell, window, cx);
         capture::install(&transfer_services, &shell, cx);
+        #[cfg(feature = "dev-hooks")]
+        benchmark::install(
+            &shell,
+            &media_dock,
+            &lyrics_page,
+            transfer_services.clone(),
+            window,
+            cx,
+        );
         let reporter = display_reporting::ControlDisplayReporter::new(window, cx, engine);
         cx.set_global(DisplayReporter {
             _reporter: reporter,
@@ -800,7 +814,11 @@ fn watch_services(events: std::sync::mpsc::Receiver<services::UiEvent>, cx: &mut
 
 fn main() {
     let _ = LAUNCHED.set(std::time::Instant::now());
-    let paths = match paths::detect() {
+    #[cfg(feature = "dev-hooks")]
+    let detected = benchmark::paths();
+    #[cfg(not(feature = "dev-hooks"))]
+    let detected = kairo_store::paths::detect();
+    let paths = match detected {
         Ok(paths) => paths,
         Err(error) => {
             eprintln!("Kairo cannot find its data folder: {error}");

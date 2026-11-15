@@ -1,0 +1,31 @@
+[package]
+name = "gpui-pre"
+version = "0.3.12"
+edition = "2024"
+publish = false
+license = "Apache-2.0"
+description = "Kairo compatibility re-export of the pinned GPUI Fast implementation"
+
+[lib]
+name = "gpui"
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+backend = { package = "gpui-fast", version = "=0.1.14", default-features = false }
+
+[features]
+bench = ["backend/bench"]
+bench-support = ["backend/bench-support"]
+default = ["font-kit", "wayland", "x11", "windows-manifest"]
+font-kit = ["backend/font-kit"]
+hot-reload = ["backend/hot-reload"]
+inspector = ["backend/inspector"]
+leak-detection = ["backend/leak-detection"]
+profiler = ["backend/profiler"]
+screen-capture = ["backend/screen-capture"]
+stacker = ["backend/stacker"]
+test-support = ["backend/test-support"]
+wayland = ["backend/wayland"]
+windows-manifest = ["backend/windows-manifest"]
+x11 = ["backend/x11"]

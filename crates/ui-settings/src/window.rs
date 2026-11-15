@@ -104,6 +104,7 @@ pub struct SettingsWindow {
     pub(crate) saved: Option<Section>,
     pub(crate) save_error: Option<SharedString>,
     saved_timer: Option<Task<()>>,
+    _age_clock: Task<()>,
     // General.
     pub(crate) font_size: Entity<SliderState>,
     pub(crate) transcript_size: Entity<SliderState>,
@@ -287,6 +288,25 @@ impl SettingsWindow {
             saved: None,
             save_error: None,
             saved_timer: None,
+            _age_clock: cx.spawn(async move |this, cx| {
+                loop {
+                    cx.background_executor()
+                        .timer(Duration::from_secs(60))
+                        .await;
+                    if this
+                        .update(cx, |this, cx| {
+                            if this.section() == Section::Account
+                                && this.account.read(cx).session().last_synced_at.is_some()
+                            {
+                                cx.notify();
+                            }
+                        })
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }),
             font_size,
             transcript_size,
             gloss,

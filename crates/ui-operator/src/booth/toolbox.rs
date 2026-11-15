@@ -1646,15 +1646,47 @@ pub struct PropsPanel {
     booth: Entity<Booth>,
     renaming: Option<(String, Entity<InputState>, Subscription)>,
     _subscriptions: Vec<Subscription>,
+    clock: Option<Task<()>>,
 }
 
 impl PropsPanel {
     pub fn new(booth: Entity<Booth>, _window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let subscriptions = vec![cx.observe(&booth, |_, _, cx| cx.notify())];
-        Self {
+        let subscriptions = vec![cx.observe(&booth, |this, _, cx| {
+            this.sync_clock(cx);
+            cx.notify();
+        })];
+        let mut this = Self {
             booth,
             renaming: None,
             _subscriptions: subscriptions,
+            clock: None,
+        };
+        this.sync_clock(cx);
+        this
+    }
+
+    fn sync_clock(&mut self, cx: &mut Context<Self>) {
+        let has_timer = self
+            .booth
+            .read(cx)
+            .presentation
+            .props
+            .iter()
+            .flat_map(|prop| &prop.objects)
+            .any(|o| matches!(o, PropObject::Timer { .. }));
+        if !has_timer {
+            self.clock = None;
+        } else if self.clock.is_none() {
+            self.clock = Some(cx.spawn(async move |this, cx| {
+                loop {
+                    cx.background_executor()
+                        .timer(Duration::from_millis(250))
+                        .await;
+                    if this.update(cx, |_, cx| cx.notify()).is_err() {
+                        break;
+                    }
+                }
+            }));
         }
     }
 

@@ -1,5 +1,6 @@
 [workspace]
 resolver = "2"
+exclude = ["compat/gpui-pre", "compat/gpui-pre-platform"]
 members = [
     "apps/kairo",
     "apps/kairo-engine",
@@ -57,7 +58,13 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-gpui-kit = "=0.9.1"
+gpui-kit = { version = "=0.9.1", features = ["gpui-fast"] }
+
+[patch.crates-io]
+# The published facade keeps legacy dependencies nonoptional. Re-export Fast
+# under those package identities so no legacy action registries enter the binary.
+gpui-pre = { path = "compat/gpui-pre" }
+gpui-pre-platform = { path = "compat/gpui-pre-platform" }
 
 # Slide text is shaped and rasterised on the CPU. Unoptimised, the 480-case
 # corpus (prompt 052) takes minutes in `cargo test`, so the crates that do

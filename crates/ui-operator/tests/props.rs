@@ -109,6 +109,49 @@ struct Opened {
     closed: Arc<Mutex<usize>>,
 }
 
+#[gpui_kit::test]
+fn prop_thumbnail_clock_invalidates_its_own_retained_panel(cx: &mut TestAppContext) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let core = Core::new();
+    {
+        let mut state = core.0.lock().unwrap();
+        let timer = kairo_domain::program::default_timer_theme("#ffffff", "#ff0000")
+            .objects
+            .into_iter()
+            .find(|o| matches!(o, PropObject::Timer { .. }))
+            .unwrap();
+        state.snapshot.presentation.as_mut().unwrap().props[0]
+            .objects
+            .push(timer);
+    }
+    cx.update(|cx| {
+        gpui_kit::init(cx);
+        kairo_ui_kit::init(kairo_ui_kit::Appearance::Dark, cx);
+    });
+    let (_, panel) = cx.update(|cx| {
+        gpui_kit::open_window(WindowOptions::default(), cx, |window, cx| {
+            let booth = cx.new(|cx| ui_operator::booth::Booth::new(core, cx));
+            cx.new(|cx| ui_operator::booth::toolbox::PropsPanel::new(booth, window, cx))
+        })
+        .unwrap()
+    });
+    let notifications = Arc::new(AtomicUsize::new(0));
+    let seen = notifications.clone();
+    let _observer = cx.update(|cx| {
+        cx.observe(&panel, move |_, _| {
+            seen.fetch_add(1, Ordering::SeqCst);
+        })
+    });
+    cx.run_until_parked();
+    notifications.store(0, Ordering::SeqCst);
+    cx.executor().advance_clock(Duration::from_millis(300));
+    cx.run_until_parked();
+    assert!(
+        notifications.load(Ordering::SeqCst) > 0,
+        "a timer in a prop thumbnail must invalidate PropsPanel itself"
+    );
+}
+
 fn open(cx: &mut TestAppContext, core: Arc<Core>, select: Option<&str>) -> Opened {
     cx.update(|cx| {
         gpui_kit::init(cx);

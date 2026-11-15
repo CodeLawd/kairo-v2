@@ -197,6 +197,17 @@ impl Startup {
         engine: EngineHandle,
         ui: UiBridge,
     ) -> Result<Arc<Self>, String> {
+        #[cfg(feature = "dev-hooks")]
+        if std::env::var_os("KAIRO_BENCH_ROOT").is_some() {
+            return Self::with_protector(
+                core,
+                paths,
+                settings,
+                engine,
+                ui,
+                Arc::new(crate::benchmark::NoKeychain),
+            );
+        }
         Self::with_protector(
             core,
             paths,

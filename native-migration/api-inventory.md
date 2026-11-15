@@ -357,3 +357,5 @@ ordered field edits over the current shared settings. The `show:*` UI preference
 and Screens frame size use the existing ui-state store.
 
 075 final internal addition: `SinkSpec::Preview` (protocol 9) is a private offscreen sample sink consumed by Screens through the existing ShowSlide/SetPreview commands. It adds no Electron API inventory item. Code is complete; compilation and runtime qualification are deferred at the owner's request.
+
+Backend note (2026-11-15, gpui-fast-switch): the GPUI core feature change and retained-view clock notifications do not add, remove or change an IPC/API row. Development-only benchmark environment hooks are not shipping application APIs.

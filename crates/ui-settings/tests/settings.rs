@@ -399,6 +399,28 @@ fn open(cx: &mut TestAppContext, section: Option<Section>) -> Opened {
     open_with(cx, Fake::default(), section, signed_in())
 }
 
+#[gpui_kit::test]
+fn account_sync_age_invalidates_the_retained_settings_pane(cx: &mut TestAppContext) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Duration;
+    let mut session = signed_in();
+    session.last_synced_at = Some(1.);
+    let opened = open_with(cx, Fake::default(), Some(Section::Account), session);
+    let notifications = Arc::new(AtomicUsize::new(0));
+    let seen = notifications.clone();
+    let _observer = cx.update(|cx| {
+        cx.observe(&opened.view, move |_, _| {
+            seen.fetch_add(1, Ordering::SeqCst);
+        })
+    });
+    cx.executor().advance_clock(Duration::from_secs(61));
+    cx.run_until_parked();
+    assert!(
+        notifications.load(Ordering::SeqCst) > 0,
+        "Last synced must age without a service push or input"
+    );
+}
+
 fn draw(cx: &mut TestAppContext, opened: &Opened) {
     cx.run_until_parked();
     cx.update_window(opened.handle, |_, window, cx| window.render_frame(cx))

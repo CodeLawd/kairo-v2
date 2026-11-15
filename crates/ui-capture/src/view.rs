@@ -11,7 +11,7 @@ use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::{
     AnyElement, App, AppContext, Context, ElementId, Entity, EventEmitter, FontWeight,
     InteractiveElement, IntoElement, ParentElement, Render, Role, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, Window, div, px, size,
+    StatefulInteractiveElement, Styled, Subscription, Task, Window, div, px, size,
 };
 use kairo_domain::capture::{
     CAPTURE_BITRATES, CAPTURE_CODECS, CAPTURE_FRAME_RATES, CAPTURE_RESOLUTIONS, capture_source_for,
@@ -55,6 +55,7 @@ pub struct LiveMenu {
     mac: bool,
     detail: SharedString,
     _subscription: Subscription,
+    clock: Option<Task<()>>,
 }
 
 impl EventEmitter<LiveMenuEvent> for LiveMenu {}
@@ -91,12 +92,35 @@ fn hairline(cx: &App) -> AnyElement {
 
 impl LiveMenu {
     pub fn new(capture: Entity<Capture>, mac: bool, cx: &mut Context<Self>) -> Self {
-        let subscription = cx.observe(&capture, |_, _, cx| cx.notify());
-        Self {
+        let subscription = cx.observe(&capture, |this, _, cx| {
+            this.sync_clock(cx);
+            cx.notify();
+        });
+        let mut this = Self {
             capture,
             mac,
             detail: SharedString::default(),
             _subscription: subscription,
+            clock: None,
+        };
+        this.sync_clock(cx);
+        this
+    }
+
+    fn sync_clock(&mut self, cx: &mut Context<Self>) {
+        if !self.mac || !self.capture.read(cx).status.recording {
+            self.clock = None;
+        } else if self.clock.is_none() {
+            self.clock = Some(cx.spawn(async move |this, cx| {
+                loop {
+                    cx.background_executor()
+                        .timer(std::time::Duration::from_secs(1))
+                        .await;
+                    if this.update(cx, |_, cx| cx.notify()).is_err() {
+                        break;
+                    }
+                }
+            }));
         }
     }
 

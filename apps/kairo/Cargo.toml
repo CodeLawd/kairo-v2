@@ -61,4 +61,4 @@ kairo-output = { path = "../../crates/kairo-output", features = ["fake"] }
 
 [features]
 # Test-only launch hooks (`KAIRO_OPEN_SETTINGS`). Never enable in a shipped build.
-dev-hooks = []
+dev-hooks = ["gpui-kit/profiler"]
