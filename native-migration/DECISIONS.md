@@ -1449,6 +1449,10 @@ Affects prompts: 073, 075, 078, 084, 088, 091.
 
 Amendment (074, owner review): the content pane is solid `surface`, not `.modal-glass`. Electron's glass blurs the darker booth behind the window, so its pane reads darker than the `surface-secondary` group boxes; GPUI has no backdrop blur here, and the glass over the frame's own fill came out the same colour as the boxes, hiding them. The sidebar keeps its glass tone.
 
+## 2026-11-14 — 075 — Screens configuration
+
+Implementation design: `ui-screens` owns the Screens window and edit rules. App backend edits read the latest settings while holding `SettingsWiring`'s lock, then apply only the requested output/presentation fields; deferred theme writes therefore cannot replace the current output list. Status comes from topics and engine events, not UI polling. `show:setup`, `show:looks`, `show:transition` and `show:check` select the same shared page and are retained in ui-state. Appearance follows Electron's sidebar/canvas/tabbed detail layout and the solid content-pane amendment from 074.
+
 ## 2026-11-14 — 078 — Scripture workspace
 
 Decision: `ui-scripture` holds the page. `model::Scripture` ports `Scripture.tsx`'s flows (lookup with translation fallback and reload, live suggestions after 250 ms, chapter/verse toggle, going live with Sending/Sent/Error and the 3 s settle, grid keys, Prev/Next, playlists, picks, library, options); `view::ScriptureWorkspace` draws the sidebar, Bible bar, notices, grid, selection bar and queue dock; `rows` holds the pure rules (`types.ts`, recent lookups, the search list, highlight, grid lines). The core is reached only through `ScriptureBackend`; `apps/kairo/src/scripture.rs` implements it over the services. The live rail is the operator's `LiveRail` entity, shared because only one route draws at a time.
@@ -1474,6 +1478,15 @@ Decision: scans go through `ScriptureCall::ScanSermonNotes`, which the app runs 
 Decision: tokens `paper` (`#F9FAFB`), `sermon_mark` (`#CAD5E2`) and `sermon_mark_active` (`#B9D7FF`, also the notes selection) added to `kairo-ui-kit`, both themes.
 Differences: the notes are plain text, not the draft's HTML, so bold, italics and lists from Word files are not shown (the scanned text is the same plain text Electron's `getText` produced); the canonical label (`data-reference`) is not drawn on highlights; scrolling the notes does not move the active reference (Electron's reading-line sync), and a jump selects the reference and focuses the notes without a smooth scroll of the list; the dialog is centred and not movable.
 Affects prompts: 080.
+
+
+## 2026-11-14 — Owner — Close 075 without another build cycle
+
+The owner asked to complete 075 while skipping the build process, after stopping all verification launches because of repeated Keychain prompts. No further compilation, tests or app launches are performed. Prompt 075 is closed as implementation-complete with verification explicitly deferred under this owner override; earlier failures and missing manual evidence remain recorded, not converted into passing results.
+
+The remaining Theme sample limitation is replaced by a private `SinkSpec::Preview` (protocol **9**). It opens only an offscreen compositor surface: no display window, NDI/Syphon sender, card, or audio output. The app supplies the complete sample theme through the normal ShowSlide path, so backgrounds, animated media, elements, filters and effects use the existing engine renderer and the 066 LivePreview transport. The Theme tab owns the session and destroys the private surface when hidden/closed. If a session cannot be opened, the existing basic still sample remains available. This addition is statically reviewed and formatted only; its new lifecycle/wire/replay/media-isolation tests are written but deliberately not executed. Existing app and engine binaries must eventually be rebuilt together for protocol 9.
+
+075 final static review found no blocker in the new sink/API/lifecycle path. Sample media gets private decoder identities (background cue and element ids) so the preview cannot change a live output's shared video loop/transport. A failed preview-session open may retry on a later topic update. Four final regression tests remain unexecuted under the no-build instruction.
 
 ## 2026-11-14 — 080 — Lyrics library and quick open
 
@@ -1515,6 +1528,15 @@ Decision: position reads follow the prompt's "display rates only while playing":
 Decision: the tracks player now follows `presentation.audio.outputLabel` (initially and on every settings change), as `TracksPlayer.tsx`'s `setSinkId` did; 056 had left the label unset, so tracks always played on the default device.
 Differences: a player failure (for example no audio output device, or an unreadable file) is shown in the panel's error line; Electron swallowed `audio.play()` rejections. The seek bar is the Kit slider over 1,000 steps of the track's length rather than a 0.05 s-step range input. Rename is an inline field limited to 120 characters, as before; Esc cancels.
 Affects prompts: none.
+
+
+## 2026-11-15 — 085 — Documents
+
+Decision: `ui-documents` holds the page (`DocumentsPage`), its rules (`model`) and a `DocumentsBackend` trait; `apps/kairo/src/documents.rs` implements it over `DocumentsService`, the slide converter, actions, libraries and settings. The page no longer renders PDFs: one `DocumentsBackend::import` call picks, prepares, renders with PDFium in the service and finishes, sending `ImportStep` progress; the cancel flag is checked between pages, and a cancel or failure removes the half-written import (`cancel(id)`), as `importDocument`'s catch did.
+Decision: the slide preview (`DocumentSlidePreview`) draws each embedded video with ui-media's in-process `PreviewPlayer` (083), opened from `<page dir>/media/<file>` with the clip's range. With an output, it is a monitor that follows the polled status (seek past 0.4 s drift while playing, 0.04 s while paused; play, pause and hide with the outputs). With no output (`applied: false`), the preview's players take the transport and publish the same `DocumentPlaybackStatus`, so the slideshow's video gate works the same way. Without a media backend (tests) the preview marks each video's box.
+Decision: the live slide clears (`LiveCleared`) when the program state stops showing a document page (`reference` `Page N` with no text), standing in for `liveDocumentPreview` becoming null.
+Differences: the local preview is silent (`PreviewPlayer` decodes video only; Electron played the sound there). The playback poll runs while the slide has videos, whether or not the Documents route is showing (Electron stopped it when hidden and not in a slideshow); the page has no visibility signal yet. The slide size is a Kit slider snapped to 10 px steps.
+Affects prompts: 086.
 
 ## 2026-11-15 — 085 — Documents
 

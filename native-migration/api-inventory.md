@@ -345,3 +345,15 @@ Ineligible/parked/closed surfaces acquire no web consumer; disabling eligibility
 also clears the web and pointer nodes while preserving intended state.
 Windows capture/performance and runtime interaction verification are deferred
 by the owner; the WGC/WebView2 backend was checked against the Windows target.
+
+### Prompt 075 — Screens UI consumers (2026-11-14)
+
+The APIs consumed by Screens (`settings`, `displays`, `program.stageStatus`,
+`program.ndiAudioSupported`, `ndi` readiness, `videoDevices`, `media` library,
+`output.sendTest` and `output.clearAll`) were already marked done under 021,
+060–067. No API item is newly finished by 075. Their native Screens consumers
+now live in `apps/kairo/src/screens.rs`, with status topic subscriptions and
+ordered field edits over the current shared settings. The `show:*` UI preferences
+and Screens frame size use the existing ui-state store.
+
+075 final internal addition: `SinkSpec::Preview` (protocol 9) is a private offscreen sample sink consumed by Screens through the existing ShowSlide/SetPreview commands. It adds no Electron API inventory item. Code is complete; compilation and runtime qualification are deferred at the owner's request.

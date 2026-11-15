@@ -1,0 +1,74 @@
+   Compiling thiserror v2.0.21
+   Compiling proc-macro2 v1.0.107
+   Compiling hashbrown v0.17.1
+   Compiling objc2-core-foundation v0.3.2
+   Compiling num-traits v0.2.19
+   Compiling nom v7.1.3
+   Compiling arrayvec v0.7.8
+   Compiling smallvec v1.16.5
+   Compiling clang-sys v1.9.1
+   Compiling num_cpus v1.17.0
+   Compiling profiling v1.0.18
+   Compiling parking_lot_core v0.9.12
+   Compiling serde_json v1.0.154
+   Compiling quote v1.0.47
+   Compiling indexmap v2.14.2
+   Compiling objc2-foundation v0.3.2
+   Compiling objc2-core-graphics v0.3.2
+   Compiling cexpr v0.6.0
+   Compiling errno v0.3.14
+   Compiling parking_lot v0.12.5
+   Compiling syn v3.0.10
+   Compiling syn v2.0.119
+   Compiling rustix v1.1.6
+   Compiling objc2-metal v0.3.2
+   Compiling tempfile v3.27.0
+   Compiling thiserror-impl v2.0.21
+   Compiling bytemuck_derive v1.12.1
+   Compiling serde_derive v1.0.229
+   Compiling bindgen v0.73.2
+   Compiling zerocopy-derive v0.8.63
+   Compiling tracing-attributes v0.1.31
+   Compiling bytemuck v1.25.2
+   Compiling objc2-quartz-core v0.3.2
+   Compiling serde v1.0.229
+   Compiling tracing v0.1.44
+   Compiling zerocopy v0.8.63
+   Compiling raw-window-metal v1.1.0
+   Compiling naga-types v30.0.1
+   Compiling wgpu-types v30.0.1
+   Compiling cobs v0.3.0
+   Compiling postcard v1.1.3
+   Compiling ffmpeg-sys-next v9.0.1
+   Compiling kairo-engine-proto v0.1.0 (/Users/codelawd/Documents/development/kairo-gpui-kit/crates/kairo-engine-proto)
+   Compiling half v2.7.1
+   Compiling naga v30.0.1
+   Compiling wgpu-naga-bridge v30.0.1
+   Compiling wgpu-hal v30.0.1
+   Compiling ffmpeg-next v9.0.0
+   Compiling wgpu-core-deps-apple v30.0.1
+   Compiling wgpu-core v30.0.1
+   Compiling wgpu v30.0.1
+   Compiling kairo-compositor v0.1.0 (/Users/codelawd/Documents/development/kairo-gpui-kit/crates/kairo-compositor)
+   Compiling kairo-video v0.1.0 (/Users/codelawd/Documents/development/kairo-gpui-kit/crates/kairo-video)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 35.92s
+     Running tests/playback.rs (target/debug/deps/playback-e6c519db763aad56)
+
+running 1 test
+test hardware_decode_is_used_when_it_can_and_matches_software ... FAILED
+
+failures:
+
+---- hardware_decode_is_used_when_it_can_and_matches_software stdout ----
+
+thread 'hardware_decode_is_used_when_it_can_and_matches_software' (6195871) panicked at crates/kairo-video/tests/playback.rs:115:13:
+only 0 frames of 10
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    hardware_decode_is_used_when_it_can_and_matches_software
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 4.36s
+
+error: test failed, to rerun pass `-p kairo-video --test playback`

@@ -30,8 +30,9 @@ mod motion;
 mod operator;
 mod power;
 mod quote_detector;
-pub mod services;
+mod screens;
 mod scripture;
+pub mod services;
 mod settings;
 mod spell;
 mod tracks;
@@ -242,6 +243,9 @@ fn open_operator_window(
                 backend
             }
         };
+    let screens_backend: Arc<dyn ui_screens::ScreensBackend> = Arc::new(
+        screens::ServicesScreens::new(services.clone(), ui_state.clone()),
+    );
     let settings_ui_state = ui_state.clone();
     let booth_backend: Arc<dyn ui_operator::BoothBackend> = Arc::new(booth::ServicesBooth::new(
         services.clone(),
@@ -264,6 +268,7 @@ fn open_operator_window(
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
         let booth_account = account.clone();
+        install_screens(&shell, screens_backend, window, cx);
         install_settings(
             &shell,
             &flow,
@@ -315,10 +320,15 @@ fn open_operator_window(
         tracks::install(tracks_backend, &tracks_services, &booth_views, window, cx);
         let scripture_page = scripture::install(scripture_backend, &workspace, &shell, window, cx);
         shell.update(cx, |shell, cx| {
-            shell.set_workspace(ui_shell::Route::Scripture, scripture_page.clone().into(), cx)
+            shell.set_workspace(
+                ui_shell::Route::Scripture,
+                scripture_page.clone().into(),
+                cx,
+            )
         });
         let lyrics_page = lyrics::install(lyrics_backend, &workspace, &shell, window, cx);
         // One media dock, drawn under whichever booth page is showing.
+        let documents_media = media_backend.clone();
         let media_dock = media::install(media_backend, &shell, window, cx);
         workspace.update(cx, |w, cx| w.set_dock(Some(media_dock.clone().into()), cx));
         scripture_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
@@ -327,6 +337,9 @@ fn open_operator_window(
         documents_page.update(cx, |p, cx| {
             p.set_dock(Some(media_dock.clone().into()), cx);
             p.set_media(Some(documents_media), cx);
+        });
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Documents, documents_page.into(), cx)
         });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Lyrics, lyrics_page.clone().into(), cx)
@@ -370,6 +383,19 @@ fn open_operator_window(
             // `KAIRO_OPEN_SETTINGS=<pane>` drops setup and the sign-in wall
             // for this launch and opens Settings, for measuring and
             // screenshots (074).
+            #[cfg(feature = "dev-hooks")]
+            if std::env::var_os("KAIRO_OPEN_SCREENS").is_some() {
+                cx.spawn(async move |shell, cx| {
+                    cx.background_executor()
+                        .timer(std::time::Duration::from_secs(5))
+                        .await;
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.set_front(None, cx);
+                        shell.open_overlay(ui_shell::Overlay::Screens, cx);
+                    });
+                })
+                .detach();
+            }
             #[cfg(feature = "dev-hooks")]
             if let Some(section) = std::env::var("KAIRO_OPEN_SETTINGS")
                 .ok()
@@ -459,6 +485,56 @@ fn install_settings(
     };
     shell.update(cx, |shell, _| {
         shell.set_overlay_builder(ui_shell::Overlay::Settings, Box::new(build))
+    });
+}
+
+/// Installs the Screens configuration window over the existing shell overlay.
+fn install_screens(
+    shell: &Entity<Shell>,
+    backend: Arc<dyn ui_screens::ScreensBackend>,
+    _window: &mut Window,
+    cx: &mut App,
+) {
+    let target = shell.downgrade();
+    shell.update(cx, |shell, _| {
+        shell.set_overlay_builder(
+            ui_shell::Overlay::Screens,
+            Box::new(move |initial, window, cx| {
+                let viewport = window.viewport_size();
+                let saved = backend
+                    .read_ui("kairo.frame.screens.v4")
+                    .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok());
+                let width = saved
+                    .as_ref()
+                    .and_then(|s| s["w"].as_f64())
+                    .unwrap_or(ui_screens::FRAME.0 as f64) as f32;
+                let height = saved
+                    .as_ref()
+                    .and_then(|s| s["h"].as_f64())
+                    .unwrap_or(ui_screens::FRAME.1 as f64) as f32;
+                let frame = (
+                    width
+                        .max(ui_screens::FRAME_MIN.0)
+                        .min(f32::from(viewport.width) - 32.),
+                    height
+                        .max(ui_screens::FRAME_MIN.1)
+                        .min(f32::from(viewport.height) - 32.),
+                );
+                let view = cx.new(|cx| {
+                    ui_screens::ScreensWindow::new(backend.clone(), initial, frame, window, cx)
+                });
+                let target = target.clone();
+                let window_handle = window.window_handle();
+                cx.subscribe(&view, move |view, _: &ui_screens::ScreensEvent, cx| {
+                    let _ = window_handle.update(cx, |_, window, cx| {
+                        view.update(cx, |v, cx| v.close(window, cx))
+                    });
+                    let _ = target.update(cx, |shell, cx| shell.close_overlay(cx));
+                })
+                .detach();
+                AnyView::from(view)
+            }),
+        )
     });
 }
 

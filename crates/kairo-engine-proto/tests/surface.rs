@@ -415,3 +415,26 @@ fn a_preview_follows_a_parked_surface_and_is_replayed_until_stopped() {
             .any(|c| matches!(c, Command::SetPreview { .. }))
     );
 }
+
+#[test]
+fn a_private_sample_retains_the_complete_theme_for_replay() {
+    let mut state = SurfaceState::new(SurfaceSpec {
+        output: "screens-sample".into(),
+        label: "Screens theme sample".into(),
+        sink: SinkSpec::Preview,
+    });
+    let content = slide("Sample words");
+    assert!(state.apply(
+        &Command::ShowSlide {
+            output: "screens-sample".into(),
+            source: "screens-sample".into(),
+            slide: content.clone(),
+            instant: true,
+        },
+        true
+    ));
+    assert!(!state.config.audio.enabled);
+    assert!(!state.config.ndi_audio);
+    assert!(state.replay().iter().any(|command| matches!(command,
+        Command::ShowSlide { slide, .. } if slide == &content)));
+}

@@ -88,6 +88,9 @@ pub enum SinkSpec {
         mode_id: String,
         key_fill: bool,
     },
+    /// A private operator preview: GPU composition with no window, sender,
+    /// device or audio sink. It can only be read through SetPreview.
+    Preview,
 }
 
 impl SinkSpec {

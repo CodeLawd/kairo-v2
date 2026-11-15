@@ -252,3 +252,19 @@ fn fuzz_decoder_with_malformed_frames() {
         "decoded {decoded}, rejected {rejected}"
     );
 }
+
+#[test]
+fn private_preview_sink_round_trips_on_the_wire() {
+    let message = ToEngine::Command {
+        seq: 1,
+        command: Command::OpenSurface(SurfaceSpec {
+            output: "screens-sample".into(),
+            label: "Screens theme sample".into(),
+            sink: SinkSpec::Preview,
+        }),
+    };
+    let encoded = encode_frame(&message).unwrap();
+    let decoded: ToEngine = decode_body(&encoded[4..]).unwrap();
+    assert_eq!(decoded, message);
+    assert!(!SinkSpec::Preview.is_display());
+}

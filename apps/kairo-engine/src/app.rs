@@ -37,6 +37,7 @@ struct OutputWindow {
 }
 
 struct EngineSurface {
+    preview_open: bool,
     state: SurfaceState,
     /// The newest command applied to this surface.
     seq: u64,
@@ -89,7 +90,8 @@ impl EngineSurface {
 
     /// Drawn somewhere: a window, an NDI feed or a running Syphon server.
     fn is_open(&self) -> bool {
-        self.window.is_some()
+        self.preview_open
+            || self.window.is_some()
             || self.ndi.is_some()
             || self.syphon.as_ref().is_some_and(|c| c.running())
             || self.card.is_some()
@@ -452,6 +454,7 @@ impl Engine {
                     surface.seq = seq;
                 }
                 None => self.surfaces.push(EngineSurface {
+                    preview_open: false,
                     state: SurfaceState::new(spec.clone()),
                     seq,
                     status: None,
@@ -1166,6 +1169,10 @@ impl Engine {
                     Some(status) => status,
                     None => continue,
                 },
+                SinkSpec::Preview => match self.place_preview(index) {
+                    Some(status) => status,
+                    None => continue,
+                },
             };
             let surface = &mut self.surfaces[index];
             if surface.status.as_ref() != Some(&status) {
@@ -1265,7 +1272,8 @@ impl Engine {
         // Clients see the Syphon server leave.
         let syphon = surface.syphon.take().map(|mut c| c.stop()).is_some();
         let card = surface.card.take().is_some();
-        if (surface.window.take().is_some() || feed.is_some() || syphon || card)
+        let preview = std::mem::take(&mut surface.preview_open);
+        if (surface.window.take().is_some() || feed.is_some() || syphon || card || preview)
             && let Some(compositor) = self.compositor.as_ref()
         {
             compositor.capture(&surface.state.spec.output, None);
@@ -1406,8 +1414,25 @@ impl Engine {
         Some(SurfaceStatus::Ready)
     }
 
-    /// A Syphon surface: an offscreen output whose frames go to a server
-    /// named `name`. A new name restarts the server. `None`: unchanged.
+    /// The Screens sample uses exactly the program renderer, but never
+    /// acquires an external sink or routes sound to an output device.
+    fn place_preview(&mut self, index: usize) -> Option<SurfaceStatus> {
+        if self.surfaces[index].preview_open {
+            return None;
+        }
+        self.close_window(index);
+        let output = self.surfaces[index].output().to_owned();
+        let compositor = match self.compositor() {
+            Ok(compositor) => compositor,
+            Err(reason) => return Some(SurfaceStatus::Unavailable { reason }),
+        };
+        compositor.open(&output, 1080, Sink::Offscreen);
+        self.surfaces[index].preview_open = true;
+        self.show_state(index, 1080);
+        Some(SurfaceStatus::Ready)
+    }
+
+    /// A Syphon surface: a new name restarts the server; None means unchanged.
     fn place_syphon(&mut self, index: usize, name: &str) -> Option<SurfaceStatus> {
         if self.surfaces[index]
             .syphon

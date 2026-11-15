@@ -20,6 +20,7 @@ ui-lyrics = { path = "../../crates/ui-lyrics" }
 ui-media = { path = "../../crates/ui-media" }
 ui-account = { path = "../../crates/ui-account" }
 ui-settings = { path = "../../crates/ui-settings" }
+ui-screens = { path = "../../crates/ui-screens" }
 futures-channel = "0.3"
 iana-time-zone = "0.1"
 tracing = "0.1"

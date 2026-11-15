@@ -5090,6 +5090,7 @@ dependencies = [
  "ui-lyrics",
  "ui-media",
  "ui-operator",
+ "ui-screens",
  "ui-scripture",
  "ui-settings",
  "ui-shell",
@@ -10793,6 +10794,7 @@ dependencies = [
  "kairo-domain",
  "kairo-ui-kit",
  "serde_json",
+ "ui-media",
 ]
 
 [[package]]
@@ -10847,6 +10849,20 @@ dependencies = [
 [[package]]
 name = "ui-screens"
 version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "gpui-kit",
+ "kairo-core",
+ "kairo-core-gpui",
+ "kairo-domain",
+ "kairo-engine-proto",
+ "kairo-output",
+ "kairo-ui-kit",
+ "serde",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "ui-scripture"
