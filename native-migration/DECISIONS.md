@@ -1515,3 +1515,11 @@ Decision: position reads follow the prompt's "display rates only while playing":
 Decision: the tracks player now follows `presentation.audio.outputLabel` (initially and on every settings change), as `TracksPlayer.tsx`'s `setSinkId` did; 056 had left the label unset, so tracks always played on the default device.
 Differences: a player failure (for example no audio output device, or an unreadable file) is shown in the panel's error line; Electron swallowed `audio.play()` rejections. The seek bar is the Kit slider over 1,000 steps of the track's length rather than a 0.05 s-step range input. Rename is an inline field limited to 120 characters, as before; Esc cancels.
 Affects prompts: none.
+
+## 2026-11-15 — 085 — Documents
+
+Decision: the Documents page is `ui_documents::DocumentsPage` over `DocumentsBackend`; `apps/kairo/src/documents.rs` implements it with `DocumentsService`, `SlideConverter`, `LibrariesService`, settings and the existing actions (`push_document`, `remove_document`, `document_playback`, `control_document`). Importing is one `import` call: pick, `prepare`, the service's PDFium `render` (checking the cancel flag between pages) and `finish`, with progress steps; any failure or cancel calls `cancel` to remove the half-written import. `documents:savePage` has no UI caller any more.
+Decision: the live mark is the page's own record of its last push (Electron's `liveDocumentPreview`), cleared when `ProgramState.current` stops being a document page (`Page N`, no text). The clicker uses the operator's `previous`/`next` bindings while the page has focus; rename and seconds fields, dialogs and the slideshow menu keep their keys.
+Decision: `kairo.documents.slideWidth` is stored in ui-state as a number, 140–420 in steps of 10, default 240; a missing or out-of-range value reads as 240. The grid is a virtual list of rows, so a 500-page deck draws only visible rows.
+Differences: with no output connected the preview band shows the slide still and its video boxes, but does not play the videos locally (`DocumentSlidePreview`'s local playback is not ported). The header line sits at the top of the page, not in the app toolbar slot. Import notes are always expanded. The video transport is the page's own (play/pause, restart, ±5 s, seek bar), not the operator rail's component.
+Affects prompts: 086.

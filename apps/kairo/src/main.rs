@@ -22,6 +22,7 @@ mod booth;
 pub mod dialogs;
 mod display_reporting;
 mod dock;
+mod documents;
 pub mod handlers;
 mod lyrics;
 mod media;
@@ -256,6 +257,9 @@ fn open_operator_window(
         scripture::ServicesScripture::new(services.clone(), ui_state.clone()),
     );
     let tracks_services = services.clone();
+    let documents_backend: Arc<dyn ui_documents::DocumentsBackend> = Arc::new(
+        documents::ServicesDocuments::new(services.clone(), ui_state.clone()),
+    );
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
@@ -319,6 +323,11 @@ fn open_operator_window(
         workspace.update(cx, |w, cx| w.set_dock(Some(media_dock.clone().into()), cx));
         scripture_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
         lyrics_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
+        let documents_page = documents::install(documents_backend, &workspace, window, cx);
+        documents_page.update(cx, |p, cx| {
+            p.set_dock(Some(media_dock.clone().into()), cx);
+            p.set_media(Some(documents_media), cx);
+        });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Lyrics, lyrics_page.clone().into(), cx)
         });

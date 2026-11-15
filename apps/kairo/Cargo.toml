@@ -15,6 +15,7 @@ ui-web = { path = "../../crates/ui-web" }
 ui-shell = { path = "../../crates/ui-shell" }
 ui-operator = { path = "../../crates/ui-operator" }
 ui-scripture = { path = "../../crates/ui-scripture" }
+ui-documents = { path = "../../crates/ui-documents" }
 ui-lyrics = { path = "../../crates/ui-lyrics" }
 ui-media = { path = "../../crates/ui-media" }
 ui-account = { path = "../../crates/ui-account" }
