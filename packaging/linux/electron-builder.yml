@@ -29,6 +29,12 @@ linux:
   description: Kairo — scripture, lyrics, and presentation for churches
   syncDesktopName: true
   executableName: kairo-presenter
+  # The deb's Homepage and Maintainer. Electron's build took Homepage from its
+  # git remote (kairo-presenter) and Maintainer from package.json author; the
+  # staged folder here has neither, so electron-builder refused to build the
+  # deb ("Please specify project homepage"). Name only: no email in the repo.
+  maintainer: Alexander Joshua
+  vendor: Alexander Joshua
   target:
     - target: AppImage
       arch:

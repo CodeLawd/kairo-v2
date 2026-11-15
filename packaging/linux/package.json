@@ -3,6 +3,7 @@
   "productName": "Kairo",
   "version": "0.0.0",
   "description": "Kairo — scripture, lyrics, and presentation for churches",
+  "homepage": "https://github.com/CodeLawd/kairo-presenter",
   "author": {
     "name": "Alexander Joshua"
   },
