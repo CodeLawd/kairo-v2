@@ -128,7 +128,7 @@ pub struct RgbaFrame {
     pub pixels: Vec<u8>,
 }
 
-fn init() {
+pub(crate) fn init() {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
         let _ = ff::init();
@@ -199,13 +199,21 @@ pub fn decode_poster(path: &Path) -> Result<(RgbaFrame, Option<f64>), PosterErro
 }
 
 fn to_rgba(frame: &ff::frame::Video) -> Result<RgbaFrame, PosterError> {
+    to_rgba_max(frame, POSTER_MAX_WIDTH)
+}
+
+/// A decoded frame as tightly packed RGBA, no wider than `max_width`.
+pub(crate) fn to_rgba_max(
+    frame: &ff::frame::Video,
+    max_width: u32,
+) -> Result<RgbaFrame, PosterError> {
     let (w, h) = (frame.width(), frame.height());
     if w == 0 || h == 0 {
         return Err(PosterError::Decode("empty frame".into()));
     }
-    let (out_w, out_h) = if w > POSTER_MAX_WIDTH {
-        let out_h = (u64::from(h) * u64::from(POSTER_MAX_WIDTH) / u64::from(w)).max(1);
-        (POSTER_MAX_WIDTH, out_h as u32)
+    let (out_w, out_h) = if w > max_width {
+        let out_h = (u64::from(h) * u64::from(max_width) / u64::from(w)).max(1);
+        (max_width, out_h as u32)
     } else {
         (w, h)
     };

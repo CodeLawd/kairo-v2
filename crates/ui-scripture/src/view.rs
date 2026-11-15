@@ -141,6 +141,8 @@ impl Render for ItemDrag {
 pub struct ScriptureWorkspace {
     model: Entity<Scripture>,
     rail: Option<AnyView>,
+    /// The media dock under the page (`BoothWorkspace`'s `MediaDock`).
+    media_dock: Option<AnyView>,
     query: Entity<InputState>,
     rename: Entity<InputState>,
     renaming_for: Option<String>,
@@ -290,6 +292,7 @@ impl ScriptureWorkspace {
         Self {
             model,
             rail: None,
+            media_dock: None,
             query,
             rename,
             renaming_for: None,
@@ -353,6 +356,12 @@ impl ScriptureWorkspace {
     }
 
     /// The live rail beside the page (`BoothWorkspace`'s rail).
+    /// The media dock, shown under the page beside the rail.
+    pub fn set_dock(&mut self, dock: Option<AnyView>, cx: &mut Context<Self>) {
+        self.media_dock = dock;
+        cx.notify();
+    }
+
     pub fn set_rail(&mut self, rail: Option<AnyView>, cx: &mut Context<Self>) {
         self.rail = rail;
         cx.notify();
@@ -2603,31 +2612,39 @@ impl Render for ScriptureWorkspace {
             .min_h_0()
             .items_stretch()
             .child(
-                h_flex()
-                    .id(ids::PAGE)
-                    .items_stretch()
-                    .test_support()
-                    .track_focus(&self.page_focus)
-                    .on_key_down(cx.listener(Self::page_key))
+                v_flex()
                     .flex_1()
                     .h_full()
                     .min_w_0()
                     .min_h_0()
-                    .overflow_hidden()
-                    .bg(k.surface)
-                    .child(sidebar)
                     .child(
-                        v_flex()
+                        h_flex()
+                            .id(ids::PAGE)
+                            .items_stretch()
+                            .test_support()
+                            .track_focus(&self.page_focus)
+                            .on_key_down(cx.listener(Self::page_key))
                             .flex_1()
                             .h_full()
                             .min_w_0()
                             .min_h_0()
-                            .child(bar)
-                            .children(notices)
-                            .child(grid)
-                            .children(selection)
-                            .children(dock),
-                    ),
+                            .overflow_hidden()
+                            .bg(k.surface)
+                            .child(sidebar)
+                            .child(
+                                v_flex()
+                                    .flex_1()
+                                    .h_full()
+                                    .min_w_0()
+                                    .min_h_0()
+                                    .child(bar)
+                                    .children(notices)
+                                    .child(grid)
+                                    .children(selection)
+                                    .children(dock),
+                            ),
+                    )
+                    .children(self.media_dock.clone()),
             )
             .children(self.rail.clone())
             .children(self.review.as_ref().map(|(r, _)| r.clone()))

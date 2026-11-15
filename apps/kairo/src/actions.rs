@@ -1215,7 +1215,7 @@ impl Actions {
         self.import_media_files(Some(playlist_id.to_owned()), files)
             .await
     }
-    async fn import_media_files(
+    pub async fn import_media_files(
         &self,
         playlist_id: Option<String>,
         files: Vec<PathBuf>,

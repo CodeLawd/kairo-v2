@@ -1658,7 +1658,8 @@ impl ApplicationServices {
                         )
                         .await;
                 }
-                OpenExternal(_) | MarkWhatsNewSeen(_) => {}
+                // The media dock answers this itself (083).
+                OpenExternal(_) | MarkWhatsNewSeen(_) | ToggleMedia => {}
             }
         });
     }

@@ -27,7 +27,7 @@ changing quickly. Prompt 008 confirms the cadence.
 | `af978c5159` | `src/main/services/output/overlay.html` | 003, 004, 051, 053, 054, 055, 056, 057, 058, 059 | port needed | open |  |
 | `af978c5159` | `src/renderer/src/App.tsx` | 071 | not started | not-started |  |
 | `af978c5159` | `src/renderer/src/components/layout/AppShell.tsx` | 007, 071 | not started | not-started |  |
-| `af978c5159` | `src/renderer/src/components/media/MediaDock.tsx` | 083 | not started | not-started |  |
+| `af978c5159` | `src/renderer/src/components/media/MediaDock.tsx` | 083 | port needed | ported (083, from the source at `af978c5`) |  |
 | `af978c5159` | `src/renderer/src/components/screens/ScreenConfiguration.tsx` | 075 | not started | not-started |  |
 | `af978c5159` | `tests/document-page-swap.test.ts` | 045, 058, 109 | not started | not-started |  |
 

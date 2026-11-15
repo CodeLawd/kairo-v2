@@ -121,6 +121,10 @@ pub struct Shell {
     pub(crate) overlay_builders: HashMap<Overlay, OverlayBuilder>,
     /// The open overlay's built view.
     pub(crate) overlay_view: Option<AnyView>,
+    /// The media dock is open (the Media button shows pressed).
+    pub(crate) media_open: bool,
+    /// What the dock has on screen, for the button's dot and tooltip.
+    pub(crate) media_live: Option<SharedString>,
     /// The Settings pane asked for by the last [`Shell::open_settings`].
     pub(crate) settings_section: Option<&'static str>,
     pub(crate) _subscriptions: Vec<Subscription>,
@@ -217,9 +221,23 @@ impl Shell {
             front: None,
             overlay_builders: HashMap::new(),
             overlay_view: None,
+            media_open: false,
+            media_live: None,
             settings_section: None,
             _subscriptions: subscriptions,
         }
+    }
+
+    /// The media dock's state, for the header's Media button.
+    pub fn set_media(&mut self, open: bool, live: Option<String>, cx: &mut Context<Self>) {
+        self.media_open = open;
+        self.media_live = live.map(Into::into);
+        cx.notify();
+    }
+
+    /// Whether the header shows the media dock open, and what is live.
+    pub fn media(&self) -> (bool, Option<&SharedString>) {
+        (self.media_open, self.media_live.as_ref())
     }
 
     // ── Reading ─────────────────────────────────────────────────────────

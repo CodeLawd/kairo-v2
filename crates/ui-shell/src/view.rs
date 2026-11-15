@@ -222,8 +222,18 @@ impl Shell {
                 h_flex()
                     .gap_1()
                     .child(
-                        ToolbarButton::new("media", "Media", "Media dock (prompt 083)", hued(KairoIcon::MediaLibrary, Hue::Orange, cx))
-                            .disabled(true),
+                        ToolbarButton::new(
+                            "media",
+                            "Media",
+                            format!(
+                                "{} media{}",
+                                if self.media_open { "Close" } else { "Open" },
+                                self.media_live.as_ref().map(|n| format!(" — {n} on screen")).unwrap_or_default()
+                            ),
+                            Icon::new(KairoIcon::MediaLibrary.weight(self.media_open)).size_4().text_color(k.hue(Hue::Orange)),
+                        )
+                        .when(self.media_live.is_some(), |b| b.badge(k.live))
+                        .on_click(cx.listener(|_, _, _, cx| cx.emit(ShellRequest::ToggleMedia))),
                     )
                     .child(
                         ToolbarButton::new("screen-themes", "Themes", "Screen Themes (prompt 087)", hued(KairoIcon::Palette, Hue::Pink, cx))

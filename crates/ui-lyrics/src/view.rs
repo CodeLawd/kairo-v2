@@ -139,6 +139,8 @@ pub(crate) fn review_notice_element(review: Option<&LyricsReview>, cx: &App) -> 
 pub struct LyricsWorkspace {
     model: Entity<Lyrics>,
     rail: Option<AnyView>,
+    /// The media dock under the page (`BoothWorkspace`'s `MediaDock`).
+    media_dock: Option<AnyView>,
     query: Entity<InputState>,
     rename: Entity<InputState>,
     renaming_for: Option<String>,
@@ -284,6 +286,7 @@ impl LyricsWorkspace {
             song_focus: cx.focus_handle(),
             model,
             rail: None,
+            media_dock: None,
             query,
             rename,
             renaming_for: None,
@@ -316,6 +319,12 @@ impl LyricsWorkspace {
     }
 
     /// The live rail beside the page (`BoothWorkspace`'s rail).
+    /// The media dock, shown under the page beside the rail.
+    pub fn set_dock(&mut self, dock: Option<AnyView>, cx: &mut Context<Self>) {
+        self.media_dock = dock;
+        cx.notify();
+    }
+
     pub fn set_rail(&mut self, rail: Option<AnyView>, cx: &mut Context<Self>) {
         self.rail = rail;
         cx.notify();
@@ -2140,20 +2149,28 @@ impl Render for LyricsWorkspace {
             .min_h_0()
             .items_stretch()
             .child(
-                h_flex()
-                    .id(ids::PAGE)
-                    .test_support()
-                    .relative()
-                    .items_stretch()
+                v_flex()
                     .flex_1()
                     .h_full()
                     .min_w_0()
                     .min_h_0()
-                    .overflow_hidden()
-                    .bg(k.surface)
-                    .child(sidebar)
-                    .child(v_flex().flex_1().h_full().min_w_0().min_h_0().child(pane))
-                    .children(usage),
+                    .child(
+                        h_flex()
+                            .id(ids::PAGE)
+                            .test_support()
+                            .relative()
+                            .items_stretch()
+                            .flex_1()
+                            .h_full()
+                            .min_w_0()
+                            .min_h_0()
+                            .overflow_hidden()
+                            .bg(k.surface)
+                            .child(sidebar)
+                            .child(v_flex().flex_1().h_full().min_w_0().min_h_0().child(pane))
+                            .children(usage),
+                    )
+                    .children(self.media_dock.clone()),
             )
             .children(self.rail.clone())
             .children(self.quick_open.as_ref().map(|(q, _)| q.clone()))

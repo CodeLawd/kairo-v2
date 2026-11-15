@@ -8,6 +8,7 @@ pub mod clipboard;
 pub mod library;
 pub mod paths;
 pub mod poster;
+pub mod preview;
 pub mod publish;
 pub mod settings;
 pub mod tracks;

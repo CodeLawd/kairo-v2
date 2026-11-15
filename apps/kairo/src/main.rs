@@ -24,6 +24,7 @@ mod display_reporting;
 mod dock;
 pub mod handlers;
 mod lyrics;
+mod media;
 mod motion;
 mod operator;
 mod power;
@@ -244,6 +245,10 @@ fn open_operator_window(
         services.clone(),
         ui_state.clone(),
     ));
+    let media_backend: Arc<dyn ui_media::MediaBackend> = Arc::new(media::ServicesMedia::new(
+        services.clone(),
+        ui_state.clone(),
+    ));
     let lyrics_backend: Arc<dyn ui_lyrics::LyricsBackend> =
         Arc::new(lyrics::ServicesLyrics::new(services.clone()));
     let scripture_backend: Arc<dyn ui_scripture::ScriptureBackend> = Arc::new(
@@ -300,11 +305,16 @@ fn open_operator_window(
         booth::install(booth_backend, &workspace, &shell, booth_account, window, cx);
         let scripture_page = scripture::install(scripture_backend, &workspace, &shell, window, cx);
         shell.update(cx, |shell, cx| {
-            shell.set_workspace(ui_shell::Route::Scripture, scripture_page.into(), cx)
+            shell.set_workspace(ui_shell::Route::Scripture, scripture_page.clone().into(), cx)
         });
         let lyrics_page = lyrics::install(lyrics_backend, &workspace, &shell, window, cx);
+        // One media dock, drawn under whichever booth page is showing.
+        let media_dock = media::install(media_backend, &shell, window, cx);
+        workspace.update(cx, |w, cx| w.set_dock(Some(media_dock.clone().into()), cx));
+        scripture_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
+        lyrics_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
         shell.update(cx, |shell, cx| {
-            shell.set_workspace(ui_shell::Route::Lyrics, lyrics_page.into(), cx)
+            shell.set_workspace(ui_shell::Route::Lyrics, lyrics_page.clone().into(), cx)
         });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Operator, workspace.into(), cx)

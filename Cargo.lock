@@ -5087,6 +5087,7 @@ dependencies = [
  "tracing",
  "ui-account",
  "ui-lyrics",
+ "ui-media",
  "ui-operator",
  "ui-scripture",
  "ui-settings",
@@ -10804,6 +10805,16 @@ dependencies = [
 [[package]]
 name = "ui-media"
 version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "gpui-kit",
+ "image",
+ "kairo-domain",
+ "kairo-ui-kit",
+ "serde_json",
+ "tracing",
+]
 
 [[package]]
 name = "ui-operator"

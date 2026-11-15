@@ -196,6 +196,8 @@ pub enum ShellRequest {
     WindowFocused,
     /// Clear text and the dock background.
     ClearLive,
+    /// The header's Media button: open or close the media dock.
+    ToggleMedia,
     /// Check for updates.
     CheckForUpdates,
     /// Download the available update.
