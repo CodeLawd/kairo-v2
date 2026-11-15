@@ -31,6 +31,7 @@ mod quote_detector;
 pub mod services;
 mod scripture;
 mod settings;
+mod spell;
 
 /// When `main` began, for the launch-to-first-paint log line.
 static LAUNCHED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();

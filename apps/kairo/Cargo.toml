@@ -43,8 +43,8 @@ tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 block2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAccessibility", "NSApplication", "NSImage", "NSResponder", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSWindow", "NSView", "NSWorkspace"] }
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSArray", "NSURL", "NSString", "NSNotification", "NSOperation"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSAccessibility", "NSApplication", "NSImage", "NSResponder", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSSpellChecker", "NSWindow", "NSView", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSData", "NSArray", "NSURL", "NSString", "NSNotification", "NSOperation", "NSRange"] }
 
 [dev-dependencies]
 tempfile = "3"

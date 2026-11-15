@@ -648,6 +648,10 @@ impl LyricsWorkspace {
         let text = grid::song_text(song);
         let id = song.id.clone();
         let gloss = self.model.read(cx).gloss().to_owned();
+        let translating = self.model.read(cx).translating();
+        let can_undo = self.model.read(cx).can_undo_translation();
+        let translate_model = model.clone();
+        let undo_model = model.clone();
         Button::new(ids::ACTIONS)
             .ghost()
             .xsmall()
@@ -683,6 +687,37 @@ impl LyricsWorkspace {
                     menu = menu.item(PopupMenuItem::new("Clear hotkeys").disabled(busy).on_click(
                         move |_, _, cx| clear.update(cx, |m, cx| m.set_hotkeys(false, cx)),
                     ));
+                }
+                let tm = translate_model.clone();
+                menu = menu.submenu(
+                    if translating {
+                        "Translating…"
+                    } else {
+                        "Translate to English"
+                    },
+                    window,
+                    cx,
+                    move |mut menu, _, _| {
+                        menu = menu.label("Sung in");
+                        for (code, name) in crate::model::TRANSLATE_SOURCES {
+                            let m = tm.clone();
+                            menu =
+                                menu.item(PopupMenuItem::new(name).disabled(translating).on_click(
+                                    move |_, _, cx| m.update(cx, |m, cx| m.translate(code, cx)),
+                                ));
+                        }
+                        menu
+                    },
+                );
+                if can_undo {
+                    let um = undo_model.clone();
+                    menu = menu.item(
+                        PopupMenuItem::new("Undo translation")
+                            .disabled(translating)
+                            .on_click(move |_, _, cx| {
+                                um.update(cx, |m, cx| m.undo_translation(cx))
+                            }),
+                    );
                 }
                 menu.submenu("Paint line colour", window, cx, move |menu, _, _| {
                     let (a, b) = (paint.clone(), paint.clone());
@@ -720,6 +755,7 @@ impl LyricsWorkspace {
         let picked = m.slide_picks().len();
         let painting = m.paint().is_some();
         let error = m.error().map(str::to_owned);
+        let translate_error = m.translate_error().map(str::to_owned);
         let hint = grid::hint(painting, selecting, picked);
         let header: AnyElement = if let (false, Some(name)) = (playlist.is_empty(), list_name) {
             h_flex()
@@ -835,7 +871,16 @@ impl LyricsWorkspace {
                             .gap_2()
                             .children(done)
                             .child(self.song.zoom.clone())
-                            .child(self.render_actions(&song, cx)),
+                            .child(self.render_actions(&song, cx))
+                            .child({
+                                let edit = self.model.clone();
+                                Button::new(super::ids::EDIT)
+                                    .outline()
+                                    .small()
+                                    .icon(Icon::new(KairoIcon::Edit2))
+                                    .label("Edit")
+                                    .on_click(move |_, _, cx| edit.update(cx, |m, cx| m.edit(cx)))
+                            }),
                     ),
             )
             .children(error.map(|e| {
@@ -845,6 +890,21 @@ impl LyricsWorkspace {
                     .role(Role::Alert)
                     .px_4()
                     .py_2()
+                    .text_size(text::XS.size)
+                    .text_color(k.danger_text)
+                    .child(e)
+            }))
+            .children(translate_error.map(|e| {
+                div()
+                    .id(super::ids::TRANSLATE_ERROR)
+                    .test_support()
+                    .role(Role::Alert)
+                    .mx_4()
+                    .mt_3()
+                    .rounded(radius::lg())
+                    .bg(k.tints.red)
+                    .px_3p5()
+                    .py_2p5()
                     .text_size(text::XS.size)
                     .text_color(k.danger_text)
                     .child(e)
@@ -923,6 +983,7 @@ fn slide_menu(
     let song_id = m.selected_id().map(str::to_owned).unwrap_or_default();
     let k = *cx.kairo();
     let (live, quick, copy, select) = (model.clone(), model.clone(), model.clone(), model.clone());
+    let edit = model.clone();
     let (group_model, key_model) = (model.clone(), model.clone());
     let delete_page = page.clone();
     let group_targets = targets.clone();
@@ -937,96 +998,100 @@ fn slide_menu(
                 .on_click(move |_, _, cx| quick.update(cx, |m, cx| m.start_quick_edit(slide, cx))),
         );
     }
-    menu.separator()
-        .submenu(
-            if many {
-                format!("Group {} slides", targets.len())
-            } else {
-                "Group".into()
-            },
-            window,
-            cx,
-            move |mut menu, _, _| {
-                for choice in grid::label_choices() {
-                    let (m, t, c) = (group_model.clone(), group_targets.clone(), choice.clone());
-                    let swatch = section_color(rows::section_kind(choice.kind));
-                    let label = choice.label.clone();
-                    menu = menu.item(
-                        PopupMenuItem::element(move |_, _| {
-                            h_flex()
-                                .gap_2()
-                                .child(div().size_3p5().rounded(radius::sm()).bg(swatch))
-                                .child(label.clone())
-                        })
-                        .on_click(move |_, _, cx| {
-                            m.update(cx, |m, cx| m.label_slides(t.clone(), c.clone(), cx))
+    menu.item(
+        PopupMenuItem::new("Edit song…")
+            .on_click(move |_, _, cx| edit.update(cx, |m, cx| m.edit(cx))),
+    )
+    .separator()
+    .submenu(
+        if many {
+            format!("Group {} slides", targets.len())
+        } else {
+            "Group".into()
+        },
+        window,
+        cx,
+        move |mut menu, _, _| {
+            for choice in grid::label_choices() {
+                let (m, t, c) = (group_model.clone(), group_targets.clone(), choice.clone());
+                let swatch = section_color(rows::section_kind(choice.kind));
+                let label = choice.label.clone();
+                menu = menu.item(
+                    PopupMenuItem::element(move |_, _| {
+                        h_flex()
+                            .gap_2()
+                            .child(div().size_3p5().rounded(radius::sm()).bg(swatch))
+                            .child(label.clone())
+                    })
+                    .on_click(move |_, _, cx| {
+                        m.update(cx, |m, cx| m.label_slides(t.clone(), c.clone(), cx))
+                    }),
+                );
+            }
+            menu
+        },
+    )
+    .submenu(
+        match &hotkey {
+            Some(key) => format!("Hot Key ({key})"),
+            None => "Hot Key".into(),
+        },
+        window,
+        cx,
+        move |mut menu, _, _| {
+            menu = menu
+                .label("Press the key in the song view to put this section live.")
+                .scrollable(true)
+                .max_h(px(320.));
+            for key in grid::HOTKEYS.chars().map(String::from) {
+                let m = key_model.clone();
+                let elsewhere = used.contains(&key);
+                let current = hotkey.as_deref() == Some(key.as_str());
+                let shown = if current {
+                    format!("{key}  ✓")
+                } else if elsewhere {
+                    format!("{key}  (moves here)")
+                } else {
+                    key.clone()
+                };
+                menu = menu.item(PopupMenuItem::new(shown).on_click(move |_, _, cx| {
+                    m.update(cx, |m, cx| m.set_hotkey(section, Some(key.clone()), cx))
+                }));
+            }
+            if hotkey.is_some() {
+                let m = key_model.clone();
+                menu = menu
+                    .separator()
+                    .item(
+                        PopupMenuItem::new("Remove hot key").on_click(move |_, _, cx| {
+                            m.update(cx, |m, cx| m.set_hotkey(section, None, cx))
                         }),
                     );
-                }
-                menu
-            },
-        )
-        .submenu(
-            match &hotkey {
-                Some(key) => format!("Hot Key ({key})"),
-                None => "Hot Key".into(),
-            },
-            window,
-            cx,
-            move |mut menu, _, _| {
-                menu = menu
-                    .label("Press the key in the song view to put this section live.")
-                    .scrollable(true)
-                    .max_h(px(320.));
-                for key in grid::HOTKEYS.chars().map(String::from) {
-                    let m = key_model.clone();
-                    let elsewhere = used.contains(&key);
-                    let current = hotkey.as_deref() == Some(key.as_str());
-                    let shown = if current {
-                        format!("{key}  ✓")
-                    } else if elsewhere {
-                        format!("{key}  (moves here)")
-                    } else {
-                        key.clone()
-                    };
-                    menu = menu.item(PopupMenuItem::new(shown).on_click(move |_, _, cx| {
-                        m.update(cx, |m, cx| m.set_hotkey(section, Some(key.clone()), cx))
-                    }));
-                }
-                if hotkey.is_some() {
-                    let m = key_model.clone();
-                    menu = menu
-                        .separator()
-                        .item(
-                            PopupMenuItem::new("Remove hot key").on_click(move |_, _, cx| {
-                                m.update(cx, |m, cx| m.set_hotkey(section, None, cx))
-                            }),
-                        );
-                }
-                menu
-            },
-        )
-        .separator()
-        .item(PopupMenuItem::new("Copy text").on_click(move |_, _, cx| {
-            if let Some(text) = copy.read(cx).slide_text(slide) {
-                cx.write_to_clipboard(ClipboardItem::new_string(text));
             }
-        }))
-        .item(PopupMenuItem::new("Select").on_click(move |_, _, cx| {
-            select.update(cx, |m, cx| m.pick_slide(slide, PickGesture::Toggle, cx))
-        }))
-        .separator()
-        .item(
-            PopupMenuItem::element(move |_, _| {
-                div().text_color(k.danger_text).child(if many {
-                    format!("Delete {} slides", delete_targets.len())
-                } else {
-                    "Delete slide".into()
-                })
+            menu
+        },
+    )
+    .separator()
+    .item(PopupMenuItem::new("Copy text").on_click(move |_, _, cx| {
+        if let Some(text) = copy.read(cx).slide_text(slide) {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        }
+    }))
+    .item(PopupMenuItem::new("Select").on_click(move |_, _, cx| {
+        select.update(cx, |m, cx| m.pick_slide(slide, PickGesture::Toggle, cx))
+    }))
+    .separator()
+    .item(
+        PopupMenuItem::element(move |_, _| {
+            div().text_color(k.danger_text).child(if many {
+                format!("Delete {} slides", delete_targets.len())
+            } else {
+                "Delete slide".into()
             })
-            .on_click(move |_, window, cx| {
-                let t = targets.clone();
-                delete_page.update(cx, |p, cx| p.delete_slides(t, window, cx))
-            }),
-        )
+        })
+        .on_click(move |_, window, cx| {
+            let t = targets.clone();
+            delete_page.update(cx, |p, cx| p.delete_slides(t, window, cx))
+        }),
+    )
 }

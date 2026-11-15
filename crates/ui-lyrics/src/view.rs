@@ -32,7 +32,9 @@ use kairo_ui_kit::tokens::{Hue, TextStep, radius, text};
 use kairo_ui_kit::{KairoColors, KairoIcon, KairoThemeExt};
 
 use crate::backend::LyricsBackend;
-use crate::model::{Lyrics, PickGesture};
+use crate::editor::{EditorEvent, SongEditor};
+use crate::import::{ImportDialog, ImportEvent};
+use crate::model::{Lyrics, LyricsEvent, PickGesture};
 use crate::quick_open::{QuickOpen, section_block};
 use crate::rows::{self, Filter, ListFooter, ReviewNotice, Sort};
 
@@ -74,6 +76,10 @@ pub mod ids {
     pub const USAGE_CLOSE: &str = "lyrics-usage-close";
     pub const USAGE_EMPTY: &str = "lyrics-usage-empty";
     pub const USAGE_FOOTER: &str = "lyrics-usage-footer";
+    pub const EDIT: &str = "lyrics-edit";
+    pub const EDIT_CANCEL: &str = "lyrics-edit-cancel";
+    pub const EDIT_SAVE: &str = "lyrics-edit-save";
+    pub const TRANSLATE_ERROR: &str = "lyrics-translate-error";
 
     pub fn song(row: usize) -> String {
         format!("lyrics-song-{row}")
@@ -148,6 +154,8 @@ pub struct LyricsWorkspace {
     quick_open: Option<(Entity<QuickOpen>, Subscription)>,
     song: song_view::SongControls,
     song_focus: FocusHandle,
+    editor: Option<(Entity<SongEditor>, Subscription)>,
+    import: Option<(Entity<ImportDialog>, Subscription)>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -246,8 +254,33 @@ impl LyricsWorkspace {
             }
         }));
         let song = song_view::SongControls::new(&model, window, cx);
+        subs.push(cx.subscribe_in(
+            &model,
+            window,
+            |this, _, event: &LyricsEvent, window, cx| {
+                if let LyricsEvent::ConfirmDiscard = event {
+                    let model = this.model.clone();
+                    confirm(
+                        messages::lyrics_discard_changes(),
+                        window,
+                        cx,
+                        move |ok, _, cx| {
+                            model.update(cx, |m, cx| {
+                                if ok {
+                                    m.discard_and_continue(cx)
+                                } else {
+                                    m.keep_editing(cx)
+                                }
+                            })
+                        },
+                    );
+                }
+            },
+        ));
         Self {
             song,
+            editor: None,
+            import: None,
             song_focus: cx.focus_handle(),
             model,
             rail: None,
@@ -302,6 +335,53 @@ impl LyricsWorkspace {
         );
         self.quick_open = Some((finder, sub));
         cx.notify();
+    }
+
+    /// The song editor while one is open.
+    pub fn editor(&self) -> Option<&Entity<SongEditor>> {
+        self.editor.as_ref().map(|(e, _)| e)
+    }
+
+    /// The Import Song dialog while open.
+    pub fn import_dialog(&self) -> Option<&Entity<ImportDialog>> {
+        self.import.as_ref().map(|(d, _)| d)
+    }
+
+    /// The editor and the import dialog follow the model.
+    fn sync_overlays(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let (editing, key, import) = {
+            let m = self.model.read(cx);
+            (
+                m.editing().is_some(),
+                m.editing().map(|e| (e.new, e.song_id.clone())),
+                m.import_open(),
+            )
+        };
+        let _ = key;
+        if editing && self.editor.is_none() {
+            let model = self.model.clone();
+            let editor = cx.new(|cx| SongEditor::new(model, window, cx));
+            let sub = cx.subscribe(&editor, |this, _, event: &EditorEvent, cx| match event {
+                EditorEvent::Save => this.model.update(cx, |m, cx| m.save_edit(cx)),
+            });
+            self.editor = Some((editor, sub));
+        } else if !editing {
+            self.editor = None;
+        }
+        if import && self.import.is_none() {
+            let model = self.model.clone();
+            let dialog = cx.new(|cx| ImportDialog::new(model, window, cx));
+            let sub = cx.subscribe(&dialog, |this, _, event: &ImportEvent, cx| match event {
+                ImportEvent::Imported(songs) => {
+                    let songs = songs.clone();
+                    this.model.update(cx, |m, cx| m.import_finished(songs, cx));
+                }
+                ImportEvent::Close => this.model.update(cx, |m, cx| m.close_import(cx)),
+            });
+            self.import = Some((dialog, sub));
+        } else if !import {
+            self.import = None;
+        }
     }
 
     pub fn quick_open(&self) -> Option<&Entity<QuickOpen>> {
@@ -803,8 +883,16 @@ impl LyricsWorkspace {
                         model.clone(),
                     );
                     let list_id = viewing.clone();
+                    let songs_import = model.clone();
                     menu = menu
                         .separator()
+                        .item(
+                            PopupMenuItem::new("Import songs…")
+                                .icon(Icon::new(KairoIcon::Download))
+                                .on_click(move |_, _, cx| {
+                                    songs_import.update(cx, |m, cx| m.open_import(cx))
+                                }),
+                        )
                         .item(
                             PopupMenuItem::new("Import .kairo file…")
                                 .icon(Icon::new(KairoIcon::Download))
@@ -1589,6 +1677,9 @@ impl LyricsWorkspace {
     }
 
     fn render_song_pane(&self, cx: &mut Context<Self>) -> AnyElement {
+        if let Some((editor, _)) = &self.editor {
+            return self.render_edit_pane(editor.clone(), cx);
+        }
         let k = *cx.kairo();
         let m = self.model.read(cx);
         let Some(song) = m.selected_song().cloned() else {
@@ -1634,12 +1725,27 @@ impl LyricsWorkspace {
                         ),
                 )
                 .child(
-                    Button::new("lyrics-empty-new")
-                        .primary()
-                        .small()
-                        .icon(Icon::new(KairoIcon::Plus))
-                        .label("New song")
-                        .on_click(move |_, _, cx| new.update(cx, |m, cx| m.new_song(cx))),
+                    h_flex()
+                        .gap_2()
+                        .child({
+                            let import = self.model.clone();
+                            Button::new("lyrics-empty-import")
+                                .outline()
+                                .small()
+                                .icon(Icon::new(KairoIcon::Upload))
+                                .label("Import")
+                                .on_click(move |_, _, cx| {
+                                    import.update(cx, |m, cx| m.open_import(cx))
+                                })
+                        })
+                        .child(
+                            Button::new("lyrics-empty-new")
+                                .primary()
+                                .small()
+                                .icon(Icon::new(KairoIcon::Plus))
+                                .label("New song")
+                                .on_click(move |_, _, cx| new.update(cx, |m, cx| m.new_song(cx))),
+                        ),
                 )
                 .into_any_element();
         };
@@ -1867,10 +1973,20 @@ fn song_menu(
     page: &Entity<LyricsWorkspace>,
 ) -> gpui_kit::component::menu::PopupMenu {
     let favorite = song.is_favorite == Some(true);
-    let (fav, export) = (model.clone(), model.clone());
+    let (fav, export, edit) = (model.clone(), model.clone(), model.clone());
     let page = page.clone();
-    let (fid, eid, did) = (song.id.clone(), song.id.clone(), song.id.clone());
+    let (fid, eid, did, edid) = (
+        song.id.clone(),
+        song.id.clone(),
+        song.id.clone(),
+        song.id.clone(),
+    );
     menu.item(
+        PopupMenuItem::new("Edit Song")
+            .icon(Icon::new(KairoIcon::Edit2))
+            .on_click(move |_, _, cx| edit.update(cx, |m, cx| m.edit_song(edid.clone(), cx))),
+    )
+    .item(
         PopupMenuItem::new(if favorite {
             "Remove Favorite"
         } else {
@@ -2010,6 +2126,7 @@ fn web_row(
 impl Render for LyricsWorkspace {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.sync(window, cx);
+        self.sync_overlays(window, cx);
         self.song.sync(&self.model, window, cx);
         let k = *cx.kairo();
         let sidebar = self.render_sidebar(window, cx);
@@ -2040,5 +2157,57 @@ impl Render for LyricsWorkspace {
             )
             .children(self.rail.clone())
             .children(self.quick_open.as_ref().map(|(q, _)| q.clone()))
+            .children(self.import.as_ref().map(|(d, _)| d.clone()))
+    }
+}
+
+impl LyricsWorkspace {
+    /// The right pane while editing: the header with Cancel and Save, then
+    /// the editor.
+    fn render_edit_pane(&self, editor: Entity<SongEditor>, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let m = self.model.read(cx);
+        let saving = m.editing().is_some_and(|e| e.saving);
+        let busy = saving || m.translating();
+        let (cancel, save) = (self.model.clone(), self.model.clone());
+        v_flex()
+            .id(ids::SONG)
+            .test_support()
+            .flex_1()
+            .min_h_0()
+            .min_w_0()
+            .child(
+                h_flex()
+                    .flex_none()
+                    .justify_end()
+                    .gap_2()
+                    .px_4()
+                    .py_3()
+                    .bg(k.surface)
+                    .child(
+                        Button::new(ids::EDIT_CANCEL)
+                            .ghost()
+                            .small()
+                            .label("Cancel")
+                            .disabled(busy)
+                            .on_click(move |_, _, cx| cancel.update(cx, |m, cx| m.cancel_edit(cx))),
+                    )
+                    .child(
+                        Button::new(ids::EDIT_SAVE)
+                            .primary()
+                            .small()
+                            .icon(Icon::new(if saving {
+                                KairoIcon::Loader
+                            } else {
+                                KairoIcon::Check
+                            }))
+                            .label(if saving { "Saving…" } else { "Save" })
+                            .tooltip("Save (⌘S)")
+                            .disabled(busy)
+                            .on_click(move |_, _, cx| save.update(cx, |m, cx| m.save_edit(cx))),
+                    ),
+            )
+            .child(editor)
+            .into_any_element()
     }
 }

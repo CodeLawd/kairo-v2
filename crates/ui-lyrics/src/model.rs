@@ -34,8 +34,9 @@ use crate::rows::{
 pub enum LyricsEvent {
     /// A short confirmation (`useTransferStore.notify({ tone: 'ok' })`).
     Notify(String),
-    /// ＋ New song: the song editor (082).
-    NewSong,
+    /// Unsaved edits would be lost: ask, then call
+    /// [`Lyrics::discard_and_continue`] or [`Lyrics::keep_editing`].
+    ConfirmDiscard,
     /// A song was opened from quick open; show the Lyrics page.
     Opened(String),
 }
@@ -174,6 +175,13 @@ pub(crate) fn ask(
     }
 }
 
+pub(crate) fn now_ms() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as f64)
+        .unwrap_or_default()
+}
+
 /// `cleanIpcError`: Electron's IPC wrapper is never shown.
 pub(crate) fn clean_error(error: &str) -> String {
     let trimmed = error
@@ -235,6 +243,13 @@ pub struct Lyrics {
     paint: Option<Option<String>>,
     busy: bool,
     quick_edit: Option<(usize, String)>,
+    // Editing and import (082).
+    editing: Option<Editing>,
+    pending_leave: Option<Leave>,
+    import_open: bool,
+    translating: bool,
+    translate_error: Option<String>,
+    translate_language: String,
     _listening: Option<Listening>,
     _feed: Option<Task<()>>,
 }
@@ -286,6 +301,12 @@ impl Lyrics {
             paint: None,
             busy: false,
             quick_edit: None,
+            editing: None,
+            pending_leave: None,
+            import_open: false,
+            translating: false,
+            translate_error: None,
+            translate_language: "auto".into(),
             _listening: None,
             _feed: None,
         };
@@ -312,6 +333,11 @@ impl Lyrics {
             LyricsFeed::Libraries(l) => self.libraries = l,
             LyricsFeed::Setlists(s) => self.set_setlists(s),
             LyricsFeed::GlossColor(c) => self.gloss = c,
+            LyricsFeed::OpenImport => {
+                if self.editing.is_none() {
+                    self.import_open = true;
+                }
+            }
         }
         self.refresh();
         cx.notify();
@@ -563,6 +589,9 @@ impl Lyrics {
 
     /// `handleSelect`.
     pub fn select_song(&mut self, id: String, cx: &mut Context<Self>) {
+        if self.editing.is_some() && !self.leave_editor(Leave::Select(id.clone()), cx) {
+            return;
+        }
         if self.selected.as_deref() != Some(id.as_str()) {
             // A different song starts with nothing picked and no quick edit.
             self.slide_picks.clear();
@@ -619,8 +648,16 @@ impl Lyrics {
         }
     }
 
+    /// ＋ New song: an empty editor.
     pub fn new_song(&mut self, cx: &mut Context<Self>) {
-        cx.emit(LyricsEvent::NewSong);
+        if self.editing.is_some() && !self.leave_editor(Leave::NewSong, cx) {
+            return;
+        }
+        let editing = Editing::new(true, None);
+        self.selected = None;
+        self.web_preview = None;
+        self.editing = Some(editing);
+        cx.notify();
     }
 
     // ─── Search ─────────────────────────────────────────────────────────────
@@ -793,7 +830,7 @@ impl Lyrics {
     }
 
     /// `handleImported`: the song lands and opens; the query clears.
-    fn imported(&mut self, song: LyricsSong, cx: &mut Context<Self>) {
+    pub(crate) fn imported(&mut self, song: LyricsSong, cx: &mut Context<Self>) {
         self.pending_open = Some(song.id.clone());
         self.upsert(song);
         self.error = None;
@@ -1829,5 +1866,445 @@ impl Lyrics {
             })
             .collect();
         self.save_sections(sections, "Could not save the line colour", cx, |_, _| {});
+    }
+}
+
+// ─── Editing, import and translation (082) ──────────────────────────────────
+
+use crate::reflow_edit::{EditSection, edit_sections, song_sections};
+use kairo_domain::lyrics::translate::{sections_have_glosses, strip_line_glosses};
+
+/// What waits on the discard question.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Leave {
+    Select(String),
+    NewSong,
+    Edit(String),
+}
+
+/// The editor's fields (`EditState`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditFields {
+    pub title: String,
+    pub artist: String,
+    pub copyright: String,
+    pub ccli_number: String,
+    pub sections: Vec<EditSection>,
+}
+
+/// The song being edited.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Editing {
+    pub new: bool,
+    /// The song being edited; `None` for a new one.
+    pub song_id: Option<String>,
+    pub fields: EditFields,
+    baseline: EditFields,
+    pub saving: bool,
+    pub error: Option<String>,
+}
+
+impl Editing {
+    fn new(new: bool, song: Option<&LyricsSong>) -> Self {
+        let fields = match song {
+            Some(s) => EditFields {
+                title: s.title.clone(),
+                artist: s.artist.clone(),
+                copyright: s.copyright.clone().unwrap_or_default(),
+                ccli_number: s.ccli_number.clone().unwrap_or_default(),
+                sections: edit_sections(s),
+            },
+            None => EditFields {
+                title: String::new(),
+                artist: String::new(),
+                copyright: String::new(),
+                ccli_number: String::new(),
+                sections: vec![EditSection {
+                    kind: kairo_domain::lyrics::LyricsSectionType::Verse,
+                    label: "Verse 1".into(),
+                    lines_text: String::new(),
+                    hotkey: None,
+                }],
+            },
+        };
+        Self {
+            new,
+            song_id: song.map(|s| s.id.clone()),
+            baseline: fields.clone(),
+            fields,
+            saving: false,
+            error: None,
+        }
+    }
+
+    /// Something changed since the editor opened.
+    pub fn dirty(&self) -> bool {
+        self.fields != self.baseline
+    }
+}
+
+/// Which editor field changed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Field {
+    Title,
+    Artist,
+    Copyright,
+    Ccli,
+}
+
+/// `TRANSLATE_SOURCES`: languages a song can be translated to English from.
+pub const TRANSLATE_SOURCES: [(&str, &str); 7] = [
+    ("auto", "Auto-detect"),
+    ("yo", "Yoruba"),
+    ("ig", "Igbo"),
+    ("ha", "Hausa"),
+    ("fr", "French"),
+    ("es", "Spanish"),
+    ("pt", "Portuguese"),
+];
+
+impl Lyrics {
+    pub fn editing(&self) -> Option<&Editing> {
+        self.editing.as_ref()
+    }
+    pub fn import_open(&self) -> bool {
+        self.import_open
+    }
+    pub fn translating(&self) -> bool {
+        self.translating
+    }
+    pub fn translate_error(&self) -> Option<&str> {
+        self.translate_error.as_deref()
+    }
+    pub fn translate_language(&self) -> &str {
+        &self.translate_language
+    }
+    pub fn pending_leave(&self) -> Option<&Leave> {
+        self.pending_leave.as_ref()
+    }
+
+    /// `leaveEditor`: closes a clean editor; a dirty one asks first.
+    /// Returns whether the caller may go on now.
+    fn leave_editor(&mut self, then: Leave, cx: &mut Context<Self>) -> bool {
+        let Some(editing) = &self.editing else {
+            return true;
+        };
+        if editing.dirty() {
+            self.pending_leave = Some(then);
+            cx.emit(LyricsEvent::ConfirmDiscard);
+            return false;
+        }
+        self.editing = None;
+        true
+    }
+
+    /// Discard the edits and do what was asked.
+    pub fn discard_and_continue(&mut self, cx: &mut Context<Self>) {
+        let Some(then) = self.pending_leave.take() else {
+            return;
+        };
+        self.editing = None;
+        match then {
+            Leave::Select(id) => self.select_song(id, cx),
+            Leave::NewSong => self.new_song(cx),
+            Leave::Edit(id) => {
+                self.selected = Some(id);
+                self.edit(cx)
+            }
+        }
+        cx.notify();
+    }
+
+    pub fn keep_editing(&mut self, cx: &mut Context<Self>) {
+        self.pending_leave = None;
+        cx.notify();
+    }
+
+    /// Edit the open song.
+    pub fn edit(&mut self, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song().cloned() else {
+            return;
+        };
+        if let Some(e) = &self.editing {
+            if e.song_id.as_deref() == Some(song.id.as_str()) {
+                return;
+            }
+            if !self.leave_editor(Leave::Edit(song.id.clone()), cx) {
+                return;
+            }
+        }
+        self.quick_edit = None;
+        self.translate_error = None;
+        self.editing = Some(Editing::new(false, Some(&song)));
+        cx.notify();
+    }
+
+    /// The row menu's Edit Song.
+    pub fn edit_song(&mut self, id: String, cx: &mut Context<Self>) {
+        if self.editing.is_some() && !self.leave_editor(Leave::Edit(id.clone()), cx) {
+            return;
+        }
+        self.select_song(id, cx);
+        self.edit(cx);
+    }
+
+    /// Cancel: a new song leaves nothing selected.
+    pub fn cancel_edit(&mut self, cx: &mut Context<Self>) {
+        if let Some(e) = self.editing.take()
+            && e.new
+        {
+            self.selected = None;
+        }
+        cx.notify();
+    }
+
+    pub fn set_edit_field(&mut self, field: Field, value: String, cx: &mut Context<Self>) {
+        let Some(e) = self.editing.as_mut() else {
+            return;
+        };
+        let slot = match field {
+            Field::Title => &mut e.fields.title,
+            Field::Artist => &mut e.fields.artist,
+            Field::Copyright => &mut e.fields.copyright,
+            Field::Ccli => &mut e.fields.ccli_number,
+        };
+        if *slot != value {
+            *slot = value;
+            cx.notify();
+        }
+    }
+
+    pub fn set_edit_sections(&mut self, sections: Vec<EditSection>, cx: &mut Context<Self>) {
+        if let Some(e) = self.editing.as_mut()
+            && e.fields.sections != sections
+        {
+            e.fields.sections = sections;
+            cx.notify();
+        }
+    }
+
+    /// Save (⌘S): a new song is imported from its marked text; an edit is
+    /// written over the song.
+    pub fn save_edit(&mut self, cx: &mut Context<Self>) {
+        let held = self
+            .editing
+            .as_ref()
+            .and_then(|e| e.song_id.as_deref())
+            .and_then(|id| self.song(id))
+            .cloned();
+        let translating = self.translating;
+        let Some(e) = self.editing.as_mut() else {
+            return;
+        };
+        if e.saving || translating {
+            return;
+        }
+        e.saving = true;
+        e.error = None;
+        let fields = e.fields.clone();
+        let sections = song_sections(&fields.sections);
+        let call = if e.new {
+            let body = sections
+                .iter()
+                .map(|s| format!("[{}]\n{}", s.label, s.lines.join("\n")))
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            let title = fields.title.trim();
+            LyricsCall::Import(kairo_domain::lyrics::LyricsImportSource::Text {
+                title: if title.is_empty() {
+                    "Untitled".into()
+                } else {
+                    title.to_owned()
+                },
+                artist: fields.artist.trim().to_owned(),
+                text: body,
+                copyright: Some(fields.copyright.trim().to_owned()).filter(|c| !c.is_empty()),
+            })
+        } else {
+            let Some(song) = held else {
+                e.saving = false;
+                e.error = Some("This song is no longer in the library.".into());
+                cx.notify();
+                return;
+            };
+            let title = fields.title.trim();
+            LyricsCall::Update(LyricsSong {
+                title: if title.is_empty() {
+                    song.title.clone()
+                } else {
+                    title.to_owned()
+                },
+                artist: fields.artist.trim().to_owned(),
+                copyright: Some(fields.copyright.trim().to_owned()).filter(|c| !c.is_empty()),
+                ccli_number: Some(fields.ccli_number.trim().to_owned()).filter(|c| !c.is_empty()),
+                sections,
+                updated_at: now_ms(),
+                ..song
+            })
+        };
+        let call = ask(&self.backend, call);
+        cx.spawn(async move |this, cx| {
+            let answer = call.await;
+            let _ = this.update(cx, |this, cx| {
+                match answer {
+                    Ok(LyricsAnswer::Song(song)) => {
+                        let id = song.id.clone();
+                        this.upsert(song);
+                        this.editing = None;
+                        this.selected = Some(id);
+                        this.refresh();
+                    }
+                    Ok(_) => this.editing = None,
+                    Err(err) => {
+                        if let Some(e) = this.editing.as_mut() {
+                            e.saving = false;
+                            e.error = Some(if err.is_empty() {
+                                "Could not save the song.".into()
+                            } else {
+                                clean_error(&err)
+                            });
+                        }
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    // ─── Import ─────────────────────────────────────────────────────────────
+
+    pub fn open_import(&mut self, cx: &mut Context<Self>) {
+        self.import_open = true;
+        cx.notify();
+    }
+
+    pub fn close_import(&mut self, cx: &mut Context<Self>) {
+        self.import_open = false;
+        cx.notify();
+    }
+
+    /// Songs the import dialog saved; the last opens.
+    pub fn import_finished(&mut self, songs: Vec<LyricsSong>, cx: &mut Context<Self>) {
+        self.import_open = false;
+        for song in songs {
+            self.imported(song, cx);
+        }
+        cx.notify();
+    }
+
+    // ─── Translate ──────────────────────────────────────────────────────────
+
+    /// Undo translation is offered while the song carries glosses.
+    pub fn can_undo_translation(&self) -> bool {
+        self.selected_song()
+            .is_some_and(|s| sections_have_glosses(s.sections.iter().map(|x| x.lines.as_slice())))
+    }
+
+    /// Translate to English, sung in `language` (`auto` detects).
+    pub fn translate(&mut self, language: &str, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song().cloned() else {
+            return;
+        };
+        if song.sections.is_empty() || self.translating {
+            return;
+        }
+        self.translate_language = language.to_owned();
+        self.translating = true;
+        self.translate_error = None;
+        let sections: Vec<LyricsSongSection> = song
+            .sections
+            .iter()
+            .map(|s| LyricsSongSection {
+                lines: strip_line_glosses(&s.lines),
+                ..s.clone()
+            })
+            .collect();
+        let backend = self.backend.clone();
+        let call = ask(
+            &backend,
+            LyricsCall::Translate {
+                sections,
+                source_language: language.to_owned(),
+                title: song.title.clone(),
+                artist: song.artist.clone(),
+            },
+        );
+        cx.spawn(async move |this, cx| {
+            let answer = call.await;
+            let saved = match answer {
+                Ok(LyricsAnswer::Sections(translated)) => {
+                    let sections = translated
+                        .into_iter()
+                        // Fresh glosses use the gloss colour.
+                        .map(|s| LyricsSongSection {
+                            line_colors: None,
+                            ..s
+                        })
+                        .collect();
+                    ask(
+                        &backend,
+                        LyricsCall::Update(LyricsSong { sections, ..song }),
+                    )
+                    .await
+                }
+                Ok(_) => Ok(LyricsAnswer::Done),
+                Err(e) => Err(e),
+            };
+            let _ = this.update(cx, |this, cx| {
+                this.translating = false;
+                match saved {
+                    Ok(LyricsAnswer::Song(s)) => {
+                        this.upsert(s);
+                        this.refresh();
+                    }
+                    Ok(_) => {}
+                    Err(e) => this.translate_error = Some(clean_error(&e)),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    /// Strips the glosses and their colours.
+    pub fn undo_translation(&mut self, cx: &mut Context<Self>) {
+        let Some(song) = self.selected_song().cloned() else {
+            return;
+        };
+        if !self.can_undo_translation() {
+            return;
+        }
+        self.translate_error = None;
+        let sections = song
+            .sections
+            .iter()
+            .map(|s| LyricsSongSection {
+                lines: strip_line_glosses(&s.lines),
+                line_colors: None,
+                ..s.clone()
+            })
+            .collect();
+        let call = ask(
+            &self.backend,
+            LyricsCall::Update(LyricsSong { sections, ..song }),
+        );
+        cx.spawn(async move |this, cx| {
+            let answer = call.await;
+            let _ = this.update(cx, |this, cx| {
+                match answer {
+                    Ok(LyricsAnswer::Song(s)) => {
+                        this.upsert(s);
+                        this.refresh();
+                    }
+                    Ok(_) => {}
+                    Err(e) => this.translate_error = Some(clean_error(&e)),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 }

@@ -10796,6 +10796,7 @@ dependencies = [
  "gpui-kit",
  "kairo-domain",
  "kairo-ui-kit",
+ "regex",
  "serde_json",
  "tracing",
 ]

@@ -1017,16 +1017,11 @@ fn exports_carry_what_is_on_screen(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
-fn new_song_asks_the_app_for_the_editor(cx: &mut TestAppContext) {
+fn new_song_opens_an_empty_editor(cx: &mut TestAppContext) {
     let opened = open(cx, Core::new(base()));
     click(cx, &opened, ids::NEW_SONG);
-    assert!(
-        opened
-            .events
-            .lock()
-            .unwrap()
-            .contains(&LyricsEvent::NewSong)
-    );
+    assert!(read(cx, &opened, |m| m.editing().is_some_and(|e| e.new)));
+    assert!(cx.read(|cx| opened.page.read(cx).editor().is_some()));
 }
 
 // ─── Song usage ─────────────────────────────────────────────────────────────

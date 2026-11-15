@@ -7,9 +7,12 @@
 //! implements it over its services.
 
 pub mod backend;
+pub mod editor;
 pub mod grid;
+pub mod import;
 pub mod model;
 pub mod quick_open;
+pub mod reflow_edit;
 pub mod rows;
 pub mod view;
 
