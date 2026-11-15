@@ -7,6 +7,10 @@
 use std::ops::Range;
 
 /// Converts a UTF-16 range (as AppKit reports) to UTF-8 bytes in `text`.
+#[cfg_attr(
+    not(target_os = "macos"),
+    allow(dead_code, reason = "NSSpellChecker is macOS only")
+)]
 pub fn utf16_to_bytes(text: &str, start: usize, len: usize) -> Option<Range<usize>> {
     let mut units = 0;
     let (mut from, mut to) = (None, None);

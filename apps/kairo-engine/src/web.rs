@@ -88,10 +88,18 @@ pub(super) struct Signals {
     pub scroll: Option<(f64, f64)>,
     pub error: Option<String>,
     pub loaded: bool,
+    #[cfg_attr(
+        not(target_os = "macos"),
+        allow(dead_code, reason = "only WKWebView reports a crashed page")
+    )]
     pub crashed: bool,
 }
 
 /// Page IPC carries scroll observations only. It cannot invoke engine commands.
+#[cfg_attr(
+    not(any(target_os = "macos", target_os = "windows")),
+    allow(dead_code, reason = "the Linux web layer has no page IPC yet")
+)]
 fn observed_scroll(body: &str) -> Option<(f64, f64)> {
     if body.len() > 256 {
         return None;

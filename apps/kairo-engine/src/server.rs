@@ -16,6 +16,10 @@ use winit::event_loop::EventLoopProxy;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub enum Message {
+    #[cfg_attr(
+        not(any(target_os = "macos", target_os = "windows")),
+        allow(dead_code, reason = "Linux finds display changes by polling")
+    )]
     DisplaysChanged,
     /// The video card service changed (its thread).
     VideoDevices,

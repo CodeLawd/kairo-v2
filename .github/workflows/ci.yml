@@ -36,7 +36,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc g++ clang libfontconfig-dev libwayland-dev \
+          sudo apt-get install -y gcc g++ clang nasm libfontconfig-dev libwayland-dev \
             libwebkit2gtk-4.1-dev libxkbcommon-x11-dev libx11-xcb-dev \
             libssl-dev libzstd-dev libasound2-dev vulkan-validationlayers libvulkan1 \
             mesa-vulkan-drivers
@@ -58,6 +58,14 @@ jobs:
           echo "FFMPEG_DIR=$RUNNER_TEMP/ffmpeg" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$RUNNER_TEMP/ffmpeg/lib" >> "$GITHUB_ENV"
           echo "$RUNNER_TEMP/ffmpeg/bin" >> "$GITHUB_PATH"
+
+      # rav1d (AV1 pictures, prompt 053) assembles its x86-64 code with nasm.
+      - name: Install nasm (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nasm -y --no-progress
+          'C:\Program Files\NASM' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Install FFmpeg 9 (Windows)
         if: runner.os == 'Windows'

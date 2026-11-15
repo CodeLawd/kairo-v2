@@ -118,20 +118,23 @@ pub fn rehearsal_bounds(display: &DisplayInfo, frame_height: u32) -> Rect {
 }
 
 pub fn native_id(window: &Window) -> u64 {
-    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use winit::raw_window_handle::HasWindowHandle;
     let Ok(handle) = window.window_handle() else {
         return 0;
     };
-    match handle.as_raw() {
-        #[cfg(target_os = "macos")]
-        RawWindowHandle::AppKit(handle) => {
-            let view: &objc2_app_kit::NSView = unsafe { handle.ns_view.cast().as_ref() };
-            view.window().map_or(0, |w| w.windowNumber() as u64)
-        }
-        #[cfg(target_os = "windows")]
-        RawWindowHandle::Win32(handle) => handle.hwnd.get() as u64,
-        _ => 0,
+    #[cfg(target_os = "macos")]
+    if let winit::raw_window_handle::RawWindowHandle::AppKit(handle) = handle.as_raw() {
+        let view: &objc2_app_kit::NSView = unsafe { handle.ns_view.cast().as_ref() };
+        return view.window().map_or(0, |w| w.windowNumber() as u64);
     }
+    #[cfg(target_os = "windows")]
+    if let winit::raw_window_handle::RawWindowHandle::Win32(handle) = handle.as_raw() {
+        return handle.hwnd.get() as u64;
+    }
+    // No native window number elsewhere.
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let _ = handle;
+    0
 }
 
 /// Electron's window width/height include chrome; winit accepts content size.

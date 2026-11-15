@@ -120,7 +120,9 @@ done < <(tr ',' '\n' <<<"$found")
 depends+=("${DEB_RUNTIME_DEPENDS[@]}")
 for dep in "${depends[@]}"; do
   case "$dep" in
-    libav*|libsw*|libpdfium*|libndi*) die "a bundled library leaked into depends: $dep" ;;
+    # libavahi-* is Avahi, which the NDI runtime needs; it is not FFmpeg.
+    libavutil* | libavcodec* | libavformat* | libswscale* | libswresample* | libpdfium* | libndi*)
+      die "a bundled library leaked into depends: $dep" ;;
   esac
 done
 note "deb depends: ${depends[*]}"

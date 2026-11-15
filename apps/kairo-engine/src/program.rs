@@ -436,11 +436,14 @@ impl Shell {
     }
 
     /// Whether moving parts are held at their start (tests only).
+    #[cfg(test)]
     fn still(&self) -> bool {
-        #[cfg(test)]
-        if self.pinned.is_some() {
-            return true;
-        }
+        self.pinned.is_some()
+    }
+
+    /// Whether moving parts are held at their start: never outside tests.
+    #[cfg(not(test))]
+    fn still(&self) -> bool {
         false
     }
 

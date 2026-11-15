@@ -52,6 +52,12 @@ jobs:
       - name: Select Rust toolchain
         run: rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
 
+      - name: nasm
+        # rav1d (AV1 pictures) assembles its x86-64 code with nasm. Build tool only.
+        run: |
+          choco install nasm -y --no-progress
+          'C:\Program Files\NASM' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:

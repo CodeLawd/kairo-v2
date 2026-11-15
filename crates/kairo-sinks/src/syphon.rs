@@ -9,9 +9,13 @@
 //! BGRA and copied in instead. Nothing here throws or panics on a Syphon
 //! failure: an output that cannot run says why.
 
-use kairo_compositor::{FinishedFrame, FrameSink, SinkFrame};
+use kairo_compositor::FrameSink;
+#[cfg(target_os = "macos")]
+use kairo_compositor::{FinishedFrame, SinkFrame};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
+#[cfg(target_os = "macos")]
+use std::sync::atomic::Ordering;
 
 /// Frame counters, from the server and from this side.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -38,6 +42,10 @@ pub struct SyphonChannel {
     #[cfg(target_os = "macos")]
     server: Option<Arc<Server>>,
     failure: Option<String>,
+    #[cfg_attr(
+        not(target_os = "macos"),
+        allow(dead_code, reason = "Syphon is macOS only")
+    )]
     readbacks: Arc<AtomicU64>,
     readback: bool,
 }

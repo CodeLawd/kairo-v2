@@ -114,13 +114,13 @@ impl PreviewHub {
             std::process::id(),
             uuid::Uuid::new_v4().simple()
         ));
-        let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {
             use std::os::unix::fs::DirBuilderExt;
-            builder.mode(0o700);
+            std::fs::DirBuilder::new().mode(0o700).create(&dir)?;
         }
-        builder.create(&dir)?;
+        #[cfg(not(unix))]
+        std::fs::DirBuilder::new().create(&dir)?;
         Ok(Self {
             shared: Arc::new(Shared {
                 engine,
