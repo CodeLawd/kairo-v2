@@ -448,6 +448,11 @@ async fn run(
             program.clear_props();
             done
         }
+        BoothCall::PickImage => services
+            .actions()
+            .pick_program_image()
+            .await
+            .map(|p| BoothAnswer::Picked(p.map(|p| p.to_string_lossy().into_owned()))),
         BoothCall::SetCamera { label, audio } => {
             program.set_camera(label.as_deref(), audio.as_deref());
             done
@@ -477,7 +482,7 @@ async fn run(
 }
 
 /// `name.txt`, else `name (1).txt`, as a browser download names a repeat.
-fn unique_path(folder: &std::path::Path, file_name: &str) -> std::path::PathBuf {
+pub(crate) fn unique_path(folder: &std::path::Path, file_name: &str) -> std::path::PathBuf {
     let first = folder.join(file_name);
     if !first.exists() {
         return first;
@@ -511,13 +516,19 @@ pub fn install(
     let views = ui_operator::BoothViews::new(backend, window, cx);
     views.install(workspace, cx);
     let booth = views.booth.clone();
+    let props = install_props(&booth, shell, cx);
     let host = workspace.downgrade();
     let shell = shell.downgrade();
     let handle = window.window_handle();
     cx.subscribe(&views.booth, move |_, event: &BoothEvent, cx| {
         let event = event.clone();
-        let (booth, host, shell, account) =
-            (booth.clone(), host.clone(), shell.clone(), account.clone());
+        let (booth, host, shell, account, props) = (
+            booth.clone(),
+            host.clone(),
+            shell.clone(),
+            account.clone(),
+            props.clone(),
+        );
         let _ = handle.update(cx, move |_, window, cx| match &event {
             BoothEvent::OpenActivation { title, description } => {
                 let dialog = cx.new(|cx| {
@@ -544,7 +555,13 @@ pub fn install(
             BoothEvent::CloseActivation => {
                 let _ = host.update(cx, |w, cx| w.set_dialog(None, cx));
             }
-            BoothEvent::OpenProps(_) => {
+            BoothEvent::OpenProps(select) => {
+                // An open editor moves to the request; a new one starts there.
+                let open = props.borrow().editor.as_ref().and_then(|e| e.upgrade());
+                match open {
+                    Some(editor) => editor.update(cx, |e, cx| e.select(select.clone(), cx)),
+                    None => props.borrow_mut().select = select.clone(),
+                }
                 let _ = shell.update(cx, |s, cx| s.open_overlay(ui_shell::Overlay::Props, cx));
             }
             BoothEvent::Toast(text) => {
@@ -558,4 +575,43 @@ pub fn install(
     })
     .detach();
     views
+}
+
+/// Where the Props window opens next, and the one that is open.
+#[derive(Default)]
+struct PropsSlot {
+    select: Option<String>,
+    editor: Option<gpui_kit::WeakEntity<ui_operator::PropsEditor>>,
+}
+
+/// Registers the Props editor (prompt 088) as the shell's Props overlay.
+fn install_props(
+    booth: &gpui_kit::Entity<ui_operator::Booth>,
+    shell: &gpui_kit::Entity<ui_shell::Shell>,
+    cx: &mut gpui_kit::App,
+) -> std::rc::Rc<std::cell::RefCell<PropsSlot>> {
+    use gpui_kit::AppContext;
+    let slot: std::rc::Rc<std::cell::RefCell<PropsSlot>> = Default::default();
+    let (booth, target, build_slot) = (booth.clone(), shell.downgrade(), slot.clone());
+    shell.update(cx, |shell, _| {
+        shell.set_overlay_builder(
+            ui_shell::Overlay::Props,
+            Box::new(move |_, window, cx| {
+                let select = build_slot.borrow_mut().select.take();
+                let editor =
+                    cx.new(|cx| ui_operator::PropsEditor::new(booth.clone(), select, window, cx));
+                build_slot.borrow_mut().editor = Some(editor.downgrade());
+                let (target, handle) = (target.clone(), window.window_handle());
+                cx.subscribe(&editor, move |editor, _: &ui_operator::PropsEvent, cx| {
+                    let _ = handle.update(cx, |_, window, cx| {
+                        editor.update(cx, |e, cx| e.restore_focus(window, cx))
+                    });
+                    let _ = target.update(cx, |shell, cx| shell.close_overlay(cx));
+                })
+                .detach();
+                gpui_kit::AnyView::from(editor)
+            }),
+        )
+    });
+    slot
 }

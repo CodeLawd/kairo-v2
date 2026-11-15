@@ -222,18 +222,31 @@ fn cursor_for(hit: Option<&Hit>, dragging: bool) -> CursorStyle {
 impl ThemeEditor {
     /// The shape thumbnail for `tile` in `color`, drawn once per colour.
     fn thumb(&self, tile: &Tile, color: Hsla) -> Option<Arc<RenderImage>> {
+        cached_thumb(&self.thumbs, tile, color)
+    }
+}
+
+/// The shape thumbnail for `tile` in `color`, drawn once per colour.
+pub(crate) fn cached_thumb(
+    thumbs: &std::cell::RefCell<crate::editor::ThumbCache>,
+    tile: &Tile,
+    color: Hsla,
+) -> Option<Arc<RenderImage>> {
+    {
         let key = (
             format!("{}:{:?}:{}", tile.key, tile.pick.kind, tile.pick.radius_px),
             (color.l * 255.0) as u32 | (((color.a * 255.0) as u32) << 8),
         );
-        self.thumbs
+        thumbs
             .borrow_mut()
             .entry(key)
             .or_insert_with(|| gallery::thumb(tile, color))
             .clone()
     }
+}
 
-    fn element_tile(el: &OverlayElement) -> Tile {
+impl ThemeEditor {
+    pub(crate) fn element_tile(el: &OverlayElement) -> Tile {
         Tile {
             key: el
                 .shape
@@ -470,7 +483,13 @@ impl ThemeEditor {
                     } else {
                         k.surface_line
                     })
-                    .child(self.slide_thumb(&theme, SIDEBAR_PX - 12.0 - 2.0, &k)),
+                    .child(slide_picture(
+                        &theme,
+                        self.kind,
+                        SIDEBAR_PX - 12.0 - 2.0,
+                        &k,
+                        &self.thumbs,
+                    )),
             )
             .child(
                 h_flex()
@@ -519,121 +538,126 @@ impl ThemeEditor {
             )
             .into_any_element()
     }
+}
 
-    /// The theme's slide, small: its background, elements and sample words
-    /// at the tile's size. The slide in the middle is drawn by the engine;
-    /// these only help tell themes apart.
-    fn slide_thumb(
-        &self,
-        theme: &OverlayTheme,
-        width: f32,
-        k: &kairo_ui_kit::tokens::KairoColors,
-    ) -> AnyElement {
-        let height = width * 9.0 / 16.0;
-        let scale = width / 1920.0;
-        let bg = &theme.background;
-        let sample = model::sample(self.kind, false);
-        let mut slide = div()
-            .relative()
-            .w(px(width))
-            .h(px(height))
-            .overflow_hidden()
-            .bg(k.surface_stage);
-        slide = match bg.kind {
-            OverlayBackgroundType::Color => match css(&bg.color, bg.opacity) {
-                Some(c) => slide.bg(c),
-                None => slide,
-            },
-            OverlayBackgroundType::Gradient => {
-                let from = css(&bg.color, bg.opacity);
-                let to = css(bg.color2.as_deref().unwrap_or(&bg.color), bg.opacity);
-                match (from, to) {
-                    (Some(a), Some(b)) => slide.bg(linear_gradient(
-                        bg.angle_deg.unwrap_or(0.0) as f32,
-                        linear_color_stop(a, 0.0),
-                        linear_color_stop(b, 1.0),
-                    )),
-                    _ => slide,
-                }
+/// The theme's slide, small: its background, elements and sample words
+/// at the tile's size. The slide in the middle is drawn by the engine;
+/// these only help tell themes apart.
+pub(crate) fn slide_picture(
+    theme: &OverlayTheme,
+    kind: OverlayContentKind,
+    width: f32,
+    k: &kairo_ui_kit::tokens::KairoColors,
+    thumbs: &std::cell::RefCell<crate::editor::ThumbCache>,
+) -> AnyElement {
+    let height = width * 9.0 / 16.0;
+    let scale = width / 1920.0;
+    let bg = &theme.background;
+    let sample = model::sample(kind, false);
+    let mut slide = div()
+        .relative()
+        .w(px(width))
+        .h(px(height))
+        .overflow_hidden()
+        .bg(k.surface_stage);
+    slide = match bg.kind {
+        OverlayBackgroundType::Color => match css(&bg.color, bg.opacity) {
+            Some(c) => slide.bg(c),
+            None => slide,
+        },
+        OverlayBackgroundType::Gradient => {
+            let from = css(&bg.color, bg.opacity);
+            let to = css(bg.color2.as_deref().unwrap_or(&bg.color), bg.opacity);
+            match (from, to) {
+                (Some(a), Some(b)) => slide.bg(linear_gradient(
+                    bg.angle_deg.unwrap_or(0.0) as f32,
+                    linear_color_stop(a, 0.0),
+                    linear_color_stop(b, 1.0),
+                )),
+                _ => slide,
             }
-            OverlayBackgroundType::Image | OverlayBackgroundType::Video => {
-                slide.bg(k.surface_tertiary)
-            }
-            _ => slide,
-        };
-        let place = |frame: &kairo_domain::overlay::OverlayBox| {
-            div()
-                .absolute()
-                .left(relative((frame.x_pct / 100.0) as f32))
-                .top(relative((frame.y_pct / 100.0) as f32))
-                .w(relative((frame.width_pct / 100.0) as f32))
-                .h(relative((frame.height_pct / 100.0) as f32))
-        };
-        let element = |el: &OverlayElement| -> AnyElement {
-            let fill = css(&el.fill, el.fill_opacity * el.opacity);
-            let base = place(&el.frame);
-            match el.kind {
-                OverlayElementKind::Rectangle | OverlayElementKind::Ellipse => base
-                    .when_some(fill, |d, c| d.bg(c))
-                    .when(el.kind == OverlayElementKind::Ellipse, |d| d.rounded_full())
-                    .when(el.kind == OverlayElementKind::Rectangle, |d| {
-                        d.rounded(px((el.radius_px * f64::from(scale)) as f32))
-                    })
-                    .into_any_element(),
-                OverlayElementKind::Shape => {
-                    let tile = Self::element_tile(el);
-                    let image = self.thumb(&tile, fill.unwrap_or_else(|| hsla(0.0, 0.0, 1.0, 1.0)));
-                    base.children(image.map(|i| img(i).size_full()))
-                        .into_any_element()
-                }
-                OverlayElementKind::Image | OverlayElementKind::Video => {
-                    base.bg(k.surface_elevated).opacity(0.8).into_any_element()
-                }
-            }
-        };
-        for el in theme.elements.iter().filter(|e| !e.above_text) {
-            slide = slide.child(element(el));
         }
-        let text_box = |style: &kairo_domain::overlay::OverlayTextStyle, words: String| {
-            let color = css(&style.color, style.color_opacity).unwrap_or(k.text_primary);
-            let family = style
-                .font_family
-                .split(',')
-                .next()
-                .unwrap_or("")
-                .trim()
-                .trim_matches(['\'', '"'])
-                .to_owned();
-            let size = (style.font_size_px * f64::from(scale)).max(2.0) as f32;
-            place(&style.frame)
-                .overflow_hidden()
-                .flex()
-                .flex_col()
-                .when(style.vertical_align == OverlayVerticalAlign::Middle, |d| {
-                    d.justify_center()
+        OverlayBackgroundType::Image | OverlayBackgroundType::Video => slide.bg(k.surface_tertiary),
+        _ => slide,
+    };
+    let place = |frame: &kairo_domain::overlay::OverlayBox| {
+        div()
+            .absolute()
+            .left(relative((frame.x_pct / 100.0) as f32))
+            .top(relative((frame.y_pct / 100.0) as f32))
+            .w(relative((frame.width_pct / 100.0) as f32))
+            .h(relative((frame.height_pct / 100.0) as f32))
+    };
+    let element = |el: &OverlayElement| -> AnyElement {
+        let fill = css(&el.fill, el.fill_opacity * el.opacity);
+        let base = place(&el.frame);
+        match el.kind {
+            OverlayElementKind::Rectangle | OverlayElementKind::Ellipse => base
+                .when_some(fill, |d, c| d.bg(c))
+                .when(el.kind == OverlayElementKind::Ellipse, |d| d.rounded_full())
+                .when(el.kind == OverlayElementKind::Rectangle, |d| {
+                    d.rounded(px((el.radius_px * f64::from(scale)) as f32))
                 })
-                .when(style.vertical_align == OverlayVerticalAlign::Bottom, |d| {
-                    d.justify_end()
-                })
-                .when(style.align == OverlayTextAlign::Center, |d| d.text_center())
-                .when(style.align == OverlayTextAlign::Right, |d| d.text_right())
-                .text_color(color)
-                .text_size(px(size))
-                .when(!family.is_empty(), |d| d.font_family(family))
-                .font_weight(FontWeight(style.font_weight as f32))
-                .line_height(relative(style.line_height.max(1.0) as f32))
-                .child(words)
-        };
-        slide = slide.child(text_box(&theme.verse, sample.text.clone()));
-        if theme.reference.show {
-            slide = slide.child(text_box(&theme.reference.text, sample.reference.clone()));
+                .into_any_element(),
+            OverlayElementKind::Shape => {
+                let tile = ThemeEditor::element_tile(el);
+                let image = cached_thumb(
+                    thumbs,
+                    &tile,
+                    fill.unwrap_or_else(|| hsla(0.0, 0.0, 1.0, 1.0)),
+                );
+                base.children(image.map(|i| img(i).size_full()))
+                    .into_any_element()
+            }
+            OverlayElementKind::Image | OverlayElementKind::Video => {
+                base.bg(k.surface_elevated).opacity(0.8).into_any_element()
+            }
         }
-        for el in theme.elements.iter().filter(|e| e.above_text) {
-            slide = slide.child(element(el));
-        }
-        slide.into_any_element()
+    };
+    for el in theme.elements.iter().filter(|e| !e.above_text) {
+        slide = slide.child(element(el));
     }
+    let text_box = |style: &kairo_domain::overlay::OverlayTextStyle, words: String| {
+        let color = css(&style.color, style.color_opacity).unwrap_or(k.text_primary);
+        let family = style
+            .font_family
+            .split(',')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .trim_matches(['\'', '"'])
+            .to_owned();
+        let size = (style.font_size_px * f64::from(scale)).max(2.0) as f32;
+        place(&style.frame)
+            .overflow_hidden()
+            .flex()
+            .flex_col()
+            .when(style.vertical_align == OverlayVerticalAlign::Middle, |d| {
+                d.justify_center()
+            })
+            .when(style.vertical_align == OverlayVerticalAlign::Bottom, |d| {
+                d.justify_end()
+            })
+            .when(style.align == OverlayTextAlign::Center, |d| d.text_center())
+            .when(style.align == OverlayTextAlign::Right, |d| d.text_right())
+            .text_color(color)
+            .text_size(px(size))
+            .when(!family.is_empty(), |d| d.font_family(family))
+            .font_weight(FontWeight(style.font_weight as f32))
+            .line_height(relative(style.line_height.max(1.0) as f32))
+            .child(words)
+    };
+    slide = slide.child(text_box(&theme.verse, sample.text.clone()));
+    if theme.reference.show {
+        slide = slide.child(text_box(&theme.reference.text, sample.reference.clone()));
+    }
+    for el in theme.elements.iter().filter(|e| e.above_text) {
+        slide = slide.child(element(el));
+    }
+    slide.into_any_element()
+}
 
+impl ThemeEditor {
     fn render_layers(&self, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
         let editor = cx.entity();

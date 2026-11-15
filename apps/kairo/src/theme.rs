@@ -56,7 +56,7 @@ fn persist(services: &ApplicationServices, op: &Op) -> Result<(), String> {
         .unwrap_or_else(|e| e.into_inner());
     let mut settings = parse(wiring.get_all())?;
     let before = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
-    apply(&mut settings, op);
+    apply(&mut settings, op)?;
     let after = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
     for key in ["themeLibrary", "themeDefaults", "overlay"] {
         if before[key] != after[key] {
@@ -219,12 +219,15 @@ fn aspect(path: &str, kind: MediaKind) -> Option<f64> {
     (h > 0).then(|| f64::from(w) / f64::from(h))
 }
 
-/// Builds the editor and puts it on the Theme route.
+/// Builds the editor with its inspector, for the Theme route.
 pub fn install(
     backend: Arc<dyn ThemeBackend>,
     window: &mut gpui_kit::Window,
     cx: &mut gpui_kit::App,
 ) -> gpui_kit::Entity<ui_theme::ThemeEditor> {
     use gpui_kit::AppContext;
-    cx.new(|cx| ui_theme::ThemeEditor::new(backend, window, cx))
+    let editor = cx.new(|cx| ui_theme::ThemeEditor::new(backend, window, cx));
+    // The editor holds the inspector's view, which keeps it alive.
+    ui_theme::ThemeInspector::attach(&editor, window, cx);
+    editor
 }

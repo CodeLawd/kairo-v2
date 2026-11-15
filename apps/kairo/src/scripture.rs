@@ -130,6 +130,16 @@ impl ScriptureBackend for ServicesScripture {
                 }
             }));
         }
+        {
+            let mut done = core.watch::<crate::transfer::TransferCommitted>();
+            let sink = sink.clone();
+            let services = services.clone();
+            tasks.push(runtime.spawn(async move {
+                while done.next().await.is_some() {
+                    sink(ScriptureFeed::Plans(services.plans.list_plans()));
+                }
+            }));
+        }
         let passages = sink.clone();
         services
             .passages
@@ -269,25 +279,11 @@ async fn run(
             .map_err(|e| e.to_string())
         }
         ScriptureCall::ExportPlaylist(plan_id) => {
-            services
-                .transfer
-                .export(TransferExportRequest::Playlist { plan_id }, &services.ui)
-                .await
-                .map_err(|e| e.to_string())?;
+            crate::transfer::export(services, TransferExportRequest::Playlist { plan_id }).await;
             done
         }
         ScriptureCall::ImportKairo => {
-            if let Some(preview) = services
-                .transfer
-                .pick_and_preview(&services.ui)
-                .await
-                .map_err(|e| e.to_string())?
-            {
-                services
-                    .core
-                    .publisher()
-                    .emit(kairo_transfer::KairoOpened::Preview(Box::new(preview)));
-            }
+            crate::transfer::pick(services).await;
             done
         }
     }

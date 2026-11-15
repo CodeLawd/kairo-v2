@@ -1,0 +1,106 @@
+name: Package macOS
+
+# Builds, signs and verifies the macOS packages (prompt 101). One package per
+# architecture, as the Electron release does, so the updater keeps one zip per
+# architecture. Artifacts go to workflow storage only; publishing a release is
+# prompt 104's job.
+#
+# Until the signing secrets exist, packages are ad-hoc signed (KAIRO_ADHOC_SIGN)
+# with a warning, matching the Electron release fallback. With CSC_LINK set,
+# the same job signs with the Developer ID, notarizes and staples.
+#
+# Secrets (names only, in the `release` environment; see packaging/macos/README.md):
+#   CSC_LINK, CSC_KEY_PASSWORD — Developer ID Application certificate (base64 .p12)
+#   APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID — notarization
+# Variables: PROD_API_URL, PROD_WEB_URL, and optionally PROD_AUDIENCE_API_URL
+# and LICENSE_PUBLIC_KEY, compiled into the binaries (public values only).
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    environment: release
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    env:
+      KAIRO_API_URL: ${{ vars.PROD_API_URL }}
+      KAIRO_WEB_URL: ${{ vars.PROD_WEB_URL }}
+      KAIRO_AUDIENCE_API_URL: ${{ vars.PROD_AUDIENCE_API_URL }}
+      KAIRO_LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
+      CARGO_INCREMENTAL: "0"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check production endpoint configuration
+        # A release pointing at localhost is worse than no release; the build
+        # itself also refuses local or non-https URLs.
+        run: |
+          test -n "$KAIRO_API_URL" || (echo "::error::PROD_API_URL is not set" && exit 1)
+          test -n "$KAIRO_WEB_URL" || (echo "::error::PROD_WEB_URL is not set" && exit 1)
+          echo "endpoints: $KAIRO_API_URL / $KAIRO_WEB_URL"
+
+      - name: Build tools
+        # Build-time tools only; nothing from Homebrew is bundled. nasm
+        # assembles FFmpeg's x86 code.
+        run: brew install pkgconf nasm
+
+      - name: Select Rust toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add ${{ matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+
+      - name: Import signing certificate
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          identity="$(packaging/macos/import-certificate.sh "$RUNNER_TEMP/kairo-signing.keychain-db")"
+          if [ -n "$identity" ]; then
+            echo "KAIRO_SIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No Mac certificate (CSC_LINK); building unsigned, ad-hoc signed"
+            echo "KAIRO_ADHOC_SIGN=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Package
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: packaging/macos/package.sh ${{ matrix.arch }} "$RUNNER_TEMP/package"
+
+      - name: Remove signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/kairo-signing.keychain-db" 2>/dev/null || true
+
+      - name: Upload artifacts (workflow storage only)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kairo-mac-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/package/dist/*.dmg
+            ${{ runner.temp }}/package/dist/*.zip
+          if-no-files-found: error
+          retention-days: 30

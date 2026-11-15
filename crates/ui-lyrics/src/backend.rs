@@ -64,6 +64,8 @@ impl OnlineSource {
 /// What a `.kairo` export carries (`exportKairo`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum KairoExport {
+    /// "Export songs…": the picker, these songs ticked.
+    Pick(Vec<String>),
     Songs(Vec<String>),
     Setlist(String),
     Library,

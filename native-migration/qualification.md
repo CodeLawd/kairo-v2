@@ -26,3 +26,25 @@ every multi-display row is not run. Engine: `target/debug/kairo-engine` through
 | Re-matching a stored Electron display id after replug | Not run | `rematch_uses_electron_logical_size_on_scaled_displays`, store `display_rebinding_is_persisted…` tests |
 | Vsync pacing, frame interval jitter p99 within one interval | Not measured | |
 | Windows (Chromium display ids) | Not run | `windows_display_identity_matches_chromium_c_vectors` unit test only |
+
+## 100 — First-run migration and rollback
+
+Code: `kairo_store::migration` (`run`, `back_up`, `local_storage`, `devices`), `kairo_store::secrets::migrate_electron_keys`, called in `apps/kairo/src/main.rs` before `SettingsStore::open`; the shell's "Kairo was upgraded" card shows only lines that need the operator. Tests: `crates/kairo-store/tests/migration.rs` (profiles, generated in the test, no committed data), `crates/kairo-store/tests/migration_real.rs` (opt-in, real profile copy), `ui-shell` `upgrade_notes_show_only_when_given_and_dismiss`.
+
+Forward is the migration plus the native settings launch. Back is Electron's real `src/main/db/index.ts` launch run on the migrated files through the oracle (`oracle:settings-launch.launch`, cached in `tests/oracle-cache`), checking that it starts and keeps the named values. In every profile no file present before the migration is gone afterwards.
+
+| Profile | Forward | Back (Electron launch) | Shown to the operator |
+|---|---|---|---|
+| Fresh install | pass; marker stops a second run | pass | nothing |
+| 1.0.28 (`proautomate-*` stores, no `whatsNew`, Chromium mic id, localStorage) | pass; backup byte-identical; 3 keys into `ui-state`; mic hash → `Scarlett 2i4 USB`; `whatsNew` 1.0.28 | pass; church, mic label, `whatsNew` kept | nothing |
+| Recent (1.0.40, native `ui-state` already present, mic not connected) | pass; native value wins; Chromium id left in place | pass | the microphone line |
+| 5,000 songs (20,000 sections, real `lyrics.sql`) | pass; 0.8 ms; 5,000 rows read after | pass | nothing |
+| Moved workspace (exists / on an unplugged volume) | pass / pass | pass (path kept) | nothing / the folder line |
+| External-drive media and tracks missing | pass | pass (paths kept) | two folder lines |
+| Damaged `bible.db` | pass; file kept | — | the database line |
+| Backup impossible | nothing changed, no marker (retries) | — | the backup line |
+| Unreadable localStorage | layout defaults only | — | nothing (logged) |
+
+Real profile (a copy of this Mac's Electron userData, 88 MB, 2026-11-15): 226 ms; 10 localStorage keys imported; the saved microphone matched by its Chromium hash. The two key rewraps failed in that harness because the unsigned test binary cannot read the Electron Safe Storage keychain item; the signed app reads it (with macOS's prompt, 022).
+
+Not verified: reinstalling the latest Electron release on a migrated profile and opening it (the rollback above runs Electron's own settings launch, not the installed app); key rewrap end to end in the signed app; Windows and Linux (microphone matching assumes the raw id is the part of the cpal id after `host:`, checked only for CoreAudio).

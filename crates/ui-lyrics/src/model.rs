@@ -1298,9 +1298,7 @@ impl Lyrics {
             Some(list) => list.song_ids.clone(),
             None => self.selected.iter().cloned().collect(),
         };
-        if !ids.is_empty() {
-            self.transfer(LyricsCall::ExportKairo(KairoExport::Songs(ids)), cx);
-        }
+        self.transfer(LyricsCall::ExportKairo(KairoExport::Pick(ids)), cx);
     }
 
     pub fn export_song(&mut self, id: String, cx: &mut Context<Self>) {

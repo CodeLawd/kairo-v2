@@ -39,6 +39,9 @@ pub struct ToolbarButton {
     tone: Tone,
     disabled: bool,
     on_click: Option<Handler>,
+    /// Opens a popover that handles the click itself.
+    popover: bool,
+    selected: bool,
 }
 
 impl ToolbarButton {
@@ -59,7 +62,15 @@ impl ToolbarButton {
             tone: Tone::Default,
             disabled: false,
             on_click: None,
+            popover: false,
+            selected: false,
         }
+    }
+
+    /// The trigger of a popover: a button whose click the popover handles.
+    pub fn opens_popover(mut self) -> Self {
+        self.popover = true;
+        self
     }
 
     /// Marks the button as a coach-tour target.
@@ -96,6 +107,16 @@ impl ToolbarButton {
     }
 }
 
+impl gpui_kit::component::Selectable for ToolbarButton {
+    fn selected(mut self, selected: bool) -> Self {
+        self.selected = selected;
+        self
+    }
+    fn is_selected(&self) -> bool {
+        self.selected
+    }
+}
+
 impl RenderOnce for ToolbarButton {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let k = *cx.kairo();
@@ -112,7 +133,12 @@ impl RenderOnce for ToolbarButton {
                 k.text(TextStep::T400),
             ),
         };
-        let interactive = self.on_click.is_some() && !self.disabled;
+        let interactive = (self.on_click.is_some() || self.popover) && !self.disabled;
+        let pill_bg = if self.selected {
+            k.surface_elevated
+        } else {
+            pill_bg
+        };
         let group: SharedString = format!("tool-{}", self.id).into();
         v_flex()
             .id(self.id)
@@ -124,7 +150,7 @@ impl RenderOnce for ToolbarButton {
             // Pressing a tool never drags the window.
             .occlude()
             .group(group.clone())
-            .role(if self.on_click.is_some() {
+            .role(if self.on_click.is_some() || self.popover {
                 Role::Button
             } else {
                 Role::Status

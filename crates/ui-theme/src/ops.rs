@@ -37,10 +37,57 @@ pub enum Op {
     /// This theme becomes the default for its kind, and every rendered
     /// screen switches to it.
     MakeDefault { id: String },
+    /// The Screen Themes picker: one screen takes the theme for its kind.
+    /// Fails when the screen is gone or no longer draws a picture.
+    Assign { theme_id: String, output_id: String },
 }
 
-/// Applies `op`. Unknown ids change nothing.
-pub fn apply(settings: &mut AppSettings, op: &Op) {
+/// The message when the picker's screen has gone (`ThemePicker`).
+pub const SCREEN_GONE: &str = "Screen is no longer available";
+
+/// Applies `op`. Unknown ids change nothing, except for `Assign`, which
+/// fails without its screen and changes nothing.
+pub fn apply(settings: &mut AppSettings, op: &Op) -> Result<(), String> {
+    if let Op::Assign {
+        theme_id,
+        output_id,
+    } = op
+    {
+        if !settings
+            .overlay
+            .outputs
+            .iter()
+            .any(|o| o.id == *output_id && is_rendered_kind(o.kind))
+        {
+            return Err(SCREEN_GONE.into());
+        }
+        let Some(entry) = settings
+            .theme_library
+            .iter()
+            .find(|t| t.id == *theme_id)
+            .cloned()
+        else {
+            return Err("Theme is no longer available".into());
+        };
+        edit_outputs(settings, |outputs| {
+            outputs
+                .iter()
+                .map(|o| {
+                    if o.id == *output_id {
+                        assign_theme_to_output(o, &entry)
+                    } else {
+                        o.clone()
+                    }
+                })
+                .collect()
+        });
+        return Ok(());
+    }
+    apply_edit(settings, op);
+    Ok(())
+}
+
+fn apply_edit(settings: &mut AppSettings, op: &Op) {
     match op {
         Op::Save {
             id,
@@ -132,6 +179,7 @@ pub fn apply(settings: &mut AppSettings, op: &Op) {
                     .collect()
             });
         }
+        Op::Assign { .. } => {}
     }
 }
 
@@ -203,7 +251,8 @@ mod tests {
                 theme: edited(77.0),
                 now: 9.0,
             },
-        );
+        )
+        .unwrap();
         let a = s.theme_library.iter().find(|t| t.id == "a").unwrap();
         assert_eq!(a.theme.verse.font_size_px, 77.0);
         assert_eq!(a.updated_at, 9.0);
@@ -224,14 +273,15 @@ mod tests {
                 theme: edited(55.0),
                 now: 2.0,
             },
-        );
+        )
+        .unwrap();
         assert_eq!(s.overlay.outputs, before);
     }
 
     #[test]
     fn remove_unlinks_screens_but_keeps_their_look() {
         let mut s = settings();
-        apply(&mut s, &Op::Remove { id: "a".into() });
+        apply(&mut s, &Op::Remove { id: "a".into() }).unwrap();
         assert!(s.theme_library.iter().all(|t| t.id != "a"));
         assert_eq!(s.overlay.outputs[0].theme_id, None);
     }
@@ -245,7 +295,8 @@ mod tests {
                 theme_id: "l".into(),
                 output_id: "screen-1".into(),
             },
-        );
+        )
+        .unwrap();
         assert!(output_uses_theme(
             &s.overlay.outputs[0],
             "l",
@@ -257,7 +308,8 @@ mod tests {
                 theme_id: "l".into(),
                 output_id: "screen-1".into(),
             },
-        );
+        )
+        .unwrap();
         assert!(!output_uses_theme(
             &s.overlay.outputs[0],
             "l",
@@ -268,7 +320,7 @@ mod tests {
     #[test]
     fn make_default_sets_the_kind_and_moves_every_rendered_screen() {
         let mut s = settings();
-        apply(&mut s, &Op::MakeDefault { id: "b".into() });
+        apply(&mut s, &Op::MakeDefault { id: "b".into() }).unwrap();
         assert_eq!(s.theme_defaults.scripture.as_deref(), Some("b"));
         assert_eq!(s.theme_defaults.lyrics, None);
         assert_eq!(s.overlay.outputs[0].theme_id.as_deref(), Some("b"));
@@ -278,15 +330,16 @@ mod tests {
     fn unknown_ids_change_nothing() {
         let mut s = settings();
         let before = s.clone();
-        apply(&mut s, &Op::MakeDefault { id: "nope".into() });
-        apply(&mut s, &Op::Remove { id: "nope".into() });
+        apply(&mut s, &Op::MakeDefault { id: "nope".into() }).unwrap();
+        apply(&mut s, &Op::Remove { id: "nope".into() }).unwrap();
         apply(
             &mut s,
             &Op::ToggleOutput {
                 theme_id: "nope".into(),
                 output_id: "screen-1".into(),
             },
-        );
+        )
+        .unwrap();
         assert_eq!(s.theme_library, before.theme_library);
         assert_eq!(s.overlay.outputs, before.overlay.outputs);
     }
@@ -300,7 +353,8 @@ mod tests {
                 id: "b".into(),
                 theme: edited(12.0),
             },
-        );
+        )
+        .unwrap();
         assert_eq!(
             s.theme_library[1]
                 .baseline

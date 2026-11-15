@@ -1636,6 +1636,11 @@ impl Render for DocumentsPage {
                                     .min_h_0()
                                     .items_stretch()
                                     .child(sidebar)
+                                    .child(kairo_ui_kit::components::page_sidebar::handle(
+                                        "documents-sidebar-handle",
+                                        None,
+                                        cx,
+                                    ))
                                     .child(v_flex().flex_1().min_w_0().min_h_0().child(main)),
                             )
                             .children(self.render_import_dialog(cx))
@@ -1732,7 +1737,9 @@ impl DocumentsPage {
         });
         v_flex()
             .flex_none()
-            .w(px(248.))
+            .w(px(
+                kairo_ui_kit::components::page_sidebar::PageSidebar::width(None, cx),
+            ))
             .h_full()
             .min_h_0()
             .bg(k.surface_secondary)

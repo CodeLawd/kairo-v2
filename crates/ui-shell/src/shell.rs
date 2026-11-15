@@ -127,8 +127,25 @@ pub struct Shell {
     pub(crate) media_live: Option<SharedString>,
     /// The Settings pane asked for by the last [`Shell::open_settings`].
     pub(crate) settings_section: Option<&'static str>,
+    /// The Screen Themes popover's body and what to do when it opens (the
+    /// argument says whether the Lyrics page is showing).
+    pub(crate) screen_themes: Option<(AnyView, ScreenThemesOpened)>,
+    pub(crate) screen_themes_open: bool,
+    /// The `.kairo` transfer host: review, export picker, notice (091).
+    pub(crate) transfer: Option<AnyView>,
+    /// A window the shell does not own covers the workspace.
+    pub(crate) covered: bool,
+    /// The Live button's popover body (091).
+    pub(crate) live_menu: Option<AnyView>,
+    pub(crate) live_open: bool,
+    pub(crate) live_tick: Option<Task<()>>,
+    /// First-run migration results that need the operator (100).
+    pub(crate) migration_notes: Vec<SharedString>,
     pub(crate) _subscriptions: Vec<Subscription>,
 }
+
+/// Called as the Screen Themes popover opens; `true` on the Lyrics page.
+pub type ScreenThemesOpened = std::rc::Rc<dyn Fn(bool, &mut gpui_kit::Window, &mut gpui_kit::App)>;
 
 impl EventEmitter<ShellRequest> for Shell {}
 
@@ -222,6 +239,14 @@ impl Shell {
             overlay_builders: HashMap::new(),
             overlay_view: None,
             media_open: false,
+            screen_themes: None,
+            screen_themes_open: false,
+            transfer: None,
+            covered: false,
+            live_menu: None,
+            live_open: false,
+            live_tick: None,
+            migration_notes: Vec::new(),
             media_live: None,
             settings_section: None,
             _subscriptions: subscriptions,
@@ -248,6 +273,64 @@ impl Shell {
     }
 
     /// The open overlay window, if any.
+    /// Mounts the `.kairo` transfer host over the window (091).
+    pub fn set_transfer(&mut self, view: Option<AnyView>, cx: &mut Context<Self>) {
+        self.transfer = view;
+        cx.notify();
+    }
+
+    /// A window the shell does not own (the transfer host) covers the workspace.
+    pub fn set_covered(&mut self, covered: bool, cx: &mut Context<Self>) {
+        if self.covered != covered {
+            self.covered = covered;
+            cx.notify();
+        }
+    }
+
+    /// Whether anything covers the workspace: an overlay or another window.
+    pub fn covered(&self) -> bool {
+        self.covered || self.overlay.is_some()
+    }
+
+    /// Gives the Live button its popover: capture and Syphon (091).
+    pub fn set_live_menu(&mut self, view: AnyView, cx: &mut Context<Self>) {
+        self.live_menu = Some(view);
+        cx.notify();
+    }
+
+    /// Shows what the upgrade from the previous version needs the operator
+    /// to do; empty hides it.
+    pub fn set_migration_notes(&mut self, notes: Vec<String>, cx: &mut Context<Self>) {
+        self.migration_notes = notes.into_iter().map(Into::into).collect();
+        cx.notify();
+    }
+
+    pub fn migration_notes(&self) -> &[SharedString] {
+        &self.migration_notes
+    }
+
+    /// The Live button's detail line.
+    pub fn live_detail(&self) -> SharedString {
+        self.state.live_text().1
+    }
+
+    /// Opens or closes the Live popover.
+    pub fn set_live_open(&mut self, open: bool, cx: &mut Context<Self>) {
+        if self.live_open != open {
+            self.live_open = open;
+            cx.notify();
+        }
+    }
+
+    /// Opens Screens at a target (`openScreens(target)`): `add:syphon`,
+    /// `kind:syphon`, or an output id.
+    pub fn open_screens(&mut self, target: &'static str, cx: &mut Context<Self>) {
+        self.overlay_view = None;
+        self.overlay = Some(Overlay::Screens);
+        self.settings_section = Some(target);
+        cx.notify();
+    }
+
     pub fn overlay(&self) -> Option<Overlay> {
         self.overlay
     }
@@ -366,6 +449,19 @@ impl Shell {
         let first_settings =
             self.state.whats_new_last_seen.is_none() && state.whats_new_last_seen.is_some();
         self.state = state;
+        // The Live label counts the recording up once a second.
+        if !self.state.recording {
+            self.live_tick = None;
+        } else if self.live_tick.is_none() {
+            self.live_tick = Some(cx.spawn(async move |this, cx| {
+                loop {
+                    cx.background_executor().timer(Duration::from_secs(1)).await;
+                    if this.update(cx, |_, cx| cx.notify()).is_err() {
+                        break;
+                    }
+                }
+            }));
+        }
         if first_settings {
             self.check_whats_new_after_update(cx);
         }
@@ -429,6 +525,40 @@ impl Shell {
         cx.notify();
     }
 
+    /// Gives the header's Screen Themes button its popover (prompt 087).
+    pub fn set_screen_themes(
+        &mut self,
+        view: AnyView,
+        opened: ScreenThemesOpened,
+        cx: &mut Context<Self>,
+    ) {
+        self.screen_themes = Some((view, opened));
+        cx.notify();
+    }
+
+    /// Opens or closes the Screen Themes popover.
+    pub fn set_screen_themes_open(
+        &mut self,
+        open: bool,
+        window: &mut gpui_kit::Window,
+        cx: &mut Context<Self>,
+    ) {
+        if open == self.screen_themes_open {
+            return;
+        }
+        self.screen_themes_open = open;
+        if open && let Some((_, opened)) = &self.screen_themes {
+            let opened = opened.clone();
+            let lyrics = self.route == Route::Lyrics;
+            cx.defer_in(window, move |_, window, cx| opened(lyrics, window, cx));
+        }
+        cx.notify();
+    }
+
+    pub fn screen_themes_open(&self) -> bool {
+        self.screen_themes_open
+    }
+
     /// Sets the layer drawn in front of the booth.
     pub fn set_front(&mut self, view: Option<AnyView>, cx: &mut Context<Self>) {
         self.front = view;
@@ -452,7 +582,7 @@ impl Shell {
         if self.overlay != Some(overlay) {
             self.overlay_view = None;
         }
-        if overlay == Overlay::Settings {
+        if matches!(overlay, Overlay::Settings | Overlay::Screens) {
             self.settings_section = None;
         }
         self.overlay = Some(overlay);

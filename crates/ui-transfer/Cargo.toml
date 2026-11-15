@@ -1,0 +1,16 @@
+[package]
+name = "ui-transfer"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+gpui-kit.workspace = true
+kairo-domain = { path = "../kairo-domain" }
+kairo-ui-kit = { path = "../kairo-ui-kit" }
+
+[dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }

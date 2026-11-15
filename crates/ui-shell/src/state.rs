@@ -110,6 +110,8 @@ pub struct ShellState {
     pub transcribing: bool,
     /// Capture is recording.
     pub recording: bool,
+    /// When the recording started (ms since the epoch).
+    pub recording_started_at: Option<f64>,
     /// The updater.
     pub update: UpdateState,
     /// The account.

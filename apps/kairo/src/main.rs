@@ -18,7 +18,9 @@ use ui_shell::{Shell, ShellOptions, ShellRequest, ShellState};
 
 mod account;
 pub mod actions;
+mod audience;
 mod booth;
+mod capture;
 pub mod dialogs;
 mod display_reporting;
 mod dock;
@@ -35,8 +37,11 @@ mod scripture;
 pub mod services;
 mod settings;
 mod spell;
+mod startup_error;
 mod theme;
 mod tracks;
+mod transfer;
+mod web;
 
 /// When `main` began, for the launch-to-first-paint log line.
 static LAUNCHED: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
@@ -174,6 +179,9 @@ fn handle_request(
     }
 }
 
+/// What this launch's first-run migration wants the operator to see.
+static MIGRATION_NOTES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+
 fn open_operator_window(
     engine: kairo_core::engine::EngineHandle,
     settings: Settings,
@@ -265,10 +273,35 @@ fn open_operator_window(
     let documents_backend: Arc<dyn ui_documents::DocumentsBackend> = Arc::new(
         documents::ServicesDocuments::new(services.clone(), ui_state.clone()),
     );
+    let audience_backend: Arc<dyn ui_audience::AudienceBackend> = Arc::new(
+        audience::ServicesAudience::new(services.clone(), ui_state.clone()),
+    );
+    let sidebar_state = ui_state.clone();
+    let web_backend: Arc<dyn ui_web::WebBackend> =
+        Arc::new(web::ServicesWeb::new(services.clone()));
     let theme_backend: Arc<dyn ui_theme::ThemeBackend> =
         Arc::new(theme::ServicesTheme::new(services.clone()));
+    let transfer_services = services.clone();
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
+        {
+            use kairo_ui_kit::components::page_sidebar::{PageSidebar, STORAGE_KEY, saved_width};
+            let store = sidebar_state.clone();
+            // Electron kept `String(width)`; `Number(...)` read it back.
+            let width = saved_width(|key| match store.get(key)? {
+                serde_json::Value::Number(n) => n.as_f64(),
+                serde_json::Value::String(s) => s.trim().parse().ok(),
+                _ => None,
+            });
+            let store = sidebar_state.clone();
+            PageSidebar::install(cx, width, move |w| {
+                store.set(STORAGE_KEY, serde_json::json!(w))
+            });
+        }
         let shell = cx.new(|cx| Shell::new(shell_options, window, cx));
+        if let Some(notes) = MIGRATION_NOTES.get().filter(|n| !n.is_empty()) {
+            let notes = notes.clone();
+            shell.update(cx, |s, cx| s.set_migration_notes(notes, cx));
+        }
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
         let booth_account = account.clone();
         install_screens(&shell, screens_backend, window, cx);
@@ -344,9 +377,26 @@ fn open_operator_window(
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Documents, documents_page.into(), cx)
         });
+        let audience_page = audience::install(audience_backend, &workspace, window, cx);
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Audience, audience_page.into(), cx)
+        });
+        let web_page = web::install(web_backend, &workspace, &shell, window, cx);
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Web, web_page.into(), cx)
+        });
+        let theme_picker = cx.new(|cx| ui_theme::ThemePicker::new(theme_backend.clone(), cx));
         let theme_page = theme::install(theme_backend, window, cx);
         shell.update(cx, |shell, cx| {
-            shell.set_workspace(ui_shell::Route::Theme, theme_page.into(), cx)
+            shell.set_workspace(ui_shell::Route::Theme, theme_page.into(), cx);
+            let picker = theme_picker.clone();
+            shell.set_screen_themes(
+                theme_picker.into(),
+                std::rc::Rc::new(move |lyrics, _, cx| {
+                    picker.update(cx, |p, cx| p.opened(lyrics, cx))
+                }),
+                cx,
+            );
         });
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Lyrics, lyrics_page.clone().into(), cx)
@@ -354,6 +404,8 @@ fn open_operator_window(
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Operator, workspace.into(), cx)
         });
+        transfer::install(&transfer_services, &shell, window, cx);
+        capture::install(&transfer_services, &shell, cx);
         let reporter = display_reporting::ControlDisplayReporter::new(window, cx, engine);
         cx.set_global(DisplayReporter {
             _reporter: reporter,
@@ -364,6 +416,14 @@ fn open_operator_window(
         Ok(opened) => opened,
         Err(error) => {
             tracing::error!(%error, "[Shell] could not open the operator window");
+            if cfg!(target_os = "linux") {
+                // Without a window there is nothing else to show this on.
+                startup_error::report(
+                    startup_error::NO_WINDOW_TITLE,
+                    &startup_error::no_window_text(&format!("{error:#}")),
+                );
+                std::process::exit(1);
+            }
             cx.quit();
             return;
         }
@@ -769,7 +829,23 @@ fn main() {
         LAUNCH_FILES.push(Forwarded::current().kairo_paths());
     }
 
-    let application = application().with_assets(kairo_ui_kit::KairoAssets);
+    // Linux runs on X11 only (XWayland in a Wayland session): the WebKitGTK
+    // views behind web pages, Slido and PowerPoint import need it (DECISIONS,
+    // "Replace CEF with gpui-webview"). Without a display GPUI would panic.
+    #[cfg(target_os = "linux")]
+    let application = {
+        if std::env::var_os("DISPLAY").is_none_or(|d| d.is_empty()) {
+            startup_error::report(
+                startup_error::NO_DISPLAY_TITLE,
+                startup_error::NO_DISPLAY_TEXT,
+            );
+            std::process::exit(1);
+        }
+        platform::linux(WindowingModes::X11)
+    };
+    #[cfg(not(target_os = "linux"))]
+    let application = application();
+    let application = application.with_assets(kairo_ui_kit::KairoAssets);
     // macOS can deliver the launching file before the window exists.
     application.on_open_urls(|urls| {
         let late = LAUNCH_FILES.push(kairo_paths_from_urls(&urls));
@@ -841,7 +917,31 @@ fn main() {
             let result = boot_core
                 .run(async move {
                     let profile = boot_paths.user_data.clone();
+                    let default_workspace = boot_paths.default_workspace_root();
                     let settings = tokio::task::spawn_blocking(move || {
+                        // First native launch on an Electron profile (100):
+                        // before any store opens.
+                        let protector = kairo_store::secrets::KeyringProtector;
+                        let devices = || {
+                            kairo_stt::devices::list_audio_input_devices()
+                                .into_iter()
+                                .map(|d| kairo_store::migration::devices::InputDevice {
+                                    id: d.id,
+                                    label: d.label,
+                                })
+                                .collect()
+                        };
+                        let report =
+                            kairo_store::migration::run(&kairo_store::migration::MigrationInput {
+                                user_data: &profile,
+                                default_workspace,
+                                protector: &protector,
+                                electron_app: "Kairo",
+                                devices: &devices,
+                                now: chrono::Local::now(),
+                            });
+                        let _ = MIGRATION_NOTES
+                            .set(report.attention().into_iter().map(str::to_owned).collect());
                         let mut new_id = kairo_store::settings::random_uuid;
                         Arc::new(Mutex::new(SettingsStore::open(
                             &profile,

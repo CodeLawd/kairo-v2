@@ -430,3 +430,26 @@ fn clear_asks_the_app_to_clear_live_output(cx: &mut TestAppContext) {
     .unwrap();
     assert!(requests(cx).contains(&ShellRequest::ClearLive));
 }
+
+#[gpui_kit::test]
+fn upgrade_notes_show_only_when_given_and_dismiss(cx: &mut TestAppContext) {
+    setup(cx);
+    let (handle, shell) = open(cx, "1.0.0");
+    ready(cx, handle, &shell);
+    cx.update_window(handle, |_, window, cx| {
+        assert!(window.try_find("migration-notes").is_none());
+        shell.update(cx, |s, cx| {
+            s.set_migration_notes(vec!["The media folder isn’t available.".into()], cx)
+        });
+        window.render_frame(cx);
+        assert_eq!(
+            window.find("migration-notes").label(),
+            Some("Upgrade notes")
+        );
+        window.click("migration-notes-dismiss", cx);
+        window.render_frame(cx);
+        assert!(window.try_find("migration-notes").is_none());
+        assert!(shell.read(cx).migration_notes().is_empty());
+    })
+    .unwrap();
+}

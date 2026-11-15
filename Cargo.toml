@@ -41,6 +41,8 @@ members = [
     "crates/ui-audience",
     "crates/ui-account",
     "crates/ui-web",
+    "crates/ui-transfer",
+    "crates/ui-capture",
     "tools/check-api-coverage",
     "tools/check-lib-coverage",
     "tools/electron-sync",

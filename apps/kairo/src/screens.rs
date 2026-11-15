@@ -56,7 +56,10 @@ impl ServicesScreens {
 }
 /// Each request reads the latest state and writes only its affected section.
 /// The mailbox preserves order even after the owning window closes.
-async fn persist(services: &Arc<ApplicationServices>, edit: Edit) -> Result<AppSettings, String> {
+pub(crate) async fn persist(
+    services: &Arc<ApplicationServices>,
+    edit: Edit,
+) -> Result<AppSettings, String> {
     let s = services.clone();
     services
         .core
@@ -385,11 +388,14 @@ mod tests {
     use super::isolated_sample_theme;
     #[test]
     fn private_sample_media_does_not_share_live_source_ids() {
-        let source =
+        // `normalizeOverlayTheme` drops `mediaCue` (as Electron does); a
+        // live theme gets its cue from playback, so set one here.
+        let mut source =
             kairo_domain::overlay_defaults::normalize_overlay_theme(Some(&serde_json::json!({
                 "background":{"type":"video","mediaPath":"/a.mp4","mediaCue":7},
                 "elements":[{"id":"video","kind":"video","mediaPath":"/a.mp4"}]
             })));
+        source.background.media_cue = Some(7.);
         let a = isolated_sample_theme(&source, "sample-a");
         let b = isolated_sample_theme(&source, "sample-b");
         assert_ne!(a.background.media_cue, b.background.media_cue);

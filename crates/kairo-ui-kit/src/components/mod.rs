@@ -3,6 +3,7 @@
 //! theme maps Kairo's tokens onto them. The controls here are the ones Kit
 //! does not have, or that Kairo draws its own way.
 
+pub mod page_sidebar;
 pub mod pref_group;
 pub mod segmented;
 pub mod selection_bar;

@@ -67,6 +67,7 @@ impl Render for Shell {
             content.extend(self.render_startup_warning(cx));
             content.extend(self.render_overlay(window, cx));
             content.extend(self.render_notices(cx));
+            content.extend(self.transfer.clone().map(|t| t.into_any_element()));
             content.extend(self.render_whats_new(cx));
             content.extend(self.front.clone().map(|front| front.into_any_element()));
         }
@@ -178,7 +179,7 @@ impl Shell {
 
         h_flex()
             .id(ids::HEADER)
-                    .test_support()
+            .test_support()
             .role(Role::Toolbar)
             .aria_label("Presentation controls")
             .flex_shrink_0()
@@ -191,33 +192,43 @@ impl Shell {
             // a double-click zooms it, as the system title bar would. A layer
             // behind the controls, so pressing a control never drags.
             .when(self.mac, |this| {
-                this.child(
-                    div()
-                        .id("header-drag")
-                        .absolute()
-                        .inset_0()
-                        .on_mouse_down(MouseButton::Left, |event, window, _| {
-                            if event.click_count == 2 {
-                                window.titlebar_double_click();
-                            } else {
-                                window.start_window_move();
-                            }
-                        }),
-                )
+                this.child(div().id("header-drag").absolute().inset_0().on_mouse_down(
+                    MouseButton::Left,
+                    |event, window, _| {
+                        if event.click_count == 2 {
+                            window.titlebar_double_click();
+                        } else {
+                            window.start_window_move();
+                        }
+                    },
+                ))
             })
             .child(
                 h_flex()
                     .w(metrics::traffic_light_corner())
                     .flex_shrink_0()
                     .pl_1p5()
-                    .when(show_logo, |this| this.child(KairoMark::new(MarkSize::Small))),
+                    .when(show_logo, |this| {
+                        this.child(KairoMark::new(MarkSize::Small))
+                    }),
             )
             .child(
-                ToolbarButton::new("search-lyrics", "Lyrics Search", "Search lyrics", hued(KairoIcon::Search, Hue::Violet, cx))
-                    .on_click(cx.listener(|this, _, _, cx| this.open_overlay(Overlay::SongSearch, cx))),
+                ToolbarButton::new(
+                    "search-lyrics",
+                    "Lyrics Search",
+                    "Search lyrics",
+                    hued(KairoIcon::Search, Hue::Violet, cx),
+                )
+                .on_click(cx.listener(|this, _, _, cx| this.open_overlay(Overlay::SongSearch, cx))),
             )
             // The page's own toolbar (the Operator's, prompt 076) sits here.
-            .child(div().id("header-toolbar").min_w_0().flex_1().overflow_hidden())
+            .child(
+                div()
+                    .id("header-toolbar")
+                    .min_w_0()
+                    .flex_1()
+                    .overflow_hidden(),
+            )
             .child(
                 h_flex()
                     .gap_1()
@@ -228,27 +239,33 @@ impl Shell {
                             format!(
                                 "{} media{}",
                                 if self.media_open { "Close" } else { "Open" },
-                                self.media_live.as_ref().map(|n| format!(" — {n} on screen")).unwrap_or_default()
+                                self.media_live
+                                    .as_ref()
+                                    .map(|n| format!(" — {n} on screen"))
+                                    .unwrap_or_default()
                             ),
-                            Icon::new(KairoIcon::MediaLibrary.weight(self.media_open)).size_4().text_color(k.hue(Hue::Orange)),
+                            Icon::new(KairoIcon::MediaLibrary.weight(self.media_open))
+                                .size_4()
+                                .text_color(k.hue(Hue::Orange)),
                         )
                         .when(self.media_live.is_some(), |b| b.badge(k.live))
                         .on_click(cx.listener(|_, _, _, cx| cx.emit(ShellRequest::ToggleMedia))),
                     )
-                    .child(
-                        ToolbarButton::new("screen-themes", "Themes", "Screen Themes (prompt 087)", hued(KairoIcon::Palette, Hue::Pink, cx))
-                            .disabled(true),
-                    )
+                    .child(self.render_screen_themes(cx))
                     .child(
                         ToolbarButton::new(
                             "screens",
                             "Screens",
                             format!("Screens: {screens_detail}. Open Screens (⌥⌘1)"),
-                            Icon::new(KairoIcon::MonitorPlay.fill()).size_4().text_color(k.hue(Hue::Cyan)),
+                            Icon::new(KairoIcon::MonitorPlay.fill())
+                                .size_4()
+                                .text_color(k.hue(Hue::Cyan)),
                         )
                         .badge(dot)
                         .coach_anchor(kairo_ui_kit::coach::anchors::HEADER_SCREENS)
-                        .on_click(cx.listener(|this, _, _, cx| this.open_overlay(Overlay::Screens, cx))),
+                        .on_click(
+                            cx.listener(|this, _, _, cx| this.open_overlay(Overlay::Screens, cx)),
+                        ),
                     ),
             )
             .child(
@@ -257,7 +274,9 @@ impl Shell {
                     .flex_shrink_0()
                     .gap_1()
                     .pl_1()
-                    .child(kairo_ui_kit::coach::coach_anchor(kairo_ui_kit::coach::anchors::HEADER_LIVE))
+                    .child(kairo_ui_kit::coach::coach_anchor(
+                        kairo_ui_kit::coach::anchors::HEADER_LIVE,
+                    ))
                     .when_some(self.state.house_track.clone(), |this, track| {
                         let paused = track.paused;
                         this.child(
@@ -265,20 +284,21 @@ impl Shell {
                                 "house-track",
                                 track.name.clone(),
                                 format!("{} {}", if paused { "Play" } else { "Pause" }, track.name),
-                                Icon::new(if paused { KairoIcon::Play.fill() } else { KairoIcon::Pause.fill() }).size_3p5(),
+                                Icon::new(if paused {
+                                    KairoIcon::Play.fill()
+                                } else {
+                                    KairoIcon::Pause.fill()
+                                })
+                                .size_3p5(),
                             )
-                            .on_click(cx.listener(move |_, _, _, cx| cx.emit(ShellRequest::SetHouseTrackPaused(!paused)))),
+                            .on_click(cx.listener(
+                                move |_, _, _, cx| {
+                                    cx.emit(ShellRequest::SetHouseTrackPaused(!paused))
+                                },
+                            )),
                         )
                     })
-                    .child(
-                        ToolbarButton::new(
-                            "live",
-                            live_label,
-                            format!("{live_detail}. Live outputs and capture arrive with prompts 075 and 091"),
-                            Icon::new(KairoIcon::Radio).size_4(),
-                        )
-                        .tone(if live { Tone::Live } else { Tone::Muted }),
-                    )
+                    .child(self.render_live(live_label, live_detail, live, cx))
                     .child(
                         ToolbarButton::new(
                             "clear",
@@ -289,7 +309,10 @@ impl Shell {
                         .on_click(cx.listener(|_, _, _, cx| cx.emit(ShellRequest::ClearLive))),
                     )
                     .children(self.render_activation(cx))
-                    .children(self.render_update_pill(cx).map(|pill| div().occlude().child(pill))),
+                    .children(
+                        self.render_update_pill(cx)
+                            .map(|pill| div().occlude().child(pill)),
+                    ),
             )
             .into_any_element()
     }
@@ -596,6 +619,101 @@ impl Shell {
                             }),
                     )
             })
+            .into_any_element()
+    }
+
+    /// The header's Live button: what is on screen, the recording clock,
+    /// and its popover with capture and Syphon (`LiveMenu`).
+    fn render_live(
+        &mut self,
+        label: SharedString,
+        detail: SharedString,
+        live: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let k = *cx.kairo();
+        let recording = self.state.recording;
+        let elapsed = recording.then(|| {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as f64)
+                .unwrap_or(0.);
+            kairo_domain::capture::format_capture_elapsed(
+                self.state
+                    .recording_started_at
+                    .map_or(0., |at| (now - at).max(0.)),
+            )
+        });
+        let text: SharedString = match &elapsed {
+            Some(e) => format!("{label} · {e}").into(),
+            None => label,
+        };
+        let title = format!(
+            "{detail}{}. Click for live outputs and capture",
+            elapsed
+                .as_ref()
+                .map(|e| format!(" · recording {e}"))
+                .unwrap_or_default()
+        );
+        // Recording shows as a red dot on the icon, as on a camera.
+        let icon = div()
+            .relative()
+            .child(Icon::new(KairoIcon::Radio).size_4())
+            .when(recording, |this| {
+                this.child(
+                    div()
+                        .absolute()
+                        .right(gpui_kit::px(-4.))
+                        .top(gpui_kit::px(-2.))
+                        .size_2()
+                        .rounded_full()
+                        .bg(k.live)
+                        .border_2()
+                        .border_color(k.surface_tertiary),
+                )
+            });
+        let button = ToolbarButton::new("live", text, title, icon).tone(if live || recording {
+            Tone::Live
+        } else {
+            Tone::Muted
+        });
+        let Some(view) = self.live_menu.clone() else {
+            return button.into_any_element();
+        };
+        let entity = cx.entity();
+        Popover::new("live-popover")
+            .anchor(gpui_kit::Anchor::TopRight)
+            .open(self.live_open)
+            .on_open_change(move |next, _, cx| {
+                let next = *next;
+                entity.update(cx, |this, cx| this.set_live_open(next, cx))
+            })
+            .trigger(button.opens_popover())
+            .content(move |_, _, _| div().w_64().p_1().child(view.clone()))
+            .into_any_element()
+    }
+
+    /// The header's Screen Themes button and its popover.
+    fn render_screen_themes(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let button = ToolbarButton::new(
+            "screen-themes",
+            "Screen Themes",
+            "Choose themes for your screens",
+            hued(KairoIcon::Palette, Hue::Pink, cx),
+        );
+        let Some((view, _)) = self.screen_themes.clone() else {
+            return button.disabled(true).into_any_element();
+        };
+        let entity = cx.entity();
+        Popover::new("screen-themes-popover")
+            .anchor(gpui_kit::Anchor::TopRight)
+            .open(self.screen_themes_open)
+            .on_open_change(move |next, window, cx| {
+                let next = *next;
+                entity.update(cx, |this, cx| this.set_screen_themes_open(next, window, cx))
+            })
+            .trigger(button.opens_popover())
+            .content(move |_, _, _| div().p_3().child(view.clone()))
             .into_any_element()
     }
 
@@ -925,7 +1043,7 @@ impl Shell {
         if self.overlay_view.is_none()
             && let Some(build) = self.overlay_builders.get(&overlay)
         {
-            let section = if overlay == Overlay::Settings {
+            let section = if matches!(overlay, Overlay::Settings | Overlay::Screens) {
                 self.settings_section
             } else {
                 None
@@ -1003,6 +1121,58 @@ impl Shell {
     fn render_notices(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let k = *cx.kairo();
         let mut notices = Vec::new();
+        if !self.migration_notes.is_empty() {
+            notices.push(
+                v_flex()
+                    .id("migration-notes")
+                    .test_support()
+                    .role(Role::Alert)
+                    .aria_label("Upgrade notes")
+                    .absolute()
+                    .bottom_4()
+                    .left_4()
+                    .max_w_112()
+                    .gap_2()
+                    .rounded(radius::lg())
+                    .bg(k.surface_elevated)
+                    .px_3p5()
+                    .py_3()
+                    .occlude()
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .child(
+                                Icon::new(KairoIcon::AlertTriangle)
+                                    .size_4()
+                                    .text_color(k.warning_text),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_size(text::SM.size)
+                                    .font_weight(gpui_kit::FontWeight::MEDIUM)
+                                    .child("Kairo was upgraded. A few things need you:"),
+                            )
+                            .child(
+                                Button::new("migration-notes-dismiss")
+                                    .ghost()
+                                    .xsmall()
+                                    .label("Dismiss")
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.migration_notes.clear();
+                                        cx.notify();
+                                    })),
+                            ),
+                    )
+                    .children(self.migration_notes.iter().map(|note| {
+                        div()
+                            .text_size(text::LABEL.size)
+                            .text_color(k.text(TextStep::T300))
+                            .child(note.clone())
+                    }))
+                    .into_any_element(),
+            );
+        }
         let live = self.state.is_live();
         if let Some(version) = self.toast_version.clone().filter(|_| !live) {
             notices.push(

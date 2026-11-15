@@ -112,7 +112,6 @@ pub mod ids {
     }
 }
 
-const SIDEBAR_WIDTH: f32 = 240.0;
 const GRID_PADDING: f32 = 24.0;
 
 /// The search list's own state (`ScriptureSearchBar`).
@@ -948,7 +947,9 @@ impl ScriptureWorkspace {
 
         v_flex()
             .id("scripture-sidebar")
-            .w(px(SIDEBAR_WIDTH))
+            .w(px(
+                kairo_ui_kit::components::page_sidebar::PageSidebar::width(None, cx),
+            ))
             .flex_none()
             .h_full()
             .min_h_0()
@@ -2631,6 +2632,11 @@ impl Render for ScriptureWorkspace {
                             .overflow_hidden()
                             .bg(k.surface)
                             .child(sidebar)
+                            .child(kairo_ui_kit::components::page_sidebar::handle(
+                                "scripture-sidebar-handle",
+                                None,
+                                cx,
+                            ))
                             .child(
                                 v_flex()
                                     .flex_1()

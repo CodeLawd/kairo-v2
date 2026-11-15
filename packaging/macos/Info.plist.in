@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Kairo.app Info.plist (prompt 101). Keys follow the Electron 1.0.33 bundle
+     (package.json build.mac, extendInfo and fileAssociations); see
+     DECISIONS.md 101 for the keys that were dropped. bundle.sh fills the
+     @…@ values. -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>@PRODUCT_NAME@</string>
+  <key>CFBundleName</key>
+  <string>@PRODUCT_NAME@</string>
+  <key>CFBundleExecutable</key>
+  <string>@PRODUCT_NAME@</string>
+  <key>CFBundleIdentifier</key>
+  <string>@BUNDLE_ID@</string>
+  <key>CFBundleIconFile</key>
+  <string>icon.icns</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>@VERSION@</string>
+  <key>CFBundleVersion</key>
+  <string>@VERSION@</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>@MIN_MACOS@</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>@COPYRIGHT@</string>
+  <key>NSPrincipalClass</key>
+  <string>NSApplication</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSSupportsAutomaticGraphicsSwitching</key>
+  <true/>
+  <key>NSRequiresAquaSystemAppearance</key>
+  <false/>
+  <key>NSQuitAlwaysKeepsWindows</key>
+  <false/>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Kairo listens to the service audio so it can transcribe the sermon in real time.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Kairo shows a camera or capture card on the screens it drives when you put one live.</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Kairo sends presentation feeds to NDI receivers on your local network.</string>
+  <key>NSBonjourServices</key>
+  <array>
+    <string>_ndi._tcp</string>
+  </array>
+  <!-- WKWebView content follows App Transport Security; Electron's
+       Chromium did not. The web layer and web tab load any address the
+       operator enters, including http:// on the local network. -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>kairo</string>
+      </array>
+      <key>CFBundleTypeIconFile</key>
+      <string>icon.icns</string>
+      <key>CFBundleTypeName</key>
+      <string>Kairo File</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Default</string>
+    </dict>
+  </array>
+</dict>
+</plist>

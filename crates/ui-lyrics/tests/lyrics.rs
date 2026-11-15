@@ -988,12 +988,8 @@ fn a_failed_setlist_command_shows_in_the_rail(cx: &mut TestAppContext) {
 fn exports_carry_what_is_on_screen(cx: &mut TestAppContext) {
     let core = Core::new(setlist_snapshot());
     let opened = open(cx, core.clone());
+    // Nothing selected: the picker opens with nothing ticked.
     act(cx, &opened, |m, cx| m.export_songs(cx));
-    assert_eq!(
-        core.count(|c| matches!(c, LyricsCall::ExportKairo(_))),
-        0,
-        "nothing selected"
-    );
     act(cx, &opened, |m, cx| m.select_setlist("s1".into(), cx));
     act(cx, &opened, |m, cx| m.export_songs(cx));
     act(cx, &opened, |m, cx| m.export_setlist("s1".into(), cx));
@@ -1009,7 +1005,8 @@ fn exports_carry_what_is_on_screen(cx: &mut TestAppContext) {
     assert_eq!(
         exports,
         [
-            KairoExport::Songs(vec!["c".into(), "a".into()]),
+            KairoExport::Pick(Vec::new()),
+            KairoExport::Pick(vec!["c".into(), "a".into()]),
             KairoExport::Setlist("s1".into()),
             KairoExport::Library
         ]

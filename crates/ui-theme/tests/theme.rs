@@ -48,9 +48,9 @@ impl ThemeBackend for Core {
             reply(Err("disk full".into()));
             return;
         }
-        apply(&mut s.settings, &op);
+        let result = apply(&mut s.settings, &op);
         drop(s);
-        reply(Ok(()));
+        reply(result);
     }
     fn pick_media(&self, _: MediaKind, reply: Reply<Option<String>>) {
         let picked = self.0.lock().unwrap().picked.clone();

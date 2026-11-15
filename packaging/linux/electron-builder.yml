@@ -1,0 +1,48 @@
+# Linux packages for the native Kairo (prompt 103). electron-builder only makes
+# the AppImage and the deb here, from the folder package.sh stages
+# (`--prepackaged`); it does not build the app. Identity matches the Electron
+# release (kairo-presenter package.json `build.linux`, `build.deb`): package
+# name kairo-presenter, /opt/Kairo with /usr/bin/kairo-presenter, desktop file
+# Kairo.desktop, category AudioVideo, latest-linux.yml for the AppImage updater
+# (decision 048). So the deb upgrades the Electron install in place.
+appId: com.kairo.app
+productName: Kairo
+# electron-builder refuses to start without a framework version. Nothing in a
+# --prepackaged AppImage or deb build reads it; it is the Electron release's
+# version, kept only to pass that check.
+electronVersion: 33.2.0
+copyright: "Copyright © 2026 Kairo"
+directories:
+  buildResources: build
+fileAssociations:
+  - ext: kairo
+    name: Kairo File
+    description: Kairo songs, setlist or scripture playlist
+    # Electron declared no MIME type, so its Linux packages had no .kairo
+    # type; the deb now registers one (shared-mime-info) and the desktop entry
+    # lists it.
+    mimeType: application/x-kairo
+    role: Editor
+linux:
+  icon: icons
+  category: AudioVideo
+  description: Kairo — scripture, lyrics, and presentation for churches
+  syncDesktopName: true
+  executableName: kairo-presenter
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+deb:
+  # package.sh replaces this list with what dpkg-shlibdeps finds in the
+  # binaries plus DEB_RUNTIME_DEPENDS (config.sh). Electron's libnss3 was
+  # Chromium's and is not needed.
+  depends: []
+publish:
+  - provider: github
+    owner: CodeLawd
+    repo: kairo-presenter
+    releaseType: release

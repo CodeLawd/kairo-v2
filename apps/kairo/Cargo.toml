@@ -12,6 +12,9 @@ kairo-domain = { path = "../../crates/kairo-domain" }
 kairo-store = { path = "../../crates/kairo-store" }
 kairo-ui-kit = { path = "../../crates/kairo-ui-kit" }
 ui-web = { path = "../../crates/ui-web" }
+ui-transfer = { path = "../../crates/ui-transfer" }
+ui-capture = { path = "../../crates/ui-capture" }
+ui-audience = { path = "../../crates/ui-audience" }
 ui-shell = { path = "../../crates/ui-shell" }
 ui-operator = { path = "../../crates/ui-operator" }
 ui-scripture = { path = "../../crates/ui-scripture" }

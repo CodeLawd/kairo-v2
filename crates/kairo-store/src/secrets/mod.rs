@@ -338,6 +338,60 @@ impl<'a> SecureStore<'a> {
     }
 }
 
+/// What first-run migration did with one Electron data key.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum KeyMigration {
+    /// The native keyring already holds this profile's key.
+    AlreadyNative,
+    /// Electron's wrapped key was unwrapped and saved in the native keyring.
+    Rewrapped,
+    /// Electron never wrote this key (nothing saved under it).
+    NoElectronKey,
+    /// The key could not be read or saved; the message says why.
+    Failed(String),
+}
+
+/// Rewraps Electron's data keys (`cloud/key.bin`, `api-bible-cache.key`)
+/// into native keyring entries, without reading or deleting anything they
+/// protect. Electron's wrapped files stay for rollback.
+pub fn migrate_electron_keys(
+    profile: &Path,
+    protector: &dyn KeyProtector,
+    electron_app: &str,
+) -> Vec<(&'static str, KeyMigration)> {
+    let Ok(_guard) = KEY_ACCESS.lock() else {
+        return vec![("cloud", KeyMigration::Failed("key lock poisoned".into()))];
+    };
+    [
+        ("cloud", "cloud/key.bin"),
+        ("api-bible-cache", "api-bible-cache.key"),
+    ]
+    .into_iter()
+    .map(|(purpose, electron_key)| {
+        let slot = KeySlot {
+            profile,
+            protector,
+            electron_app,
+            purpose,
+            electron_key,
+        };
+        let result = match slot.load() {
+            Ok(Some(_)) => KeyMigration::AlreadyNative,
+            Ok(None) | Err(SecretError::InvalidKey) => match slot.migrate() {
+                Ok(Some(key)) => match slot.save(&key) {
+                    Ok(()) => KeyMigration::Rewrapped,
+                    Err(e) => KeyMigration::Failed(e.to_string()),
+                },
+                Ok(None) => KeyMigration::NoElectronKey,
+                Err(e) => KeyMigration::Failed(e.to_string()),
+            },
+            Err(e) => KeyMigration::Failed(e.to_string()),
+        };
+        (purpose, result)
+    })
+    .collect()
+}
+
 /// Fail-closed crypto for licensed text. Call once at startup while holding
 /// exclusive use of the profile, before opening any cache database connection.
 /// Losing the key may require deleting the cache database and its side files.

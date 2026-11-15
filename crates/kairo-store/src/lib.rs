@@ -20,6 +20,7 @@ pub mod json_store;
 pub mod json_text;
 pub mod launch;
 pub mod logging;
+pub mod migration;
 pub mod paths;
 pub mod secrets;
 pub mod settings;

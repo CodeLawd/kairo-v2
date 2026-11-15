@@ -104,7 +104,6 @@ pub mod ids {
     }
 }
 
-const SIDEBAR_WIDTH: f32 = 280.;
 const ROW_HEIGHT: f32 = 32.;
 
 /// `LyricsReviewNotice`, shared with quick open.
@@ -864,7 +863,6 @@ impl LyricsWorkspace {
         let count = rows::count_label(m.shown().len(), "song");
         let sort = m.sort();
         let viewing = m.viewing_setlist_id().map(str::to_owned);
-        let can_export_songs = viewing.is_some() || m.selected_id().is_some();
         let model = self.model.clone();
         let options = Button::new(ids::OPTIONS)
             .ghost()
@@ -913,7 +911,6 @@ impl LyricsWorkspace {
                         .item(
                             PopupMenuItem::new("Export songs…")
                                 .icon(Icon::new(KairoIcon::Upload))
-                                .disabled(!can_export_songs)
                                 .on_click(move |_, _, cx| {
                                     songs.update(cx, |m, cx| m.export_songs(cx))
                                 }),
@@ -1349,7 +1346,15 @@ impl LyricsWorkspace {
         let in_setlist = m.viewing_setlist_id().is_some();
         let picks = m.picks().len();
         let model = self.model.clone();
-        let sizes = Rc::new(vec![size(px(SIDEBAR_WIDTH), px(ROW_HEIGHT + 1.)); count]);
+        let sizes = Rc::new(vec![
+            size(
+                px(kairo_ui_kit::components::page_sidebar::PageSidebar::width(
+                    None, cx
+                )),
+                px(ROW_HEIGHT + 1.)
+            );
+            count
+        ]);
         let footer = self.render_footer(cx);
         let selection = (in_setlist && picks > 0).then(|| {
             let weak = cx.entity().downgrade();
@@ -1468,7 +1473,9 @@ impl LyricsWorkspace {
         let k = *cx.kairo();
         let error = self.model.read(cx).error().map(str::to_owned);
         v_flex()
-            .w(px(SIDEBAR_WIDTH))
+            .w(px(
+                kairo_ui_kit::components::page_sidebar::PageSidebar::width(None, cx),
+            ))
             .flex_none()
             .h_full()
             .min_h_0()
@@ -2167,6 +2174,11 @@ impl Render for LyricsWorkspace {
                             .overflow_hidden()
                             .bg(k.surface)
                             .child(sidebar)
+                            .child(kairo_ui_kit::components::page_sidebar::handle(
+                                "lyrics-sidebar-handle",
+                                None,
+                                cx,
+                            ))
                             .child(v_flex().flex_1().h_full().min_w_0().min_h_0().child(pane))
                             .children(usage),
                     )

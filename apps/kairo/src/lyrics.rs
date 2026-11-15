@@ -156,6 +156,20 @@ impl LyricsBackend for ServicesLyrics {
                 }
             })
         };
+        // A `.kairo` import changed the library (`commitKairoImport`).
+        let committed = {
+            let mut done = services.core.watch::<crate::transfer::TransferCommitted>();
+            let sink = sink.clone();
+            let services = services.clone();
+            services.clone().runtime().spawn(async move {
+                while done.next().await.is_some() {
+                    match services.lyrics.get_library().await {
+                        Ok(library) => sink(LyricsFeed::Songs(library)),
+                        Err(error) => tracing::error!(%error, "[Lyrics] library read failed"),
+                    }
+                }
+            })
+        };
         let libraries = sink.clone();
         services
             .libraries
@@ -172,7 +186,7 @@ impl LyricsBackend for ServicesLyrics {
                 }
             }
         }
-        Box::new(Feed(vec![task, gloss, import]))
+        Box::new(Feed(vec![task, gloss, import, committed]))
     }
 
     fn misspelled(&self, text: &str) -> Vec<std::ops::Range<usize>> {
@@ -277,6 +291,13 @@ async fn run(
         }
         LyricsCall::ExportKairo(export) => {
             let request = match export {
+                KairoExport::Pick(ids) => {
+                    services
+                        .core
+                        .publisher()
+                        .emit(crate::transfer::PickSongs(ids));
+                    return Ok(LyricsAnswer::Done);
+                }
                 KairoExport::Songs(song_ids) => TransferExportRequest::Songs {
                     song_ids,
                     name: None,
@@ -284,25 +305,11 @@ async fn run(
                 KairoExport::Setlist(list_id) => TransferExportRequest::Setlist { list_id },
                 KairoExport::Library => TransferExportRequest::Library,
             };
-            services
-                .transfer
-                .export(request, &services.ui)
-                .await
-                .map_err(|e| text(&e))?;
+            crate::transfer::export(services, request).await;
             Ok(LyricsAnswer::Done)
         }
         LyricsCall::ImportKairo => {
-            if let Some(preview) = services
-                .transfer
-                .pick_and_preview(&services.ui)
-                .await
-                .map_err(|e| text(&e))?
-            {
-                services
-                    .core
-                    .publisher()
-                    .emit(kairo_transfer::KairoOpened::Preview(Box::new(preview)));
-            }
+            crate::transfer::pick(services).await;
             Ok(LyricsAnswer::Done)
         }
         LyricsCall::PushSlide { song_id, index } => {

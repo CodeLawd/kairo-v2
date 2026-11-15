@@ -1,0 +1,13 @@
+{
+  "name": "kairo-presenter",
+  "productName": "Kairo",
+  "version": "0.0.0",
+  "description": "Kairo — scripture, lyrics, and presentation for churches",
+  "author": {
+    "name": "Alexander Joshua"
+  },
+  "private": true,
+  "devDependencies": {
+    "electron-builder": "26.15.3"
+  }
+}

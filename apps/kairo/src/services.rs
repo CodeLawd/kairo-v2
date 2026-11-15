@@ -1503,6 +1503,11 @@ impl ApplicationServices {
                 .read()
                 .unwrap_or_else(|e| e.into_inner())
                 .recording,
+            recording_started_at: self
+                .capture_status
+                .read()
+                .unwrap_or_else(|e| e.into_inner())
+                .started_at,
             ..Default::default()
         };
         state.update = match self.updater.status() {

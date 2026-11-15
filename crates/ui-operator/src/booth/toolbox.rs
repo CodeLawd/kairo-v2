@@ -1834,6 +1834,15 @@ impl Render for PropsPanel {
                 )
                 .into_any_element();
         }
+        let timer_view = {
+            let booth = self.booth.read(cx);
+            kairo_domain::program::prop_timer_view_for(
+                booth.program(),
+                booth.presentation(),
+                kairo_domain::js::now_ms(),
+                |t, n| kairo_domain::program::next_time_of_day(t, n, &chrono::Local),
+            )
+        };
         let tiles = props.iter().map(|prop| {
             let on = active.contains(&prop.id);
             let empty = prop.objects.is_empty() && prop.background.is_none();
@@ -1862,29 +1871,26 @@ impl Render for PropsPanel {
                 .when(empty && !on, |s| s.opacity(0.6))
                 .on_click(cx.listener(move |this, _, _, cx| this.toggle(&id, cx)))
                 .child(
-                    // The thumbnail. The prop renderer is the props editor's
-                    // (prompt 088); until it lands the tile shows the prop's
-                    // background and its object count.
+                    // The thumbnail: the prop as the props editor draws it.
                     div()
-                        .w_full()
-                        .h(px(63.))
+                        .w(px(116.))
+                        .h(px(67.))
+                        .mx_auto()
                         .rounded_md()
+                        .overflow_hidden()
                         .border_2()
                         .border_color(if on {
                             k.live
                         } else {
                             gpui_kit::transparent_black()
                         })
-                        .bg(prop
-                            .background
-                            .as_deref()
-                            .map_or(k.surface_tertiary, |c| color_of(c, k.surface_tertiary)))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .text_size(text::MICRO.size)
-                        .text_color(k.text(TextStep::T400))
-                        .child(Icon::new(KairoIcon::Layers).size(px(14.))),
+                        .child(crate::props::prop_picture(
+                            prop,
+                            &timer_view,
+                            112.0,
+                            4.0,
+                            cx,
+                        )),
                 )
                 .when(renaming.is_none(), |this| {
                     this.child(

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- decklink-helper, hardened runtime. The DeckLink API is Blackmagic's
+     DeckLinkAPI.framework, installed with the Desktop Video driver and
+     signed by Blackmagic, which library validation would refuse to load.
+     This is the only binary in the bundle with the exception. -->
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+</dict>
+</plist>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Kairo (UI process), hardened runtime. Reassessed from Electron's
+     build/entitlements.mac.plist in DECISIONS.md 101:
+     - allow-jit and allow-unsigned-executable-memory are dropped: there is no
+       V8, and WKWebView runs out of process.
+     - disable-library-validation is dropped: every bundled dylib (FFmpeg,
+       PDFium, NDI) is re-signed with the app's own identity.
+     - network.client and network.server are dropped: they only apply inside
+       the App Sandbox, which Kairo does not use. -->
+<plist version="1.0">
+<dict>
+  <!-- Microphone capture for sermon transcription -->
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
+  <!-- Camera and capture-card lists and previews -->
+  <key>com.apple.security.device.camera</key>
+  <true/>
+</dict>
+</plist>

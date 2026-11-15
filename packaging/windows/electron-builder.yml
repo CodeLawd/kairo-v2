@@ -1,0 +1,43 @@
+# Windows installer for the native Kairo (prompt 102). electron-builder only
+# makes the NSIS installer here, from the folder package.ps1 stages
+# (`--prepackaged`); it does not build or edit the app. Identity matches the
+# Electron release (kairo-presenter package.json `build`, `build.win`,
+# `build.nsis`), so the installer has the same GUID, registry keys, install
+# folder, shortcuts and old-version uninstall, and the in-app updater's
+# `--updated`, `/S` and `--force-run` arguments mean the same (decision 048).
+appId: com.kairo.app
+# electron-builder refuses to start without a framework version. Nothing in a
+# --prepackaged NSIS build reads it (the NSIS target never does); it is the
+# Electron release's version, kept only to pass that check.
+electronVersion: 33.2.0
+productName: Kairo
+copyright: "Copyright © 2026 Kairo"
+directories:
+  buildResources: build
+fileAssociations:
+  - ext: kairo
+    name: Kairo File
+    description: Kairo songs, setlist or scripture playlist
+    role: Editor
+win:
+  icon: icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+  requestedExecutionLevel: asInvoker
+  # package.ps1 signs the app's own files before staging; electron-builder
+  # signs the installer and uninstaller when WIN_CSC_LINK is set.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Kairo
+  artifactName: "${productName}-Setup-${version}.${ext}"
+  # WebView2 Evergreen runtime when it is missing (installer.nsh).
+  include: installer.nsh
+publish:
+  - provider: github
+    owner: CodeLawd
+    repo: kairo-presenter
+    releaseType: release

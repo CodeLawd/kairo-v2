@@ -302,7 +302,8 @@ impl ThemeEditor {
     /// their order; a failure shows under the name and the settled state is
     /// read back.
     fn send(&mut self, op: Op, cx: &mut Context<Self>) {
-        crate::ops::apply(&mut self.settings, &op);
+        // A failed op changes nothing here; the core's reply says why.
+        let _ = crate::ops::apply(&mut self.settings, &op);
         self.in_flight += 1;
         self.notice = None;
         let (tx, rx) = futures_channel::oneshot::channel();
@@ -663,6 +664,84 @@ impl ThemeEditor {
             cx,
         );
         self.select_layer(Some(copy), cx);
+    }
+
+    /// Asks for a file, then hands its path to `then`. A closed picker does
+    /// nothing; a failed one shows a notice.
+    fn pick_then(
+        &mut self,
+        kind: MediaKind,
+        then: impl FnOnce(&mut Self, String, &mut Context<Self>) + 'static,
+        cx: &mut Context<Self>,
+    ) {
+        let (tx, rx) = futures_channel::oneshot::channel();
+        self.backend.pick_media(
+            kind,
+            Box::new(move |r| {
+                let _ = tx.send(r);
+            }),
+        );
+        cx.spawn(async move |this, cx| {
+            let picked = rx
+                .await
+                .unwrap_or_else(|_| Err("The picker closed.".into()));
+            let _ = this.update(cx, |this, cx| match picked {
+                Ok(Some(path)) => then(this, path, cx),
+                Ok(None) => {}
+                Err(error) => {
+                    tracing_error(&error);
+                    this.notice = Some("Could not open the file picker. Try again.".into());
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    /// The element inspector's picture or video: another file for it.
+    pub fn replace_element_media(&mut self, id: &str, cx: &mut Context<Self>) {
+        let Some(kind) = self
+            .draft
+            .elements
+            .iter()
+            .find(|e| e.id == id)
+            .and_then(|e| match e.kind {
+                OverlayElementKind::Image => Some(MediaKind::Image),
+                OverlayElementKind::Video => Some(MediaKind::Video),
+                _ => None,
+            })
+        else {
+            return;
+        };
+        let id = id.to_owned();
+        self.pick_then(
+            kind,
+            move |this, path, cx| {
+                this.update_element(&id, |el| el.media_path = Some(path.clone()), cx);
+            },
+            cx,
+        );
+    }
+
+    /// The Background tab's picture or video.
+    pub fn pick_background_media(&mut self, kind: MediaKind, cx: &mut Context<Self>) {
+        if self.selected_id.is_none() {
+            return;
+        }
+        self.pick_then(
+            kind,
+            move |this, path, cx| {
+                this.edit_theme(
+                    |t| {
+                        let mut next = t.clone();
+                        next.background.media_path = Some(path);
+                        next
+                    },
+                    cx,
+                );
+            },
+            cx,
+        );
     }
 
     // ─── The library ───────────────────────────────────────────────────────

@@ -1,3 +1,5 @@
 /target/
 /.cache/
 .wrangler/
+packaging/windows/node_modules/
+packaging/linux/node_modules/

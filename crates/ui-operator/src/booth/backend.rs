@@ -168,6 +168,8 @@ pub enum BoothCall {
         on: bool,
     },
     ClearProps,
+    /// `program.pickImage`; answers [`BoothAnswer::Picked`].
+    PickImage,
     SetCamera {
         label: Option<String>,
         audio: Option<String>,
@@ -193,6 +195,8 @@ pub enum BoothAnswer {
     Suggestion(ScriptureSuggestion),
     Translations(Vec<ScriptureTranslationOption>),
     Services(ServiceSnapshot),
+    /// The chosen file, or `None` when the picker was closed.
+    Picked(Option<String>),
 }
 
 pub type Reply = Box<dyn FnOnce(Result<BoothAnswer, String>) + Send>;
