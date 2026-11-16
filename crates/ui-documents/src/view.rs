@@ -5,6 +5,7 @@
 //! slide's embedded video transport, rename and remove, and the import and
 //! converter dialogs. The live rail and media dock are handed in by the app.
 
+use gpui_kit::component::FocusTrapElement;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -222,6 +223,8 @@ const END_SLACK: f64 = 0.03;
 pub struct DocumentsPage {
     backend: Arc<dyn DocumentsBackend>,
     focus: FocusHandle,
+    /// Focus for the import and converter dialogs (Radix dialog behaviour).
+    dialog_focus: kairo_ui_kit::components::ModalFocus,
     documents: Vec<ProjectionDocument>,
     loaded: bool,
     libraries: LibraryState,
@@ -351,6 +354,7 @@ impl DocumentsPage {
         let mut page = Self {
             backend,
             focus: cx.focus_handle(),
+            dialog_focus: kairo_ui_kit::components::ModalFocus::new(cx),
             documents: Vec::new(),
             loaded: false,
             libraries: snapshot.libraries,
@@ -1588,6 +1592,12 @@ impl Render for DocumentsPage {
             }
         }
         self.sync_seek(window, cx);
+        let dialogs: Vec<AnyElement> = self
+            .render_import_dialog(cx)
+            .into_iter()
+            .chain(self.render_converter_dialog(cx))
+            .collect();
+        self.dialog_focus.sync(!dialogs.is_empty(), window, cx);
         let k = *cx.kairo();
         let sidebar = self.render_sidebar(cx);
         let main = match self.current().cloned() {
@@ -1643,8 +1653,7 @@ impl Render for DocumentsPage {
                                     ))
                                     .child(v_flex().flex_1().min_w_0().min_h_0().child(main)),
                             )
-                            .children(self.render_import_dialog(cx))
-                            .children(self.render_converter_dialog(cx)),
+                            .children(dialogs),
                     )
                     .children(self.dock.clone()),
             )
@@ -1749,6 +1758,11 @@ impl DocumentsPage {
                         .id(ids::IMPORT)
                         .test_support()
                         .role(Role::Button)
+                        .aria_label(if importing {
+                            "Importing…"
+                        } else {
+                            "Import slides"
+                        })
                         .w_full()
                         .gap_3()
                         .px_3()
@@ -1764,7 +1778,11 @@ impl DocumentsPage {
                                     })
                                 })
                         })
-                        .when(self.busy, |d| d.opacity(0.7))
+                        .when(self.busy, |d| {
+                            // Pressing it from assistive technology while busy
+                            // does nothing, as the pointer does.
+                            d.opacity(0.7).on_click(|_, _, _| {})
+                        })
                         .child(
                             div()
                                 .flex()
@@ -1865,6 +1883,8 @@ impl DocumentsPage {
             .id(SharedString::from(ids::document(&d.id)))
             .test_support()
             .role(Role::Button)
+            .aria_label(d.name.clone())
+            .aria_selected(active)
             .gap_2()
             .px_1p5()
             .py_1()
@@ -2086,7 +2106,9 @@ impl DocumentsPage {
                             .gap_1p5()
                             .text_color(k.text(TextStep::T500))
                             .child(Icon::new(KairoIcon::Minus).size_3())
-                            .child(div().w(px(96.)).child(Slider::new(&self.thumb_slider)))
+                            .child(div().w(px(96.)).child(
+                                Slider::new(&self.thumb_slider).accessibility_label("Slide size"),
+                            ))
                             .child(Icon::new(KairoIcon::Plus).size_3()),
                     )
                     .child(
@@ -2160,10 +2182,11 @@ impl DocumentsPage {
                         .text_color(k.text(TextStep::T400))
                         .child("Seconds per page")
                         .child(
-                            div()
-                                .id(ids::SECONDS)
-                                .test_support()
-                                .child(Input::new(&self.seconds).small()),
+                            div().id(ids::SECONDS).test_support().child(
+                                Input::new(&self.seconds)
+                                    .small()
+                                    .aria_label("Seconds per page"),
+                            ),
                         ),
                 )
                 .child(h_flex().flex_wrap().gap_1().children(presets))
@@ -2328,10 +2351,11 @@ impl DocumentsPage {
                                     .child(format_media_clock(shown)),
                             )
                             .children(self.seek_bars.get(i).map(|bar| {
-                                div()
-                                    .flex_1()
-                                    .min_w_0()
-                                    .child(Slider::new(bar).disabled(v.duration <= 0.))
+                                div().flex_1().min_w_0().child(
+                                    Slider::new(bar)
+                                        .disabled(v.duration <= 0.)
+                                        .accessibility_label("Seek"),
+                                )
                             }))
                             .child(
                                 div()
@@ -2685,6 +2709,7 @@ impl DocumentsPage {
             ids::IMPORT_DIALOG,
             p.title(),
             k,
+            self.dialog_focus.handle(),
             v_flex()
                 .items_center()
                 .child(
@@ -2815,6 +2840,7 @@ impl DocumentsPage {
             ids::CONVERTER,
             model::converter_title(view),
             k,
+            self.dialog_focus.handle(),
             v_flex()
                 .gap_4()
                 .child(
@@ -2884,6 +2910,7 @@ fn modal(
     id: &'static str,
     label: &'static str,
     k: kairo_ui_kit::KairoColors,
+    focus: &FocusHandle,
     content: AnyElement,
 ) -> AnyElement {
     deferred(
@@ -2906,7 +2933,8 @@ fn modal(
                     .p_6()
                     .rounded(radius::xl2())
                     .bg(k.glass_modal())
-                    .child(content),
+                    .child(content)
+                    .focus_trap(id, focus),
             ),
     )
     .with_priority(2)

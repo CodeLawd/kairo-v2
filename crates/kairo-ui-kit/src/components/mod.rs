@@ -33,3 +33,7 @@ pub use library_section::{
 pub use marquee::{Marquee, MarqueeBand, MarqueeStep, PressTarget};
 pub mod rail;
 pub use rail::RailItem;
+pub mod popover_trigger;
+pub use popover_trigger::{PopoverButtonTriggerExt, PopoverTriggerExt};
+pub mod modal_focus;
+pub use modal_focus::ModalFocus;

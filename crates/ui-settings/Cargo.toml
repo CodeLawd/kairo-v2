@@ -16,4 +16,5 @@ ui-account = { path = "../ui-account" }
 ui-shell = { path = "../ui-shell" }
 
 [dev-dependencies]
+kairo-ui-kit = { path = "../kairo-ui-kit", features = ["test-support"] }
 gpui-kit = { workspace = true, features = ["test-support"] }

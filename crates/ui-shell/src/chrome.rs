@@ -3,9 +3,9 @@
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::{Icon, v_flex};
 use gpui_kit::{
-    AnyElement, App, ClickEvent, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement,
-    RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled, Window, div,
-    prelude::FluentBuilder,
+    AccessibleAction, AnyElement, App, ClickEvent, ElementId, Hsla, InteractiveElement,
+    IntoElement, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
+    Window, div, prelude::FluentBuilder,
 };
 use kairo_ui_kit::KairoIcon;
 use kairo_ui_kit::KairoThemeExt;
@@ -13,6 +13,7 @@ use kairo_ui_kit::tokens::{Hue, TextStep, radius, text};
 use std::rc::Rc;
 
 type Handler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
+type Toggle = Rc<dyn Fn(&mut Window, &mut App)>;
 
 /// How a header tool reads.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -39,8 +40,9 @@ pub struct ToolbarButton {
     tone: Tone,
     disabled: bool,
     on_click: Option<Handler>,
-    /// Opens a popover that handles the click itself.
-    popover: bool,
+    /// Opens a popover that handles the pointer itself; this toggles it for
+    /// assistive technology, which presses without a pointer.
+    popover: Option<Toggle>,
     selected: bool,
 }
 
@@ -62,14 +64,17 @@ impl ToolbarButton {
             tone: Tone::Default,
             disabled: false,
             on_click: None,
-            popover: false,
+            popover: None,
             selected: false,
         }
     }
 
     /// The trigger of a popover: a button whose click the popover handles.
-    pub fn opens_popover(mut self) -> Self {
-        self.popover = true;
+    ///
+    /// The popover opens on a mouse press, which VoiceOver and Narrator do
+    /// not make, so `toggle` opens or closes it when they press the button.
+    pub fn opens_popover(mut self, toggle: impl Fn(&mut Window, &mut App) + 'static) -> Self {
+        self.popover = Some(Rc::new(toggle));
         self
     }
 
@@ -133,7 +138,7 @@ impl RenderOnce for ToolbarButton {
                 k.text(TextStep::T400),
             ),
         };
-        let interactive = (self.on_click.is_some() || self.popover) && !self.disabled;
+        let interactive = (self.on_click.is_some() || self.popover.is_some()) && !self.disabled;
         let pill_bg = if self.selected {
             k.surface_elevated
         } else {
@@ -150,12 +155,15 @@ impl RenderOnce for ToolbarButton {
             // Pressing a tool never drags the window.
             .occlude()
             .group(group.clone())
-            .role(if self.on_click.is_some() || self.popover {
+            .role(if self.on_click.is_some() || self.popover.is_some() {
                 Role::Button
             } else {
                 Role::Status
             })
             .aria_label(self.title.clone())
+            .when(self.popover.is_some(), |this| {
+                this.aria_expanded(self.selected)
+            })
             .when(interactive, |this| this.tab_index(0))
             .flex_shrink_0()
             .items_center()
@@ -211,6 +219,11 @@ impl RenderOnce for ToolbarButton {
             )
             .when_some(self.on_click.filter(|_| interactive), |this, handler| {
                 this.on_click(move |event, window, cx| handler(event, window, cx))
+            })
+            .when_some(self.popover.filter(|_| interactive), |this, toggle| {
+                this.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
+                    toggle(window, cx)
+                })
             })
     }
 }

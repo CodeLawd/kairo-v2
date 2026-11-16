@@ -969,7 +969,9 @@ impl SettingsWindow {
                                 cx.listener(move |this, _, window, cx| this.go(delta, window, cx)),
                             )
                     } else {
-                        this.opacity(0.3)
+                        // Nothing to go back or forward to: a press from
+                        // assistive technology does nothing, as the pointer does.
+                        this.opacity(0.3).on_click(|_, _, _| {})
                     }
                 })
         };

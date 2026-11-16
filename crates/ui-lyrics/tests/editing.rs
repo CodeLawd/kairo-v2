@@ -225,8 +225,11 @@ fn open(cx: &mut TestAppContext, core: Arc<Core>) -> Opened {
 
 fn draw(cx: &mut TestAppContext, o: &Opened) {
     cx.run_until_parked();
-    cx.update_window(o.handle, |_, window, cx| window.render_frame(cx))
-        .unwrap();
+    cx.update_window(o.handle, |_, window, cx| {
+        window.render_frame(cx);
+        kairo_ui_kit::a11y_audit::check(window);
+    })
+    .unwrap();
     cx.run_until_parked();
 }
 

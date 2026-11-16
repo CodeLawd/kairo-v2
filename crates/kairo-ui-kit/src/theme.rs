@@ -64,7 +64,10 @@ pub fn init(appearance: Appearance, cx: &mut App) {
 
 /// Switches appearance immediately and refreshes every window.
 pub fn set_appearance(appearance: Appearance, window: Option<&mut Window>, cx: &mut App) {
-    let colors = KairoColors::for_appearance(appearance);
+    let mut colors = KairoColors::for_appearance(appearance);
+    colors.solid_chrome = cx
+        .try_global::<KairoTheme>()
+        .is_some_and(|t| t.colors.solid_chrome);
     let reduced_motion = cx
         .try_global::<KairoTheme>()
         .is_some_and(KairoTheme::reduced_motion);
@@ -160,6 +163,18 @@ pub fn set_display_sizes(sizes: DisplaySizes, cx: &mut App) {
     let base = sizes.interface_rem();
     Theme::update(cx, |theme| theme.font_size = base);
     cx.refresh_windows();
+}
+
+/// Draws glass and material tints opaque, or translucent again
+/// (`prefers-reduced-transparency: reduce`, `prefers-contrast: more`).
+pub fn set_solid_chrome(solid: bool, cx: &mut App) {
+    if let Some(mut theme) = cx.try_global::<KairoTheme>().cloned()
+        && theme.colors.solid_chrome != solid
+    {
+        theme.colors.solid_chrome = solid;
+        cx.set_global(theme);
+        cx.refresh_windows();
+    }
 }
 
 /// Turns motion off or on (`prefers-reduced-motion: reduce`).
@@ -332,5 +347,35 @@ mod display_size_tests {
             48.0
         );
         assert_eq!(DisplaySizes::default().interface_rem(), text::rem());
+    }
+}
+
+#[cfg(test)]
+mod solid_chrome_tests {
+    use crate::tokens::{Appearance, GLASS_MODAL_ALPHA, GLASS_PANEL_ALPHA, KairoColors};
+
+    #[test]
+    fn solid_chrome_draws_glass_opaque() {
+        let mut k = KairoColors::for_appearance(Appearance::Dark);
+        assert_eq!(k.glass_panel().a, GLASS_PANEL_ALPHA);
+        assert_eq!(k.glass_modal().a, GLASS_MODAL_ALPHA);
+        assert!(k.material_tint().a < 1.0);
+        k.solid_chrome = true;
+        assert_eq!(k.glass_panel(), k.glass);
+        assert_eq!(k.glass_modal(), k.glass);
+        assert_eq!(k.material_tint(), k.surface_rail);
+    }
+
+    #[gpui_kit::test]
+    fn the_flag_survives_an_appearance_change(cx: &mut gpui_kit::TestAppContext) {
+        cx.update(|cx| {
+            gpui_kit::init(cx);
+            crate::init(Appearance::Dark, cx);
+            crate::set_solid_chrome(true, cx);
+            crate::set_appearance(Appearance::Light, None, cx);
+            assert!(crate::KairoThemeExt::kairo(cx).solid_chrome);
+            crate::set_solid_chrome(false, cx);
+            assert!(!crate::KairoThemeExt::kairo(cx).solid_chrome);
+        });
     }
 }

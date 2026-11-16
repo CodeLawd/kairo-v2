@@ -8,6 +8,7 @@
 //! the library commands, then reports back with [`LibrarySection::landed`]
 //! or [`LibrarySection::set_error`].
 
+use crate::components::PopoverTriggerExt;
 use crate::icons::KairoIcon;
 use crate::theme::KairoThemeExt;
 use crate::tokens::{Hue, TextStep, radius, text};
@@ -532,6 +533,7 @@ impl Render for LibrarySection {
                 .rounded(radius::sm())
                 .accessibility_label("New")
                 .tooltip("New")
+                .popover_trigger()
                 .dropdown_menu_with_anchor(gpui_kit::Anchor::TopRight, move |menu, _, _| {
                     let create = entity.clone();
                     let mut menu = menu.item(

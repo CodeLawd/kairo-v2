@@ -4,6 +4,7 @@
 //! labels, hotkeys, arrows, zoom, picks, paint, quick edit and push, with
 //! every song of an open playlist laid out in order.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::rc::Rc;
 
 use gpui_kit::Focusable;
@@ -579,6 +580,7 @@ impl LyricsWorkspace {
             .test_support()
             .role(Role::Button)
             .aria_label(SharedString::from(song.title.clone()))
+            .aria_selected(current)
             .min_h_9()
             .w_full()
             .gap_2p5()
@@ -586,7 +588,10 @@ impl LyricsWorkspace {
             .mx(px(-16.))
             .map(|d| {
                 if current {
-                    d.bg(k.surface_tertiary).text_color(k.text_primary)
+                    // Already the open song: pressing it changes nothing.
+                    d.bg(k.surface_tertiary)
+                        .text_color(k.text_primary)
+                        .on_click(|_, _, _| {})
                 } else {
                     d.bg(k.monitor().opacity(0.25))
                         .text_color(k.text(TextStep::T300))
@@ -657,6 +662,7 @@ impl LyricsWorkspace {
             .xsmall()
             .icon(Icon::new(KairoIcon::MoreHorizontal))
             .accessibility_label("Song actions")
+            .popover_trigger()
             .dropdown_menu(move |menu, window, cx| {
                 let (sel, auto, clear, paint, export) = (
                     model.clone(),

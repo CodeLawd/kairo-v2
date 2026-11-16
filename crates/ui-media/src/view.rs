@@ -4,6 +4,7 @@
 //! picks, rubber band, drag reorder, OS file drops, the card and grid
 //! menus, the selection bar and the Media Inspector.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -119,6 +120,7 @@ pub struct MediaDockView {
     marquee_cleared_click: bool,
     preview: Option<(String, Entity<PreviewPlayer>)>,
     inspector: Option<(String, Entity<Inspector>, Subscription)>,
+    inspector_focus: kairo_ui_kit::components::ModalFocus,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -214,6 +216,7 @@ impl MediaDockView {
             marquee_cleared_click: false,
             preview: None,
             inspector: None,
+            inspector_focus: kairo_ui_kit::components::ModalFocus::new(cx),
             _subscriptions: subs,
         }
     }
@@ -294,12 +297,19 @@ impl MediaDockView {
             }
             (None, _) => self.preview = None,
         }
+        // The tile keeps focus until here, so it gets it back on close.
+        self.inspector_focus.sync(inspecting.is_some(), window, cx);
         match (inspecting, &self.inspector) {
             (Some((item, _)), Some((held, _, _))) if &item.id == held => {}
             (Some((item, playback)), _) => {
                 let backend = self.backend.clone();
                 let id = item.id.clone();
-                let inspector = cx.new(|cx| Inspector::new(backend, item, playback, window, cx));
+                let handle = self.inspector_focus.handle().clone();
+                let inspector = cx.new(|cx| {
+                    let mut inspector = Inspector::new(backend, item, playback, window, cx);
+                    inspector.set_modal_focus(handle);
+                    inspector
+                });
                 let sub =
                     cx.subscribe(&inspector, |this, inspector, event: &InspectorEvent, cx| {
                         match event {
@@ -557,7 +567,7 @@ impl MediaDockView {
                         .id(ids::RENAME_PLAYLIST)
                         .test_support()
                         .px_1p5()
-                        .child(Input::new(&self.rename).small())
+                        .child(Input::new(&self.rename).small().aria_label("Playlist name"))
                         .into_any_element();
                 }
                 let active = matches!(m.selection(), Some(Selection::Playlist(id)) if *id == p.id);
@@ -747,7 +757,7 @@ impl MediaDockView {
             div()
                 .id(ids::RENAME_ITEM)
                 .test_support()
-                .child(Input::new(&self.rename).xsmall())
+                .child(Input::new(&self.rename).xsmall().aria_label("Media name"))
                 .into_any_element()
         } else {
             h_flex()
@@ -1053,6 +1063,7 @@ impl MediaDockView {
             .id(ids::ADD_TILE)
             .test_support()
             .role(Role::Button)
+            .aria_label(if adding { "Adding…" } else { "Add media" })
             .w(px(width))
             .h(px(width * 9. / 16.))
             .items_center()
@@ -1061,7 +1072,8 @@ impl MediaDockView {
             .bg(k.surface_secondary)
             .text_color(k.text(TextStep::T500))
             .hover(|s| s.bg(k.surface_tertiary).text_color(k.text(TextStep::T200)))
-            .when(adding, |d| d.opacity(0.5))
+            // While adding, a press from assistive technology does nothing, as the pointer does.
+            .when(adding, |d| d.opacity(0.5).on_click(|_, _, _| {}))
             .when(!adding, |d| {
                 d.on_click(move |_, _, cx| model.update(cx, |m, cx| m.add_media_to_playlist(cx)))
             })
@@ -1125,6 +1137,7 @@ impl MediaDockView {
                         .xsmall()
                         .icon(Icon::new(KairoIcon::Plus))
                         .label("Add to playlist")
+                        .popover_trigger()
                         .dropdown_menu(move |mut menu, _, _| {
                             menu = menu.max_h(px(288.)).scrollable(true);
                             for p in &playlists {

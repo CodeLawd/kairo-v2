@@ -1,5 +1,6 @@
 //! The Live popover body and the Capture Settings window.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::rc::Rc;
 
 use gpui_kit::base::TestSupportExt;
@@ -377,6 +378,7 @@ fn select(
         .w(px(220.))
         .label(current)
         .accessibility_label(label)
+        .popover_trigger()
         .dropdown_menu(move |mut menu, _, _| {
             for (value, text, checked) in &options {
                 let change = change.clone();

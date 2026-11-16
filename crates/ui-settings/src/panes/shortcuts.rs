@@ -383,6 +383,7 @@ impl SettingsWindow {
                             .id(ids::RESTORE)
                             .test_support()
                             .role(Role::Button)
+                            .aria_label("Restore defaults")
                             .tab_index(0)
                             .text_size(text::XS.size)
                             .text_color(k.text(TextStep::T400))

@@ -6,6 +6,7 @@
 //! pasting a song with blank lines or `[Chorus]` lines keeps its shape.
 //! Misspelt words get the system spell checker's wavy underline.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -570,6 +571,7 @@ impl SongEditor {
             .accessibility_label(SharedString::from(format!(
                 "{label}: rename, change type, move or delete"
             )))
+            .popover_trigger()
             .dropdown_menu({
                 let entity = entity.clone();
                 let current = block.kind;
@@ -632,7 +634,7 @@ impl SongEditor {
                 .id(ids::RENAME)
                 .test_support()
                 .w(px(220.))
-                .child(Input::new(&self.rename).small())
+                .child(Input::new(&self.rename).small().aria_label("Section name"))
         });
         let slides: Vec<AnyElement> = block
             .slides
@@ -664,6 +666,7 @@ impl SongEditor {
                                     .accessibility_label(SharedString::from(format!(
                                         "Slide {n} actions"
                                     )))
+                                    .popover_trigger()
                                     .dropdown_menu(move |menu, window, cx| {
                                         let e = menu_entity.clone();
                                         let d = menu_entity.clone();
@@ -822,7 +825,7 @@ impl Render for SongEditor {
                                             .small()
                                             .icon(Icon::new(KairoIcon::Plus))
                                             .label("Add section")
-                                            .dropdown_menu(move |mut menu, _, _| {
+                                            .popover_trigger().dropdown_menu(move |mut menu, _, _| {
                                                 menu = menu.label("Section type");
                                                 for (kind, name) in SECTION_TYPES {
                                                     let e = entity.clone();

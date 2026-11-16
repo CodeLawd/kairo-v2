@@ -1,6 +1,8 @@
 //! The editor's screen: the library and layers on the left, the slide with
 //! its canvas in the middle, and the inspector on the right.
 
+use kairo_ui_kit::components::PopoverButtonTriggerExt;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::sync::Arc;
 
 use gpui_kit::base::TestSupportExt;
@@ -341,6 +343,7 @@ impl ThemeEditor {
                 .icon(Icon::new(KairoIcon::Plus))
                 .accessibility_label("New theme")
                 .tooltip("New theme")
+                .popover_trigger()
                 .dropdown_menu(move |mut menu, _, _| {
                     let blank = editor.clone();
                     menu = menu.item(PopupMenuItem::new("Blank").on_click(move |_, window, cx| {
@@ -462,7 +465,12 @@ impl ThemeEditor {
             .id(SharedString::from(ids::tile(&item.id)))
             .test_support()
             .role(Role::Button)
-            .aria_label(name.clone())
+            .aria_label(if name.trim().is_empty() {
+                "Untitled theme".into()
+            } else {
+                name.clone()
+            })
+            .aria_selected(selected)
             .group(group.clone())
             .relative()
             .rounded(radius::md())
@@ -533,6 +541,7 @@ impl ThemeEditor {
                             .xsmall()
                             .icon(Icon::new(KairoIcon::MoreHorizontal))
                             .accessibility_label(format!("{name} actions"))
+                            .popover_trigger()
                             .dropdown_menu(move |m, _, _| actions(m, is_default)),
                     ),
             )
@@ -1104,10 +1113,12 @@ impl ThemeEditor {
                     .into_any_element(),
             );
         }
+        let remover = editor.clone();
         let delete = selected
             .as_ref()
             .filter(|(_, l)| is_deletable(&l.id))
             .map(|(b, l)| {
+                let (remover, layer_id) = (remover.clone(), l.id.clone());
                 let (x, y) = b.to_frame(b.delete_local());
                 let half = canvas::DELETE_PX as f32 / 2.0;
                 div()
@@ -1115,6 +1126,12 @@ impl ThemeEditor {
                     .test_support()
                     .role(Role::Button)
                     .aria_label(format!("{} {}", canvas::delete_verb(&l.id), l.label))
+                    // The canvas deletes on a pointer press over this handle;
+                    // assistive technology presses without a pointer.
+                    .on_a11y_action(gpui_kit::AccessibleAction::Click, move |_, _, cx| {
+                        let id = layer_id.clone();
+                        remover.update(cx, |e, cx| e.delete_layer(&id, cx))
+                    })
                     .absolute()
                     .left(px(x as f32 - half))
                     .top(px(y as f32 - half))
@@ -1301,7 +1318,7 @@ impl ThemeEditor {
                         cx.notify();
                     })
                 })
-                .trigger(
+                .button_trigger(
                     button(
                         ids::ADD_SHAPE,
                         KairoIcon::Square,
@@ -1464,6 +1481,11 @@ impl ThemeEditor {
                 .test_support()
                 .role(Role::Button)
                 .aria_label(output.name.clone())
+                .aria_toggled(if on {
+                    gpui_kit::Toggled::True
+                } else {
+                    gpui_kit::Toggled::False
+                })
                 .h_6()
                 .gap_1()
                 .px_2p5()
@@ -1473,6 +1495,8 @@ impl ThemeEditor {
                 .when(!on, |d| {
                     d.bg(k.surface_tertiary).text_color(k.text(TextStep::T300))
                 })
+                // Locked: a press from assistive technology does nothing, as the pointer does.
+                .when(locked, |d| d.on_click(|_, _, _| {}))
                 .when(!locked, |d| {
                     d.cursor_pointer().on_click(move |_, _, cx| {
                         editor.update(cx, |this, cx| this.toggle_output(&id, cx))

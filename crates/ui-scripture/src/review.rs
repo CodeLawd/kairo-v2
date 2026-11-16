@@ -563,7 +563,7 @@ impl Render for SermonReview {
                         div()
                             .id(ids::TITLE)
                             .test_support()
-                            .child(Input::new(&self.title).small()),
+                            .child(Input::new(&self.title).small().aria_label("Playlist name")),
                     )
                     .child(
                         div()
@@ -684,6 +684,12 @@ impl Render for SermonReview {
                             .id(SharedString::from(ids::reference(index)))
                             .test_support()
                             .role(Role::Button)
+                            .aria_label(if m.translations.is_empty() {
+                                m.reference.clone()
+                            } else {
+                                format!("{}, {}", m.reference, m.translations.join(" · "))
+                            })
+                            .aria_selected(on)
                             .items_start()
                             .gap_3()
                             .rounded(radius::lg())
@@ -701,7 +707,7 @@ impl Render for SermonReview {
                                         .hover(|s| s.bg(k.surface_secondary))
                                 }
                             })
-                            .when(busy, |d| d.opacity(0.6))
+                            .when(busy, |d| d.opacity(0.6).on_click(|_, _, _| {}))
                             .when(!busy, |d| {
                                 d.on_click(cx.listener(move |this, _, window, cx| {
                                     this.go_to(index, window, cx)

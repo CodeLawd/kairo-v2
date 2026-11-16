@@ -4,6 +4,8 @@
 //! virtualised by line), the selection bar and the queue dock
 //! (`QueueDock.tsx`). The live rail is the operator's, handed in by the app.
 
+use kairo_ui_kit::components::PopoverButtonTriggerExt;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -738,6 +740,8 @@ impl ScriptureWorkspace {
             .id(ids::SEARCH_RESULTS)
             .test_support()
             .role(Role::Button)
+            .aria_label(format!("Search results, {search_count}"))
+            .aria_selected(viewing_search)
             .flex()
             .items_center()
             .gap_2()
@@ -754,7 +758,8 @@ impl ScriptureWorkspace {
                         .hover(|s| s.bg(k.white.opacity(0.05)))
                 }
             })
-            .when(search_count == 0, |d| d.opacity(0.4))
+            // No results: a press from assistive technology does nothing, as the pointer does.
+            .when(search_count == 0, |d| d.opacity(0.4).on_click(|_, _, _| {}))
             .when(search_count > 0, |d| {
                 d.on_click({
                     let model = model.clone();
@@ -865,6 +870,7 @@ impl ScriptureWorkspace {
                     "Import",
                 )
                 .disabled(importing)
+                .popover_trigger()
                 .dropdown_menu({
                     let model = model.clone();
                     move |menu, _, _| {
@@ -1132,10 +1138,9 @@ impl ScriptureWorkspace {
                         .gap_2()
                         .p_2()
                         .child(
-                            div()
-                                .id(ids::RENAME)
-                                .test_support()
-                                .child(Input::new(&self.rename).small()),
+                            div().id(ids::RENAME).test_support().child(
+                                Input::new(&self.rename).small().aria_label("Playlist name"),
+                            ),
                         )
                         .child(
                             h_flex()
@@ -1209,6 +1214,7 @@ impl ScriptureWorkspace {
                             .id(SharedString::from(ids::plan(&id)))
                             .test_support()
                             .role(Role::Button)
+                            .aria_label(plan.title.clone())
                             .flex_1()
                             .min_w_0()
                             .gap_2()
@@ -1246,6 +1252,7 @@ impl ScriptureWorkspace {
                             KairoIcon::MoreHorizontal,
                             &format!("Playlist options for {}", plan.title),
                         )
+                        .popover_trigger()
                         .dropdown_menu(move |menu, _, _| {
                             let (a, b, c) = (model.clone(), model.clone(), model.clone());
                             let (ia, ib, ic) = (id.clone(), id.clone(), id.clone());
@@ -1407,6 +1414,16 @@ impl ScriptureWorkspace {
                         .id(SharedString::from(ids::item(&item.id)))
                         .test_support()
                         .role(Role::Button)
+                        .aria_label(format!(
+                            "{}, {}{}",
+                            item.reference,
+                            item.translation.to_uppercase(),
+                            if item.available {
+                                ""
+                            } else {
+                                ", not downloaded"
+                            }
+                        ))
                         .relative()
                         .gap_1()
                         .rounded(radius::md())
@@ -1559,6 +1576,7 @@ impl ScriptureWorkspace {
             .tooltip(SharedString::from(
                 current_name.unwrap_or_else(|| "Scripture translation".into()),
             ))
+            .popover_trigger()
             .dropdown_menu({
                 let model = model.clone();
                 move |mut menu, _, _| {
@@ -1721,6 +1739,17 @@ impl ScriptureWorkspace {
                         .id(SharedString::from(ids::suggestion(index)))
                         .test_support()
                         .role(Role::ListBoxOption)
+                        .aria_label(match &item {
+                            BarItem::Recent(reference) => reference.clone(),
+                            BarItem::Book(book) => book.value.trim().to_owned(),
+                            BarItem::Verse(result) => format!(
+                                "{} {}: {}",
+                                result.reference,
+                                result.translation,
+                                rows::verse_text(result)
+                            ),
+                        })
+                        .aria_selected(on)
                         .rounded(radius::md())
                         .px_2()
                         .py_1p5()
@@ -1910,7 +1939,7 @@ impl ScriptureWorkspace {
         let k = *cx.kairo();
         let model = self.model.clone();
         Popover::new(ids::OPTIONS)
-            .trigger(
+            .button_trigger(
                 Button::new("scripture-options-trigger")
                     .small()
                     .icon(Icon::new(KairoIcon::SlidersHorizontal))
@@ -2015,6 +2044,7 @@ impl ScriptureWorkspace {
                                     .label(current_name)
                                     .dropdown_caret(true)
                                     .accessibility_label("Default Bible")
+                                    .popover_trigger()
                                     .dropdown_menu(move |mut menu, _, _| {
                                         if !installed {
                                             menu = menu.item(
@@ -2325,6 +2355,7 @@ impl ScriptureWorkspace {
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::Plus))
                                 .label("Add to playlist")
+                                .popover_trigger()
                                 .dropdown_menu(move |mut menu, _, _| {
                                     menu = menu.max_h(px(288.)).scrollable(true);
                                     if plans.is_empty() {
@@ -2443,6 +2474,7 @@ impl ScriptureWorkspace {
                 .label("Save")
                 .dropdown_caret(true)
                 .disabled(m.creating())
+                .popover_trigger()
                 .dropdown_menu(move |mut menu, _, _| {
                     if let Some(title) = &added {
                         menu = menu.label(format!("Saved to {title}"));

@@ -5,6 +5,8 @@
 //! Every panel acts on Kairo's own screens and NDI feeds. Presentation edits
 //! show at once and are saved behind (`useDraftPresentation`).
 
+use kairo_ui_kit::components::PopoverButtonTriggerExt;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::time::Duration;
 
 use gpui_kit::base::TestSupportExt;
@@ -207,6 +209,7 @@ impl Render for Toolbox {
                     .id(SharedString::from(ids::tab(tab.id())))
                     .test_support()
                     .role(gpui_kit::Role::Tab)
+                    .aria_label(tab.label())
                     .aria_selected(selected)
                     .tooltip(super::widgets::tip(tab.label().to_owned()))
                     .h(px(44.))
@@ -869,7 +872,7 @@ impl TimersPanel {
                 .px_4()
                 .pb_4()
                 .pt_1()
-                .child(Input::new(&e.name).small())
+                .child(Input::new(&e.name).small().aria_label("Timer name"))
                 .child(
                     v_flex()
                         .gap_2p5()
@@ -884,6 +887,7 @@ impl TimersPanel {
                                     .dropdown_caret(true)
                                     .disabled(running)
                                     .accessibility_label("Timer type")
+                                    .popover_trigger()
                                     .dropdown_menu({
                                         let panel = panel.clone();
                                         let tid = tid.clone();
@@ -912,12 +916,16 @@ impl TimersPanel {
                             ),
                         )
                         .child(match def.kind {
-                            TimerKind::Countdown => h_flex()
-                                .items_center()
-                                .gap_3()
-                                .child(label("Time"))
-                                .child(div().flex_1().child(Input::new(&e.duration).small()))
-                                .into_any_element(),
+                            TimerKind::Countdown => {
+                                h_flex()
+                                    .items_center()
+                                    .gap_3()
+                                    .child(label("Time"))
+                                    .child(div().flex_1().child(
+                                        Input::new(&e.duration).small().aria_label("Duration"),
+                                    ))
+                                    .into_any_element()
+                            }
                             TimerKind::CountdownTo => h_flex()
                                 .items_center()
                                 .gap_3()
@@ -928,9 +936,15 @@ impl TimersPanel {
                                         .flex_1()
                                         .items_center()
                                         .gap_1p5()
-                                        .child(div().w_16().child(Input::new(&e.hour).small()))
+                                        .child(
+                                            div().w_16().child(
+                                                Input::new(&e.hour).small().aria_label("Hour"),
+                                            ),
+                                        )
                                         .child(div().text_color(k.text(TextStep::T500)).child(":"))
-                                        .child(div().w_16().child(Input::new(&e.minute).small()))
+                                        .child(div().w_16().child(
+                                            Input::new(&e.minute).small().aria_label("Minute"),
+                                        ))
                                         .child(
                                             Button::new("timer-ampm")
                                                 .outline()
@@ -938,6 +952,7 @@ impl TimersPanel {
                                                 .label(if pm { "PM" } else { "AM" })
                                                 .dropdown_caret(true)
                                                 .accessibility_label("AM or PM")
+                                                .popover_trigger()
                                                 .dropdown_menu({
                                                     let panel = panel.clone();
                                                     let tid = tid.clone();
@@ -1153,7 +1168,7 @@ impl Render for TimersPanel {
                             div()
                                 .id(ids::STAGE_INPUT)
                                 .flex_1()
-                                .child(Input::new(&self.stage).small()),
+                                .child(Input::new(&self.stage).small().aria_label("Stage message")),
                         )
                         .child(
                             primary_button(ids::STAGE_SEND, "Send", cx)
@@ -1456,7 +1471,7 @@ impl MessagesPanel {
         let text_color = self.text_color.clone();
         let bar_color = self.bar_color.clone();
         Popover::new("message-style")
-            .trigger(icon_button(
+            .button_trigger(icon_button(
                 "message-style-trigger",
                 KairoIcon::Settings,
                 "Message style",
@@ -1609,9 +1624,9 @@ impl Render for MessagesPanel {
                     v_flex()
                         .gap_2p5()
                         .child(
-                            div()
-                                .id("message-draft")
-                                .child(Textarea::new(&self.draft).small()),
+                            div().id("message-draft").child(
+                                Textarea::new(&self.draft).small().aria_label("New message"),
+                            ),
                         )
                         .child(
                             h_flex()
@@ -1985,7 +2000,11 @@ impl Render for PropsPanel {
                 .flex_1()
                 .child(tile)
                 .when_some(renaming, |this, input| {
-                    this.child(div().mt_1().child(Input::new(&input).xsmall()))
+                    this.child(
+                        div()
+                            .mt_1()
+                            .child(Input::new(&input).xsmall().aria_label("Name")),
+                    )
                 })
         });
         v_flex()
@@ -2377,6 +2396,7 @@ impl VideoPanel {
                             .id(SharedString::from(ids::layout(key)))
                             .test_support()
                             .role(gpui_kit::Role::Button)
+                            .aria_label(label)
                             .aria_toggled_bool(selected)
                             .flex_1()
                             .cursor_pointer()
@@ -2557,6 +2577,7 @@ impl Render for VideoPanel {
                     .label(label)
                     .dropdown_caret(true)
                     .accessibility_label(aria)
+                    .popover_trigger()
                     .dropdown_menu(move |mut menu, _, _| {
                         for (value, name) in &items {
                             let panel = panel.clone();
@@ -2750,7 +2771,7 @@ impl Render for SoundPanel {
                                 .label(output_label)
                                 .dropdown_caret(true)
                                 .accessibility_label("Sound output")
-                                .dropdown_menu(move |mut menu, _, _| {
+                                .popover_trigger().dropdown_menu(move |mut menu, _, _| {
                                     let mut options = vec![(String::new(), "System default output".to_owned())];
                                     options.extend(speakers.iter().map(|s| (s.clone(), s.clone())));
                                     for (value, name) in options {

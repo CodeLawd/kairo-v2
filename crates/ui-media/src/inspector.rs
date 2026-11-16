@@ -4,6 +4,9 @@
 //! speed, loop, scaling, colour sliders that re-grade the paused or playing
 //! preview without restarting it, details, and Save for the next cue.
 
+use gpui_kit::FocusHandle;
+use gpui_kit::component::FocusTrapElement;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::sync::Arc;
 
 use gpui_kit::base::TestSupportExt;
@@ -99,6 +102,9 @@ const COLOURS: [(&str, &str, f32, f32); 3] = [
 ];
 
 pub struct Inspector {
+    /// The modal's focus scope, set by the dock that opens it
+    /// ([`Self::set_modal_focus`]), which gives focus back on close.
+    modal_focus: FocusHandle,
     item: MediaItem,
     initial: MediaPlayback,
     panel: Panel,
@@ -121,6 +127,11 @@ pub struct Inspector {
 impl EventEmitter<InspectorEvent> for Inspector {}
 
 impl Inspector {
+    /// Uses the opener's modal focus scope (`ModalFocus::handle`).
+    pub fn set_modal_focus(&mut self, handle: FocusHandle) {
+        self.modal_focus = handle;
+    }
+
     pub fn new(
         backend: Arc<dyn MediaBackend>,
         item: MediaItem,
@@ -224,6 +235,7 @@ impl Inspector {
             );
         }
         let mut this = Self {
+            modal_focus: cx.focus_handle(),
             panel: if video {
                 Panel::Playback
             } else {
@@ -624,9 +636,11 @@ impl Inspector {
                 )
                 .child(self.render_trim(cx))
                 .child(
-                    div()
-                        .mt_2()
-                        .child(Slider::new(&self.playhead).disabled(dur <= 0.)),
+                    div().mt_2().child(
+                        Slider::new(&self.playhead)
+                            .disabled(dur <= 0.)
+                            .accessibility_label("Preview playhead"),
+                    ),
                 )
                 .child(
                     h_flex()
@@ -718,11 +732,11 @@ impl Inspector {
                         h_flex()
                             .gap_2()
                             .child(
-                                div()
-                                    .id(ids::START)
-                                    .test_support()
-                                    .flex_1()
-                                    .child(Input::new(&self.start).small()),
+                                div().id(ids::START).test_support().flex_1().child(
+                                    Input::new(&self.start)
+                                        .small()
+                                        .aria_label("Start (seconds)"),
+                                ),
                             )
                             .child(
                                 Button::new(ids::USE_START)
@@ -740,11 +754,9 @@ impl Inspector {
                         h_flex()
                             .gap_2()
                             .child(
-                                div()
-                                    .id(ids::END)
-                                    .test_support()
-                                    .flex_1()
-                                    .child(Input::new(&self.end).small()),
+                                div().id(ids::END).test_support().flex_1().child(
+                                    Input::new(&self.end).small().aria_label("End (seconds)"),
+                                ),
                             )
                             .child(
                                 Button::new(ids::USE_END)
@@ -766,7 +778,7 @@ impl Inspector {
                             .child(t.note()),
                     )
                     .child(label("Speed").child(format!(" · {}×", rows::number_text(self.rate))))
-                    .child(Slider::new(&self.rate_slider))
+                    .child(Slider::new(&self.rate_slider).accessibility_label("Speed"))
                     .child(
                         h_flex()
                             .gap_2()
@@ -805,7 +817,11 @@ impl Inspector {
                             .gap_2()
                             .text_size(text::XS.size)
                             .child(div().w_20().child(*name))
-                            .child(div().flex_1().child(Slider::new(s)))
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .child(Slider::new(s).accessibility_label(*name)),
+                            )
                             .child(
                                 div()
                                     .w_11()
@@ -820,7 +836,7 @@ impl Inspector {
                     .gap_4()
                     .child(div().text_size(text::SM.size).font_weight(FontWeight::SEMIBOLD).child("Appearance"))
                     .child(label("Scaling"))
-                    .child(Button::new("media-inspector-fit").small().label(fit_label).dropdown_caret(true).dropdown_menu(move |mut menu, _, _| {
+                    .child(Button::new("media-inspector-fit").small().label(fit_label).dropdown_caret(true).popover_trigger().dropdown_menu(move |mut menu, _, _| {
                         for (fit, name) in [(None, "Use output setting"), (Some(MediaFit::Contain), "Scale to fit"), (Some(MediaFit::Cover), "Fill and crop"), (Some(MediaFit::Fill), "Stretch to fill")] {
                             let e = e.clone();
                             menu = menu.item(PopupMenuItem::new(name).on_click(move |_, _, cx| e.update(cx, |i, cx| i.set_fit(fit, cx))));
@@ -904,7 +920,9 @@ impl Render for Inspector {
                 div()
                     .id(SharedString::from(ids::panel(p.name())))
                     .test_support()
-                    .role(Role::Button)
+                    .role(Role::Tab)
+                    .aria_label(p.name())
+                    .aria_selected(on)
                     .flex_1()
                     .px_2()
                     .py_1p5()
@@ -1049,7 +1067,8 @@ impl Render for Inspector {
                                             save.update(cx, |i, cx| i.save(cx))
                                         }),
                                 ),
-                        ),
+                        )
+                        .focus_trap(ids::DIALOG, &self.modal_focus),
                 ),
         )
         .with_priority(2)

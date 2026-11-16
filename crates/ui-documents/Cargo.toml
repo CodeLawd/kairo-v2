@@ -15,4 +15,4 @@ serde_json = "1"
 
 [dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support"] }
-kairo-ui-kit = { path = "../kairo-ui-kit" }
+kairo-ui-kit = { path = "../kairo-ui-kit", features = ["test-support"] }

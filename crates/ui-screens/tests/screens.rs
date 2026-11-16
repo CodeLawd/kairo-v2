@@ -168,8 +168,11 @@ fn open(cx: &mut TestAppContext, fake: Arc<Fake>, initial: Option<&'static str>)
 }
 fn draw(cx: &mut TestAppContext, o: &Opened) {
     cx.run_until_parked();
-    cx.update_window(o.handle, |_, w, cx| w.render_frame(cx))
-        .unwrap();
+    cx.update_window(o.handle, |_, w, cx| {
+        w.render_frame(cx);
+        kairo_ui_kit::a11y_audit::check(w);
+    })
+    .unwrap();
     cx.run_until_parked();
 }
 fn click(cx: &mut TestAppContext, o: &Opened, id: impl Into<ElementId>) {

@@ -138,6 +138,11 @@ pub struct Tints {
 pub struct KairoColors {
     /// Which appearance these are.
     pub appearance: Appearance,
+    /// Solid chrome: the system asks for reduced transparency or increased
+    /// contrast (`prefers-reduced-transparency`, `prefers-contrast: more`),
+    /// so glass and material tints are drawn opaque. Set through
+    /// [`crate::theme::set_solid_chrome`].
+    pub solid_chrome: bool,
     /// `--surface`: the workspace.
     pub surface: Hsla,
     /// `--surface-secondary`: panels and cards.
@@ -314,6 +319,7 @@ impl KairoColors {
         let surface_border = rgb(63, 63, 70);
         Self {
             appearance: Appearance::Dark,
+            solid_chrome: false,
             surface: rgb(24, 24, 27),
             surface_secondary: rgb(30, 30, 33),
             surface_tertiary: rgb(39, 39, 42),
@@ -426,6 +432,7 @@ impl KairoColors {
         let surface_border = rgb(212, 212, 216);
         Self {
             appearance: Appearance::Light,
+            solid_chrome: false,
             surface: rgb(250, 250, 250),
             surface_secondary: rgb(244, 244, 245),
             surface_tertiary: rgb(228, 228, 231),
@@ -594,19 +601,31 @@ impl KairoColors {
         }
     }
 
-    /// `.glass`: a modal's sidebar or title bar.
+    /// `.glass`: a modal's sidebar or title bar. Opaque with
+    /// [`Self::solid_chrome`].
     pub fn glass_panel(&self) -> Hsla {
-        self.glass.opacity(GLASS_PANEL_ALPHA)
+        self.translucent(self.glass, GLASS_PANEL_ALPHA)
     }
 
-    /// `.modal-glass`: a whole small dialog, a touch more opaque.
+    /// `.modal-glass`: a whole small dialog, a touch more opaque. Opaque
+    /// with [`Self::solid_chrome`].
     pub fn glass_modal(&self) -> Hsla {
-        self.glass.opacity(GLASS_MODAL_ALPHA)
+        self.translucent(self.glass, GLASS_MODAL_ALPHA)
     }
 
-    /// The window-material tint on the top bar and rail (62%).
+    /// The window-material tint on the top bar and rail (62%). Under solid
+    /// chrome it is the solid rail (`index.css:686`).
     pub fn material_tint(&self) -> Hsla {
-        self.surface_rail.opacity(MATERIAL_ALPHA)
+        self.translucent(self.surface_rail, MATERIAL_ALPHA)
+    }
+
+    /// `color` at `alpha`, or opaque under solid chrome.
+    fn translucent(&self, color: Hsla, alpha: f32) -> Hsla {
+        if self.solid_chrome {
+            color
+        } else {
+            color.opacity(alpha)
+        }
     }
 
     /// The marquee band's border (`white/60`).

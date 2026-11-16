@@ -904,6 +904,8 @@ impl Render for QuickOpen {
                 .id(ids::SEARCH_WEB)
                 .test_support()
                 .role(Role::Button)
+                .aria_label(format!("Search the web for “{}”", self.query.trim()))
+                .aria_keyshortcuts("Meta+Enter")
                 .mx_1p5()
                 .mb_1p5()
                 .gap_2p5()

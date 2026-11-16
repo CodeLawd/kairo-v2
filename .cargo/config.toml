@@ -2,3 +2,7 @@
 # Build the bundled SQLite as better-sqlite3 (Electron) does: no per-allocation
 # memory statistics. Measured in prompt 037: needed for quote search p95 parity.
 LIBSQLITE3_FLAGS = "-DSQLITE_DEFAULT_MEMSTATUS=0"
+# Every GPUI test window builds the AccessKit tree VoiceOver and Narrator read,
+# so UI tests can audit it (prompt 106, `kairo_ui_kit::a11y_audit`). GPUI reads
+# this only in `test-support` builds; set it to 0 in the shell to turn it off.
+GPUI_A11Y_ACTIVE = "1"

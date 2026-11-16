@@ -2,6 +2,7 @@
 //! recording light, talk time and name (click to review), End, and the Save,
 //! Discard and Review dialogs.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::time::Duration;
 
 use gpui_kit::base::TestSupportExt;
@@ -450,11 +451,19 @@ impl ServicePanel {
                     .gap_4()
                     .child(field(
                         "Service name",
-                        Input::new(&self.title).small().disabled(busy).into_any_element(),
+                        Input::new(&self.title)
+                            .small()
+                            .disabled(busy)
+                            .aria_label("Service name")
+                            .into_any_element(),
                     ))
                     .child(field(
                         "Speaker (optional)",
-                        Input::new(&self.speaker).small().disabled(busy).into_any_element(),
+                        Input::new(&self.speaker)
+                            .small()
+                            .disabled(busy)
+                            .aria_label("Speaker (optional)")
+                            .into_any_element(),
                     ))
                     .child(field(
                         "Sermon notes",
@@ -465,7 +474,7 @@ impl ServicePanel {
                             .label(plan_label)
                             .dropdown_caret(true)
                             .disabled(busy)
-                            .dropdown_menu(move |mut menu, _, _| {
+                            .popover_trigger().dropdown_menu(move |mut menu, _, _| {
                                 let pick = panel.clone();
                                 menu = menu.item(PopupMenuItem::new("No notes").on_click(
                                     move |_, _, cx| {

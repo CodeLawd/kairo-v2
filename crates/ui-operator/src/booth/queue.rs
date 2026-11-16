@@ -825,7 +825,10 @@ impl QueuePanel {
                 .id(SharedString::from(ids::present(&entry.id)))
                 .test_support()
                 .role(gpui_kit::Role::Button)
+                .aria_label(format!("Present {} {}", entry.reference, entry.translation))
                 .w_full()
+                // Busy: a press from assistive technology does nothing, as the pointer does.
+                .when(is_busy, |s| s.on_click(|_, _, _| {}))
                 .when(!is_busy, |s| {
                     s.cursor_pointer()
                         .on_click(cx.listener(move |this, _, _, cx| {

@@ -12,6 +12,7 @@ use crate::shell::{FeedbackPhase, Overlay, Shell};
 use crate::state::{FeedbackKind, ScreensLevel, ShellRequest, UpdateState, screens_status};
 use crate::whats_new::{self, CHANGELOG_URL};
 use gpui_kit::base::TestSupportExt;
+use gpui_kit::component::FocusTrapElement;
 use gpui_kit::component::button::{Button, ButtonCustomVariant, ButtonVariants};
 use gpui_kit::component::input::Textarea;
 use gpui_kit::component::popover::Popover;
@@ -21,6 +22,7 @@ use gpui_kit::{
     Role, SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
 };
 use kairo_ui_kit::brand::{KairoMark, MarkSize};
+use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::components::{Frost, FrostedPanel, RailItem};
 use kairo_ui_kit::tokens::{Hue, TextStep, metrics, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
@@ -44,6 +46,11 @@ impl Render for Shell {
         };
         if fading {
             window.request_animation_frame();
+        }
+        let whats_new_open = !launching && self.whats_new.is_some();
+        self.whats_new_focus.sync(whats_new_open, window, cx);
+        if self.quit_focus.sync(self.quit_open, window, cx) {
+            self.keep_open_focus.focus(window, cx);
         }
         let mut content: Vec<AnyElement> = Vec::new();
         if launching {
@@ -470,14 +477,17 @@ impl Shell {
         let account = self.render_account(cx);
         let audio = Popover::new("audio-popover")
             .anchor(gpui_kit::Anchor::BottomLeft)
-            .trigger(self.rail_trigger(
-                "audio",
-                KairoIcon::Mic,
-                "Audio",
-                Some(Hue::Green),
-                false,
-                cx,
-            ))
+            .trigger(
+                self.rail_trigger(
+                    "audio",
+                    KairoIcon::Mic,
+                    "Audio",
+                    Some(Hue::Green),
+                    false,
+                    cx,
+                )
+                .popover_trigger(),
+            )
             .content(|_, _, cx| {
                 let k = *cx.kairo();
                 div()
@@ -564,14 +574,17 @@ impl Shell {
         let entity = cx.entity();
         Popover::new("account-popover")
             .anchor(gpui_kit::Anchor::BottomLeft)
-            .trigger(self.rail_trigger(
-                "account",
-                KairoIcon::CircleUser,
-                "Account",
-                Some(Hue::Blue),
-                false,
-                cx,
-            ))
+            .trigger(
+                self.rail_trigger(
+                    "account",
+                    KairoIcon::CircleUser,
+                    "Account",
+                    Some(Hue::Blue),
+                    false,
+                    cx,
+                )
+                .popover_trigger(),
+            )
             .content(move |_, _, cx| {
                 let k = *cx.kairo();
                 let entity = entity.clone();
@@ -681,6 +694,7 @@ impl Shell {
             return button.into_any_element();
         };
         let entity = cx.entity();
+        let toggle = entity.clone();
         Popover::new("live-popover")
             .anchor(gpui_kit::Anchor::TopRight)
             .open(self.live_open)
@@ -688,7 +702,9 @@ impl Shell {
                 let next = *next;
                 entity.update(cx, |this, cx| this.set_live_open(next, cx))
             })
-            .trigger(button.opens_popover())
+            .trigger(button.opens_popover(move |_, cx| {
+                toggle.update(cx, |this, cx| this.set_live_open(!this.live_open, cx))
+            }))
             .content(move |_, _, _| div().w_64().p_1().child(view.clone()))
             .into_any_element()
     }
@@ -705,6 +721,7 @@ impl Shell {
             return button.disabled(true).into_any_element();
         };
         let entity = cx.entity();
+        let toggle = entity.clone();
         Popover::new("screen-themes-popover")
             .anchor(gpui_kit::Anchor::TopRight)
             .open(self.screen_themes_open)
@@ -712,7 +729,11 @@ impl Shell {
                 let next = *next;
                 entity.update(cx, |this, cx| this.set_screen_themes_open(next, window, cx))
             })
-            .trigger(button.opens_popover())
+            .trigger(button.opens_popover(move |window, cx| {
+                toggle.update(cx, |this, cx| {
+                    this.set_screen_themes_open(!this.screen_themes_open, window, cx)
+                })
+            }))
             .content(move |_, _, _| div().p_3().child(view.clone()))
             .into_any_element()
     }
@@ -736,14 +757,17 @@ impl Shell {
                     })
                 }
             })
-            .trigger(self.rail_trigger(
-                "feedback",
-                KairoIcon::PhChatCircleDots,
-                "Feedback",
-                Some(Hue::Coral),
-                open,
-                cx,
-            ))
+            .trigger(
+                self.rail_trigger(
+                    "feedback",
+                    KairoIcon::PhChatCircleDots,
+                    "Feedback",
+                    Some(Hue::Coral),
+                    open,
+                    cx,
+                )
+                .popover_trigger(),
+            )
             .content(move |_, window, cx| {
                 let entity = entity.clone();
                 entity.update(cx, |this, cx| this.feedback_content(window, cx))
@@ -1445,7 +1469,8 @@ impl Shell {
                                             cx.listener(|this, _, _, cx| this.close_whats_new(cx)),
                                         ),
                                 ),
-                        ),
+                        )
+                        .focus_trap("whats-new", self.whats_new_focus.handle()),
                 )
                 .into_any_element(),
         )
@@ -1475,7 +1500,7 @@ impl Shell {
                 .child(
                     v_flex()
                         .id("quit-confirmation")
-                    .test_support()
+                        .test_support()
                         .role(Role::AlertDialog)
                         .aria_label("Quit Kairo?")
                         .w_full()
@@ -1516,6 +1541,7 @@ impl Shell {
                                 .py_5()
                                 .child(
                                     Button::new("keep-open")
+                                        .track_focus(&self.keep_open_focus)
                                         .secondary()
                                         .label("Keep Kairo open")
                                         .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(false, cx))),
@@ -1526,7 +1552,8 @@ impl Shell {
                                         .label("Quit Kairo")
                                         .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(true, cx))),
                                 ),
-                        ),
+                        )
+                        .focus_trap("quit-confirmation", self.quit_focus.handle()),
                 )
                 .into_any_element(),
         )

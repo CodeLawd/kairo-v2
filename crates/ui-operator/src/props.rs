@@ -1652,11 +1652,20 @@ impl PropsEditor {
             let is_selected = selected.as_deref() == Some(f.id.as_str());
             let id = f.id.clone();
             let mover = this.clone();
+            let (picker, pick_id) = (this.clone(), f.id.clone());
             let mut el = div()
                 .id(SharedString::from(ids::object(&f.id)))
                 .test_support()
                 .role(Role::Button)
                 .aria_label(format!("{} object", kind_label(o)))
+                .aria_description(object_summary(o))
+                .aria_selected(is_selected)
+                // The pointer selects on press to start a drag; assistive
+                // technology presses without a pointer, so it selects here.
+                .on_a11y_action(gpui_kit::AccessibleAction::Click, move |_, _, cx| {
+                    let id = pick_id.clone();
+                    picker.update(cx, |t, cx| t.select_object(Some(id), cx))
+                })
                 .absolute()
                 .left(px(x))
                 .top(px(y))
@@ -1901,6 +1910,7 @@ impl PropsEditor {
                     .id(SharedString::from(ids::list_object(&frame_of(o).id)))
                     .test_support()
                     .role(Role::Button)
+                    .aria_label(format!("{} {}", kind_label(o), object_summary(o)))
                     .gap_2()
                     .px_3()
                     .py_2()

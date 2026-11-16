@@ -158,8 +158,11 @@ fn open(cx: &mut TestAppContext, backend: Arc<Fake>, state: Arc<Memory>) -> Open
 fn settle(cx: &mut TestAppContext, opened: &Opened) {
     cx.executor().advance_clock(TICK);
     cx.run_until_parked();
-    cx.update_window(opened.handle, |_, window, cx| window.render_frame(cx))
-        .unwrap();
+    cx.update_window(opened.handle, |_, window, cx| {
+        window.render_frame(cx);
+        kairo_ui_kit::a11y_audit::check(window);
+    })
+    .unwrap();
 }
 
 fn screen(enabled: bool) -> kairo_domain::overlay::OverlayOutput {

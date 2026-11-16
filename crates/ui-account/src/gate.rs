@@ -6,6 +6,7 @@ use crate::auth::{AuthMode, AuthPanel};
 use crate::model::Account;
 use crate::verify::VerifyEmail;
 use gpui_kit::base::TestSupportExt;
+use gpui_kit::component::FocusTrapElement;
 use gpui_kit::component::v_flex;
 use gpui_kit::{
     AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render, Role,
@@ -48,12 +49,17 @@ pub struct AccountGate {
     auth: Entity<AuthPanel>,
     verify: Option<Entity<VerifyEmail>>,
     signing_out: bool,
+    /// Keeps Tab inside the gate: the app behind it is covered.
+    modal: kairo_ui_kit::components::ModalFocus,
     _subscription: Subscription,
 }
 
 impl AccountGate {
     /// A gate over `account`.
     pub fn new(account: Entity<Account>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        // Focus moves into the gate first; the sign-in form may then take it.
+        let mut modal = kairo_ui_kit::components::ModalFocus::new(cx);
+        modal.open(window, cx);
         let auth = cx.new(|cx| AuthPanel::new(account.clone(), AuthMode::SignIn, window, cx));
         let subscription = cx.observe(&account, |_, _, cx| cx.notify());
         Self {
@@ -61,6 +67,7 @@ impl AccountGate {
             auth,
             verify: None,
             signing_out: false,
+            modal,
             _subscription: subscription,
         }
     }
@@ -173,6 +180,7 @@ impl Render for AccountGate {
                 motion::SPRING_IN,
                 cx,
             ))
+            .focus_trap(ids::GATE, self.modal.handle())
     }
 }
 

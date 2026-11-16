@@ -5,6 +5,7 @@
 //! The latency trace closes here: after a frame that paints a new card, the
 //! booth stamps `markRendered` from a frame callback.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 
@@ -387,6 +388,7 @@ impl DetectedPanel {
                     group.reference, shown.translation
                 ))
                 .tooltip("Show this passage in another translation")
+                .popover_trigger()
                 .dropdown_menu(move |mut menu, _, cx| {
                     // Opening refreshes the list, so newly licensed Bibles show.
                     let _ = booth.update(cx, |b, cx| b.refresh_translations(cx));
@@ -668,6 +670,7 @@ impl DetectedPanel {
                     .id(SharedString::from(ids::verse_text(&shown.id)))
                     .test_support()
                     .role(gpui_kit::Role::Button)
+                    .aria_label(format!("Present {}", shown.reference))
                     .tooltip(super::widgets::tip(format!("Present {}", shown.reference)))
                     .mt_1()
                     .w_full()

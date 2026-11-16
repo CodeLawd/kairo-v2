@@ -17,6 +17,7 @@ serde = "1"
 tracing = "0.1"
 
 [dev-dependencies]
+kairo-ui-kit = { path = "../kairo-ui-kit", features = ["test-support"] }
 kairo-engine-proto = { path = "../kairo-engine-proto" }
 kairo-output = { path = "../kairo-output", features = ["fake"] }
 gpui-kit = { workspace = true, features = ["test-support"] }

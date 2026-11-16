@@ -265,12 +265,18 @@ fn open(cx: &mut TestAppContext, core: Arc<Core>) -> Opened {
 
 fn draw(cx: &mut TestAppContext, opened: &Opened) {
     cx.run_until_parked();
-    cx.update_window(opened.handle, |_, window, cx| window.render_frame(cx))
-        .unwrap();
+    cx.update_window(opened.handle, |_, window, cx| {
+        window.render_frame(cx);
+        kairo_ui_kit::a11y_audit::check(window);
+    })
+    .unwrap();
     cx.run_until_parked();
     // The grid measures its width on the first frame and lays out on the next.
-    cx.update_window(opened.handle, |_, window, cx| window.render_frame(cx))
-        .unwrap();
+    cx.update_window(opened.handle, |_, window, cx| {
+        window.render_frame(cx);
+        kairo_ui_kit::a11y_audit::check(window);
+    })
+    .unwrap();
     cx.run_until_parked();
 }
 

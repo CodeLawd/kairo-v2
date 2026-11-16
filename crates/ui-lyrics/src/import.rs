@@ -3,6 +3,8 @@
 //! read, checked for duplicates and corrected before anything is saved, or
 //! paste a song from the clipboard.
 
+use gpui_kit::FocusHandle;
+use gpui_kit::component::FocusTrapElement;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -247,6 +249,9 @@ struct Online {
 }
 
 pub struct ImportDialog {
+    /// The modal's focus scope; the workspace that opens the dialog sets it
+    /// with [`Self::set_modal_focus`] and gives focus back on close.
+    modal_focus: FocusHandle,
     _model: Entity<Lyrics>,
     backend: Arc<dyn LyricsBackend>,
     tab: Tab,
@@ -274,6 +279,11 @@ pub struct ImportDialog {
 impl EventEmitter<ImportEvent> for ImportDialog {}
 
 impl ImportDialog {
+    /// Uses the opener's modal focus scope (`ModalFocus::handle`).
+    pub fn set_modal_focus(&mut self, handle: FocusHandle) {
+        self.modal_focus = handle;
+    }
+
     pub fn new(model: Entity<Lyrics>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let backend = model.read(cx).backend().clone();
         let input = |p: &str, window: &mut Window, cx: &mut Context<Self>| {
@@ -333,6 +343,7 @@ impl ImportDialog {
         );
         query.update(cx, |s, cx| s.focus(window, cx));
         Self {
+            modal_focus: cx.focus_handle(),
             _model: model,
             backend,
             tab: Tab::Online,
@@ -1015,6 +1026,8 @@ impl ImportDialog {
                 .id(id)
                 .test_support()
                 .role(Role::Tab)
+                .aria_label(label)
+                .aria_selected(on)
                 .px_3p5()
                 .py_1p5()
                 .rounded(radius::md())
@@ -1331,6 +1344,10 @@ impl ImportDialog {
             .id(ids::DROP)
             .test_support()
             .role(Role::Button)
+            .aria_label(label.clone())
+            .when(!compact, |d| {
+                d.aria_description("or click to browse — pick as many as you like")
+            })
             .items_center()
             .gap_2()
             .rounded(radius::xl())
@@ -1853,7 +1870,8 @@ impl Render for ImportDialog {
                             .py_3p5()
                             .child(Button::new("lyrics-import-cancel").label(if self.tab == Tab::Online { "Close" } else { "Cancel" }).on_click(move |_, _, cx| cancel.update(cx, |this, cx| this.close(cx))))
                             .children(confirm),
-                    ),
+                    )
+.focus_trap(ids::DIALOG, &self.modal_focus),
             )
     }
 }

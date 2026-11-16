@@ -25,6 +25,7 @@ use kairo_domain::scripture::{
 };
 use kairo_domain::scripture_trace::{ScriptureTraceRecord, TraceStatus};
 use kairo_domain::status::AutoPresentDelaySec;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::components::{
     SegmentOption, SegmentedControl, confirm, dialogs::alert, messages,
 };
@@ -458,6 +459,7 @@ impl SettingsWindow {
                 .dropdown_caret(true)
                 .disabled(self.downloading_translation)
                 .accessibility_label("Default bible translation")
+                .popover_trigger()
                 .dropdown_menu(move |mut menu, _, _| {
                     if let Some(missing) = &missing {
                         menu = menu.item(
@@ -948,6 +950,7 @@ impl SettingsWindow {
                     .disabled(state.busy.is_some() || state.loading)
                     .accessibility_label(format!("Actions for {name}"))
                     .tooltip("Installed · manage download")
+                    .popover_trigger()
                     .dropdown_menu(move |menu, _, _| {
                         let entity = entity.clone();
                         let id = id.clone();

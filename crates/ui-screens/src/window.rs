@@ -12,6 +12,7 @@ use gpui_kit::component::{Disableable, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use kairo_domain::{overlay::*, settings::AppSettings};
+use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::components::{
     MovableDialog, MovableDialogEvent, TrafficLights, confirm, messages,
 };
@@ -677,6 +678,7 @@ impl ScreensWindow {
                     } else {
                         "Add to Audience"
                     })
+                    .popover_trigger()
                     .dropdown_menu(move |mut menu, _, _| {
                         if stage {
                             let e = e.clone();

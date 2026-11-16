@@ -70,6 +70,7 @@ fn ready(cx: &mut TestAppContext, handle: AnyWindowHandle, shell: &Entity<Shell>
         shell.update(cx, |s, cx| s.mark_ready(window, cx));
         shell.read(cx).focus_handle(cx).focus(window, cx);
         window.render_frame(cx);
+        kairo_ui_kit::a11y_audit::check(window);
     })
     .unwrap();
 }

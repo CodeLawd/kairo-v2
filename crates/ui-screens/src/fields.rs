@@ -12,6 +12,7 @@ use gpui_kit::*;
 use kairo_domain::displays::{OUTPUT_ASPECTS, describe_display, resolve_display};
 use kairo_domain::program::{OutputShowKey, output_show_label};
 use kairo_domain::{overlay::*, program::StageDisplayConfig};
+use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::{
     KairoIcon, KairoThemeExt,
     components::{NumberField, NumberFieldChanged, NumberModel},
@@ -95,6 +96,7 @@ fn choices(
         .small()
         .label(current)
         .accessibility_label(label.to_owned())
+        .popover_trigger()
         .dropdown_menu(move |mut menu, _, _| {
             for option in &options {
                 let change = change.clone();

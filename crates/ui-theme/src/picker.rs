@@ -3,6 +3,7 @@
 //! in the Theme editor. Picking a theme changes only that screen's theme
 //! for the kind shown; defaults and other screens are left alone.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -234,7 +235,8 @@ impl ThemePicker {
             .rounded(radius::md())
             .border_1()
             .border_color(if selected { k.white } else { k.surface_border })
-            .when(disabled, |d| d.opacity(0.5))
+            // Disabled: a press from assistive technology does nothing, as the pointer does.
+            .when(disabled, |d| d.opacity(0.5).on_click(|_, _, _| {}))
             .when(!disabled, |d| {
                 d.cursor_pointer()
                     .hover(|s| s.border_color(k.text(TextStep::T400)))
@@ -307,6 +309,7 @@ impl Render for ThemePicker {
                         .unwrap_or_else(|| "No screens configured".into()),
                 )
                 .disabled(saving || outputs.is_empty())
+                .popover_trigger()
                 .dropdown_menu(move |mut menu, _, _| {
                     for (id, name) in &options {
                         let (this, id) = (this.clone(), id.clone());

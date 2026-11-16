@@ -23,5 +23,6 @@ block2 = "0.6"
 objc2 = "0.6"
 
 [dev-dependencies]
+kairo-ui-kit = { path = "../kairo-ui-kit", features = ["test-support"] }
 gpui-kit = { workspace = true, features = ["test-support"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }

@@ -3,6 +3,7 @@
 //! on the right. Dialogs (new engagement, engagement settings, poll editor)
 //! draw over the page.
 
+use gpui_kit::component::FocusTrapElement;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -263,6 +264,8 @@ pub struct AudiencePage {
     shown_ids: Vec<String>,
     // Dialogs.
     dialog: Option<Dialog>,
+    /// Focus for the open dialog (Radix dialog behaviour).
+    dialog_focus: kairo_ui_kit::components::ModalFocus,
     new_title: Entity<InputState>,
     new_starts: Entity<InputState>,
     new_ends: Entity<InputState>,
@@ -466,6 +469,7 @@ impl AudiencePage {
             questions: ListState::new(0, ListAlignment::Top, px(400.)),
             shown_ids: vec![],
             dialog: None,
+            dialog_focus: kairo_ui_kit::components::ModalFocus::new(cx),
             new_title,
             new_starts,
             new_ends,
@@ -3602,6 +3606,7 @@ impl AudiencePage {
                 v_flex()
                     .id("engage-dialog-panel")
                     .role(Role::Dialog)
+                    .aria_label(title.to_owned())
                     .w(px(width))
                     .max_h(relative(0.9))
                     .overflow_hidden()
@@ -3648,7 +3653,8 @@ impl AudiencePage {
                             .px_6()
                             .py_4()
                             .child(footer),
-                    ),
+                    )
+                    .focus_trap("engage-dialog-panel", self.dialog_focus.handle()),
             )
             .into_any_element()
     }
@@ -3943,7 +3949,7 @@ impl AudiencePage {
             .id(SharedString::from(ids::style(key)))
             .test_support()
             .w(px(112.))
-            .child(Slider::new(&state))
+            .child(Slider::new(&state).accessibility_label(style_label(key)))
             .into_any_element()
     }
 
@@ -3995,7 +4001,7 @@ impl AudiencePage {
                     .text_size(text::LABEL.size)
                     .child(value_now.to_uppercase()),
             )
-            .child(ColorPicker::new(&state))
+            .child(ColorPicker::new(&state).accessibility_label(style_label(key)))
             .into_any_element()
     }
 
@@ -4587,6 +4593,7 @@ impl AudiencePage {
 
 impl Render for AudiencePage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.dialog_focus.sync(self.dialog.is_some(), window, cx);
         // A finished reply or invite empties its field.
         if let Some(field) = self.pending_clear.take() {
             field.update(cx, |i, cx| i.set_value("", window, cx));
@@ -4680,5 +4687,19 @@ impl Render for AudiencePage {
             )
             .children(self.rail.clone())
             .children(dialog)
+    }
+}
+
+/// The accessible name of a question-style control: its row's label.
+fn style_label(key: &str) -> &'static str {
+    match key {
+        "size" => "Text size",
+        "color" => "Text color",
+        "background" => "Card color",
+        "opacity" => "Card opacity",
+        "width" => "Card width",
+        "radius" => "Corner rounding",
+        "qr" => "QR code size",
+        _ => "Question style",
     }
 }

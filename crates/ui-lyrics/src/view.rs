@@ -5,6 +5,8 @@
 //! song usage report. The live rail is the operator's, handed in by the app.
 //! The slide grid replaces the song pane's section list in 081.
 
+use gpui_kit::component::FocusTrapElement;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -157,6 +159,8 @@ pub struct LyricsWorkspace {
     song_focus: FocusHandle,
     editor: Option<(Entity<SongEditor>, Subscription)>,
     import: Option<(Entity<ImportDialog>, Subscription)>,
+    import_focus: kairo_ui_kit::components::ModalFocus,
+    usage_focus: kairo_ui_kit::components::ModalFocus,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -282,6 +286,8 @@ impl LyricsWorkspace {
             song,
             editor: None,
             import: None,
+            import_focus: kairo_ui_kit::components::ModalFocus::new(cx),
+            usage_focus: kairo_ui_kit::components::ModalFocus::new(cx),
             song_focus: cx.focus_handle(),
             model,
             rail: None,
@@ -376,9 +382,16 @@ impl LyricsWorkspace {
         } else if !editing {
             self.editor = None;
         }
+        // The trigger keeps focus until here, so it gets it back on close.
+        self.import_focus.sync(import, window, cx);
         if import && self.import.is_none() {
             let model = self.model.clone();
-            let dialog = cx.new(|cx| ImportDialog::new(model, window, cx));
+            let handle = self.import_focus.handle().clone();
+            let dialog = cx.new(|cx| {
+                let mut dialog = ImportDialog::new(model, window, cx);
+                dialog.set_modal_focus(handle);
+                dialog
+            });
             let sub = cx.subscribe(&dialog, |this, _, event: &ImportEvent, cx| match event {
                 ImportEvent::Imported(songs) => {
                     let songs = songs.clone();
@@ -629,7 +642,7 @@ impl LyricsWorkspace {
                             .id(ids::PLAYLIST_RENAME)
                             .test_support()
                             .mb_0p5()
-                            .child(Input::new(&self.rename).small())
+                            .child(Input::new(&self.rename).small().aria_label("Playlist name"))
                             .into_any_element();
                     }
                     let selected = viewing.as_deref() == Some(list.id.as_str());
@@ -870,6 +883,7 @@ impl LyricsWorkspace {
             .icon(Icon::new(KairoIcon::MoreHorizontal))
             .accessibility_label("Song list options")
             .tooltip("Sort, import and export")
+            .popover_trigger()
             .dropdown_menu({
                 let model = model.clone();
                 move |mut menu, _, _| {
@@ -1323,6 +1337,7 @@ impl LyricsWorkspace {
                 .id(ids::SEARCH_ONLINE)
                 .test_support()
                 .role(Role::Button)
+                .aria_label("Search online for more")
                 .justify_center()
                 .gap_1p5()
                 .mt_1()
@@ -1920,14 +1935,14 @@ impl LyricsWorkspace {
                                             .w_32()
                                             .gap_1()
                                             .child("From")
-                                            .child(div().id(ids::USAGE_FROM).test_support().child(Input::new(&self.usage_from).small())),
+                                            .child(div().id(ids::USAGE_FROM).test_support().child(Input::new(&self.usage_from).small().aria_label("From (yyyy-mm-dd)"))),
                                     )
                                     .child(
                                         v_flex()
                                             .w_32()
                                             .gap_1()
                                             .child("To")
-                                            .child(div().id(ids::USAGE_TO).test_support().child(Input::new(&self.usage_to).small())),
+                                            .child(div().id(ids::USAGE_TO).test_support().child(Input::new(&self.usage_to).small().aria_label("To (yyyy-mm-dd)"))),
                                     )
                                     .child(div().ml_auto().pb_2().child(format!(
                                         "{} · {}",
@@ -1972,7 +1987,8 @@ impl LyricsWorkspace {
                                                 export.update(cx, |m, cx| m.export_usage(cx))
                                             }),
                                     ),
-                            ),
+                            )
+.focus_trap(ids::USAGE, self.usage_focus.handle()),
                     ),
             )
             .with_priority(1)
@@ -2150,6 +2166,8 @@ impl Render for LyricsWorkspace {
             Some(p) => p,
             None => self.render_song_pane(cx),
         };
+        let usage_open = self.model.read(cx).usage().is_some();
+        self.usage_focus.sync(usage_open, window, cx);
         let usage = self.render_usage(cx);
         h_flex()
             .size_full()

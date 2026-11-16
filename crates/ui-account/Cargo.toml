@@ -11,4 +11,5 @@ kairo-ui-kit = { path = "../kairo-ui-kit" }
 tracing = "0.1"
 
 [dev-dependencies]
+kairo-ui-kit = { path = "../kairo-ui-kit", features = ["test-support"] }
 gpui-kit = { workspace = true, features = ["test-support"] }

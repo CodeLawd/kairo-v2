@@ -86,6 +86,11 @@ pub struct Shell {
     pub(crate) scale: UiScale,
     pub(crate) quit: QuitConfirmation,
     pub(crate) quit_open: bool,
+    /// Focus for the quit question and What's New (Radix dialog behaviour).
+    pub(crate) quit_focus: kairo_ui_kit::components::ModalFocus,
+    pub(crate) whats_new_focus: kairo_ui_kit::components::ModalFocus,
+    /// "Keep Kairo open" takes initial focus (DESIGN.md, Quit confirmation).
+    pub(crate) keep_open_focus: gpui_kit::FocusHandle,
     pub(crate) overlay: Option<Overlay>,
     pub(crate) whats_new: Option<ChangelogEntry>,
     pub(crate) whats_new_auto: Option<ChangelogEntry>,
@@ -205,6 +210,9 @@ impl Shell {
             scale,
             quit: QuitConfirmation::default(),
             quit_open: false,
+            quit_focus: kairo_ui_kit::components::ModalFocus::new(cx),
+            whats_new_focus: kairo_ui_kit::components::ModalFocus::new(cx),
+            keep_open_focus: cx.focus_handle(),
             overlay: None,
             whats_new: None,
             whats_new_auto: None,

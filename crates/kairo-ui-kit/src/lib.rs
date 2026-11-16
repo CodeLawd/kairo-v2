@@ -8,6 +8,8 @@
 //! Start an app with [`init`] after `gpui_kit::init`, and pass
 //! [`KairoAssets`] to the application so the icons load.
 
+#[cfg(any(test, feature = "test-support"))]
+pub mod a11y_audit;
 pub mod brand;
 pub mod coach;
 pub mod components;
@@ -22,7 +24,7 @@ pub mod theme;
 pub mod tokens;
 
 pub use icons::{KairoAssets, KairoIcon};
-pub use theme::{KairoTheme, KairoThemeExt, set_appearance, set_reduced_motion};
+pub use theme::{KairoTheme, KairoThemeExt, set_appearance, set_reduced_motion, set_solid_chrome};
 pub use tokens::{Appearance, Hue, KairoColors};
 
 /// Registers fonts, key bindings and the theme. Call once, after

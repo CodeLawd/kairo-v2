@@ -17,6 +17,7 @@ use gpui_kit::{
     StatefulInteractiveElement, Styled, Task, Window, div, prelude::FluentBuilder, px,
 };
 use kairo_domain::status::AudioLevel;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::tokens::{TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 use std::time::Duration;
@@ -417,6 +418,7 @@ impl SettingsWindow {
                             .label(current)
                             .dropdown_caret(true)
                             .accessibility_label("Playback device")
+                            .popover_trigger()
                             .dropdown_menu(move |mut menu, _, _| {
                                 for (value, label) in &choices {
                                     let entity = entity.clone();

@@ -7,6 +7,7 @@
 //! renderers Electron needed (`PreviewBody`, `ProgramLayersPreview`) have no
 //! counterpart: whatever the output draws, the monitor shows.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::sync::Arc;
 
 use gpui_kit::base::TestSupportExt;
@@ -719,6 +720,7 @@ impl LiveRail {
             ))
             .dropdown_caret(true)
             .accessibility_label("Preview output")
+            .popover_trigger()
             .dropdown_menu(move |mut menu, _, _| {
                 for (id, name) in &outputs {
                     let pick = rail.clone();

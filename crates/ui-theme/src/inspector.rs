@@ -10,6 +10,8 @@
 //! not written back from the draft until something else changes it (undo,
 //! another control, another theme).
 
+use kairo_ui_kit::components::PopoverButtonTriggerExt;
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -1467,6 +1469,7 @@ impl ThemeInspector {
             .xsmall()
             .icon(Icon::new(KairoIcon::ChevronDown))
             .accessibility_label("Preset sizes")
+            .popover_trigger()
             .dropdown_menu(move |mut menu, _, _| {
                 for size in panels::SIZE_PRESETS {
                     let this = this.clone();
@@ -1606,7 +1609,7 @@ impl ThemeInspector {
                     })
                 }
             })
-            .trigger(
+            .button_trigger(
                 Button::new("theme-spacing-trigger")
                     .xsmall()
                     .ghost()
@@ -2541,7 +2544,7 @@ impl ThemeInspector {
                     })
                 }
             })
-            .trigger(
+            .button_trigger(
                 Button::new("theme-element-shape-trigger")
                     .small()
                     .w_full()
@@ -2774,6 +2777,7 @@ fn select(
         .label(current)
         .dropdown_caret(true)
         .accessibility_label(label.to_owned())
+        .popover_trigger()
         .dropdown_menu(move |mut menu, _, _| {
             for option in &options {
                 let change = change.clone();

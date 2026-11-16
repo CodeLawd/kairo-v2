@@ -5,6 +5,7 @@
 //! which follows the library; the panel reads its position at display rate
 //! only while a track plays.
 
+use kairo_ui_kit::components::PopoverTriggerExt;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -475,7 +476,7 @@ impl TracksPanel {
                 .test_support()
                 .flex_1()
                 .min_w_0()
-                .child(Input::new(&self.rename).xsmall())
+                .child(Input::new(&self.rename).xsmall().aria_label("Track name"))
                 .into_any_element()
         } else {
             div()
@@ -567,6 +568,7 @@ impl TracksPanel {
                                         item.name
                                     )))
                                     .disabled(busy)
+                                    .popover_trigger()
                                     .dropdown_menu(move |menu, _, _| {
                                         let (r, s, t) = (more.clone(), more.clone(), more.clone());
                                         let (i1, i2, it) = (
@@ -621,10 +623,11 @@ impl TracksPanel {
                                         .child(format_media_clock(shown)),
                                 )
                                 .child(
-                                    div()
-                                        .flex_1()
-                                        .min_w_0()
-                                        .child(Slider::new(&self.seek).disabled(!ready)),
+                                    div().flex_1().min_w_0().child(
+                                        Slider::new(&self.seek)
+                                            .disabled(!ready)
+                                            .accessibility_label("Seek"),
+                                    ),
                                 )
                                 .child(
                                     div()

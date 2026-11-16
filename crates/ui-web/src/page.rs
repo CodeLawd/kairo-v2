@@ -802,7 +802,8 @@ impl WebPage {
                 .py_2p5()
                 .rounded(radius::lg())
                 .bg(k.surface_tertiary)
-                .when(current.is_none(), |d| d.opacity(0.5))
+                // No page: a press from assistive technology does nothing, as the pointer does.
+                .when(current.is_none(), |d| d.opacity(0.5).on_click(|_, _, _| {}))
                 .when(current.is_some(), |d| {
                     d.cursor_pointer()
                         .hover(|s| s.bg(k.surface_elevated))
