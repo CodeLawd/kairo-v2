@@ -8,6 +8,7 @@ use kairo_ui_kit::components::PopoverTriggerExt;
 use std::rc::Rc;
 
 use gpui_kit::Focusable;
+use gpui_kit::StyledImage;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{InputEvent, Textarea, TextareaState};
@@ -255,8 +256,12 @@ impl LyricsWorkspace {
         } else if picked {
             k.accent(Step::S500)
         } else {
-            k.surface_border
+            k.white.opacity(0.12)
         };
+        // The scripture card's style: the lyrics theme's background under a
+        // scrim, a black label strip, square corners (owner, DECISIONS 113).
+        let background = m.card_background().clone();
+        let artwork = background.image.is_some() || background.color.is_some();
         let model = self.model.clone();
         let size = grid::text_size(card.lines.len(), zoom);
         let lines: Vec<AnyElement> = if card.lines.is_empty() {
@@ -312,10 +317,18 @@ impl LyricsWorkspace {
             .aria_label(SharedString::from(format!("Show slide {}", index + 1)))
             .relative()
             .w(px(width))
-            .rounded(radius::md())
-            .border_2()
+            .overflow_hidden()
+            .map(|d| {
+                if live || picked {
+                    d.border_2()
+                } else {
+                    d.border(px(0.5))
+                }
+            })
             .border_color(border)
-            .when(!live && !picked, |d| d.hover(|s| s.border_color(k.stone)))
+            .when(!live && !picked, |d| {
+                d.hover(|s| s.border_color(k.white.opacity(0.3)))
+            })
             .when(pushing, |d| d.opacity(0.7))
             .cursor_pointer()
             .on_click(move |event, _, cx| {
@@ -339,27 +352,61 @@ impl LyricsWorkspace {
             .child(
                 div()
                     .overflow_hidden()
-                    .rounded(radius::sm())
                     .child(
-                        v_flex()
+                        div()
+                            .relative()
                             .h(px(slide_h))
                             .w_full()
-                            .bg(k.monitor())
-                            .items_center()
-                            .justify_center()
-                            .gap_0p5()
-                            .px(px(14.))
                             .overflow_hidden()
-                            .children(lines),
+                            .bg(gpui_kit::black())
+                            .when_some(background.color, |d, rgb| {
+                                d.child(
+                                    div()
+                                        .absolute()
+                                        .size_full()
+                                        .bg(gpui_kit::rgb(rgb))
+                                        .opacity(background.opacity),
+                                )
+                            })
+                            .when_some(background.image.clone(), |d, path| {
+                                d.child(
+                                    gpui_kit::img(std::path::PathBuf::from(path))
+                                        .absolute()
+                                        .size_full()
+                                        .object_fit(gpui_kit::ObjectFit::Cover)
+                                        .opacity(background.opacity),
+                                )
+                            })
+                            .when(artwork, |d| {
+                                d.child(
+                                    div()
+                                        .absolute()
+                                        .size_full()
+                                        .bg(gpui_kit::black().opacity(0.4)),
+                                )
+                            })
+                            .child(
+                                v_flex()
+                                    .absolute()
+                                    .size_full()
+                                    .items_center()
+                                    .justify_center()
+                                    .gap_0p5()
+                                    .px(px(14.))
+                                    .overflow_hidden()
+                                    .children(lines),
+                            ),
                     )
                     .child(
                         h_flex()
-                            .h(px(bar_h))
+                            .h(px(bar_h.max(34.)))
                             .gap_2()
-                            .px_2()
-                            .bg(fill)
-                            .text_color(section_text())
-                            .text_size(px((12. * scale).round()))
+                            .px_3()
+                            .bg(gpui_kit::black())
+                            .text_color(k.text(TextStep::T200))
+                            .text_size(px((13. * scale).round()))
+                            // The section's colour as a small swatch.
+                            .child(div().flex_none().size(px(8.)).rounded_full().bg(fill))
                             .child(
                                 div()
                                     .flex_1()

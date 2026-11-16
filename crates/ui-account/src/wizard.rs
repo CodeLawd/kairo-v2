@@ -1032,7 +1032,8 @@ impl Render for OnboardingWizard {
         let on_account = setup.account();
         // The account page and the closing welcome centre their own content, which
         // needs a settled height below them to centre within.
-        let centred = on_account || self.welcomed;
+        // Configure Screens sits in the middle of the window too (owner).
+        let centred = on_account || self.welcomed || setup.page == crate::setup_state::Page::Output;
         let actions = setup.actions(self.slide, self.error.is_some());
         let locked = self.locked();
         let index = setup.index;

@@ -943,6 +943,10 @@ async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, Strin
                                 .get("stt")
                                 .and_then(|v| v.get("llmModel"))
                                 .and_then(Value::as_str)
+                                // Empty is "no override" (Electron's settings
+                                // migration keeps it empty): the provider's
+                                // default model, the only ones the server allows.
+                                .filter(|m| !m.trim().is_empty())
                                 .map(str::to_owned),
                             ..Default::default()
                         },

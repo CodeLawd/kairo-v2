@@ -92,6 +92,9 @@ pub fn match_range(text: &str, found: &SermonReferenceMatch) -> Option<Range<usi
     (start < end).then_some(start..end)
 }
 
+/// The notes page's right margin, where guessed references are named.
+const LABEL_MARGIN: f32 = 220.0;
+
 /// Where in the notes a reference counts as "the one being read".
 const READING_LINE_RATIO: f32 = 0.28;
 
@@ -388,7 +391,7 @@ impl SermonReview {
                             k.sermon_mark
                         }),
                         // Written another way: a wavy underline that takes no
-                        // room; the selected one also shows what it reads as.
+                        // room; its label sits in the page's right margin.
                         underline: guessed.then(|| gpui_kit::UnderlineStyle {
                             thickness: px(1.5),
                             color: Some(k.accent(kairo_ui_kit::tokens::Step::S500)),
@@ -601,38 +604,44 @@ impl Render for SermonReview {
             let frame = self.notes_bounds.get();
             let text = self.text(cx);
             let notes = self.notes.read(cx);
-            self.analysis
-                .matches
-                .get(self.active)
+            // One label per line, in the page's right margin: every guessed
+            // reference on that line, in order.
+            let mut lines: Vec<(gpui_kit::Pixels, gpui_kit::Pixels, Vec<String>)> = Vec::new();
+            for m in &self.analysis.matches {
+                let (Some(label), Some(range)) = (guessed_label(m), match_range(&text, m)) else {
+                    continue;
+                };
+                let Some(b) = notes.range_to_bounds(&range) else {
+                    continue;
+                };
+                let top = b.origin.y - frame.origin.y;
+                match lines.iter_mut().find(|(t, _, _)| (*t - top).abs() < px(4.)) {
+                    Some(line) => line.2.push(label.to_owned()),
+                    None => lines.push((top, b.size.height, vec![label.to_owned()])),
+                }
+            }
+            lines
                 .into_iter()
-                .filter_map(|m| {
-                    let label = guessed_label(m)?;
-                    let range = match_range(&text, m)?;
-                    let b = notes.range_to_bounds(&range)?;
-                    // Above the reference, so it never covers text on its line.
-                    let left = (b.origin.x - frame.origin.x).max(px(0.));
-                    let top = b.origin.y - frame.origin.y - px(22.);
-                    (top >= px(0.) && top + px(18.) <= frame.size.height).then(|| {
-                        div()
-                            .absolute()
-                            .left(left)
-                            .top(top)
-                            .h(px(18.))
-                            .px(px(6.))
-                            .flex()
-                            .items_center()
-                            .border_1()
-                            .border_color(
-                                gpui_kit::Hsla::from(gpui_kit::rgb(0x4f6888)).opacity(0.25),
-                            )
-                            .bg(gpui_kit::rgb(0xdce5f0))
-                            .text_color(gpui_kit::rgb(0x313e4c))
-                            .text_size(px(11.))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .whitespace_nowrap()
-                            .child(format!("→ {label}"))
-                            .into_any_element()
-                    })
+                .filter(|(top, h, _)| *top >= px(0.) && *top + *h <= frame.size.height)
+                .map(|(top, h, names)| {
+                    div()
+                        .absolute()
+                        .left(frame.size.width - px(LABEL_MARGIN) + px(12.))
+                        .w(px(LABEL_MARGIN - 24.))
+                        .top(top + (h - px(20.)) / 2.)
+                        .h(px(20.))
+                        .px(px(6.))
+                        .flex()
+                        .items_center()
+                        .rounded(px(4.))
+                        .border_1()
+                        .border_color(gpui_kit::Hsla::from(gpui_kit::rgb(0x4f6888)).opacity(0.25))
+                        .bg(gpui_kit::rgb(0xdce5f0))
+                        .text_color(gpui_kit::rgb(0x313e4c))
+                        .text_size(px(11.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(div().truncate().child(format!("→ {}", names.join(" · "))))
+                        .into_any_element()
                 })
                 .collect()
         };
@@ -771,7 +780,8 @@ impl Render for SermonReview {
                             .bg(paper.paper)
                             .border_1()
                             .border_color(paper.text_primary.opacity(0.12))
-                            .px_8()
+                            .pl_8()
+                            .pr(px(LABEL_MARGIN))
                             .py_7()
                             .font_family(text::FAMILY)
                             .text_size(px(15.))

@@ -43,17 +43,21 @@ fn options_of(value: &Value) -> SlideOptions {
             show_translation: s.overlay.show_translation,
             max_verses: s.overlay.max_verses,
             default_translation: s.scripture.default_translation,
-            background: card_background(&s.overlay.outputs),
+            background: card_background(
+                &s.overlay.outputs,
+                kairo_domain::overlay::OverlayContentKind::Scripture,
+            ),
         },
         Err(_) => SlideOptions::default(),
     }
 }
 
 /// The main output's scripture-theme background, for the verse cards.
-fn card_background(
+pub(crate) fn card_background(
     outputs: &[kairo_domain::overlay::OverlayOutput],
+    kind: kairo_domain::overlay::OverlayContentKind,
 ) -> ui_scripture::backend::CardBackground {
-    use kairo_domain::overlay::{OverlayBackgroundType, OverlayContentKind};
+    use kairo_domain::overlay::OverlayBackgroundType;
     // The first enabled output in list order: the Live monitor's default,
     // so cards show what the preview shows.
     let ordered = kairo_domain::overlay_outputs::preview_outputs(outputs);
@@ -65,8 +69,7 @@ fn card_background(
     else {
         return Default::default();
     };
-    let theme =
-        kairo_domain::overlay_outputs::output_theme_for(output, OverlayContentKind::Scripture);
+    let theme = kairo_domain::overlay_outputs::output_theme_for(output, kind);
     let bg = &theme.background;
     let color = || {
         let hex = bg.color.trim().trim_start_matches('#');

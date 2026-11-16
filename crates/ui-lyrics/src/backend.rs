@@ -25,6 +25,20 @@ pub struct LyricsSnapshot {
     pub setlists: SetlistState,
     /// `lyrics.glossColor`, normalised.
     pub gloss_color: String,
+    /// The main output's lyrics-theme background, drawn under each card.
+    pub card_background: CardBackground,
+}
+
+/// What a lyric card draws under its lines: the projected lyrics theme's
+/// background (an image, else a colour), as the scripture cards do.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CardBackground {
+    /// `0xRRGGBB`.
+    pub color: Option<u32>,
+    /// A still image's file path.
+    pub image: Option<String>,
+    /// The background's opacity, 0 to 1.
+    pub opacity: f32,
 }
 
 /// A push from the core.
@@ -37,6 +51,8 @@ pub enum LyricsFeed {
     Setlists(SetlistState),
     /// `lyrics.glossColor` changed.
     GlossColor(String),
+    /// The lyrics theme's background changed.
+    CardBackground(CardBackground),
     /// File → Import → Song lyrics (`useImportRequest(['lyrics'])`).
     OpenImport,
 }

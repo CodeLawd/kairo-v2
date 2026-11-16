@@ -233,6 +233,7 @@ pub struct Lyrics {
     usage: Option<Usage>,
     // The song view (081).
     gloss: String,
+    card_background: crate::backend::CardBackground,
     live: Option<(String, usize)>,
     pushing: Option<usize>,
     push_seq: u64,
@@ -292,6 +293,7 @@ impl Lyrics {
             _landed: None,
             usage: None,
             gloss: snapshot.gloss_color,
+            card_background: snapshot.card_background,
             live: None,
             pushing: None,
             push_seq: 0,
@@ -333,6 +335,7 @@ impl Lyrics {
             LyricsFeed::Libraries(l) => self.libraries = l,
             LyricsFeed::Setlists(s) => self.set_setlists(s),
             LyricsFeed::GlossColor(c) => self.gloss = c,
+            LyricsFeed::CardBackground(b) => self.card_background = b,
             LyricsFeed::OpenImport => {
                 if self.editing.is_none() {
                     self.import_open = true;
@@ -1439,6 +1442,11 @@ use kairo_domain::lyrics::reorder::{
 };
 
 impl Lyrics {
+    /// The lyrics theme's background for the cards.
+    pub fn card_background(&self) -> &crate::backend::CardBackground {
+        &self.card_background
+    }
+
     pub fn gloss(&self) -> &str {
         &self.gloss
     }

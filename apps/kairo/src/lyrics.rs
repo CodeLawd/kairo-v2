@@ -46,6 +46,23 @@ fn review_credential(services: &ApplicationServices) -> String {
         .to_owned()
 }
 
+/// The main output's lyrics-theme background, for the cards.
+fn card_background_of(all: &Value) -> ui_lyrics::backend::CardBackground {
+    let Ok(settings) = serde_json::from_value::<kairo_domain::settings::AppSettings>(all.clone())
+    else {
+        return Default::default();
+    };
+    let b = crate::scripture::card_background(
+        &settings.overlay.outputs,
+        kairo_domain::overlay::OverlayContentKind::Lyrics,
+    );
+    ui_lyrics::backend::CardBackground {
+        color: b.color,
+        image: b.image,
+        opacity: b.opacity,
+    }
+}
+
 /// `lyrics.glossColor`, normalised.
 fn gloss_of(all: &Value) -> String {
     kairo_domain::lyrics::style::normalize_gloss_color(
@@ -108,7 +125,13 @@ fn now_ms() -> f64 {
 impl LyricsBackend for ServicesLyrics {
     fn snapshot(&self) -> LyricsSnapshot {
         let services = &self.services;
+        let all = services
+            .settings_wiring
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get_all();
         LyricsSnapshot {
+            card_background: card_background_of(&all),
             // The library is read off the UI thread and arrives as a feed.
             songs: Vec::new(),
             libraries: services.libraries.snapshot().songs,
@@ -142,6 +165,7 @@ impl LyricsBackend for ServicesLyrics {
                 while let Some(value) = values.next().await {
                     let crate::services::SettingsChanged(value) = &*value;
                     sink(LyricsFeed::GlossColor(gloss_of(value)));
+                    sink(LyricsFeed::CardBackground(card_background_of(value)));
                 }
             })
         };
