@@ -367,10 +367,18 @@ impl SermonReview {
             .enumerate()
             .filter_map(|(i, m)| match_range(&text, m).map(|r| (r, i == self.active)))
             .collect();
+        let guessed: Vec<bool> = self
+            .analysis
+            .matches
+            .iter()
+            .filter(|m| match_range(&text, m).is_some())
+            .map(|m| guessed_label(m).is_some())
+            .collect();
         let decorations: Vec<TextDecoration> = self
             .painted
             .iter()
-            .map(|(range, active)| {
+            .zip(guessed)
+            .map(|((range, active), guessed)| {
                 TextDecoration::new(
                     range.clone(),
                     HighlightStyle {
@@ -378,6 +386,13 @@ impl SermonReview {
                             k.sermon_mark_active
                         } else {
                             k.sermon_mark
+                        }),
+                        // Written another way: a wavy underline that takes no
+                        // room; the selected one also shows what it reads as.
+                        underline: guessed.then(|| gpui_kit::UnderlineStyle {
+                            thickness: px(1.5),
+                            color: Some(k.accent(kairo_ui_kit::tokens::Step::S500)),
+                            wavy: true,
                         }),
                         ..Default::default()
                     },
@@ -588,13 +603,15 @@ impl Render for SermonReview {
             let notes = self.notes.read(cx);
             self.analysis
                 .matches
-                .iter()
+                .get(self.active)
+                .into_iter()
                 .filter_map(|m| {
                     let label = guessed_label(m)?;
                     let range = match_range(&text, m)?;
                     let b = notes.range_to_bounds(&range)?;
-                    let left = b.origin.x + b.size.width - frame.origin.x + px(6.);
-                    let top = b.origin.y - frame.origin.y + (b.size.height - px(18.)) / 2.;
+                    // Above the reference, so it never covers text on its line.
+                    let left = (b.origin.x - frame.origin.x).max(px(0.));
+                    let top = b.origin.y - frame.origin.y - px(22.);
                     (top >= px(0.) && top + px(18.) <= frame.size.height).then(|| {
                         div()
                             .absolute()

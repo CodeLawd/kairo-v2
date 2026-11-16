@@ -118,13 +118,28 @@ impl ThemeBackend for ServicesTheme {
 
     fn pick_media(&self, kind: MediaKind, reply: Reply<Option<String>>) {
         let actions = self.services.actions();
+        let folder = self.services.paths().user_data.join(THEME_MEDIA_DIR);
         self.services.spawn(async move {
-            reply(
-                actions
-                    .pick_overlay_media(kind == MediaKind::Video)
-                    .await
-                    .map(|p| p.map(|p| p.to_string_lossy().into_owned())),
-            );
+            let picked = actions.pick_overlay_media(kind == MediaKind::Video).await;
+            let kept = match picked {
+                Ok(Some(path)) => {
+                    let original = path.clone();
+                    let copied = tokio::task::spawn_blocking(move || keep_copy(&folder, &path))
+                        .await
+                        .map_err(|e| e.to_string())
+                        .and_then(|r| r);
+                    Ok(Some(match copied {
+                        Ok(copy) => copy.to_string_lossy().into_owned(),
+                        Err(error) => {
+                            // The theme still works from where the file is.
+                            tracing::warn!(%error, "[Theme] could not copy media into Kairo");
+                            original.to_string_lossy().into_owned()
+                        }
+                    }))
+                }
+                other => other.map(|p| p.map(|p| p.to_string_lossy().into_owned())),
+            };
+            reply(kept);
         });
     }
 
@@ -238,4 +253,79 @@ pub fn install(
     // The editor holds the inspector's view, which keeps it alive.
     ui_theme::ThemeInspector::attach(&editor, window, cx);
     editor
+}
+
+/// Where theme images and videos are kept, inside the profile folder.
+const THEME_MEDIA_DIR: &str = "theme-media";
+
+/// Copies a picked theme file into `folder` so the theme keeps working if the
+/// original is moved or deleted. The name keeps the original's and adds its
+/// size, so picking the same file again reuses the copy. On APFS the copy
+/// is a clone and takes no space until either file changes.
+fn keep_copy(
+    folder: &std::path::Path,
+    source: &std::path::Path,
+) -> Result<std::path::PathBuf, String> {
+    if source.starts_with(folder) {
+        return Ok(source.to_path_buf());
+    }
+    let size = std::fs::metadata(source).map_err(|e| e.to_string())?.len();
+    let stem = source
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "media".into());
+    let stem: String = stem
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
+        .collect();
+    let name = match source.extension() {
+        Some(ext) => format!("{stem}-{size:x}.{}", ext.to_string_lossy().to_lowercase()),
+        None => format!("{stem}-{size:x}"),
+    };
+    std::fs::create_dir_all(folder).map_err(|e| e.to_string())?;
+    let target = folder.join(name);
+    let same = std::fs::metadata(&target).is_ok_and(|m| m.len() == size);
+    if !same {
+        // Copy beside it first so a half-written file never takes the name.
+        let partial = target.with_extension("part");
+        std::fs::copy(source, &partial).map_err(|e| e.to_string())?;
+        std::fs::rename(&partial, &target).map_err(|e| e.to_string())?;
+    }
+    Ok(target)
+}
+
+#[cfg(test)]
+mod keep_copy_tests {
+    use super::keep_copy;
+
+    #[test]
+    fn a_picked_file_is_copied_once_and_survives_its_original() {
+        let root = std::env::temp_dir().join(format!("kairo-keep-copy-{}", std::process::id()));
+        let folder = root.join("theme-media");
+        let source = root.join("My Photo.JPG");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(&source, b"pixels").unwrap();
+        let copy = keep_copy(&folder, &source).unwrap();
+        assert!(copy.starts_with(&folder));
+        assert_eq!(copy.extension().unwrap(), "jpg");
+        assert_eq!(
+            keep_copy(&folder, &source).unwrap(),
+            copy,
+            "picking again reuses it"
+        );
+        assert_eq!(
+            keep_copy(&folder, &copy).unwrap(),
+            copy,
+            "a kept copy stays put"
+        );
+        std::fs::remove_file(&source).unwrap();
+        assert_eq!(std::fs::read(&copy).unwrap(), b"pixels");
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 }
