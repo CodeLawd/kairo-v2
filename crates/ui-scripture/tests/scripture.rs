@@ -335,7 +335,6 @@ fn the_page_opens_empty_with_the_hint(cx: &mut TestAppContext) {
     assert!(exists(cx, &opened, ids::EMPTY));
     assert!(exists(cx, &opened, ids::QUERY));
     assert!(!exists(cx, &opened, ids::DOCK), "no queue without cards");
-    assert!(!exists(cx, &opened, ids::GO_LIVE));
 }
 
 #[gpui_kit::test]
@@ -511,7 +510,8 @@ fn shift_enter_opens_the_whole_chapter_on_the_verse(cx: &mut TestAppContext) {
         read(cx, &opened, |m| m.scope()),
         Some(ui_scripture::rows::Scope::Chapter)
     );
-    click(cx, &opened, ids::SCOPE_VERSE);
+    cx.update(|cx| opened.model.update(cx, |m, cx| m.show_verse_only(cx)));
+    draw(cx, &opened);
     assert_eq!(read(cx, &opened, rows_len), 1);
     assert_eq!(
         read(cx, &opened, |m| m.scope()),
@@ -549,7 +549,7 @@ fn a_failed_send_marks_the_card(cx: &mut TestAppContext) {
     });
     let opened = open(cx, core);
     lookup(cx, &opened, "John 3:16-18");
-    click(cx, &opened, ids::GO_LIVE);
+    click(cx, &opened, &ids::card(0));
     assert_eq!(
         read(cx, &opened, |m| m.rows()[0].cards[0].send_status),
         SendStatus::Error
@@ -974,7 +974,8 @@ fn clear_empties_the_page_and_focuses_the_field(cx: &mut TestAppContext) {
     core.script(bible());
     let opened = open(cx, core);
     lookup(cx, &opened, "John 3:16-18");
-    click(cx, &opened, ids::CLEAR);
+    cx.update(|cx| opened.model.update(cx, |m, cx| m.clear_results(cx)));
+    draw(cx, &opened);
     assert!(exists(cx, &opened, ids::EMPTY));
     assert!(
         opened

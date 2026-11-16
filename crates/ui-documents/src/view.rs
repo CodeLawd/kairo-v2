@@ -89,11 +89,11 @@ pub mod ids {
     pub const RENAME: &str = "documents-rename";
     pub const PREVIEW: &str = "documents-preview";
     pub const PREVIEW_ONLY: &str = "documents-preview-only";
-    /// The library chooser before an import.
+    /// The library chooser after an import.
     pub const IMPORT_LIBRARY: &str = "documents-import-library";
-    /// Its Choose file.
+    /// Its Done.
     pub const IMPORT_LIBRARY_GO: &str = "documents-import-library-go";
-    /// Its Cancel.
+    /// Its Skip.
     pub const IMPORT_LIBRARY_CANCEL: &str = "documents-import-library-cancel";
     pub const PUSH_FOR_VIDEO: &str = "documents-push-for-video";
     pub const IMPORT_DIALOG: &str = "documents-import-dialog";
@@ -259,10 +259,8 @@ pub struct DocumentsPage {
     canceling: bool,
     cancel_flag: Option<Arc<AtomicBool>>,
     retry_kind: Option<ImportKind>,
-    /// The library chooser shown before the file picker, with its picker kind.
-    import_choice: Option<(Option<ImportKind>, String)>,
-    /// The library an import in progress lands in.
-    import_library: Option<String>,
+    /// After an import: the new document and the library picked for it.
+    import_choice: Option<(String, String)>,
     converter_prompt: Option<ConverterPrompt>,
     converter: Option<SlideConverterStatus>,
     live: Option<(String, usize)>,
@@ -371,7 +369,6 @@ impl DocumentsPage {
             libraries: snapshot.libraries,
             active_library: DEFAULT_LIBRARY_ID.into(),
             import_choice: None,
-            import_library: None,
             library,
             library_rows: Vec::new(),
             selected: None,
@@ -1276,19 +1273,9 @@ impl DocumentsPage {
 
     // ─── Import ────────────────────────────────────────────────────────────
 
-    /// Import, first asking which library the slides go into when there are
-    /// libraries to choose from (owner, 2026-11-16).
+    /// Import; afterwards the operator picks the library it goes into.
     pub fn ask_import(&mut self, kind: Option<ImportKind>, cx: &mut Context<Self>) {
-        if self.busy {
-            return;
-        }
-        if self.libraries.libraries.is_empty() {
-            self.import_library = None;
-            self.import(kind, DocumentPrepareOptions::default(), cx);
-            return;
-        }
-        self.import_choice = Some((kind, self.active_library.clone()));
-        cx.notify();
+        self.import(kind, DocumentPrepareOptions::default(), cx);
     }
 
     /// Picks the library in the chooser.
@@ -1299,11 +1286,20 @@ impl DocumentsPage {
         }
     }
 
-    /// The chooser's Choose file: open the picker for that library.
+    /// The chooser's Done: file the new document in the picked library.
     pub fn confirm_import_library(&mut self, cx: &mut Context<Self>) {
-        if let Some((kind, target)) = self.import_choice.take() {
-            self.import_library = (target != DEFAULT_LIBRARY_ID).then_some(target);
-            self.import(kind, DocumentPrepareOptions::default(), cx);
+        if let Some((doc, target)) = self.import_choice.take() {
+            if target != DEFAULT_LIBRARY_ID {
+                self.library_event(
+                    LibrarySectionEvent::Assign {
+                        item_id: doc.into(),
+                        library_id: target.into(),
+                        label: SharedString::default(),
+                    },
+                    cx,
+                );
+            }
+            cx.notify();
         }
     }
 
@@ -1403,15 +1399,9 @@ impl DocumentsPage {
             Ok(ImportOutcome::Imported { id, documents }) => {
                 self.import = None;
                 self.set_documents(documents, cx);
-                if let Some(library_id) = self.import_library.take() {
-                    self.library_event(
-                        LibrarySectionEvent::Assign {
-                            item_id: id.clone().into(),
-                            library_id: library_id.into(),
-                            label: SharedString::default(),
-                        },
-                        cx,
-                    );
+                // With libraries to choose from, ask where it goes.
+                if !self.libraries.libraries.is_empty() {
+                    self.import_choice = Some((id.clone(), self.active_library.clone()));
                 }
                 self.select(Some(id), cx);
             }
@@ -2680,7 +2670,7 @@ impl DocumentsPage {
         let (cancel, go) = (cx.entity(), cx.entity());
         Some(modal(
             ids::IMPORT_LIBRARY,
-            "Import slides",
+            "Add to a library",
             k,
             self.dialog_focus.handle(),
             v_flex()
@@ -2689,14 +2679,14 @@ impl DocumentsPage {
                         .text_size(px(17.))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(k.text_primary)
-                        .child("Import slides"),
+                        .child("Add to a library"),
                 )
                 .child(
                     div()
                         .mt_1()
                         .text_size(px(12.))
                         .text_color(k.text(TextStep::T500))
-                        .child("Choose the library they go into."),
+                        .child("Imported. Choose the library it goes into."),
                 )
                 .child(
                     v_flex()
@@ -2720,7 +2710,7 @@ impl DocumentsPage {
                                 .w_full()
                                 .with_size(gpui_kit::component::Size::Medium)
                                 .h(px(40.))
-                                .label("Choose file")
+                                .label("Done")
                                 .on_click(move |_, _, cx| {
                                     go.update(cx, |p, cx| p.confirm_import_library(cx))
                                 }),
@@ -2732,7 +2722,7 @@ impl DocumentsPage {
                                 .w_full()
                                 .with_size(gpui_kit::component::Size::Medium)
                                 .h(px(40.))
-                                .label("Cancel")
+                                .label("Skip")
                                 .on_click(move |_, _, cx| {
                                     cancel.update(cx, |p, cx| p.cancel_import_library(cx))
                                 }),

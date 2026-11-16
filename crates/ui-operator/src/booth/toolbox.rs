@@ -2281,7 +2281,15 @@ impl VideoPanel {
             .test_support()
             .relative()
             .w_full()
-            .h(px(150.))
+            // 16:9 like the screen it stands for (it was a short 150 px).
+            .h(px({
+                let w = f32::from(self.stage.size.width);
+                if w > 0.0 {
+                    (w * 9.0 / 16.0).round()
+                } else {
+                    220.0
+                }
+            }))
             .overflow_hidden()
             .rounded_lg()
             .bg(k.surface_secondary)
@@ -2291,8 +2299,21 @@ impl VideoPanel {
                 canvas(
                     {
                         let this = cx.entity().downgrade();
-                        move |bounds, _, cx| {
-                            let _ = this.update(cx, |this, _| this.stage = bounds);
+                        move |bounds, window, cx| {
+                            let resized = this
+                                .update(cx, |this, _| {
+                                    let resized = this.stage.size.width != bounds.size.width;
+                                    this.stage = bounds;
+                                    resized
+                                })
+                                .unwrap_or(false);
+                            // The height follows the width: one more frame.
+                            if resized {
+                                let this = this.clone();
+                                window.on_next_frame(move |_, cx| {
+                                    let _ = this.update(cx, |_, cx| cx.notify());
+                                });
+                            }
                         }
                     },
                     |_, _, _, _| {},

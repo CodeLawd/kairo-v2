@@ -197,6 +197,8 @@ pub enum BoothAnswer {
     Services(ServiceSnapshot),
     /// The chosen file, or `None` when the picker was closed.
     Picked(Option<String>),
+    /// `RequestCameraAccess`: the video inputs, once access was granted.
+    VideoInputs(Vec<String>),
 }
 
 pub type Reply = Box<dyn FnOnce(Result<BoothAnswer, String>) + Send>;

@@ -350,6 +350,7 @@ fn text_box(
     text: SharedString,
     scale: f32,
     output_px: Option<f32>,
+    padding: f32,
 ) -> gpui_kit::Div {
     use kairo_domain::overlay::{OverlayTextAlign, OverlayVerticalAlign};
     let frame = &style.frame;
@@ -365,6 +366,7 @@ fn text_box(
         .flex()
         .flex_col()
         .overflow_hidden()
+        .p(px(padding))
         .map(|d| match style.vertical_align {
             OverlayVerticalAlign::Top => d.justify_start(),
             OverlayVerticalAlign::Bottom => d.justify_end(),
@@ -373,17 +375,8 @@ fn text_box(
         .child(
             div()
                 .w_full()
-                .when(!style.font_family.trim().is_empty(), |d| {
-                    d.font_family(SharedString::from(
-                        style
-                            .font_family
-                            .split(',')
-                            .next()
-                            .unwrap_or("")
-                            .trim()
-                            .trim_matches('"')
-                            .to_owned(),
-                    ))
+                .when_some(font_family(&style.font_family), |d, family| {
+                    d.font_family(family)
                 })
                 .text_size(px(size))
                 .line_height(px(size * line))
@@ -408,17 +401,37 @@ fn themed_text(
 ) -> gpui_kit::AnyElement {
     let scale = (f32::from(width) / 1920.0).min(f32::from(height) / 1080.0);
     let (verse_px, reference_px) = output_sizes(theme, &reference, &text);
+    let pad = (theme.layout.padding_px as f32 * scale).max(0.0) + 6.0;
     div()
         .absolute()
         .size_full()
-        .child(text_box(&theme.verse, text, scale, verse_px))
+        .child(text_box(&theme.verse, text, scale, verse_px, pad))
         .when(theme.reference.show, |d| {
             d.child(text_box(
                 &theme.reference.text,
                 reference,
                 scale,
                 reference_px,
+                pad,
             ))
         })
         .into_any_element()
+}
+
+/// A CSS `font-family` list's first face as GPUI names it: quotes dropped,
+/// CSS generic families mapped to the macOS faces Chromium used.
+fn font_family(list: &str) -> Option<SharedString> {
+    let first = list
+        .split(',')
+        .next()?
+        .trim()
+        .trim_matches(|c| c == '"' || c == '\'');
+    let face = match first.to_ascii_lowercase().as_str() {
+        "" => return None,
+        "monospace" | "ui-monospace" => "Menlo",
+        "serif" | "ui-serif" => "Times New Roman",
+        "sans-serif" | "system-ui" | "ui-sans-serif" | "-apple-system" => "Helvetica",
+        _ => first,
+    };
+    Some(SharedString::from(face.to_owned()))
 }

@@ -43,8 +43,7 @@ use crate::card::VerseCard;
 use crate::model::{PickGesture, Scripture, ScriptureEvent, ScrollTarget, Source};
 use crate::review::{ReviewEvent, SermonReview};
 use crate::rows::{
-    self, BarItem, CARD_ZOOM_DEFAULT, CARD_ZOOM_MAX, CARD_ZOOM_MIN, GridKey, GridLine, Scope,
-    SendStatus,
+    self, BarItem, CARD_ZOOM_DEFAULT, CARD_ZOOM_MAX, CARD_ZOOM_MIN, GridKey, GridLine, SendStatus,
 };
 use kairo_domain::scripture::SermonPlanDraft;
 
@@ -2427,240 +2426,71 @@ impl ScriptureWorkspace {
             return None;
         }
         let model = self.model.clone();
-        let count = rows::card_count(m.rows());
-        let card = rows::card_at(m.rows(), m.active()).cloned();
         let navigating = m.navigating();
-        let scope = m.scope();
-        let opening = m.opening_chapter();
-        let in_search = m.source() == Some(Source::Search);
-        let plans: Vec<(String, String)> = m
-            .plans()
-            .iter()
-            .map(|p| (p.id.clone(), p.title.clone()))
-            .collect();
-        let added = m.added_all().map(str::to_owned);
-        let libraries: Vec<(String, String)> = m
-            .libraries()
-            .libraries
-            .iter()
-            .map(|l| (l.id.clone(), l.name.clone()))
-            .collect();
-        let scope_buttons = scope.map(|scope| {
-            let (v, c) = (model.clone(), model.clone());
-            h_flex()
-                .id("scripture-scope")
-                .role(Role::RadioGroup)
-                .aria_label("Show the verse or its whole chapter")
-                .rounded(radius::md())
-                .bg(k.surface)
-                .p_0p5()
-                .child(
-                    Button::new(ids::SCOPE_VERSE)
-                        .cursor_pointer()
-                        .xsmall()
-                        .map(|b| {
-                            if scope == Scope::Verse {
-                                b.primary()
-                            } else {
-                                b.ghost()
-                            }
-                        })
-                        .label("Verse")
-                        .disabled(opening)
-                        .tooltip("Only the selected verse")
-                        .on_click(move |_, _, cx| {
-                            if scope != Scope::Verse {
-                                v.update(cx, |m, cx| m.show_verse_only(cx))
-                            }
-                        }),
-                )
-                .child(
-                    Button::new(ids::SCOPE_CHAPTER)
-                        .cursor_pointer()
-                        .xsmall()
-                        .map(|b| {
-                            if scope == Scope::Chapter {
-                                b.primary()
-                            } else {
-                                b.ghost()
-                            }
-                        })
-                        .when(opening, |b| b.icon(Icon::new(KairoIcon::Loader)))
-                        .label("Chapter")
-                        .disabled(opening)
-                        .tooltip("The whole chapter around it")
-                        .on_click(move |_, _, cx| {
-                            if scope != Scope::Chapter {
-                                c.update(cx, |m, cx| m.show_chapter(cx))
-                            }
-                        }),
-                )
-        });
-        let (prev, next, live, clear) =
-            (model.clone(), model.clone(), model.clone(), model.clone());
-        let reference = card.as_ref().map(|c| c.result.reference.clone());
-        let save_menu = in_search.then(|| {
-            let model = model.clone();
-            Button::new(ids::SAVE)
+        // Zoom and verse stepping only (owner, DECISIONS 113): a card click
+        // sends, the search box clears.
+        let step = |id: &'static str,
+                    label: &'static str,
+                    aria: &'static str,
+                    icon: KairoIcon,
+                    busy: bool,
+                    click: Box<dyn Fn(&mut App)>| {
+            Button::new(id)
                 .cursor_pointer()
                 .ghost()
-                .xsmall()
-                .label("Save")
-                .dropdown_caret(true)
-                .disabled(m.creating())
-                .popover_trigger()
-                .dropdown_menu(move |mut menu, _, _| {
-                    if let Some(title) = &added {
-                        menu = menu.label(format!("Saved to {title}"));
-                    }
-                    for (id, title) in plans.clone() {
-                        let model = model.clone();
-                        menu = menu.item(PopupMenuItem::new(title).on_click(move |_, _, cx| {
-                            model.update(cx, |m, cx| m.add_all_to_playlist(&id, cx))
-                        }));
-                    }
-                    if !plans.is_empty() {
-                        menu = menu.separator();
-                    }
-                    let create = model.clone();
-                    menu = menu
-                        .item(
-                            PopupMenuItem::new("New playlist…")
-                                .icon(Icon::new(KairoIcon::Plus))
-                                .on_click(move |_, _, cx| {
-                                    create.update(cx, |m, cx| m.create_playlist(true, cx))
-                                }),
-                        )
-                        .separator()
-                        .label("LIBRARY");
-                    let default = model.clone();
-                    menu = menu.item(
-                        PopupMenuItem::new(LibraryKind::Scripture.default_name()).on_click(
-                            move |_, _, cx| {
-                                default.update(cx, |m, cx| {
-                                    m.save_to_library(DEFAULT_LIBRARY_ID.into(), cx)
-                                })
-                            },
-                        ),
-                    );
-                    for (id, name) in libraries.clone() {
-                        let model = model.clone();
-                        menu = menu.item(PopupMenuItem::new(name).on_click(move |_, _, cx| {
-                            let id = id.clone();
-                            model.update(cx, |m, cx| m.save_to_library(id, cx))
-                        }));
-                    }
-                    menu
-                })
-        });
+                .with_size(gpui_kit::component::Size::Medium)
+                .h(px(32.))
+                .px(px(12.))
+                .icon(Icon::new(if busy { KairoIcon::Loader } else { icon }))
+                .label(label)
+                .accessibility_label(aria)
+                .disabled(navigating.is_some())
+                .on_click(move |_, _, cx| click(cx))
+        };
+        let (prev, next) = (model.clone(), model.clone());
         Some(
             h_flex()
                 .id(ids::DOCK)
                 .test_support()
                 .flex_none()
-                .flex_wrap()
-                .gap_2p5()
+                .items_center()
+                .justify_between()
+                .gap_3()
                 .px_4()
                 .py_2()
-                .bg(k.glass_panel())
+                .bg(k.surface_secondary)
                 .border_t_1()
                 .border_color(k.panel_border)
+                .child(self.zoom.clone())
                 .child(
                     h_flex()
-                        .min_w_0()
-                        .text_size(text::LABEL.size)
-                        .child(
-                            div()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(k.text(TextStep::T200))
-                                .child(count.to_string()),
-                        )
-                        .child(div().mx_1p5().text_color(k.text(TextStep::T600)).child("·"))
-                        .child(
-                            div()
-                                .truncate()
-                                .text_color(k.text(TextStep::T300))
-                                .child(m.queue_label()),
-                        ),
-                )
-                .child(
-                    h_flex()
-                        .ml_auto()
-                        .flex_wrap()
-                        .gap_1p5()
-                        .child(self.zoom.clone())
-                        .children(scope_buttons)
-                        .child(
-                            h_flex()
-                                .rounded(radius::md())
-                                .bg(k.surface)
-                                .child(
-                                    Button::new(ids::PREV)
-                                        .cursor_pointer()
-                                        .ghost()
-                                        .xsmall()
-                                        .icon(Icon::new(
-                                            if navigating == Some(Direction::Previous) {
-                                                KairoIcon::Loader
-                                            } else {
-                                                KairoIcon::ChevronLeft
-                                            },
-                                        ))
-                                        .label("Prev")
-                                        .accessibility_label("Previous verse")
-                                        .disabled(navigating.is_some())
-                                        .on_click(move |_, _, cx| {
-                                            prev.update(cx, |m, cx| {
-                                                m.load_adjacent(Direction::Previous, cx)
-                                            })
-                                        }),
-                                )
-                                .child(
-                                    Button::new(ids::NEXT)
-                                        .cursor_pointer()
-                                        .ghost()
-                                        .xsmall()
-                                        .label("Next")
-                                        .icon(Icon::new(if navigating == Some(Direction::Next) {
-                                            KairoIcon::Loader
-                                        } else {
-                                            KairoIcon::ChevronRight
-                                        }))
-                                        .accessibility_label("Next verse")
-                                        .disabled(navigating.is_some())
-                                        .on_click(move |_, _, cx| {
-                                            next.update(cx, |m, cx| {
-                                                m.load_adjacent(Direction::Next, cx)
-                                            })
-                                        }),
-                                ),
-                        )
-                        .child(
-                            Button::new(ids::GO_LIVE)
-                                .cursor_pointer()
-                                .primary()
-                                .xsmall()
-                                .icon(Icon::new(KairoIcon::Send))
-                                .label("Go live")
-                                .accessibility_label(SharedString::from(format!(
-                                    "Go live with {}",
-                                    reference.unwrap_or_else(|| "verse".into())
-                                )))
-                                .disabled(
-                                    card.as_ref()
-                                        .is_none_or(|c| c.send_status == SendStatus::Sending),
-                                )
-                                .on_click(move |_, _, cx| {
-                                    live.update(cx, |m, cx| {
-                                        let index = m.active();
-                                        m.send(index, cx)
-                                    })
-                                }),
-                        )
-                        .children(save_menu)
-                        .child(quiet_button(ids::CLEAR, "Clear").on_click(move |_, _, cx| {
-                            clear.update(cx, |m, cx| m.clear_results(cx))
-                        })),
+                        .items_center()
+                        .rounded(radius::lg())
+                        .border_1()
+                        .border_color(k.surface_border)
+                        .bg(k.surface_tertiary)
+                        .p_0p5()
+                        .child(step(
+                            ids::PREV,
+                            "Previous",
+                            "Previous verse",
+                            KairoIcon::ChevronLeft,
+                            navigating == Some(Direction::Previous),
+                            Box::new(move |cx| {
+                                prev.update(cx, |m, cx| m.load_adjacent(Direction::Previous, cx))
+                            }),
+                        ))
+                        .child(div().w(px(1.)).h(px(18.)).bg(k.surface_border))
+                        .child(step(
+                            ids::NEXT,
+                            "Next",
+                            "Next verse",
+                            KairoIcon::ChevronRight,
+                            navigating == Some(Direction::Next),
+                            Box::new(move |cx| {
+                                next.update(cx, |m, cx| m.load_adjacent(Direction::Next, cx))
+                            }),
+                        )),
                 )
                 .into_any_element(),
         )

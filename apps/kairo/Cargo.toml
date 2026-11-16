@@ -5,6 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+kairo-camera = { path = "../../crates/kairo-camera" }
 gpui-kit.workspace = true
 kairo-core = { path = "../../crates/kairo-core" }
 kairo-engine-proto = { path = "../../crates/kairo-engine-proto" }

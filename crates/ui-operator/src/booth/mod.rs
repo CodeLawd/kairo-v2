@@ -494,11 +494,22 @@ impl Booth {
 
     /// A program panel request: failures are shown (`report` → `alert`).
     pub(crate) fn program_call(&mut self, call: BoothCall, cx: &mut Context<Self>) {
-        self.call(call, cx, |_, result, cx| {
-            if let Err(error) = result {
+        self.call(call, cx, |this, result, cx| match result {
+            Err(error) => {
                 tracing::error!(%error, "[Operator] program request failed");
                 cx.emit(BoothEvent::Alert(error));
             }
+            Ok(BoothAnswer::VideoInputs(inputs)) => {
+                if inputs.is_empty() {
+                    cx.emit(BoothEvent::Alert(
+                        "No video inputs found. Connect a camera or capture card, then try again."
+                            .into(),
+                    ));
+                }
+                this.devices.video_inputs = inputs;
+                cx.notify();
+            }
+            Ok(_) => {}
         });
     }
 
@@ -569,7 +580,13 @@ impl Booth {
                 self.default_translation = default_translation;
                 self.shortcuts = shortcuts;
             }
-            BoothFeed::Devices(devices) => self.devices = devices,
+            BoothFeed::Devices(mut devices) => {
+                // Video inputs come from the camera request, not this feed.
+                if devices.video_inputs.is_empty() {
+                    devices.video_inputs = std::mem::take(&mut self.devices.video_inputs);
+                }
+                self.devices = devices;
+            }
         }
         cx.notify();
     }

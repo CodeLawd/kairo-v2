@@ -4643,58 +4643,154 @@ impl AudiencePage {
                 .into_any_element()
         };
         let n = moderators.len();
-        let body = h_flex()
+        let title = match section {
+            SettingsSection::General => "General",
+            SettingsSection::Screens => "On Screens",
+            SettingsSection::Collaboration => "Collaboration",
+        };
+        // The app's Settings layout: a sidebar panel with the sections, and
+        // a header naming the open one over its scrolling pane.
+        let sidebar = v_flex()
+            .w(px(208.))
             .h_full()
-            .items_start()
-            .gap_4()
+            .flex_none()
+            .bg(k.glass_panel())
+            .border_r_1()
+            .border_color(k.panel_border)
+            .px_3()
+            .pt_5()
+            .pb_3()
+            .gap_1()
             .child(
-                v_flex()
-                    .w(px(176.))
+                div()
+                    .px_2()
+                    .text_size(text::LG.size)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(k.text_primary)
+                    .child("Settings"),
+            )
+            .child(
+                div()
+                    .px_2()
+                    .pb_3()
+                    .truncate()
+                    .text_size(text::LABEL.size)
+                    .text_color(k.text(TextStep::T500))
+                    .child(session.title.clone()),
+            )
+            .child(nav(
+                ids::SET_GENERAL,
+                "General",
+                KairoIcon::SlidersHorizontal,
+                SettingsSection::General,
+                None,
+                cx,
+            ))
+            .child(nav(
+                ids::SET_SCREENS,
+                "On Screens",
+                KairoIcon::MonitorPlay,
+                SettingsSection::Screens,
+                None,
+                cx,
+            ))
+            .child(nav(
+                ids::SET_COLLAB,
+                "Collaboration",
+                KairoIcon::CircleUser,
+                SettingsSection::Collaboration,
+                Some(n),
+                cx,
+            ));
+        let locked = self.pending.is_some() || self.poll_saving;
+        let content = v_flex()
+            .flex_1()
+            .min_w_0()
+            .h_full()
+            .child(
+                h_flex()
                     .flex_none()
-                    .gap_1()
+                    .h_12()
+                    .items_center()
+                    .justify_between()
+                    .px_6()
+                    .border_b_1()
+                    .border_color(k.panel_border)
                     .child(
                         div()
-                            .truncate()
-                            .text_size(text::LABEL.size)
-                            .text_color(k.text(TextStep::T500))
-                            .child(session.title.clone()),
+                            .text_size(text::BASE.size)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(k.text_primary)
+                            .child(title),
                     )
-                    .child(nav(
-                        ids::SET_GENERAL,
-                        "General",
-                        KairoIcon::SlidersHorizontal,
-                        SettingsSection::General,
-                        None,
-                        cx,
-                    ))
-                    .child(nav(
-                        ids::SET_SCREENS,
-                        "On Screens",
-                        KairoIcon::MonitorPlay,
-                        SettingsSection::Screens,
-                        None,
-                        cx,
-                    ))
-                    .child(nav(
-                        ids::SET_COLLAB,
-                        "Collaboration",
-                        KairoIcon::CircleUser,
-                        SettingsSection::Collaboration,
-                        Some(n),
-                        cx,
-                    )),
+                    .child(
+                        Button::new(ids::DIALOG_CLOSE)
+                            .cursor_pointer()
+                            .ghost()
+                            .small()
+                            .icon(Icon::new(KairoIcon::X))
+                            .accessibility_label("Close")
+                            .disabled(locked)
+                            .on_click(cx.listener(|t, _, _, cx| t.close_dialog(cx))),
+                    ),
             )
             .child(
                 div()
                     .id("engage-settings-pane")
                     .flex_1()
-                    .min_w_0()
-                    .h_full()
+                    .min_h_0()
                     .overflow_y_scroll()
+                    .px_6()
+                    .py_5()
                     .child(pane),
             )
-            .into_any_element();
-        self.dialog_frame("Settings", 740.0, Some(640.0), body, footer, cx)
+            .child(
+                h_flex()
+                    .flex_none()
+                    .justify_end()
+                    .gap_2()
+                    .px_6()
+                    .py_3()
+                    .border_t_1()
+                    .border_color(k.panel_border)
+                    .child(footer),
+            );
+        div()
+            .id(ids::DIALOG)
+            .test_support()
+            .absolute()
+            .inset_0()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(k.scrim())
+            .occlude()
+            .on_key_down(cx.listener(|t, e: &KeyDownEvent, _, cx| {
+                if e.keystroke.key == "escape" {
+                    cx.stop_propagation();
+                    t.close_dialog(cx);
+                }
+            }))
+            .child(kairo_ui_kit::motion::enter(
+                h_flex()
+                    .id("engage-dialog-panel")
+                    .role(Role::Dialog)
+                    .aria_label("Settings")
+                    .w(px(780.))
+                    .h(px(640.))
+                    .max_h(relative(0.9))
+                    .overflow_hidden()
+                    .rounded(radius::xl())
+                    .bg(k.surface_menu)
+                    .border_1()
+                    .border_color(k.surface_menu_line)
+                    .child(sidebar)
+                    .child(content)
+                    .focus_trap("engage-dialog-panel", self.dialog_focus.handle()),
+                "engage-settings-enter",
+                cx,
+            ))
+            .into_any_element()
     }
 }
 

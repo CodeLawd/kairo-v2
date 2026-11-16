@@ -4930,6 +4930,7 @@ dependencies = [
  "iana-time-zone",
  "kairo-audience",
  "kairo-audio",
+ "kairo-camera",
  "kairo-cloud",
  "kairo-core",
  "kairo-documents",

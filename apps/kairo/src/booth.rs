@@ -465,10 +465,24 @@ async fn run(
             program.set_camera(label.as_deref(), audio.as_deref());
             done
         }
-        BoothCall::RequestCameraAccess => Err(
-            "Video inputs are listed by the screen engine; open Screens to allow camera access."
-                .into(),
-        ),
+        BoothCall::RequestCameraAccess => {
+            // Asks for camera access once (macOS shows its prompt), then
+            // lists the inputs by the labels the engine opens them by.
+            let listed = tokio::task::spawn_blocking(|| kairo_camera::system().video_devices())
+                .await
+                .map_err(|e| e.to_string())?;
+            match listed {
+                Ok(devices) => Ok(BoothAnswer::VideoInputs(kairo_camera::label::labels(&devices))),
+                Err(kairo_camera::CameraError::Denied) => Err(
+                    "Kairo needs camera access to list video inputs. Allow it in System Settings → Privacy & Security → Camera, then try again."
+                        .into(),
+                ),
+                Err(kairo_camera::CameraError::Unsupported) => {
+                    Err("Video inputs are not supported on this computer.".into())
+                }
+                Err(error) => Err(format!("Could not list video inputs: {error}")),
+            }
+        }
         BoothCall::Export { file_name, body } => {
             let folder = std::env::var_os("HOME")
                 .map(|home| std::path::PathBuf::from(home).join("Downloads"))
