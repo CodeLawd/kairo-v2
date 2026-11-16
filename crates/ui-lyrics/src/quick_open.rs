@@ -4,6 +4,7 @@
 //! the active setlist. It opens from any page as the shell's
 //! `Overlay::SongSearch`.
 
+use kairo_ui_kit::ControlSize;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -965,7 +966,7 @@ impl Render for QuickOpen {
                     .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
                         cx.stop_propagation()
                     })
-                    .child(
+                    .child(kairo_ui_kit::motion::enter(
                         v_flex()
                             .id(ids::DIALOG)
                             .test_support()
@@ -986,6 +987,7 @@ impl Render for QuickOpen {
                                     .child(
                                         div().flex_1().child(
                                             Input::new(&self.input)
+                                                .kairo_size()
                                                 .appearance(false)
                                                 .prefix(Icon::new(KairoIcon::ScanSearch).size_4()),
                                         ),
@@ -1025,7 +1027,9 @@ impl Render for QuickOpen {
                                             .child(hint(k, "⌘↵", "add to playlist")),
                                     ),
                             ),
-                    )
+                        "quick-open-enter",
+                        cx,
+                    ))
                     .children(self.render_preview(cx)),
             )
     }

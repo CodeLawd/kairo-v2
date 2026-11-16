@@ -43,8 +43,46 @@ fn options_of(value: &Value) -> SlideOptions {
             show_translation: s.overlay.show_translation,
             max_verses: s.overlay.max_verses,
             default_translation: s.scripture.default_translation,
+            background: card_background(&s.overlay.outputs),
         },
         Err(_) => SlideOptions::default(),
+    }
+}
+
+/// The main output's scripture-theme background, for the verse cards.
+fn card_background(
+    outputs: &[kairo_domain::overlay::OverlayOutput],
+) -> ui_scripture::backend::CardBackground {
+    use kairo_domain::overlay::{OverlayBackgroundType, OverlayContentKind};
+    let Some(output) = kairo_domain::overlay_outputs::primary_rendered_output(outputs)
+        .or_else(|| outputs.iter().find(|o| o.enabled))
+        .or(outputs.first())
+    else {
+        return Default::default();
+    };
+    let theme =
+        kairo_domain::overlay_outputs::output_theme_for(output, OverlayContentKind::Scripture);
+    let bg = &theme.background;
+    let color = || {
+        let hex = bg.color.trim().trim_start_matches('#');
+        (hex.len() == 6)
+            .then(|| u32::from_str_radix(hex, 16).ok())
+            .flatten()
+    };
+    let opacity = bg.opacity.clamp(0.0, 1.0) as f32;
+    match bg.kind {
+        OverlayBackgroundType::Image => ui_scripture::backend::CardBackground {
+            color: color(),
+            image: bg.media_path.clone().filter(|p| !p.is_empty()),
+            opacity,
+        },
+        OverlayBackgroundType::Transparent => Default::default(),
+        // A video or gradient shows its base colour.
+        _ => ui_scripture::backend::CardBackground {
+            color: color(),
+            image: None,
+            opacity,
+        },
     }
 }
 

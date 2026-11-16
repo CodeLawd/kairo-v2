@@ -63,10 +63,15 @@ impl ApplicationLifecycle {
     }
 
     async fn local(&self, step: LocalStep) -> Result<(), StartupFailure> {
-        self.services
+        let started = std::time::Instant::now();
+        let result = self
+            .services
             .local_step(step)
             .await
-            .map_err(|message| StartupFailure { step, message })
+            .map_err(|message| StartupFailure { step, message });
+        let elapsed_ms = started.elapsed().as_secs_f64() * 1000.0;
+        tracing::info!(?step, elapsed_ms, "[Startup] step finished");
+        result
     }
 
     /// `app.whenReady`, including the work performed by `registerIpcHandlers`.

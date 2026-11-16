@@ -22,6 +22,7 @@ use kairo_domain::documents::SlideConverterStatus;
 use kairo_domain::scripture::ScriptureTranslationOption;
 use kairo_domain::settings::AppSettings;
 use kairo_domain::status::UpdateStatus;
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::{MovableDialog, MovableDialogEvent, TrafficLights};
 use kairo_ui_kit::tokens::{TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
@@ -809,6 +810,7 @@ impl SettingsWindow {
                                 .child(
                                     div().flex_1().min_w_0().child(
                                         Input::new(&self.query)
+                                            .kairo_size()
                                             .id(ids::SEARCH)
                                             .appearance(false)
                                             .small()

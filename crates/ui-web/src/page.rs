@@ -12,6 +12,7 @@
 //! to its box (`set_zoom`), so text wraps as the audience sees it and a
 //! scroll position or pointer here is the same place on every screen.
 
+use kairo_ui_kit::ControlSize;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -1023,7 +1024,12 @@ impl WebPage {
                     .ml_1()
                     .flex_1()
                     .min_w_0()
-                    .child(Input::new(&self.address).small().aria_label("Web address")),
+                    .child(
+                        Input::new(&self.address)
+                            .kairo_size()
+                            .small()
+                            .aria_label("Web address"),
+                    ),
             )
             .into_any_element()
     }

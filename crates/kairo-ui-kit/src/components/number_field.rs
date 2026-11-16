@@ -3,6 +3,7 @@
 //! down buttons, or drag the label sideways to scrub it. Shift moves ten
 //! steps at a time, for keys, buttons and scrubbing alike.
 
+use crate::control::ControlSize;
 use crate::icons::KairoIcon;
 use crate::theme::KairoThemeExt;
 use crate::tokens::{TextStep, radius, text};
@@ -387,6 +388,7 @@ impl Render for NumberField {
                     .child(
                         div().flex_1().min_w_0().child(
                             Input::new(&self.input)
+                                .kairo_size()
                                 .id(self.child_id("input"))
                                 .appearance(false)
                                 .small()

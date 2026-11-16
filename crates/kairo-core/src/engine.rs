@@ -300,7 +300,7 @@ impl EngineHandle {
                     .find(|s| s.state.spec.output == output)
                 {
                     Some(surface) => {
-                        let available = !failed && sink_available(surface.status.as_ref());
+                        let available = !failed && surface_composes(surface);
                         surface.state.apply(&command, available)
                     }
                     None => false,
@@ -314,6 +314,21 @@ impl EngineHandle {
     }
 
     /// Whether `output` has a surface that takes pushes now.
+    /// The engine draws `output`'s program: its sink takes pushes, or it is
+    /// a video card whose card is missing, which the engine still composes
+    /// offscreen for the operator's monitor (`compose_without_sink`).
+    pub fn composes(&self, output: &str) -> bool {
+        if self.is_available(output) {
+            return true;
+        }
+        if self.failed() || !self.running() {
+            return false;
+        }
+        lock(&self.inner.mirror)
+            .surface(output)
+            .is_some_and(surface_composes)
+    }
+
     pub fn is_available(&self, output: &str) -> bool {
         if self.failed() {
             return false;
@@ -511,6 +526,15 @@ impl EngineHandle {
 
 fn sink_available(status: Option<&SurfaceStatus>) -> bool {
     matches!(status, None | Some(SurfaceStatus::Ready))
+}
+
+/// The engine draws this surface's program: its sink runs, or it is a video
+/// card without its card, composed offscreen for the operator's monitor.
+fn surface_composes(surface: &ClientSurface) -> bool {
+    sink_available(surface.status.as_ref())
+        || (!surface.state.parked
+            && matches!(surface.state.spec.sink, SinkSpec::Device { .. })
+            && matches!(surface.status, Some(SurfaceStatus::Unavailable { .. })))
 }
 
 // ─── Supervision ─────────────────────────────────────────────────────────────
@@ -926,6 +950,10 @@ pub type EngineFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output 
 pub trait OutputEngine: Send + Sync + 'static {
     fn command(&self, command: Command) -> Sent;
     fn is_available(&self, output: &str) -> bool;
+    /// Draws `output`'s program, sink or not (the monitor reads it).
+    fn composes(&self, output: &str) -> bool {
+        self.is_available(output)
+    }
     fn unavailable_reason(&self, output: &str) -> Option<String>;
     fn surface_state(&self, output: &str) -> Option<SurfaceState>;
     fn surface_status(&self, output: &str) -> Option<SurfaceStatus>;
@@ -951,6 +979,9 @@ impl OutputEngine for EngineHandle {
     }
     fn is_available(&self, output: &str) -> bool {
         EngineHandle::is_available(self, output)
+    }
+    fn composes(&self, output: &str) -> bool {
+        EngineHandle::composes(self, output)
     }
     fn unavailable_reason(&self, output: &str) -> Option<String> {
         EngineHandle::unavailable_reason(self, output)
@@ -998,6 +1029,9 @@ impl<T: OutputEngine + ?Sized> OutputEngine for Arc<T> {
     }
     fn is_available(&self, output: &str) -> bool {
         (**self).is_available(output)
+    }
+    fn composes(&self, output: &str) -> bool {
+        (**self).composes(output)
     }
     fn unavailable_reason(&self, output: &str) -> Option<String> {
         (**self).unavailable_reason(output)

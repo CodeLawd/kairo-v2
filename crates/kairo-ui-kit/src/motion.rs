@@ -572,6 +572,28 @@ where
         .into_any_element()
 }
 
+/// An overlay's entrance (Electron's `animate-spring-in` and `fade-in` on
+/// dialogs, sheets and popovers): the layer fades in over `spring-in`'s
+/// 0.2 s curve. Only opacity changes, so absolute and centred layouts keep
+/// their place. With reduced motion it appears at once.
+pub fn enter<E>(element: E, id: impl Into<ElementId>, cx: &App) -> gpui_kit::AnyElement
+where
+    E: IntoElement + Styled + 'static,
+{
+    if cx.reduced_motion() {
+        return element.into_any_element();
+    }
+    // `spring-in`'s 0.2 s and curve: quick enough for a menu or dialog.
+    let curve = SPRING_IN.timing;
+    element
+        .with_animation(
+            id,
+            Animation::new(Duration::from_millis(SPRING_IN.duration_ms)),
+            move |el, delta| el.opacity(curve.sample(delta).clamp(0.0, 1.0)),
+        )
+        .into_any_element()
+}
+
 fn apply<E: Styled>(element: E, frame: Frame) -> E {
     element
         .opacity(frame.opacity.clamp(0.0, 1.0))

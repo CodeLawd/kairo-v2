@@ -33,6 +33,11 @@ pub enum ShowKind {
 pub trait EngineClient: Send + Sync {
     /// `None` when the output has a surface, else `outputState(output).reason`.
     fn unavailable_reason(&self, output: &OverlayOutput) -> Option<String>;
+    /// The engine draws this output's program even if its sink is missing,
+    /// so a push still reaches the operator's monitor.
+    fn composes(&self, output: &OverlayOutput) -> bool {
+        self.unavailable_reason(output).is_none()
+    }
     fn show_slide(
         &self,
         output_id: String,

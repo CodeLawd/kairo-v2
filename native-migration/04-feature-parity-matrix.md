@@ -2,7 +2,7 @@
 
 Each row maps an existing behaviour to its native home and how it is proven. `Prompts`
 are implementation prompts; prompt 109 walks this whole table against the running app.
-**Status starts at `todo`.** Only prompt 109 may set `PASS`.
+**Status starts at `todo`.** Only prompt 109 may set `PASS`. 109 (2026-11-16) set the rows marked below. Every row still `todo` was waived by the owner without being walked (DECISIONS 109), and 113 walks them before cutover.
 
 Finer-grained checklists live in `api-inventory.md` (every API call, generated in prompt
 010), and in the `check-lib-coverage` tool (every `src/lib` export, prompt 016).
@@ -11,8 +11,8 @@ Finer-grained checklists live in `api-inventory.md` (every API call, generated i
 
 | ID | Feature | Existing source | Native home | Prompts | Verification | Status |
 |---|---|---|---|---|---|---|
-| A01 | Screen output: full-screen on chosen display | `display-window.ts` | `kairo-sinks::display` | 060 | Manual display matrix | todo |
-| A02 | Rehearsal window when output shares control display | `display-window.ts`, `displays.ts` | same | 060 | Move window across displays | todo |
+| A01 | Screen output: full-screen on chosen display | `display-window.ts` | `kairo-sinks::display` | 060 | Manual display matrix | PASS (109, `evidence/109/displays.md`) |
+| A02 | Rehearsal window when output shares control display | `display-window.ts`, `displays.ts` | same | 060 | Move window across displays | PASS (109, `evidence/109/displays.md`) |
 | A03 | Custom aspect, fill, letterbox | `displays.ts`, `overlay.html` | compositor | 051, 060 | Goldens | todo |
 | A04 | NDI output, UYVA with alpha, per-output sender | `ndi/`, decision 008 | `kairo-sinks::ndi` | 005, 061 | Colour vectors, real receiver | todo |
 | A05 | NDI source name retry and clear frames | `ndi/index.ts` | same | 061 | Start-stop tests | todo |
@@ -24,9 +24,9 @@ Finer-grained checklists live in `api-inventory.md` (every API call, generated i
 | A11 | Lobby output with its own playlist | `lobby-player.ts` | core | 065 | Tests | todo |
 | A12 | Show filters per output and playlist | `program.ts` | domain and core | 016, 065 | Tests | todo |
 | A13 | Fallback destinations | `dispatch.ts`, `orchestrator.ts` | core | 039, 065 | Dispatch tests | todo |
-| A14 | Identify displays, test pattern | `surface-manager.ts` | engine | 060 | Manual | todo |
-| A15 | Prevent display sleep while live | `surface-manager.ts` | engine | 060 | Manual | todo |
-| A16 | Recovery from crash, replug, sleep, retaining picture | `program-surface.ts` | supervisor | 050, 065, 108 | Chaos tests | todo |
+| A14 | Identify displays, test pattern | `surface-manager.ts` | engine | 060 | Manual | PASS (109, `evidence/109/displays.md`) |
+| A15 | Prevent display sleep while live | `surface-manager.ts` | engine | 060 | Manual | PASS (109, `evidence/109/displays.md`) |
+| A16 | Recovery from crash, replug, sleep, retaining picture | `program-surface.ts` | supervisor | 050, 065, 108 | Chaos tests | Replug PASS, crash PASS (108); sleep/wake not verified — waived (DECISIONS 109) |
 | A17 | Clear text / Clear all | `program-surface.ts` | engine | 051, 065, 076 | Tests | todo |
 
 ## B. Slide rendering

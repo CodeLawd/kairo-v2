@@ -89,7 +89,7 @@ fn fallbacks_are_held_back_and_ordered_disabled_and_playlist_destinations_are_ex
 fn destination_labels_describe_standalone_destinations() {
     assert_eq!(
         output_destination_label(OverlayOutputKind::Screen),
-        "Kairo screen"
+        "External display"
     );
     assert_eq!(
         output_destination_label(OverlayOutputKind::Device),

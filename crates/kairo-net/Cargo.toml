@@ -6,6 +6,9 @@ publish = false
 
 [dependencies]
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "system-proxy"] }
+# Same versions and features reqwest itself uses, so no new crates are built.
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
+rustls-native-certs = "0.8"
 serde = "1"
 sha2 = "0.10"
 serde_json = "1"

@@ -51,7 +51,7 @@ pub enum Edit {
 
 pub fn kind_title(kind: OverlayOutputKind) -> &'static str {
     match kind {
-        OverlayOutputKind::Screen => "Kairo screen",
+        OverlayOutputKind::Screen => "External display",
         OverlayOutputKind::Ndi => "NDI feed",
         OverlayOutputKind::Device => "Video card",
         OverlayOutputKind::Syphon => "Syphon",
@@ -347,4 +347,152 @@ pub fn apply(s: &mut AppSettings, edit: &Edit) -> Result<&'static str, String> {
         }
     }
     Ok("overlay")
+}
+
+// ─── Sidebar and header text (`ScreenConfiguration.tsx` at af978c5) ──────────
+
+/// A status's colour in the sidebar dot (`StatusDot`): live, waiting or off.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tone {
+    Live,
+    Warn,
+    Off,
+}
+
+/// The tone `outputStatus` / `stageDisplayStatus` give their text.
+pub fn tone(status: &str, stage: bool) -> Tone {
+    match status {
+        "Off" => Tone::Off,
+        "Live" => Tone::Live,
+        "Ready" | "Playing its own playlist" if !stage => Tone::Live,
+        _ => Tone::Warn,
+    }
+}
+
+/// `describeBinding`: "EPSON PJ · 1920×1080", or why there is no display.
+pub fn describe_binding(
+    id: Option<f64>,
+    label: &str,
+    size: &Option<Size>,
+    displays: &[DisplayInfo],
+) -> String {
+    if id.is_none() {
+        return "No display chosen".into();
+    }
+    match resolve_display(&binding(id, label, size), displays, &[]) {
+        Some(d) => kairo_domain::displays::describe_display(&d.label, &d.size, d.scale_factor),
+        None => format!(
+            "{} · not connected",
+            if label.is_empty() { "Display" } else { label }
+        ),
+    }
+}
+
+/// `describeCard`: "DeckLink Duo (2) · 1080p25", or `None` with no port name.
+pub fn describe_card(
+    output: &OverlayOutput,
+    devices: &kairo_domain::video_devices::VideoDeviceSnapshot,
+) -> Option<String> {
+    let port = devices.ports.iter().find(|p| p.id == output.device_port_id);
+    let mode = port.and_then(|p| p.modes.iter().find(|m| m.id == output.device_mode_id));
+    let name = port
+        .map(|p| p.port_name.as_str())
+        .unwrap_or(output.device_port_label.as_str());
+    (!name.is_empty()).then(|| match mode {
+        Some(mode) if !mode.label.is_empty() => format!("{name} · {}", mode.label),
+        _ => name.to_owned(),
+    })
+}
+
+/// The line under an audience row's name.
+pub fn row_detail(
+    output: &OverlayOutput,
+    displays: &[DisplayInfo],
+    devices: &kairo_domain::video_devices::VideoDeviceSnapshot,
+) -> String {
+    match output.kind {
+        OverlayOutputKind::Screen if output.source == OutputSource::Playlist => {
+            "Own playlist".into()
+        }
+        OverlayOutputKind::Screen => describe_binding(
+            output.display_id,
+            &output.display_label,
+            &output.display_size,
+            displays,
+        ),
+        OverlayOutputKind::Device => {
+            describe_card(output, devices).unwrap_or_else(|| "Video card".into())
+        }
+        OverlayOutputKind::Ndi => "NDI".into(),
+        OverlayOutputKind::Syphon => "Syphon".into(),
+    }
+}
+
+/// The audience list's order: screens, video cards, NDI feeds, Syphon.
+pub fn audience_order(outputs: &[OverlayOutput]) -> Vec<&OverlayOutput> {
+    let rank = |kind: OverlayOutputKind| match kind {
+        OverlayOutputKind::Screen => 0,
+        OverlayOutputKind::Device => 1,
+        OverlayOutputKind::Ndi => 2,
+        OverlayOutputKind::Syphon => 3,
+    };
+    let mut ordered: Vec<&OverlayOutput> = outputs.iter().collect();
+    ordered.sort_by_key(|o| rank(o.kind));
+    ordered
+}
+
+/// The detail header's second line: the display or card (else the kind),
+/// then the status unless it is live, without repeats.
+pub fn subtitle(resolution: Option<&str>, kind: &str, status: &str, live: bool) -> String {
+    let first = resolution.unwrap_or(kind);
+    if live || status.is_empty() || status == first {
+        first.to_owned()
+    } else {
+        format!("{first} · {status}")
+    }
+}
+
+#[cfg(test)]
+mod sidebar_tests {
+    use super::*;
+
+    #[test]
+    fn tones_follow_the_status_text() {
+        assert_eq!(tone("Off", false), Tone::Off);
+        assert_eq!(tone("Live", false), Tone::Live);
+        assert_eq!(tone("Ready", false), Tone::Live);
+        assert_eq!(tone("Playing its own playlist", false), Tone::Live);
+        assert_eq!(tone("Ready", true), Tone::Warn);
+        assert_eq!(tone("Checking…", false), Tone::Warn);
+        assert_eq!(tone("Device disconnected", false), Tone::Warn);
+    }
+
+    #[test]
+    fn subtitles_drop_a_live_status_and_repeats() {
+        assert_eq!(
+            subtitle(
+                Some("DeckLink Duo (2)"),
+                "Video card",
+                "Device disconnected",
+                false
+            ),
+            "DeckLink Duo (2) · Device disconnected"
+        );
+        assert_eq!(subtitle(None, "NDI", "Ready", true), "NDI");
+        assert_eq!(subtitle(None, "Syphon", "Syphon", false), "Syphon");
+        assert_eq!(subtitle(None, "Screen", "", false), "Screen");
+    }
+
+    #[test]
+    fn unbound_and_missing_displays_say_why() {
+        assert_eq!(describe_binding(None, "", &None, &[]), "No display chosen");
+        assert_eq!(
+            describe_binding(Some(4.0), "EPSON", &None, &[]),
+            "EPSON · not connected"
+        );
+        assert_eq!(
+            describe_binding(Some(4.0), "", &None, &[]),
+            "Display · not connected"
+        );
+    }
 }

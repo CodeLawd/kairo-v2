@@ -25,6 +25,7 @@ use kairo_domain::scripture::{
 };
 use kairo_domain::scripture_trace::{ScriptureTraceRecord, TraceStatus};
 use kairo_domain::status::AutoPresentDelaySec;
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::components::{
     SegmentOption, SegmentedControl, confirm, dialogs::alert, messages,
@@ -551,6 +552,7 @@ impl SettingsWindow {
                         .font_family(text::MONO_FAMILY)
                         .child(
                             Input::new(field)
+                                .kairo_size()
                                 .id(id)
                                 .appearance(false)
                                 .small()

@@ -143,6 +143,8 @@ impl TranscriptPanel {
                             .hover(k.surface_tertiary)
                             .active(k.surface_tertiary)
                     })
+                    // Solid fill: the custom variant paints its colour at 20%.
+                    .when(open, |b| b.bg(k.tints.amber))
                     .xsmall()
                     .icon(Icon::new(KairoIcon::BookmarkSimple).size(px(11.)))
                     .when(count > 0, |b| b.label(count.to_string()))
@@ -501,6 +503,8 @@ impl TranscriptPanel {
                                     .hover(k.accent(Step::S600))
                                     .active(k.accent(Step::S600))
                             })
+                            // Solid fill: the custom variant paints its colour at 20%.
+                            .when(!transcribing, |b| b.bg(k.accent(Step::S500)))
                             .small()
                             .icon(
                                 Icon::new(if transcribing {

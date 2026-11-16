@@ -847,6 +847,7 @@ impl LyricsWorkspace {
                 .collect()
         };
         let measured = self.song.width.clone();
+        let view = cx.entity();
         v_flex()
             .id(ids::VIEW)
             .test_support()
@@ -934,7 +935,11 @@ impl LyricsWorkspace {
                                         let w = f32::from(bounds.size.width);
                                         if (measured.get() - w).abs() > 0.5 {
                                             measured.set(w);
-                                            window.refresh();
+                                            // Refreshing mid-draw is ignored, and a cached view would not redraw:
+                                            // notify the view once this frame ends.
+                                            window.on_next_frame(move |_, cx| {
+                                                view.update(cx, |_, cx| cx.notify())
+                                            });
                                         }
                                     },
                                     |_, _, _, _| {},

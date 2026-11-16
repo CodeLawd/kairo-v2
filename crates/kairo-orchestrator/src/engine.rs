@@ -77,6 +77,10 @@ impl<E: OutputEngine> EngineClient for EngineSurfaces<E> {
         self.engine.unavailable_reason(&output.id)
     }
 
+    fn composes(&self, output: &OverlayOutput) -> bool {
+        self.engine.composes(&output.id)
+    }
+
     fn show_slide(
         &self,
         output_id: String,
@@ -174,7 +178,8 @@ impl<E: OutputEngine> EngineClient for EngineSurfaces<E> {
     }
 
     /// `liveTargets`: rendered, enabled outputs whose filter allows `show`
-    /// and whose surface takes pushes now.
+    /// and whose program the engine draws, even with the sink missing: the
+    /// monitor previews an output whether or not it reaches a screen.
     fn live_targets(&self, show: Option<ShowKind>) -> Vec<OverlayOutput> {
         let routing = self.routing.read().unwrap_or_else(|e| e.into_inner());
         routing
@@ -188,7 +193,7 @@ impl<E: OutputEngine> EngineClient for EngineSurfaces<E> {
                 Some(ShowKind::Backgrounds) => output.show.backgrounds,
                 None => true,
             })
-            .filter(|output| self.engine.is_available(&output.id))
+            .filter(|output| self.engine.composes(&output.id))
             .cloned()
             .collect()
     }

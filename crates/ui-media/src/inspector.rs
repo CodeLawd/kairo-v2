@@ -6,6 +6,7 @@
 
 use gpui_kit::FocusHandle;
 use gpui_kit::component::FocusTrapElement;
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::sync::Arc;
 
@@ -734,6 +735,7 @@ impl Inspector {
                             .child(
                                 div().id(ids::START).test_support().flex_1().child(
                                     Input::new(&self.start)
+                                        .kairo_size()
                                         .small()
                                         .aria_label("Start (seconds)"),
                                 ),
@@ -755,7 +757,10 @@ impl Inspector {
                             .gap_2()
                             .child(
                                 div().id(ids::END).test_support().flex_1().child(
-                                    Input::new(&self.end).small().aria_label("End (seconds)"),
+                                    Input::new(&self.end)
+                                        .kairo_size()
+                                        .small()
+                                        .aria_label("End (seconds)"),
                                 ),
                             )
                             .child(
@@ -955,7 +960,7 @@ impl Render for Inspector {
                 .on_mouse_down(gpui_kit::MouseButton::Left, move |_, _, cx| {
                     backdrop.update(cx, |i, cx| i.cancel(cx))
                 })
-                .child(
+                .child(kairo_ui_kit::motion::enter(
                     v_flex()
                         .id(ids::DIALOG)
                         .test_support()
@@ -1069,7 +1074,9 @@ impl Render for Inspector {
                                 ),
                         )
                         .focus_trap(ids::DIALOG, &self.modal_focus),
-                ),
+                    "media-inspector-enter",
+                    cx,
+                )),
         )
         .with_priority(2)
     }

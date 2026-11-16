@@ -1,8 +1,10 @@
-//! One verse card (`VerseThemePreview` in the grid): the slide on the dark
-//! checkerboard with white text, no theme artwork (DESIGN.md), and the label
-//! bar under it. Projected slides and the Live monitor keep the full theme;
+//! One verse card (`VerseThemePreview` in the grid): the slide over the
+//! projected theme's background (the checkerboard when it is transparent),
+//! and a black label bar under it. Square, borderless unless live or picked
+//! (owner design, 2026-11-16, DECISIONS 113). Projected slides and the Live monitor keep the full theme;
 //! the monitor is the engine's own frame (076).
 
+use gpui_kit::StyledImage;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::{
     App, Bounds, ClickEvent, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement,
@@ -10,7 +12,7 @@ use gpui_kit::{
     div, fill, point, prelude::FluentBuilder, px, size,
 };
 use kairo_ui_kit::KairoThemeExt;
-use kairo_ui_kit::tokens::{TextStep, radius, text};
+use kairo_ui_kit::tokens::{TextStep, text};
 
 /// The checkerboard square, as the live monitor draws it.
 const SQUARE: f32 = 12.0;
@@ -31,6 +33,7 @@ pub struct VerseCard {
     live: bool,
     current: bool,
     sending: bool,
+    background: crate::backend::CardBackground,
     on_click: Option<OnClick>,
 }
 
@@ -47,8 +50,14 @@ impl VerseCard {
             live: false,
             current: false,
             sending: false,
+            background: Default::default(),
             on_click: None,
         }
+    }
+    /// The theme background drawn under the text.
+    pub fn background(mut self, background: crate::backend::CardBackground) -> Self {
+        self.background = background;
+        self
     }
     pub fn slide(mut self, reference: impl Into<SharedString>, text: Option<SharedString>) -> Self {
         self.slide_reference = reference.into();
@@ -120,8 +129,10 @@ impl RenderOnce for VerseCard {
         } else if self.current {
             k.white
         } else {
-            k.white.opacity(0.1)
+            k.white.opacity(0.12)
         };
+        let background = self.background.clone();
+        let checker = background.image.is_none() && background.color.is_none();
         // Text scales with the slide: a 1080-line slide's ~54 px body.
         let body = (f32::from(self.slide_height) * 0.07).clamp(7.0, 40.0);
         div()
@@ -135,10 +146,14 @@ impl RenderOnce for VerseCard {
             .flex_none()
             .w(self.width)
             .overflow_hidden()
-            .rounded(radius::md())
-            .border_1()
+            // A hairline at rest; live and picked cards keep a full border.
+            .border(if self.live || self.current {
+                px(1.)
+            } else {
+                px(0.5)
+            })
             .border_color(frame)
-            .bg(k.white.opacity(0.03))
+            .bg(gpui_kit::black())
             .when(!self.live && !self.current, |d| {
                 d.hover(|s| s.border_color(k.white.opacity(0.3)))
             })
@@ -149,14 +164,45 @@ impl RenderOnce for VerseCard {
                     .w_full()
                     .h(self.slide_height)
                     .overflow_hidden()
-                    .child(
-                        canvas(
-                            |_, _, _| {},
-                            move |bounds, _, window, _| paint_checker(bounds, light, dark, window),
+                    .when(checker, |d| {
+                        d.child(
+                            canvas(
+                                |_, _, _| {},
+                                move |bounds, _, window, _| {
+                                    paint_checker(bounds, light, dark, window)
+                                },
+                            )
+                            .absolute()
+                            .size_full(),
                         )
-                        .absolute()
-                        .size_full(),
-                    )
+                    })
+                    .when_some(background.color, |d, rgb| {
+                        d.child(
+                            div()
+                                .absolute()
+                                .size_full()
+                                .bg(gpui_kit::rgb(rgb))
+                                .opacity(background.opacity),
+                        )
+                    })
+                    .when_some(background.image.clone(), |d, path| {
+                        d.child(
+                            gpui_kit::img(std::path::PathBuf::from(path))
+                                .absolute()
+                                .size_full()
+                                .object_fit(gpui_kit::ObjectFit::Cover)
+                                .opacity(background.opacity),
+                        )
+                    })
+                    // A scrim over the artwork so white text reads clearly.
+                    .when(!checker, |d| {
+                        d.child(
+                            div()
+                                .absolute()
+                                .size_full()
+                                .bg(gpui_kit::black().opacity(0.4)),
+                        )
+                    })
                     .child(
                         div()
                             .absolute()
@@ -200,10 +246,11 @@ impl RenderOnce for VerseCard {
                     .flex()
                     .items_center()
                     .gap_2()
-                    .h(px(28.))
-                    .px_2p5()
-                    .text_size(text::XS.size)
-                    .text_color(k.text(TextStep::T300))
+                    .h(px(34.))
+                    .px_3()
+                    .bg(gpui_kit::black())
+                    .text_size(text::SM.size)
+                    .text_color(k.text(TextStep::T200))
                     .child(
                         div()
                             .min_w_0()

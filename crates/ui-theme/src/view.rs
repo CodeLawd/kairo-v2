@@ -1,6 +1,7 @@
 //! The editor's screen: the library and layers on the left, the slide with
 //! its canvas in the middle, and the inspector on the right.
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverButtonTriggerExt;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::sync::Arc;
@@ -36,6 +37,7 @@ use crate::canvas::{self, CanvasLayer, Hit, PixelBox, is_deletable};
 use crate::editor::{CanvasDrag, ThemeEditor};
 use crate::gallery::{self, ShapePick, Tile};
 use crate::model;
+use gpui_kit::StyledImage;
 
 pub mod ids {
     pub const ROOT: &str = "theme-editor";
@@ -589,6 +591,18 @@ pub(crate) fn slide_picture(
         OverlayBackgroundType::Image | OverlayBackgroundType::Video => slide.bg(k.surface_tertiary),
         _ => slide,
     };
+    // A still image shows itself, as on the canvas; a video keeps the fill.
+    if bg.kind == OverlayBackgroundType::Image
+        && let Some(path) = bg.media_path.as_deref().filter(|p| !p.is_empty())
+    {
+        slide = slide.child(
+            gpui_kit::img(std::path::PathBuf::from(path))
+                .absolute()
+                .size_full()
+                .object_fit(gpui_kit::ObjectFit::Cover)
+                .opacity(bg.opacity.clamp(0.0, 1.0) as f32),
+        );
+    }
     let place = |frame: &kairo_domain::overlay::OverlayBox| {
         div()
             .absolute()
@@ -955,6 +969,7 @@ impl ThemeEditor {
             .child(
                 div().flex_1().min_w_0().child(
                     Input::new(&self.name_input)
+                        .kairo_size()
                         .appearance(false)
                         .aria_label("Theme name"),
                 ),
@@ -1277,9 +1292,12 @@ impl ThemeEditor {
         let reference_shown = self.draft.reference.show;
         let button =
             |id: &'static str, icon: KairoIcon, label: &'static str, tip: String, off: bool| {
+                // Electron's toolbar button: `h-8 px-3`.
                 Button::new(id)
                     .ghost()
-                    .small()
+                    .with_size(gpui_kit::component::Size::Medium)
+                    .h(px(32.))
+                    .px(px(12.))
                     .icon(Icon::new(icon))
                     .accessibility_label(label)
                     .tooltip(tip)

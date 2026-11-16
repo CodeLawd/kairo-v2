@@ -6,6 +6,7 @@
 //! converter dialogs. The live rail and media dock are handed in by the app.
 
 use gpui_kit::component::FocusTrapElement;
+use kairo_ui_kit::ControlSize;
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -1862,6 +1863,7 @@ impl DocumentsPage {
                         .min_w_0()
                         .child(
                             Input::new(&self.rename)
+                                .kairo_size()
                                 .xsmall()
                                 .disabled(self.busy)
                                 .aria_label("Document name"),
@@ -2013,7 +2015,19 @@ impl DocumentsPage {
                 .children(w.into_iter().map(|w| div().pl_2().child(format!("• {w}"))))
         });
         let transport = (videos > 0).then(|| self.render_transport(cx));
-        let preview = (local || videos > 0).then(|| self.render_preview(doc, local, cx));
+        // No big preview over the grid (owner, 2026-11-16, DECISIONS 113): the
+        // live page is marked in the grid. The status line stays.
+        let preview = local.then(|| {
+            div()
+                .id(ids::PREVIEW_ONLY)
+                .test_support()
+                .flex_none()
+                .px_3()
+                .pt_2()
+                .text_size(text::XS.size)
+                .text_color(k.text(TextStep::T400))
+                .child("Preview only · No output connected")
+        });
         v_flex()
             .flex_1()
             .min_h_0()
@@ -2153,7 +2167,7 @@ impl DocumentsPage {
                     .into_any_element()
             })
             .collect();
-        deferred(
+        deferred(kairo_ui_kit::motion::enter(
             v_flex()
                 .id(ids::SLIDESHOW_MENU)
                 .test_support()
@@ -2184,6 +2198,7 @@ impl DocumentsPage {
                         .child(
                             div().id(ids::SECONDS).test_support().child(
                                 Input::new(&self.seconds)
+                                    .kairo_size()
                                     .small()
                                     .aria_label("Seconds per page"),
                             ),
@@ -2216,7 +2231,9 @@ impl DocumentsPage {
                         .text_color(k.text(TextStep::T500))
                         .child("Pushing a page by hand or with a clicker restarts the timer."),
                 ),
-        )
+            "slideshow-menu-enter",
+            cx,
+        ))
         .with_priority(1)
         .into_any_element()
     }
@@ -2377,90 +2394,6 @@ impl DocumentsPage {
         v_flex().flex_none().children(rows).into_any_element()
     }
 
-    /// The live slide, fitted, with its video boxes (`DocumentSlidePreview`).
-    fn render_preview(
-        &self,
-        doc: &ProjectionDocument,
-        local: bool,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let k = *cx.kairo();
-        let path = doc.pages.get(self.page).cloned().unwrap_or_default();
-        let ratio = model::aspect(doc.slide_size.as_ref());
-        let boxes: Vec<AnyElement> = doc
-            .videos
-            .as_ref()
-            .and_then(|v| v.get(self.page))
-            .map(|videos| {
-                videos
-                    .iter()
-                    .enumerate()
-                    .map(|(i, v)| {
-                        let frame = div()
-                            .absolute()
-                            .left(gpui_kit::relative(v.frame.x as f32))
-                            .top(gpui_kit::relative(v.frame.y as f32))
-                            .w(gpui_kit::relative(v.frame.width as f32))
-                            .h(gpui_kit::relative(v.frame.height as f32));
-                        match &self.clips {
-                            // Hidden until played, as the outputs keep it.
-                            Some(clips) => {
-                                let shown = clips.visible.get(i).copied().unwrap_or(false);
-                                let image = clips
-                                    .players
-                                    .get(i)
-                                    .and_then(|p| p.read(cx).image().cloned());
-                                frame
-                                    .id(ids::clip(i))
-                                    .test_support()
-                                    .when_some(image.filter(|_| shown), |f, image| {
-                                        f.child(img(image).size_full().object_fit(ObjectFit::Fill))
-                                    })
-                                    .into_any_element()
-                            }
-                            None => frame
-                                .border_1()
-                                .border_color(k.hue(Hue::Cyan))
-                                .into_any_element(),
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        v_flex()
-            .id(ids::PREVIEW)
-            .test_support()
-            .flex_none()
-            .h(px(220.))
-            .children(local.then(|| {
-                div()
-                    .id(ids::PREVIEW_ONLY)
-                    .test_support()
-                    .px_3()
-                    .pt_2()
-                    .text_size(text::XS.size)
-                    .text_color(k.text(TextStep::T400))
-                    .child("Preview only · No output connected")
-            }))
-            .child(
-                h_flex().flex_1().min_h_0().justify_center().p_2().child(
-                    div()
-                        .relative()
-                        .h_full()
-                        .w(px(180. * ratio))
-                        .max_w_full()
-                        .bg(k.surface_display)
-                        .child(
-                            img(std::path::PathBuf::from(path))
-                                .size_full()
-                                .object_fit(ObjectFit::Contain),
-                        )
-                        .children(boxes),
-                ),
-            )
-            .into_any_element()
-    }
-
     fn render_grid(&mut self, doc: &ProjectionDocument, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
         let width = f32::from(self.grid_bounds.get().size.width);
@@ -2480,6 +2413,7 @@ impl DocumentsPage {
                 .scroll_to_item(self.page / columns, ScrollStrategy::Center);
         }
         let measured = self.grid_bounds.clone();
+        let view = cx.entity();
         let pages = Rc::new(doc.pages.clone());
         let (doc_id, is_pdf) = (doc.id.clone(), doc.format == DocumentFormat::Pdf);
         let has_video: Rc<Vec<bool>> = Rc::new(
@@ -2514,7 +2448,11 @@ impl DocumentsPage {
                                 (measured.get().size.width - bounds.size.width).abs() > px(0.5);
                             measured.set(bounds);
                             if resized {
-                                window.refresh();
+                                // Refreshing mid-draw is ignored, and a cached view would not redraw:
+                                // notify the view once this frame ends.
+                                window.on_next_frame(move |_, cx| {
+                                    view.update(cx, |_, cx| cx.notify())
+                                });
                             }
                         }
                     },
@@ -2617,9 +2555,12 @@ impl DocumentsPage {
         let k = *cx.kairo();
         let failed = p.failed();
         let percent = p.percent();
-        let icon = match p.format {
-            Some(DocumentFormat::Pdf) | None => KairoIcon::FileText,
-            _ => KairoIcon::Film,
+        // `DocumentImportModal.tsx`: a file tile (cyan PDF, orange slides)
+        // with a status badge, the title, the file name, then progress or
+        // the reason, and full-width buttons.
+        let (icon, tint) = match p.format {
+            Some(DocumentFormat::Pdf) | None => (KairoIcon::FileText, k.hue(Hue::Cyan)),
+            _ => (KairoIcon::Presentation, k.hue(Hue::Orange)),
         };
         let (cancel, retry, close) = (cx.entity(), cx.entity(), cx.entity());
         let body = if failed {
@@ -2628,9 +2569,11 @@ impl DocumentsPage {
                 .test_support()
                 .role(Role::Alert)
                 .mt_4()
-                .text_size(text::SM.size)
+                .text_center()
+                .text_size(px(13.))
+                .line_height(px(21.))
                 .text_color(k.text(TextStep::T400))
-                .child(p.error.clone().unwrap_or_default())
+                .child(p.error_line().unwrap_or_default())
                 .into_any_element()
         } else {
             v_flex()
@@ -2641,7 +2584,7 @@ impl DocumentsPage {
                         .id("documents-import-progress")
                         .role(Role::ProgressIndicator)
                         .aria_label("Import progress")
-                        .h(px(6.))
+                        .h(px(8.))
                         .w_full()
                         .rounded_full()
                         .bg(k.surface_tertiary)
@@ -2662,8 +2605,8 @@ impl DocumentsPage {
                 .child(
                     h_flex()
                         .justify_between()
-                        .text_size(text::XS.size)
-                        .text_color(k.text(TextStep::T400))
+                        .text_size(px(12.))
+                        .text_color(k.text(TextStep::T500))
                         .child(
                             div()
                                 .id(ids::IMPORT_LINE)
@@ -2674,28 +2617,32 @@ impl DocumentsPage {
                 )
                 .into_any_element()
         };
+        let wide = |b: Button| {
+            b.w_full()
+                .with_size(gpui_kit::component::Size::Medium)
+                .h(px(40.))
+                .text_size(px(13.))
+        };
         let buttons = if failed {
-            h_flex()
-                .mt_5()
+            v_flex()
+                .mt_6()
                 .gap_2()
-                .justify_end()
-                .child(
-                    Button::new(ids::IMPORT_CLOSE)
-                        .small()
-                        .label("Close")
-                        .on_click(move |_, _, cx| close.update(cx, |p, cx| p.close_import(cx))),
-                )
-                .child(
+                .child(wide(
                     Button::new(ids::IMPORT_RETRY)
-                        .small()
                         .primary()
                         .label("Choose file again")
                         .on_click(move |_, _, cx| retry.update(cx, |p, cx| p.retry_import(cx))),
-                )
+                ))
+                .child(wide(
+                    Button::new(ids::IMPORT_CLOSE)
+                        .secondary()
+                        .label("Close")
+                        .on_click(move |_, _, cx| close.update(cx, |p, cx| p.close_import(cx))),
+                ))
         } else {
-            h_flex().mt_5().justify_end().child(
+            v_flex().mt_6().child(wide(
                 Button::new(ids::IMPORT_CANCEL)
-                    .small()
+                    .secondary()
                     .label(if self.canceling {
                         "Canceling…"
                     } else {
@@ -2703,8 +2650,33 @@ impl DocumentsPage {
                     })
                     .disabled(self.canceling || p.finishing())
                     .on_click(move |_, _, cx| cancel.update(cx, |p, cx| p.cancel_import(cx))),
-            )
+            ))
         };
+        let badge = div()
+            .absolute()
+            .bottom(px(-8.))
+            .right(px(-8.))
+            .flex()
+            .items_center()
+            .justify_center()
+            .size(px(28.))
+            .rounded_full()
+            .border_4()
+            .border_color(k.surface_elevated)
+            .bg(if failed {
+                k.live
+            } else {
+                k.accent(kairo_ui_kit::tokens::Step::S500)
+            })
+            .text_color(k.on_accent)
+            .child(
+                Icon::new(if failed {
+                    KairoIcon::AlertCircle
+                } else {
+                    KairoIcon::Loader
+                })
+                .size(px(14.)),
+            );
         Some(modal(
             ids::IMPORT_DIALOG,
             p.title(),
@@ -2712,21 +2684,30 @@ impl DocumentsPage {
             self.dialog_focus.handle(),
             v_flex()
                 .items_center()
+                .text_center()
                 .child(
                     div()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .size_10()
-                        .rounded(radius::lg())
-                        .bg(k.tints.teal)
-                        .text_color(k.accent(kairo_ui_kit::tokens::Step::S300))
-                        .child(Icon::new(icon)),
+                        .relative()
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .w(px(96.))
+                                .h(px(64.))
+                                .rounded(radius::lg())
+                                .bg(k.surface_tertiary)
+                                .border_1()
+                                .border_color(k.white.opacity(0.1))
+                                .text_color(tint)
+                                .child(Icon::new(icon).size(px(28.))),
+                        )
+                        .child(badge),
                 )
                 .child(
                     div()
-                        .mt_3()
-                        .text_size(text::BASE.size)
+                        .mt_5()
+                        .text_size(px(17.))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(k.text_primary)
                         .child(p.title()),
@@ -2736,13 +2717,14 @@ impl DocumentsPage {
                         .mt_1()
                         .max_w_full()
                         .truncate()
-                        .text_size(text::XS.size)
+                        .text_size(px(12.))
                         .text_color(k.text(TextStep::T500))
                         .child(p.name_line().to_owned()),
                 )
                 .child(div().w_full().child(body))
                 .child(div().w_full().child(buttons))
                 .into_any_element(),
+            cx,
         ))
     }
 
@@ -2902,6 +2884,7 @@ impl DocumentsPage {
                         }),
                 )
                 .into_any_element(),
+            cx,
         ))
     }
 }
@@ -2912,8 +2895,9 @@ fn modal(
     k: kairo_ui_kit::KairoColors,
     focus: &FocusHandle,
     content: AnyElement,
+    cx: &gpui_kit::App,
 ) -> AnyElement {
-    deferred(
+    deferred(kairo_ui_kit::motion::enter(
         div()
             .absolute()
             .inset_0()
@@ -2921,7 +2905,8 @@ fn modal(
             .items_center()
             .justify_center()
             .p_4()
-            .bg(k.scrim())
+            // `backdrop:bg-black/35`.
+            .bg(gpui_kit::black().opacity(0.35))
             .occlude()
             .child(
                 v_flex()
@@ -2929,14 +2914,22 @@ fn modal(
                     .test_support()
                     .role(Role::Dialog)
                     .aria_label(label)
-                    .w(px(400.))
-                    .p_6()
+                    // `max-w-[380px] rounded-2xl`, `px-7 pt-7 pb-6`.
+                    .w(px(380.))
+                    .max_w_full()
+                    .px(px(28.))
+                    .pt(px(28.))
+                    .pb(px(24.))
                     .rounded(radius::xl2())
+                    .border_1()
+                    .border_color(k.white.opacity(0.08))
                     .bg(k.glass_modal())
                     .child(content)
                     .focus_trap(id, focus),
             ),
-    )
+        id,
+        cx,
+    ))
     .with_priority(2)
     .into_any_element()
 }

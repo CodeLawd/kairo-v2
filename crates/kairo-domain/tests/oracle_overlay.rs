@@ -472,10 +472,16 @@ fn output_kind_helpers_match() {
     let mut local = Vec::new();
     let mut follows = Vec::new();
     for kind in OverlayOutputKind::ALL {
-        label.push((
-            json!([kind.as_str()]),
-            json!(output_destination_label(*kind)),
-        ));
+        // Deliberate deviation (DECISIONS 113): a display output is
+        // "External display" here, "Kairo screen" in Electron.
+        let native = output_destination_label(*kind);
+        let electron = if *kind == OverlayOutputKind::Screen {
+            assert_eq!(native, "External display");
+            "Kairo screen"
+        } else {
+            native
+        };
+        label.push((json!([kind.as_str()]), json!(electron)));
         rendered.push((json!([kind.as_str()]), json!(is_rendered_kind(*kind))));
         local.push((json!([kind.as_str()]), json!(is_local_kind(*kind))));
         for source in OutputSource::ALL {

@@ -10,7 +10,7 @@ pub const ZOOM_MIN: f32 = 60.;
 pub const ZOOM_MAX: f32 = 200.;
 pub const ZOOM_DEFAULT: f32 = 100.;
 /// The tile's minimum width at 100 % (`--lyrics-card-min`).
-pub const CARD_MIN: f32 = 180.;
+pub const CARD_MIN: f32 = 240.;
 /// Grid gap (`.lyrics-slide-grid { gap: 8px }`).
 pub const GAP: f32 = 8.;
 
@@ -279,12 +279,13 @@ mod tests {
 
     #[test]
     fn layout_fills_columns_like_auto_fill() {
-        assert_eq!(layout(800., 100.).0, 4);
+        // 240 px cards at 100 % (DECISIONS 113).
+        assert_eq!(layout(800., 100.).0, 3);
         assert_eq!(layout(100., 100.), (1, 100.));
-        assert_eq!(layout(800., 200.).0, 2);
+        assert_eq!(layout(800., 200.).0, 1);
         let (c, w) = layout(1000., 60.);
-        assert_eq!(c, 8);
-        assert!((w * 8. + GAP * 7. - 1000.).abs() < 0.01);
+        assert_eq!(c, 6);
+        assert!((w * 6. + GAP * 5. - 1000.).abs() < 0.01);
     }
 
     #[test]

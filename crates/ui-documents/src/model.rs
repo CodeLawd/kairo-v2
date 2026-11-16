@@ -132,6 +132,27 @@ impl ImportProgress {
         }
     }
 
+    /// The failure in plain words: a missing system library or other
+    /// low-level detail never reaches the operator verbatim.
+    pub fn error_line(&self) -> Option<String> {
+        let error = self.error.as_deref()?;
+        let low = error.to_ascii_lowercase();
+        Some(
+            if low.contains("pdf rendering is unavailable")
+                || low.contains("loadlibraryerror")
+                || low.contains("dlopen")
+            {
+                "Kairo couldn’t load its PDF renderer. Reinstall Kairo, then import the file again."
+                    .into()
+            } else if error.len() > 220 || error.contains('{') {
+                "Kairo couldn’t read this file. Check that it opens on this computer, then try again."
+                    .into()
+            } else {
+                error.to_owned()
+            },
+        )
+    }
+
     pub fn name_line(&self) -> &str {
         if self.name.is_empty() {
             "PDF or PowerPoint"

@@ -1,0 +1,31 @@
+electron-updater 6.8.9, upgrading from 1.0.31, release dir $SCRATCH/live
+ok   macOS feed is newer than the installed version — 1.0.33
+FAIL macOS feed hidden from macOS 11 (Darwin 20.6.0) — offered=true; minimumSystemVersion=absent
+FAIL macOS feed hidden from macOS 12 (Darwin 21.6.0) — offered=true; minimumSystemVersion=absent
+ok   macOS feed offered on macOS 13 (Darwin 22.1.0)
+ok   macOS feed offered on macOS 26 (Darwin 25.0.0)
+ok   Squirrel path picks the Apple silicon zip — Kairo-1.0.33-arm64-mac.zip
+ok   self-update path picks the Apple silicon zip — https://github.com/CodeLawd/kairo-presenter/releases/download/v1.0.33/Kairo-1.0.33-arm64-mac.zip
+ok   Squirrel path picks the Intel zip — Kairo-1.0.33-mac.zip
+ok   self-update path picks the Intel zip — https://github.com/CodeLawd/kairo-presenter/releases/download/v1.0.33/Kairo-1.0.33-mac.zip
+ok   Rosetta (x64 Electron on Apple silicon) gets the arm64 zip through Squirrel
+ok   installed app read — /Applications/Kairo.app: com.kairo.app; identifier "com.kairo.app" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = YK7WF42S33
+FAIL Kairo-1.0.33-arm64-mac.zip matches the feed — Kairo-1.0.33-arm64-mac.zip is in the feed but not in $SCRATCH/live
+FAIL Kairo-1.0.33-arm64-mac.zip unpacks to one Kairo.app — Command failed: ditto -x -k $SCRATCH/live/Kairo-1.0.33-arm64-mac.zip $TMP/kairo-bridge/app
+ditto: $SCRATCH/live/Kairo-1.0.33-arm64-mac.zip: No such file or directory
+
+FAIL Kairo-1.0.33-mac.zip matches the feed — Kairo-1.0.33-mac.zip is in the feed but not in $SCRATCH/live
+FAIL Kairo-1.0.33-mac.zip unpacks to one Kairo.app — Command failed: ditto -x -k $SCRATCH/live/Kairo-1.0.33-mac.zip $TMP/kairo-bridge/app
+ditto: $SCRATCH/live/Kairo-1.0.33-mac.zip: No such file or directory
+
+ok   Windows feed is newer than the installed version — 1.0.33
+ok   NsisUpdater picks the installer — Kairo-Setup-1.0.33.exe
+FAIL installer matches the feed — Kairo-Setup-1.0.33.exe is in the feed but not in $SCRATCH/live
+ok   feed does not require elevation (per-user install, as Electron)
+ok   Linux feed is newer than the installed version — 1.0.33
+ok   AppImageUpdater picks the AppImage — Kairo-1.0.33.AppImage
+ok   DebUpdater picks the deb — kairo-presenter_1.0.33_amd64.deb
+FAIL AppImage matches the feed — Kairo-1.0.33.AppImage is in the feed but not in $SCRATCH/live
+FAIL deb matches the feed — kairo-presenter_1.0.33_amd64.deb is in the feed but not in $SCRATCH/live
+
+15 passed, 9 failed, 0 skipped

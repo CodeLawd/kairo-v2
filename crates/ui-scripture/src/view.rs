@@ -4,6 +4,7 @@
 //! virtualised by line), the selection bar and the queue dock
 //! (`QueueDock.tsx`). The live rail is the operator's, handed in by the app.
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverButtonTriggerExt;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::cell::Cell;
@@ -945,6 +946,7 @@ impl ScriptureWorkspace {
             div().flex_none().p_2().child(
                 div().id(ids::ITEM_FILTER).test_support().child(
                     Input::new(&self.filter)
+                        .kairo_size()
                         .small()
                         .prefix(Icon::new(KairoIcon::ScanSearch).size_3()),
                 ),
@@ -1139,7 +1141,10 @@ impl ScriptureWorkspace {
                         .p_2()
                         .child(
                             div().id(ids::RENAME).test_support().child(
-                                Input::new(&self.rename).small().aria_label("Playlist name"),
+                                Input::new(&self.rename)
+                                    .kairo_size()
+                                    .small()
+                                    .aria_label("Playlist name"),
                             ),
                         )
                         .child(
@@ -1566,8 +1571,10 @@ impl ScriptureWorkspace {
         } else {
             translation.clone()
         };
+        // Toolbar controls share the search field's 36 px height.
         let translation_select = Button::new(ids::TRANSLATION)
-            .small()
+            .with_size(gpui_kit::component::Size::Medium)
+            .h(px(36.))
             .w(px(96.))
             .label(label.clone())
             .dropdown_caret(true)
@@ -1621,6 +1628,7 @@ impl ScriptureWorkspace {
                                 .flex_1()
                                 .child(
                                     Input::new(&self.query)
+                                        .kairo_size()
                                         .small()
                                         .prefix(
                                             Icon::new(if loading {
@@ -1651,7 +1659,8 @@ impl ScriptureWorkspace {
                         )
                         .child(
                             Button::new(ids::RECENTS)
-                                .small()
+                                .with_size(gpui_kit::component::Size::Medium)
+                                .size(px(36.))
                                 .icon(Icon::new(KairoIcon::ChevronDown))
                                 .disabled(recents_empty)
                                 .accessibility_label("Recent lookups")
@@ -1941,7 +1950,9 @@ impl ScriptureWorkspace {
         Popover::new(ids::OPTIONS)
             .button_trigger(
                 Button::new("scripture-options-trigger")
-                    .small()
+                    .with_size(gpui_kit::component::Size::Medium)
+                    .h(px(36.))
+                    .px(px(12.))
                     .icon(Icon::new(KairoIcon::SlidersHorizontal))
                     .label("Options")
                     .accessibility_label("Scripture options"),
@@ -2180,6 +2191,7 @@ impl ScriptureWorkspace {
             .collect();
         self.lines = Rc::new(lines);
         let measured = self.grid_width.clone();
+        let view = cx.entity();
         div()
             .relative()
             .flex_1()
@@ -2190,7 +2202,9 @@ impl ScriptureWorkspace {
                         let w = f32::from(bounds.size.width);
                         if (measured.get() - w).abs() > 0.5 {
                             measured.set(w);
-                            window.refresh();
+                            // Refreshing mid-draw is ignored, and a cached view would not redraw:
+                            // notify the view once this frame ends.
+                            window.on_next_frame(move |_, cx| view.update(cx, |_, cx| cx.notify()));
                         }
                     },
                     |_, _, _, _| {},
@@ -2306,6 +2320,7 @@ impl ScriptureWorkspace {
                                 .slide(reference, body.map(Into::into))
                                 .number(local + 1)
                                 .size(w, slide_h)
+                                .background(options.background.clone())
                                 .live(cue && flat == active)
                                 .current(picks.contains(&flat) || flat == active)
                                 .sending(card.send_status == SendStatus::Sending)

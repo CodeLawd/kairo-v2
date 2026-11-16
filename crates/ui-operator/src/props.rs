@@ -13,6 +13,7 @@
 //! driven by one 250 ms clock, which only asks for a frame while a timer
 //! object is in view.
 
+use kairo_ui_kit::ControlSize;
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -1979,7 +1980,7 @@ impl PropsEditor {
             .child(group(
                 title,
                 vec![
-                    row("Name", div().w(px(140.)).child(Input::new(&self.name).small().aria_label(format!("{title} name"))).into_any_element(), cx),
+                    row("Name", div().w(px(140.)).child(Input::new(&self.name).kairo_size().small().aria_label(format!("{title} name"))).into_any_element(), cx),
                     row("Background", h_flex().gap_1p5().child(switch).children(background_color).into_any_element(), cx),
                 ],
                 cx,

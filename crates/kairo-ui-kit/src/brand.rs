@@ -266,6 +266,30 @@ trait TaglineExt: ParentElement + Sized {
 
 impl<E: ParentElement> TaglineExt for E {}
 
+const GOOGLE_SVG: &[u8] = include_bytes!("../assets/brand/google.svg");
+
+struct GoogleLogo(Arc<gpui_kit::Image>);
+impl Global for GoogleLogo {}
+
+/// The Google "G" on a white tile (`ProviderLogo id="google"`): 32 px,
+/// square corners, the mark at 18 px. Decorative; the button names it.
+pub fn google_logo(cx: &mut App) -> impl IntoElement {
+    if !cx.has_global::<GoogleLogo>() {
+        let image = gpui_kit::Image::from_bytes(gpui_kit::ImageFormat::Svg, GOOGLE_SVG.to_vec());
+        cx.set_global(GoogleLogo(Arc::new(image)));
+    }
+    let image = cx.global::<GoogleLogo>().0.clone();
+    div()
+        .flex()
+        .flex_none()
+        .items_center()
+        .justify_center()
+        .size(px(32.))
+        .overflow_hidden()
+        .bg(gpui_kit::white())
+        .child(img(image).size(px(18.)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

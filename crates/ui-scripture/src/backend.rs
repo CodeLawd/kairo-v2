@@ -26,6 +26,20 @@ pub struct SlideOptions {
     pub max_verses: f64,
     /// `scripture.defaultTranslation`.
     pub default_translation: String,
+    /// The main output's scripture-theme background, drawn under each card.
+    pub background: CardBackground,
+}
+
+/// What a verse card draws under its text: the projected theme's background
+/// (an image, else a solid colour), or the checkerboard when transparent.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CardBackground {
+    /// `0xRRGGBB`.
+    pub color: Option<u32>,
+    /// A still image's file path.
+    pub image: Option<String>,
+    /// The background's opacity, 0 to 1.
+    pub opacity: f32,
 }
 
 impl Default for SlideOptions {
@@ -35,6 +49,7 @@ impl Default for SlideOptions {
             show_translation: true,
             max_verses: 0.0,
             default_translation: kairo_domain::settings::DEFAULT_TRANSLATION_ID.into(),
+            background: CardBackground::default(),
         }
     }
 }

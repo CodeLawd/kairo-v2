@@ -92,8 +92,15 @@ fn choices(
         .unwrap_or_else(|| value.to_owned());
     let change = std::rc::Rc::new(change);
     let value = value.to_owned();
+    // A select (`input`): full width, the choice on the left, a caret on the right.
+    // Electron's `.input` select: filled, 36 px tall, 12 px a side.
     Button::new(id)
-        .small()
+        .secondary()
+        .with_size(gpui_kit::component::Size::Medium)
+        .h(px(36.))
+        .px(px(12.))
+        .w_full()
+        .dropdown_caret(true)
         .label(current)
         .accessibility_label(label.to_owned())
         .popover_trigger()
@@ -351,32 +358,30 @@ impl ScreensWindow {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let mut body = v_flex().gap_4();
-        let e = cx.entity();
-        let id = o.id.clone();
-        body = body.child(row(
-            "Enabled",
-            toggle(
-                "screens-enabled",
-                "Enabled",
-                o.enabled,
-                false,
-                move |v, w, cx| {
-                    e.update(cx, |t, cx| {
-                        t.output_patch(id.clone(), json!({"enabled":v}), w, cx)
-                    })
-                },
-            ),
-        ));
         match tab {
             "display" => {
-                body = body.child(field(
+                // Electron's grid: Output | Fit, then Content in the left column.
+                let half = |el: AnyElement| div().flex_1().min_w_0().child(el);
+                let output = field(
                     "Output",
                     self.display_picker(o.display_id, &o.display_label, &o.display_size, cx),
-                ));
-                if o.source != OutputSource::Playlist {
-                    body = body.child(self.fit(o, window, cx));
-                }
-                body = body.child(self.source(o, window, cx));
+                );
+                let fit = (o.source != OutputSource::Playlist).then(|| self.fit(o, window, cx));
+                body = body
+                    .child(
+                        h_flex()
+                            .gap_4()
+                            .items_start()
+                            .child(half(output))
+                            .child(half(fit.unwrap_or_else(|| div().into_any_element()))),
+                    )
+                    .child(
+                        h_flex()
+                            .gap_4()
+                            .items_start()
+                            .child(half(self.source(o, window, cx)))
+                            .child(half(div().into_any_element())),
+                    );
             }
             "hardware" => body = body.child(self.hardware(o, window, cx)),
             "look" => {
@@ -510,29 +515,35 @@ impl ScreensWindow {
             },
         );
         let mut body = v_flex().gap_2().child(
-            h_flex().gap_2().child(field("Fit", fit)).child(
-                Button::new("screens-frame")
-                    .small()
-                    .icon(KairoIcon::MonitorPlay)
-                    .accessibility_label("Show the frame on this display")
-                    .disabled(o.display_id.is_none() || self.busy)
-                    .on_click({
-                        let o = o.clone();
-                        cx.listener(move |t, _, _, cx| {
-                            if let Some(display_id) = o.display_id {
-                                t.run(
-                                    Command::Frame(TestPatternInput {
-                                        display_id,
-                                        name: o.name.clone(),
-                                        aspect: o.aspect,
-                                        custom_aspect: o.custom_aspect.clone(),
-                                    }),
-                                    cx,
-                                )
-                            }
-                        })
-                    }),
-            ),
+            h_flex()
+                .items_end()
+                .gap_2()
+                .child(div().flex_1().min_w_0().child(field("Fit", fit)))
+                .child(
+                    Button::new("screens-frame")
+                        .secondary()
+                        .with_size(gpui_kit::component::Size::Medium)
+                        .size(px(36.))
+                        .icon(KairoIcon::MonitorPlay)
+                        .accessibility_label("Show the frame on this display")
+                        .disabled(o.display_id.is_none() || self.busy)
+                        .on_click({
+                            let o = o.clone();
+                            cx.listener(move |t, _, _, cx| {
+                                if let Some(display_id) = o.display_id {
+                                    t.run(
+                                        Command::Frame(TestPatternInput {
+                                            display_id,
+                                            name: o.name.clone(),
+                                            aspect: o.aspect,
+                                            custom_aspect: o.custom_aspect.clone(),
+                                        }),
+                                        cx,
+                                    )
+                                }
+                            })
+                        }),
+                ),
         );
         if o.aspect == OutputAspect::Custom {
             for (key, label, value) in [
@@ -706,29 +717,6 @@ impl ScreensWindow {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let mut body = v_flex().gap_4();
-        let e = cx.entity();
-        let id = s.id.clone();
-        body = body.child(row(
-            "Enabled",
-            toggle(
-                "screens-enabled",
-                "Enabled",
-                s.enabled,
-                false,
-                move |v, w, cx| {
-                    e.update(cx, |t, cx| {
-                        t.edit(
-                            Edit::Stage {
-                                id: id.clone(),
-                                patch: json!({"enabled":v}),
-                            },
-                            w,
-                            cx,
-                        )
-                    })
-                },
-            ),
-        ));
         if tab == "display" {
             body = body.child(field(
                 "Output",
@@ -848,37 +836,54 @@ impl ScreensWindow {
     ) -> AnyElement {
         let snapshot = self.snapshot.as_ref().unwrap().devices.clone();
         let port = snapshot.ports.iter().find(|p| p.id == o.device_port_id);
-        let mut body = v_flex().gap_4();
-        for provider in &snapshot.providers {
-            if let Some(version) = &provider.status.version {
-                body = body.child(muted(format!("Desktop Video {version}"), cx));
-            }
-            if let Some(driver) = &provider.status.driver {
-                body = body.child(muted(driver.message.clone(), cx));
-                if matches!(
-                    driver.state,
-                    kairo_domain::video_devices::DriverState::Missing
-                        | kairo_domain::video_devices::DriverState::Unsupported
-                ) {
-                    body = body.child(
-                        Button::new("screens-driver-download")
-                            .small()
-                            .label("Open download page")
-                            .on_click(|_, _, cx| {
-                                cx.open_url("https://www.blackmagicdesign.com/support/")
-                            }),
-                    );
-                }
-            } else if let Some(reason) = &provider.status.reason {
-                body = body.child(muted(reason.clone(), cx));
+        let k = *cx.kairo();
+        let mut body = v_flex().gap_5();
+        // `DriverNotice`: the driver's own message, and the download page
+        // when it is missing or too old.
+        let driver = snapshot
+            .providers
+            .iter()
+            .find(|p| p.name == "decklink")
+            .and_then(|p| p.status.driver.clone());
+        let driver_explains = driver.as_ref().is_some_and(|d| {
+            matches!(
+                d.state,
+                kairo_domain::video_devices::DriverState::Missing
+                    | kairo_domain::video_devices::DriverState::Unsupported
+            )
+        });
+        if let Some(driver) = &driver {
+            body = body.child(
+                div()
+                    .text_size(px(12.))
+                    .text_color(if driver_explains {
+                        k.warning_text
+                    } else {
+                        k.text(TextStep::T400)
+                    })
+                    .child(driver.message.clone()),
+            );
+            if driver_explains {
+                body = body.child(
+                    Button::new("screens-driver-download")
+                        .small()
+                        .label("Open download page")
+                        .on_click(|_, _, cx| {
+                            cx.open_url("https://www.blackmagicdesign.com/support/")
+                        }),
+                );
             }
         }
-        if snapshot.providers.is_empty() {
-            body = body.child(muted(
-                "This version of Kairo cannot drive video cards yet",
-                cx,
-            ));
-        }
+        let available = snapshot.providers.iter().any(|p| p.status.available);
+        let provider_reason = if snapshot.providers.is_empty() {
+            "This version of Kairo cannot drive video cards yet".to_owned()
+        } else {
+            snapshot
+                .providers
+                .iter()
+                .find_map(|p| p.status.reason.clone().filter(|r| !r.is_empty()))
+                .unwrap_or_else(|| "Install Blackmagic Desktop Video to use DeckLink cards".into())
+        };
         let mut options = vec![Choice::new("", "Choose an output")];
         for p in &snapshot.ports {
             options.push(
@@ -915,11 +920,39 @@ impl ScreensWindow {
         let e = cx.entity();
         let id = o.id.clone();
         let ports = snapshot.ports.clone();
-        body=body.child(h_flex().gap_2().items_end().child(field("Output",choices("screens-port","Output",&o.device_port_id,options,move |value,w,cx|{
-            let port=ports.iter().find(|p|p.id==value);let patch=json!({"devicePortId":value,"devicePortLabel":port.map(|p|format!("{} · {}",p.device_name,p.port_name)).unwrap_or_default(),"deviceModeId":port.and_then(|p|p.modes.first()).map(|m|m.id.clone()).unwrap_or_default(),"deviceKeyFill":false});
-            e.update(cx,|t,cx|t.output_patch(id.clone(),patch,w,cx));
-        }))).child(Button::new("screens-refresh").small().ghost().icon(KairoIcon::RefreshCw).accessibility_label("Look for video cards again").loading(self.refreshing && !cx.reduced_motion()).loading_icon(KairoIcon::RefreshCw).disabled(self.refreshing).on_click(cx.listener(|t,_,_,cx|t.run(Command::RefreshCards,cx)))));
-        if let Some(port) = port {
+        let output_field = field(
+            "Output",
+            h_flex()
+                .gap_2()
+                .child(div().flex_1().min_w_0().child(choices(
+                    "screens-port",
+                    "Output",
+                    &o.device_port_id,
+                    options,
+                    move |value, w, cx| {
+                        let port = ports.iter().find(|p| p.id == value);
+                        let patch = json!({
+                            "devicePortId": value,
+                            "devicePortLabel": port.map(|p| format!("{} · {}", p.device_name, p.port_name)).unwrap_or_default(),
+                            "deviceModeId": port.and_then(|p| p.modes.first()).map(|m| m.id.clone()).unwrap_or_default(),
+                            "deviceKeyFill": false,
+                        });
+                        e.update(cx, |t, cx| t.output_patch(id.clone(), patch, w, cx));
+                    },
+                )))
+                .child(
+                    Button::new("screens-refresh")
+                        .small()
+                        .icon(KairoIcon::RefreshCw)
+                        .accessibility_label("Look for video cards again")
+                        .tooltip("Look for video cards again")
+                        .loading(self.refreshing && !cx.reduced_motion())
+                        .loading_icon(KairoIcon::RefreshCw)
+                        .disabled(self.refreshing)
+                        .on_click(cx.listener(|t, _, _, cx| t.run(Command::RefreshCards, cx))),
+                ),
+        );
+        let mode_field = port.map(|port| {
             let mut options = vec![Choice::new("", "Choose a mode")];
             for mode in &port.modes {
                 options.push(Choice::new(mode.id.clone(), mode.label.clone()));
@@ -931,18 +964,11 @@ impl ScreensWindow {
                         .disabled(true),
                 );
             }
-            body = body.child(field(
+            field(
                 "Mode",
                 self.output_choice(o, "deviceModeId", "Mode", &o.device_mode_id, options, cx),
-            ));
-            if port.supports_key_fill {
-                body = body.child(row(
-                    "Key/fill",
-                    self.output_toggle(o, "deviceKeyFill", "Key/fill", o.device_key_fill, cx),
-                ));
-            }
-        }
-        body = body.child(self.source(o, window, cx));
+            )
+        });
         let state = snapshot.outputs.get(&o.id);
         let ready = state.is_some_and(|s| s.ready);
         let current = state
@@ -951,25 +977,33 @@ impl ScreensWindow {
             .unwrap_or("off");
         let e = cx.entity();
         let id = o.id.clone();
-        body = body.child(field(
+        let busy = self.busy;
+        let pattern_field = field(
             "Test pattern",
-            div().when(!ready, |d| d.opacity(0.4)).child(choices(
-                "screens-card-pattern",
-                "Test pattern",
-                current,
-                [
-                    ("off", "Off"),
-                    ("bars", "Color bars"),
-                    ("text", "Fine text"),
-                    ("motion", "Motion"),
-                ]
-                .into_iter()
-                .map(|(v, l)| Choice::new(v, l).disabled(!ready || self.busy))
-                .collect(),
-                move |value, _, cx| {
+            div().when(!ready || busy, |d| d.opacity(0.4)).child(
+                kairo_ui_kit::components::SegmentedControl::new(
+                    "screens-card-pattern",
+                    "Test pattern",
+                )
+                .fit()
+                .selected(current.to_owned())
+                .options(
+                    [
+                        ("off", "Off"),
+                        ("bars", "Color bars"),
+                        ("text", "Fine text"),
+                        ("motion", "Motion"),
+                    ]
+                    .into_iter()
+                    .map(|(v, l)| kairo_ui_kit::components::SegmentOption::new(v, l)),
+                )
+                .on_change(move |value, _, cx| {
+                    if !ready || busy {
+                        return;
+                    }
                     let pattern = kairo_domain::video_devices::VideoTestPattern::ALL
                         .iter()
-                        .find(|p| p.as_str() == value)
+                        .find(|p| p.as_str() == value.as_ref())
                         .copied();
                     e.update(cx, |t, cx| {
                         t.run(
@@ -980,59 +1014,177 @@ impl ScreensWindow {
                             cx,
                         )
                     });
-                },
-            )),
-        ));
-        if !ready {
-            body = body.child(muted(
-                state.map(|s| s.reason.clone()).unwrap_or_else(|| {
-                    if snapshot.ports.is_empty() {
-                        "No video cards detected"
-                    } else {
-                        "Choose an output"
-                    }
-                    .into()
                 }),
-                cx,
+            ),
+        );
+        let half = |el: AnyElement| div().flex_1().min_w_0().child(el);
+        body = body
+            .child(
+                h_flex()
+                    .gap_4()
+                    .items_start()
+                    .child(half(output_field))
+                    .child(half(mode_field.unwrap_or_else(|| div().into_any_element()))),
+            )
+            .child(
+                h_flex()
+                    .gap_4()
+                    .items_start()
+                    .child(half(self.source(o, window, cx)))
+                    .child(half(pattern_field)),
+            );
+        if let Some(port) = port
+            && port.supports_key_fill
+        {
+            body = body.child(row(
+                "Key/fill",
+                self.output_toggle(o, "deviceKeyFill", "Key/fill", o.device_key_fill, cx),
             ));
         }
+        // Only a problem earns a line; a healthy output says nothing.
+        if !ready && !driver_explains {
+            body = body.child(
+                div()
+                    .id("screens-card-problem")
+                    .test_support()
+                    .role(Role::Status)
+                    .text_size(px(13.))
+                    .text_color(k.warning_text)
+                    .child(if !available {
+                        provider_reason
+                    } else {
+                        state
+                            .map(|s| s.reason.clone())
+                            .filter(|r| !r.is_empty())
+                            .unwrap_or_else(|| {
+                                if snapshot.ports.is_empty() {
+                                    "No video cards detected"
+                                } else {
+                                    "Choose an output"
+                                }
+                                .into()
+                            })
+                    }),
+            );
+        }
+        // `SignalDetails`: one line folded, the counters unfolded.
         let diagnostics = state.and_then(|s| s.diagnostics.as_ref());
         let hardware = diagnostics.and_then(|s| s.hardware.as_ref());
-        let summary = hardware
-            .map(|h| {
-                if h.late + h.dropped > 0. {
-                    format!("{} late · {} dropped", h.late, h.dropped)
-                } else {
-                    format!("Smooth · {:.1} fps", h.output_fps)
-                }
-            })
-            .unwrap_or("Waiting for the card".into());
-        body = body.child(muted(format!("Signal · {summary}"), cx));
-        if let Some(d) = diagnostics {
-            body = body.child(muted(format!("Rendered {:.1} fps", d.capture_fps), cx));
-            if let Some(h) = hardware {
-                body = body.child(muted(
-                    format!(
-                        "Sent to card {:.1} fps · Late {} · Dropped {} · Repeated {}",
-                        h.output_fps, h.late, h.dropped, h.repeated
-                    ),
-                    cx,
-                ));
-            }
-        }
-        if let Some(mode) = port.and_then(|p| p.modes.iter().find(|m| m.id == o.device_mode_id)) {
-            let fps = mode.frame_rate_n / mode.frame_rate_d;
-            body = body.child(muted(
-                format!(
-                    "Target {fps:.2} fps{}",
-                    if mode.interlaced {
-                        format!(" · {:.2} fields/s", fps * 2.)
-                    } else {
-                        String::new()
-                    }
+        let missed = hardware.map_or(0., |h| h.late + h.dropped);
+        let summary = match hardware {
+            None => "Waiting for the card".to_owned(),
+            Some(h) if missed > 0. => format!("{} late · {} dropped", h.late, h.dropped),
+            Some(h) => format!("Smooth · {:.1} fps", h.output_fps),
+        };
+        let mode = port.and_then(|p| p.modes.iter().find(|m| m.id == o.device_mode_id));
+        let fmt = |fps: f64| {
+            let text = format!("{fps:.2}");
+            text.trim_end_matches('0').trim_end_matches('.').to_owned()
+        };
+        let open = self.signal_open;
+        body = body.child(
+            h_flex()
+                .id("screens-signal")
+                .test_support()
+                .role(Role::Button)
+                .aria_label(SharedString::from(format!("Signal: {summary}")))
+                .gap_3()
+                .items_center()
+                .cursor_pointer()
+                .on_click(cx.listener(|t, _, _, cx| {
+                    t.signal_open = !t.signal_open;
+                    cx.notify();
+                }))
+                .child(
+                    h_flex()
+                        .gap_1()
+                        .items_center()
+                        .text_size(px(13.))
+                        .text_color(k.text(TextStep::T300))
+                        .child(
+                            gpui_kit::component::Icon::new(if open {
+                                KairoIcon::ChevronDown
+                            } else {
+                                KairoIcon::ChevronRight
+                            })
+                            .size(px(12.)),
+                        )
+                        .child("Signal"),
+                )
+                .child(
+                    div()
+                        .text_size(px(12.))
+                        .text_color(if missed > 0. {
+                            k.warning_text
+                        } else {
+                            k.text(TextStep::T300)
+                        })
+                        .child(summary),
                 ),
-                cx,
-            ));
+        );
+        if open {
+            let dash = || "—".to_owned();
+            let cells: [(&str, String); 6] = [
+                (
+                    "Rendered",
+                    diagnostics.map_or_else(dash, |d| format!("{:.1} fps", d.capture_fps)),
+                ),
+                (
+                    "Sent to card",
+                    hardware.map_or_else(dash, |h| format!("{:.1} fps", h.output_fps)),
+                ),
+                (
+                    "Target",
+                    mode.map_or_else(dash, |m| {
+                        let fps = m.frame_rate_n / m.frame_rate_d;
+                        format!(
+                            "{} fps{}",
+                            fmt(fps),
+                            if m.interlaced {
+                                format!(" · {} fields/s", fmt(fps * 2.))
+                            } else {
+                                String::new()
+                            }
+                        )
+                    }),
+                ),
+                ("Late", hardware.map_or_else(dash, |h| h.late.to_string())),
+                (
+                    "Dropped",
+                    hardware.map_or_else(dash, |h| h.dropped.to_string()),
+                ),
+                (
+                    "Repeated",
+                    hardware.map_or_else(dash, |h| h.repeated.to_string()),
+                ),
+            ];
+            let mut grid = v_flex()
+                .gap_3()
+                .rounded(radius::md())
+                .bg(k.surface)
+                .p_3()
+                .text_size(px(12.));
+            for pair in cells.chunks(3) {
+                let mut line = h_flex().gap_4();
+                for (label, value) in pair {
+                    line = line.child(
+                        v_flex()
+                            .flex_1()
+                            .child(
+                                div()
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(label.to_string()),
+                            )
+                            .child(
+                                div()
+                                    .text_color(k.text(TextStep::T200))
+                                    .child(value.clone()),
+                            ),
+                    );
+                }
+                grid = grid.child(line);
+            }
+            body = body.child(grid);
         }
         body.into_any_element()
     }
@@ -1147,7 +1299,7 @@ impl ScreensWindow {
                 o.kind != OverlayOutputKind::Device
                     || snapshot.outputs.get(&o.id).is_some_and(|(ready, _)| *ready)
             }),
-            "Add a Kairo screen, video card or NDI feed in the Screens list and turn it on."
+            "Add an external display, video card or NDI feed in the Screens list and turn it on."
                 .to_string(),
         )];
         for o in &enabled {

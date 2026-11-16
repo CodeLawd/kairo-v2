@@ -1,0 +1,805 @@
+2026-11-16T08:56:02.265738Z  INFO making fixtures in /var/folders/19/4x5l2wkn5mz6xm36t7pdwyt80000gn/T/kairo-soak-54892
+2026-11-16T08:56:05.250293Z  INFO PCM relay stream created
+2026-11-16T08:56:05.250295Z  INFO deepgram configured language="en" keyterms=0
+2026-11-16T08:56:05.250316Z  INFO deepgram audio stream attached
+2026-11-16T08:56:05.250321Z  INFO opening deepgram socket attempt=0
+2026-11-16T08:56:05.250804Z  INFO deepgram socket open attempt=0
+2026-11-16T08:56:05.309905Z  INFO engine 0.1.0 listening, protocol 9, pid 54933 pid=54933
+2026-11-16T08:56:05.311484Z  INFO output engine 0.1.0 handshake, protocol 9
+2026-11-16T08:56:05.311494Z  INFO client 1 connected pid=54933
+2026-11-16T08:56:05.311544Z  INFO output engine running pid=54933 relaunch=false
+2026-11-16T08:56:05.311799Z  INFO NDI runtime loaded version="NDI SDK APPLE 12:49:17 Apr 13 2026 6.3.2.0" path=/Library/NDI SDK for Apple/lib/macOS/libndi.dylib pid=54933
+2026-11-16T08:56:05.317921Z  INFO NDI sender created name="Kairo Scripture" pid=54933
+2026-11-16T08:56:05.339832Z  INFO 1 display(s) pid=54933
+2026-11-16T08:56:05.415684Z  INFO compositor GPU: Apple M2 Pro pid=54933
+2026-11-16T08:56:05.423252Z  INFO extra NDI sender added output="ndi-a" name="Kairo Soak chaos A" pid=54933
+2026-11-16T08:56:05.423275Z  INFO NDI output open output="ndi-a" name="Kairo Soak chaos A" pid=54933
+2026-11-16T08:56:05.423283Z  INFO extra NDI sender added output="ndi-b" name="Kairo Soak chaos B" pid=54933
+2026-11-16T08:56:05.423288Z  INFO NDI output open output="ndi-b" name="Kairo Soak chaos B" pid=54933
+2026-11-16T08:56:05.423832Z  INFO Syphon server started name="Kairo Soak chaos" pid=54933
+2026-11-16T08:56:05.423848Z  INFO Syphon server publishing output="syphon" name="Kairo Soak chaos" pid=54933
+2026-11-16T08:56:05.424927Z  INFO NDI sender created name="Kairo Soak chaos A" pid=54933
+2026-11-16T08:56:05.425586Z  INFO NDI sender created name="Kairo Soak chaos B" pid=54933
+2026-11-16T08:56:05.442695Z  INFO video card output open output="card" raster=(1920, 1080) ring=true pid=54933
+2026-11-16T08:56:05.445005Z  INFO outputs ready: ["screen", "ndi-a", "ndi-b", "syphon", "card"]; unavailable: []; web on Some("ndi-b")
+2026-11-16T08:56:05.668154Z  INFO slide text committed output="syphon" seq=32 push_to_commit_ms="117.09" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:05.671509Z  INFO slide text committed output="card" seq=33 push_to_commit_ms="120.42" build_ms="0.11" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:05.677352Z  INFO slide text committed output="ndi-b" seq=31 push_to_commit_ms="126.33" build_ms="0.10" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:05.681959Z  INFO slide text committed output="screen" seq=29 push_to_commit_ms="131.02" build_ms="0.09" raster_ms="104.34" cached=false pid=54933
+2026-11-16T08:56:05.685623Z  INFO slide text committed output="ndi-a" seq=30 push_to_commit_ms="134.65" build_ms="0.06" raster_ms="103.68" cached=false pid=54933
+2026-11-16T08:56:05.765122Z  INFO video opened path=/var/folders/19/4x5l2wkn5mz6xm36t7pdwyt80000gn/T/kairo-soak-54892/background-1080p30.mp4 backend=Hardware("videotoolbox") width=1920 height=1080 pid=54933
+2026-11-16T08:56:07.311014Z  INFO web display latency (software, excludes capture sampling and scanout) samples=48 capture_p99_ms=175.928 compose_p99_ms=16.739 request_to_present_p50_ms=16.39 request_to_present_p99_ms=181.695 pid=54933
+2026-11-16T08:56:09.311066Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.095 compose_p99_ms=16.821 request_to_present_p50_ms=17.054 request_to_present_p99_ms=20.631 pid=54933
+2026-11-16T08:56:11.311222Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.515 compose_p99_ms=15.863 request_to_present_p50_ms=16.83 request_to_present_p99_ms=20.065 pid=54933
+2026-11-16T08:56:13.311262Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=13.361 compose_p99_ms=19.342 request_to_present_p50_ms=17.075 request_to_present_p99_ms=30.05 pid=54933
+2026-11-16T08:56:13.636501Z  INFO slide text committed output="screen" seq=34 push_to_commit_ms="8.88" build_ms="0.07" raster_ms="6.22" cached=false pid=54933
+2026-11-16T08:56:13.638687Z  INFO slide text committed output="syphon" seq=37 push_to_commit_ms="10.93" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:13.640270Z  INFO slide text committed output="card" seq=38 push_to_commit_ms="12.50" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:13.642400Z  INFO slide text committed output="ndi-b" seq=36 push_to_commit_ms="14.69" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:13.649197Z  INFO slide text committed output="ndi-a" seq=35 push_to_commit_ms="21.53" build_ms="0.05" raster_ms="6.34" cached=false pid=54933
+2026-11-16T08:56:15.311345Z  INFO web display latency (software, excludes capture sampling and scanout) samples=57 capture_p99_ms=11.515 compose_p99_ms=78.986 request_to_present_p50_ms=17.052 request_to_present_p99_ms=87.971 pid=54933
+2026-11-16T08:56:17.311393Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=17.678 compose_p99_ms=21.799 request_to_present_p50_ms=15.383 request_to_present_p99_ms=25.322 pid=54933
+2026-11-16T08:56:19.311501Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=16.642 compose_p99_ms=19.815 request_to_present_p50_ms=15.161 request_to_present_p99_ms=23.676 pid=54933
+2026-11-16T08:56:21.311620Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.871 compose_p99_ms=17.884 request_to_present_p50_ms=14.837 request_to_present_p99_ms=22.15 pid=54933
+2026-11-16T08:56:21.707490Z  INFO slide text committed output="syphon" seq=42 push_to_commit_ms="12.80" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:21.710436Z  INFO slide text committed output="card" seq=43 push_to_commit_ms="15.71" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:21.714756Z  INFO slide text committed output="ndi-b" seq=41 push_to_commit_ms="20.12" build_ms="0.04" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:21.714792Z  INFO slide text committed output="ndi-a" seq=40 push_to_commit_ms="20.19" build_ms="0.05" raster_ms="8.56" cached=false pid=54933
+2026-11-16T08:56:23.311817Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.615 compose_p99_ms=17.158 request_to_present_p50_ms=16.693 request_to_present_p99_ms=21.267 pid=54933
+2026-11-16T08:56:25.311860Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=13.894 compose_p99_ms=21.852 request_to_present_p50_ms=17.06 request_to_present_p99_ms=25.769 pid=54933
+2026-11-16T08:56:25.834147Z  INFO slide text committed output="screen" seq=39 push_to_commit_ms="4139.63" build_ms="0.06" raster_ms="8.55" cached=false pid=54933
+2026-11-16T08:56:27.314069Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=19.776 compose_p99_ms=31.865 request_to_present_p50_ms=16.644 request_to_present_p99_ms=42.719 pid=54933
+2026-11-16T08:56:29.316337Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.491 compose_p99_ms=18.396 request_to_present_p50_ms=16.64 request_to_present_p99_ms=23.697 pid=54933
+2026-11-16T08:56:29.773612Z  INFO slide text committed output="screen" seq=44 push_to_commit_ms="11.11" build_ms="0.07" raster_ms="7.25" cached=false pid=54933
+2026-11-16T08:56:29.776316Z  INFO slide text committed output="syphon" seq=47 push_to_commit_ms="13.65" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:29.778111Z  INFO slide text committed output="card" seq=48 push_to_commit_ms="15.41" build_ms="0.04" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:29.782936Z  INFO slide text committed output="ndi-b" seq=46 push_to_commit_ms="20.31" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:29.783358Z  INFO slide text committed output="ndi-a" seq=45 push_to_commit_ms="20.79" build_ms="0.06" raster_ms="7.25" cached=false pid=54933
+2026-11-16T08:56:31.316555Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.529 compose_p99_ms=17.806 request_to_present_p50_ms=16.416 request_to_present_p99_ms=22.155 pid=54933
+2026-11-16T08:56:33.317356Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.737 compose_p99_ms=19.06 request_to_present_p50_ms=16.377 request_to_present_p99_ms=23.727 pid=54933
+2026-11-16T08:56:35.318174Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.672 compose_p99_ms=17.373 request_to_present_p50_ms=16.837 request_to_present_p99_ms=21.804 pid=54933
+2026-11-16T08:56:37.318873Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.047 compose_p99_ms=18.019 request_to_present_p50_ms=16.541 request_to_present_p99_ms=22.267 pid=54933
+2026-11-16T08:56:37.826858Z  INFO slide text committed output="syphon" seq=52 push_to_commit_ms="17.16" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:37.828353Z  INFO slide text committed output="card" seq=53 push_to_commit_ms="18.66" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:37.830999Z  INFO slide text committed output="ndi-b" seq=51 push_to_commit_ms="21.40" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:37.832425Z  INFO slide text committed output="screen" seq=49 push_to_commit_ms="22.98" build_ms="0.08" raster_ms="7.47" cached=false pid=54933
+2026-11-16T08:56:37.835792Z  INFO slide text committed output="ndi-a" seq=50 push_to_commit_ms="26.25" build_ms="0.06" raster_ms="7.68" cached=false pid=54933
+2026-11-16T08:56:39.319688Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.028 compose_p99_ms=16.885 request_to_present_p50_ms=16.768 request_to_present_p99_ms=21.078 pid=54933
+2026-11-16T08:56:41.320163Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.841 compose_p99_ms=17.149 request_to_present_p50_ms=16.581 request_to_present_p99_ms=21.591 pid=54933
+2026-11-16T08:56:43.320644Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.515 compose_p99_ms=19.168 request_to_present_p50_ms=16.418 request_to_present_p99_ms=22.798 pid=54933
+2026-11-16T08:56:45.321694Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.604 compose_p99_ms=17.571 request_to_present_p50_ms=17.165 request_to_present_p99_ms=21.283 pid=54933
+2026-11-16T08:56:45.911188Z  INFO slide text committed output="ndi-a" seq=55 push_to_commit_ms="11.99" build_ms="0.05" raster_ms="7.56" cached=false pid=54933
+2026-11-16T08:56:45.915924Z  INFO slide text committed output="syphon" seq=57 push_to_commit_ms="16.66" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:45.916939Z  INFO slide text committed output="card" seq=58 push_to_commit_ms="17.65" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:45.921118Z  INFO slide text committed output="ndi-b" seq=56 push_to_commit_ms="21.89" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:45.925184Z  INFO slide text committed output="screen" seq=54 push_to_commit_ms="26.08" build_ms="0.06" raster_ms="7.94" cached=false pid=54933
+2026-11-16T08:56:47.322119Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.679 compose_p99_ms=22.82 request_to_present_p50_ms=20.791 request_to_present_p99_ms=27.499 pid=54933
+2026-11-16T08:56:49.323163Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.626 compose_p99_ms=20.542 request_to_present_p50_ms=21.858 request_to_present_p99_ms=24.737 pid=54933
+2026-11-16T08:56:51.323808Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.698 compose_p99_ms=26.552 request_to_present_p50_ms=21.667 request_to_present_p99_ms=30.363 pid=54933
+2026-11-16T08:56:53.324876Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.898 compose_p99_ms=21.769 request_to_present_p50_ms=21.936 request_to_present_p99_ms=25.718 pid=54933
+2026-11-16T08:56:53.966620Z  INFO slide text committed output="syphon" seq=62 push_to_commit_ms="5.15" build_ms="0.04" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:53.971193Z  INFO slide text committed output="card" seq=63 push_to_commit_ms="9.68" build_ms="0.04" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:53.975439Z  INFO slide text committed output="ndi-b" seq=61 push_to_commit_ms="14.03" build_ms="0.08" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:53.977509Z  INFO slide text committed output="screen" seq=59 push_to_commit_ms="16.17" build_ms="0.08" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:53.981879Z  INFO slide text committed output="ndi-a" seq=60 push_to_commit_ms="20.52" build_ms="0.12" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:56:55.325905Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.069 compose_p99_ms=23.991 request_to_present_p50_ms=21.291 request_to_present_p99_ms=28.339 pid=54933
+2026-11-16T08:56:57.326972Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.336 compose_p99_ms=21.572 request_to_present_p50_ms=21.222 request_to_present_p99_ms=25.797 pid=54933
+2026-11-16T08:56:59.327933Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.205 compose_p99_ms=26.76 request_to_present_p50_ms=21.506 request_to_present_p99_ms=31.61 pid=54933
+2026-11-16T08:57:01.328450Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.249 compose_p99_ms=22.158 request_to_present_p50_ms=22.023 request_to_present_p99_ms=26.405 pid=54933
+2026-11-16T08:57:02.009862Z  INFO slide text committed output="syphon" seq=67 push_to_commit_ms="4.57" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:02.016072Z  INFO slide text committed output="ndi-b" seq=66 push_to_commit_ms="10.84" build_ms="0.04" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:02.018169Z  INFO slide text committed output="screen" seq=64 push_to_commit_ms="13.09" build_ms="0.11" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:02.021525Z  INFO slide text committed output="ndi-a" seq=65 push_to_commit_ms="16.36" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:02.030225Z  INFO slide text committed output="card" seq=68 push_to_commit_ms="24.92" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:03.329497Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.134 compose_p99_ms=20.854 request_to_present_p50_ms=21.266 request_to_present_p99_ms=25.126 pid=54933
+2026-11-16T08:57:05.253979Z  INFO chaos: DeepgramDisconnect
+2026-11-16T08:57:05.254140Z  INFO deepgram socket closed
+2026-11-16T08:57:05.254168Z  INFO deepgram reconnecting attempt=1 delay=1s
+2026-11-16T08:57:05.329952Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.17 compose_p99_ms=20.987 request_to_present_p50_ms=21.703 request_to_present_p99_ms=25.803 pid=54933
+2026-11-16T08:57:06.254668Z  INFO opening deepgram socket attempt=1
+2026-11-16T08:57:06.255298Z  INFO deepgram socket open attempt=1
+2026-11-16T08:57:06.255316Z  INFO draining buffered audio chunks=10 bytes=32000
+2026-11-16T08:57:06.362852Z  INFO chaos: DeepgramDisconnect -> Recovered server closed the socket; reconnected in 1021 ms, speech health ok, audio flowing, replay buffer 0 B
+2026-11-16T08:57:07.330038Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.176 compose_p99_ms=24.779 request_to_present_p50_ms=16.059 request_to_present_p99_ms=28.913 pid=54933
+2026-11-16T08:57:09.330523Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.3 compose_p99_ms=15.332 request_to_present_p50_ms=15.5 request_to_present_p99_ms=19.012 pid=54933
+2026-11-16T08:57:10.088577Z  INFO slide text committed output="syphon" seq=77 push_to_commit_ms="6.53" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:10.091893Z  INFO slide text committed output="card" seq=78 push_to_commit_ms="9.90" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:10.094907Z  INFO slide text committed output="ndi-b" seq=76 push_to_commit_ms="13.00" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:10.097142Z  INFO slide text committed output="screen" seq=74 push_to_commit_ms="15.33" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:10.099114Z  INFO slide text committed output="ndi-a" seq=75 push_to_commit_ms="17.25" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:11.331556Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.355 compose_p99_ms=15.48 request_to_present_p50_ms=15.713 request_to_present_p99_ms=19.1 pid=54933
+2026-11-16T08:57:13.332075Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.207 compose_p99_ms=16.289 request_to_present_p50_ms=15.752 request_to_present_p99_ms=20.496 pid=54933
+2026-11-16T08:57:15.333135Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.643 compose_p99_ms=17.183 request_to_present_p50_ms=16.044 request_to_present_p99_ms=20.666 pid=54933
+2026-11-16T08:57:17.334175Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.153 compose_p99_ms=16.929 request_to_present_p50_ms=15.823 request_to_present_p99_ms=20.762 pid=54933
+2026-11-16T08:57:18.166177Z  INFO slide text committed output="syphon" seq=82 push_to_commit_ms="8.29" build_ms="0.07" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:18.169305Z  INFO slide text committed output="card" seq=83 push_to_commit_ms="11.38" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:18.172758Z  INFO slide text committed output="ndi-b" seq=81 push_to_commit_ms="14.91" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:18.174434Z  INFO slide text committed output="screen" seq=79 push_to_commit_ms="16.68" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:18.176330Z  INFO slide text committed output="ndi-a" seq=80 push_to_commit_ms="18.52" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:19.335240Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.138 compose_p99_ms=16.974 request_to_present_p50_ms=16.008 request_to_present_p99_ms=20.46 pid=54933
+2026-11-16T08:57:21.336214Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.034 compose_p99_ms=18.003 request_to_present_p50_ms=15.964 request_to_present_p99_ms=21.5 pid=54933
+2026-11-16T08:57:23.337218Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.737 compose_p99_ms=17.144 request_to_present_p50_ms=15.923 request_to_present_p99_ms=20.798 pid=54933
+2026-11-16T08:57:25.337360Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.087 compose_p99_ms=16.718 request_to_present_p50_ms=15.562 request_to_present_p99_ms=20.373 pid=54933
+2026-11-16T08:57:26.235946Z  INFO slide text committed output="syphon" seq=92 push_to_commit_ms="4.52" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:26.240927Z  INFO slide text committed output="ndi-b" seq=91 push_to_commit_ms="9.55" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:26.243040Z  INFO slide text committed output="screen" seq=89 push_to_commit_ms="11.77" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:26.248627Z  INFO slide text committed output="ndi-a" seq=90 push_to_commit_ms="17.30" build_ms="0.04" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:26.252527Z  INFO slide text committed output="card" seq=93 push_to_commit_ms="21.08" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:27.338401Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.093 compose_p99_ms=20.163 request_to_present_p50_ms=20.901 request_to_present_p99_ms=24.369 pid=54933
+2026-11-16T08:57:29.338672Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.975 compose_p99_ms=20.122 request_to_present_p50_ms=21.14 request_to_present_p99_ms=24.111 pid=54933
+2026-11-16T08:57:31.339038Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.051 compose_p99_ms=21.971 request_to_present_p50_ms=21.213 request_to_present_p99_ms=26.451 pid=54933
+2026-11-16T08:57:33.339963Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.348 compose_p99_ms=23.734 request_to_present_p50_ms=21.94 request_to_present_p99_ms=28.55 pid=54933
+2026-11-16T08:57:34.300276Z  INFO slide text committed output="syphon" seq=97 push_to_commit_ms="11.45" build_ms="0.04" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:34.305210Z  INFO slide text committed output="card" seq=98 push_to_commit_ms="16.34" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:34.309858Z  INFO slide text committed output="ndi-b" seq=96 push_to_commit_ms="21.10" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:34.312373Z  INFO slide text committed output="screen" seq=94 push_to_commit_ms="23.63" build_ms="0.11" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:34.315654Z  INFO slide text committed output="ndi-a" seq=95 push_to_commit_ms="26.95" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:35.337562Z  INFO slide text committed output="syphon" seq=102 push_to_commit_ms="12.43" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:35.339822Z  INFO slide text committed output="card" seq=103 push_to_commit_ms="14.68" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:35.340369Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.267 compose_p99_ms=28.516 request_to_present_p50_ms=22.45 request_to_present_p99_ms=32.772 pid=54933
+2026-11-16T08:57:35.363942Z  INFO slide text committed output="ndi-b" seq=101 push_to_commit_ms="38.86" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:57:35.364004Z  INFO slide text committed output="screen" seq=99 push_to_commit_ms="38.98" build_ms="0.07" raster_ms="6.55" cached=false pid=54933
+2026-11-16T08:57:35.364014Z  INFO slide text committed output="ndi-a" seq=100 push_to_commit_ms="38.91" build_ms="0.04" raster_ms="6.17" cached=false pid=54933
+2026-11-16T08:57:37.340584Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.474 compose_p99_ms=21.666 request_to_present_p50_ms=20.95 request_to_present_p99_ms=26.087 pid=54933
+2026-11-16T08:57:39.341637Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.366 compose_p99_ms=18.903 request_to_present_p50_ms=20.162 request_to_present_p99_ms=23.963 pid=54933
+2026-11-16T08:57:40.252259Z  INFO chaos: UiBlock
+2026-11-16T08:57:40.252342Z  INFO script thread blocked for 30s
+2026-11-16T08:57:41.342696Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.226 compose_p99_ms=21.385 request_to_present_p50_ms=20.298 request_to_present_p99_ms=25.437 pid=54933
+2026-11-16T08:57:43.343024Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.537 compose_p99_ms=21.126 request_to_present_p50_ms=20.733 request_to_present_p99_ms=25.934 pid=54933
+2026-11-16T08:57:45.343576Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.755 compose_p99_ms=42.484 request_to_present_p50_ms=20.402 request_to_present_p99_ms=48.239 pid=54933
+2026-11-16T08:57:47.344528Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.924 compose_p99_ms=17.402 request_to_present_p50_ms=20.176 request_to_present_p99_ms=22.251 pid=54933
+2026-11-16T08:57:49.344581Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=17.596 compose_p99_ms=17.637 request_to_present_p50_ms=19.627 request_to_present_p99_ms=23.378 pid=54933
+2026-11-16T08:57:51.344606Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=16.255 compose_p99_ms=23.075 request_to_present_p50_ms=19.864 request_to_present_p99_ms=27.161 pid=54933
+2026-11-16T08:57:53.344642Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=13.644 compose_p99_ms=19.322 request_to_present_p50_ms=20.064 request_to_present_p99_ms=23.046 pid=54933
+2026-11-16T08:57:55.344702Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.618 compose_p99_ms=21.186 request_to_present_p50_ms=20.122 request_to_present_p99_ms=25.399 pid=54933
+2026-11-16T08:57:57.344766Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=15.244 compose_p99_ms=18.438 request_to_present_p50_ms=19.892 request_to_present_p99_ms=22.151 pid=54933
+2026-11-16T08:57:59.344904Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.684 compose_p99_ms=21.621 request_to_present_p50_ms=19.72 request_to_present_p99_ms=25.698 pid=54933
+2026-11-16T08:58:01.344941Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.753 compose_p99_ms=20.127 request_to_present_p50_ms=20.295 request_to_present_p99_ms=24.163 pid=54933
+2026-11-16T08:58:03.345064Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=16.247 compose_p99_ms=22.373 request_to_present_p50_ms=20.336 request_to_present_p99_ms=31.878 pid=54933
+2026-11-16T08:58:05.345227Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=15.636 compose_p99_ms=18.053 request_to_present_p50_ms=20.197 request_to_present_p99_ms=22.487 pid=54933
+2026-11-16T08:58:07.345348Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=19.058 compose_p99_ms=25.522 request_to_present_p50_ms=21.033 request_to_present_p99_ms=30.049 pid=54933
+2026-11-16T08:58:09.345468Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=17.991 compose_p99_ms=22.944 request_to_present_p50_ms=20.775 request_to_present_p99_ms=27.339 pid=54933
+2026-11-16T08:58:10.257457Z  INFO script thread resumed
+2026-11-16T08:58:10.271192Z  INFO chaos: UiBlock -> Recovered script (UI) thread blocked 30 s: frames kept flowing (screen +930, ndi-a +930, syphon +929, card +929), 963200 B of audio reached Deepgram; commands resumed afterwards
+2026-11-16T08:58:10.368468Z  INFO slide text committed output="screen" seq=106 push_to_commit_ms="5.76" build_ms="0.06" raster_ms="3.31" cached=false pid=54933
+2026-11-16T08:58:10.370856Z  INFO slide text committed output="ndi-a" seq=107 push_to_commit_ms="8.09" build_ms="0.05" raster_ms="3.25" cached=false pid=54933
+2026-11-16T08:58:10.373050Z  INFO slide text committed output="syphon" seq=109 push_to_commit_ms="10.21" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:10.375647Z  INFO slide text committed output="card" seq=110 push_to_commit_ms="12.78" build_ms="0.03" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:10.381387Z  INFO slide text committed output="ndi-b" seq=108 push_to_commit_ms="18.58" build_ms="0.07" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:11.348707Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=15.694 compose_p99_ms=20.562 request_to_present_p50_ms=20.677 request_to_present_p99_ms=24.909 pid=54933
+2026-11-16T08:58:13.349254Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.616 compose_p99_ms=18.767 request_to_present_p50_ms=20.174 request_to_present_p99_ms=23.582 pid=54933
+2026-11-16T08:58:15.349914Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.183 compose_p99_ms=19.357 request_to_present_p50_ms=19.761 request_to_present_p99_ms=24.251 pid=54933
+2026-11-16T08:58:16.398242Z  INFO slide text committed output="syphon" seq=114 push_to_commit_ms="15.32" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:16.401215Z  INFO slide text committed output="card" seq=115 push_to_commit_ms="18.27" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:16.404851Z  INFO slide text committed output="ndi-b" seq=113 push_to_commit_ms="21.99" build_ms="0.05" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:16.407059Z  INFO slide text committed output="screen" seq=111 push_to_commit_ms="24.32" build_ms="0.07" raster_ms="5.75" cached=false pid=54933
+2026-11-16T08:58:16.410182Z  INFO slide text committed output="ndi-a" seq=112 push_to_commit_ms="27.38" build_ms="0.07" raster_ms="5.83" cached=false pid=54933
+2026-11-16T08:58:17.350691Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.065 compose_p99_ms=22.326 request_to_present_p50_ms=20.676 request_to_present_p99_ms=27.082 pid=54933
+2026-11-16T08:58:19.351473Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.531 compose_p99_ms=19.14 request_to_present_p50_ms=20.199 request_to_present_p99_ms=24.106 pid=54933
+2026-11-16T08:58:21.352386Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.722 compose_p99_ms=19.332 request_to_present_p50_ms=20.291 request_to_present_p99_ms=23.608 pid=54933
+2026-11-16T08:58:22.494709Z  INFO slide text committed output="syphon" seq=119 push_to_commit_ms="19.91" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:22.497461Z  INFO slide text committed output="card" seq=120 push_to_commit_ms="22.65" build_ms="0.02" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:22.500948Z  INFO slide text committed output="ndi-b" seq=118 push_to_commit_ms="26.20" build_ms="0.06" raster_ms="0.00" cached=true pid=54933
+2026-11-16T08:58:22.503523Z  INFO slide text committed output="screen" seq=116 push_to_commit_ms="28.90" build_ms="0.10" raster_ms="6.22" cached=false pid=54933
+2026-11-16T08:58:22.505594Z  INFO slide text committed output="ndi-a" seq=117 push_to_commit_ms="30.90" build_ms="0.06" raster_ms="5.93" cached=false pid=54933
+2026-11-16T08:58:23.353227Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.783 compose_p99_ms=19.424 request_to_present_p50_ms=19.701 request_to_present_p99_ms=23.234 pid=54933
+2026-11-16T08:58:25.252793Z  INFO chaos: EngineKill
+2026-11-16T08:58:25.287138Z ERROR output engine failed: engine exited (signal: 9 (SIGKILL))
+2026-11-16T08:58:25.354720Z  INFO engine 0.1.0 listening, protocol 9, pid 55782 pid=55782
+2026-11-16T08:58:25.355104Z  INFO output engine 0.1.0 handshake, protocol 9
+2026-11-16T08:58:25.355112Z  INFO client 1 connected pid=55782
+2026-11-16T08:58:25.355181Z  INFO output engine running pid=55782 relaunch=true
+2026-11-16T08:58:25.356362Z  INFO NDI runtime loaded version="NDI SDK APPLE 12:49:17 Apr 13 2026 6.3.2.0" path=/Library/NDI SDK for Apple/lib/macOS/libndi.dylib pid=55782
+2026-11-16T08:58:25.364048Z  INFO NDI sender created name="Kairo Scripture" pid=55782
+2026-11-16T08:58:25.375378Z  INFO 1 display(s) pid=55782
+2026-11-16T08:58:25.423202Z  INFO compositor GPU: Apple M2 Pro pid=55782
+2026-11-16T08:58:25.429978Z  INFO extra NDI sender added output="ndi-a" name="Kairo Soak chaos A" pid=55782
+2026-11-16T08:58:25.429993Z  INFO NDI output open output="ndi-a" name="Kairo Soak chaos A" pid=55782
+2026-11-16T08:58:25.430155Z  INFO extra NDI sender added output="ndi-b" name="Kairo Soak chaos B" pid=55782
+2026-11-16T08:58:25.430211Z  INFO NDI output open output="ndi-b" name="Kairo Soak chaos B" pid=55782
+2026-11-16T08:58:25.431647Z  INFO NDI sender created name="Kairo Soak chaos A" pid=55782
+2026-11-16T08:58:25.432184Z  INFO NDI sender created name="Kairo Soak chaos B" pid=55782
+2026-11-16T08:58:25.506508Z  INFO Syphon server started name="Kairo Soak chaos" pid=55782
+2026-11-16T08:58:25.506530Z  INFO Syphon server publishing output="syphon" name="Kairo Soak chaos" pid=55782
+2026-11-16T08:58:25.537866Z  INFO slide text committed output="ndi-a" seq=129 push_to_commit_ms="107.35" build_ms="0.05" raster_ms="59.97" cached=false pid=55782
+2026-11-16T08:58:25.537892Z  INFO video card output open output="card" raster=(1920, 1080) ring=true pid=55782
+2026-11-16T08:58:25.537898Z  INFO slide text committed output="ndi-b" seq=134 push_to_commit_ms="31.77" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:25.539879Z  INFO slide text committed output="screen" seq=125 push_to_commit_ms="109.93" build_ms="0.10" raster_ms="59.77" cached=false pid=55782
+2026-11-16T08:58:25.545360Z  INFO slide text committed output="syphon" seq=138 push_to_commit_ms="38.70" build_ms="0.13" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:25.550014Z  INFO slide text committed output="card" seq=142 push_to_commit_ms="12.47" build_ms="0.11" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:25.555128Z  INFO chaos: EngineKill -> Recovered SIGKILL pid 54933; relaunched as 55782 after 106 ms, state replayed, frame on screen at 302 ms
+2026-11-16T08:58:25.624526Z  INFO video opened path=/var/folders/19/4x5l2wkn5mz6xm36t7pdwyt80000gn/T/kairo-soak-54892/background-1080p30.mp4 backend=Hardware("videotoolbox") width=1920 height=1080 pid=55782
+2026-11-16T08:58:27.355792Z  INFO web display latency (software, excludes capture sampling and scanout) samples=51 capture_p99_ms=152.993 compose_p99_ms=6.437 request_to_present_p50_ms=9.191 request_to_present_p99_ms=158.678 pid=55782
+2026-11-16T08:58:28.588607Z  INFO slide text committed output="syphon" seq=148 push_to_commit_ms="10.76" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:28.592625Z  INFO slide text committed output="screen" seq=145 push_to_commit_ms="14.93" build_ms="0.06" raster_ms="4.64" cached=false pid=55782
+2026-11-16T08:58:28.594214Z  INFO slide text committed output="ndi-a" seq=146 push_to_commit_ms="16.47" build_ms="0.07" raster_ms="4.74" cached=false pid=55782
+2026-11-16T08:58:28.596330Z  INFO slide text committed output="card" seq=149 push_to_commit_ms="18.46" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:28.600925Z  INFO slide text committed output="ndi-b" seq=147 push_to_commit_ms="23.13" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:29.361259Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.157 compose_p99_ms=13.566 request_to_present_p50_ms=9.051 request_to_present_p99_ms=17.427 pid=55782
+2026-11-16T08:58:31.362048Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.055 compose_p99_ms=11.07 request_to_present_p50_ms=9.05 request_to_present_p99_ms=14.665 pid=55782
+2026-11-16T08:58:33.362862Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.302 compose_p99_ms=14.278 request_to_present_p50_ms=9.431 request_to_present_p99_ms=18.445 pid=55782
+2026-11-16T08:58:34.693061Z  INFO slide text committed output="screen" seq=150 push_to_commit_ms="11.98" build_ms="0.08" raster_ms="6.03" cached=false pid=55782
+2026-11-16T08:58:34.693160Z  INFO slide text committed output="syphon" seq=153 push_to_commit_ms="11.85" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:34.695462Z  INFO slide text committed output="ndi-a" seq=151 push_to_commit_ms="14.34" build_ms="0.06" raster_ms="6.11" cached=false pid=55782
+2026-11-16T08:58:34.697865Z  INFO slide text committed output="card" seq=154 push_to_commit_ms="16.60" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:34.701646Z  INFO slide text committed output="ndi-b" seq=152 push_to_commit_ms="20.47" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:35.363801Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.575 compose_p99_ms=15.036 request_to_present_p50_ms=9.731 request_to_present_p99_ms=18.959 pid=55782
+2026-11-16T08:58:37.364627Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=4.492 compose_p99_ms=13.841 request_to_present_p50_ms=9.531 request_to_present_p99_ms=17.846 pid=55782
+2026-11-16T08:58:39.365070Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.258 compose_p99_ms=7.093 request_to_present_p50_ms=9.364 request_to_present_p99_ms=10.9 pid=55782
+2026-11-16T08:58:40.693195Z  INFO slide text committed output="ndi-a" seq=156 push_to_commit_ms="6.23" build_ms="0.05" raster_ms="2.68" cached=false pid=55782
+2026-11-16T08:58:40.694505Z  INFO slide text committed output="syphon" seq=158 push_to_commit_ms="7.47" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:40.697319Z  INFO slide text committed output="screen" seq=155 push_to_commit_ms="10.45" build_ms="0.07" raster_ms="2.78" cached=false pid=55782
+2026-11-16T08:58:40.700816Z  INFO slide text committed output="card" seq=159 push_to_commit_ms="13.75" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:40.704502Z  INFO slide text committed output="ndi-b" seq=157 push_to_commit_ms="17.51" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:41.365543Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.41 compose_p99_ms=25.903 request_to_present_p50_ms=9.454 request_to_present_p99_ms=29.833 pid=55782
+2026-11-16T08:58:43.366172Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.909 compose_p99_ms=11.925 request_to_present_p50_ms=9.665 request_to_present_p99_ms=15.755 pid=55782
+2026-11-16T08:58:45.367233Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.643 compose_p99_ms=6.626 request_to_present_p50_ms=9.65 request_to_present_p99_ms=10.597 pid=55782
+2026-11-16T08:58:46.801573Z  INFO slide text committed output="syphon" seq=163 push_to_commit_ms="15.53" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:46.803355Z  INFO slide text committed output="screen" seq=160 push_to_commit_ms="17.45" build_ms="0.06" raster_ms="5.52" cached=false pid=55782
+2026-11-16T08:58:46.806960Z  INFO slide text committed output="ndi-a" seq=161 push_to_commit_ms="20.99" build_ms="0.04" raster_ms="5.63" cached=false pid=55782
+2026-11-16T08:58:46.809450Z  INFO slide text committed output="card" seq=164 push_to_commit_ms="23.39" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:46.813529Z  INFO slide text committed output="ndi-b" seq=162 push_to_commit_ms="27.53" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:47.367544Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.655 compose_p99_ms=8.009 request_to_present_p50_ms=9.709 request_to_present_p99_ms=11.838 pid=55782
+2026-11-16T08:58:49.368597Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.405 compose_p99_ms=12.225 request_to_present_p50_ms=9.492 request_to_present_p99_ms=15.863 pid=55782
+2026-11-16T08:58:51.369299Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.344 compose_p99_ms=12.977 request_to_present_p50_ms=9.492 request_to_present_p99_ms=16.62 pid=55782
+2026-11-16T08:58:52.886051Z  INFO slide text committed output="syphon" seq=168 push_to_commit_ms="3.02" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:52.889741Z  INFO slide text committed output="screen" seq=165 push_to_commit_ms="6.87" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:52.893263Z  INFO slide text committed output="ndi-a" seq=166 push_to_commit_ms="10.32" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:52.895773Z  INFO slide text committed output="ndi-b" seq=167 push_to_commit_ms="12.79" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:52.900172Z  INFO slide text committed output="card" seq=169 push_to_commit_ms="17.12" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:53.369493Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.598 compose_p99_ms=12.94 request_to_present_p50_ms=9.245 request_to_present_p99_ms=17.401 pid=55782
+2026-11-16T08:58:55.370530Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.323 compose_p99_ms=6.593 request_to_present_p50_ms=9.413 request_to_present_p99_ms=10.652 pid=55782
+2026-11-16T08:58:57.370659Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.51 compose_p99_ms=6.646 request_to_present_p50_ms=9.221 request_to_present_p99_ms=10.534 pid=55782
+2026-11-16T08:58:58.904978Z  INFO slide text committed output="syphon" seq=173 push_to_commit_ms="3.72" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:58.907625Z  INFO slide text committed output="screen" seq=170 push_to_commit_ms="6.54" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:58.910586Z  INFO slide text committed output="ndi-a" seq=171 push_to_commit_ms="9.46" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:58.914008Z  INFO slide text committed output="ndi-b" seq=172 push_to_commit_ms="12.84" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:58.923421Z  INFO slide text committed output="card" seq=174 push_to_commit_ms="22.17" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:58:59.370925Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.548 compose_p99_ms=10.534 request_to_present_p50_ms=9.358 request_to_present_p99_ms=14.413 pid=55782
+2026-11-16T08:59:00.251766Z  INFO chaos: WebContentKill
+2026-11-16T08:59:00.259686Z ERROR web http://localhost:51399/soak: renderer terminated; reloading pid=55782
+2026-11-16T08:59:00.259699Z  WARN engine: web http://localhost:51399/soak: renderer terminated; reloading
+2026-11-16T08:59:00.288536Z  INFO chaos: WebContentKill -> Recovered SIGKILL web content [55800]; page reloaded in a new content process after 23 ms; engine 55782 kept running, other outputs drew
+2026-11-16T08:59:01.371347Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=23.352 compose_p99_ms=12.12 request_to_present_p50_ms=9.513 request_to_present_p99_ms=35.472 pid=55782
+2026-11-16T08:59:03.372386Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.283 compose_p99_ms=14.628 request_to_present_p50_ms=9.585 request_to_present_p99_ms=18.1 pid=55782
+2026-11-16T08:59:05.002179Z  INFO slide text committed output="syphon" seq=180 push_to_commit_ms="9.05" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:59:05.004541Z  INFO slide text committed output="screen" seq=177 push_to_commit_ms="11.63" build_ms="0.09" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:59:05.007162Z  INFO slide text committed output="ndi-a" seq=178 push_to_commit_ms="14.18" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:59:05.009239Z  INFO slide text committed output="card" seq=181 push_to_commit_ms="16.08" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:59:05.013124Z  INFO slide text committed output="ndi-b" seq=179 push_to_commit_ms="20.09" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T08:59:05.373427Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.556 compose_p99_ms=16.267 request_to_present_p50_ms=9.626 request_to_present_p99_ms=20.185 pid=55782
+2026-11-16T08:59:07.373939Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.758 compose_p99_ms=11.914 request_to_present_p50_ms=11.82 request_to_present_p99_ms=16.283 pid=55782
+2026-11-16T08:59:09.374974Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=6.268 compose_p99_ms=20.527 request_to_present_p50_ms=11.875 request_to_present_p99_ms=25.249 pid=55782
+2026-11-16T08:59:11.376057Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=5.542 compose_p99_ms=21.541 request_to_present_p50_ms=12.237 request_to_present_p99_ms=26.86 pid=55782
+2026-11-16T08:59:13.377070Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.726 compose_p99_ms=9.048 request_to_present_p50_ms=11.769 request_to_present_p99_ms=14.085 pid=55782
+2026-11-16T08:59:15.377574Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.105 compose_p99_ms=8.786 request_to_present_p50_ms=10.878 request_to_present_p99_ms=13.988 pid=55782
+2026-11-16T08:59:17.378067Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.312 compose_p99_ms=9.071 request_to_present_p50_ms=12.484 request_to_present_p99_ms=13.978 pid=55782
+2026-11-16T08:59:19.379180Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.125 compose_p99_ms=8.659 request_to_present_p50_ms=11.997 request_to_present_p99_ms=14.274 pid=55782
+2026-11-16T08:59:21.379907Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.212 compose_p99_ms=13.475 request_to_present_p50_ms=12.301 request_to_present_p99_ms=18.027 pid=55782
+2026-11-16T08:59:23.380964Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.354 compose_p99_ms=13.264 request_to_present_p50_ms=12.341 request_to_present_p99_ms=18.295 pid=55782
+2026-11-16T08:59:25.381771Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.105 compose_p99_ms=8.894 request_to_present_p50_ms=11.798 request_to_present_p99_ms=13.885 pid=55782
+2026-11-16T08:59:27.382246Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.088 compose_p99_ms=8.658 request_to_present_p50_ms=11.944 request_to_present_p99_ms=13.718 pid=55782
+2026-11-16T08:59:29.383314Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.16 compose_p99_ms=9.471 request_to_present_p50_ms=12.445 request_to_present_p99_ms=14.024 pid=55782
+2026-11-16T08:59:30.253057Z  INFO chaos: HelperKill
+2026-11-16T08:59:30.315633Z  INFO video card output open output="card" raster=(1920, 1080) ring=true pid=55782
+2026-11-16T08:59:30.329126Z  INFO chaos: HelperKill -> Recovered SIGKILL helper 55803; card faulted with the helper's reason in 44 ms; operator refresh restored frames at 75 ms; engine unaffected
+2026-11-16T08:59:31.384338Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.693 compose_p99_ms=11.415 request_to_present_p50_ms=11.524 request_to_present_p99_ms=15.903 pid=55782
+2026-11-16T08:59:33.384791Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.644 compose_p99_ms=13.559 request_to_present_p50_ms=11.972 request_to_present_p99_ms=18.876 pid=55782
+2026-11-16T08:59:35.385050Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.724 compose_p99_ms=14.126 request_to_present_p50_ms=11.968 request_to_present_p99_ms=18.906 pid=55782
+2026-11-16T08:59:37.385434Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.245 compose_p99_ms=7.938 request_to_present_p50_ms=10.615 request_to_present_p99_ms=13.083 pid=55782
+2026-11-16T08:59:39.385888Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.255 compose_p99_ms=8.449 request_to_present_p50_ms=10.556 request_to_present_p99_ms=13.346 pid=55782
+2026-11-16T08:59:41.387052Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.751 compose_p99_ms=8.786 request_to_present_p50_ms=11.317 request_to_present_p99_ms=13.548 pid=55782
+2026-11-16T08:59:43.388069Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.073 compose_p99_ms=14.631 request_to_present_p50_ms=10.953 request_to_present_p99_ms=19.655 pid=55782
+2026-11-16T08:59:45.389128Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.695 compose_p99_ms=15.242 request_to_present_p50_ms=11.955 request_to_present_p99_ms=20.516 pid=55782
+2026-11-16T08:59:47.389242Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.604 compose_p99_ms=9.01 request_to_present_p50_ms=11.964 request_to_present_p99_ms=13.936 pid=55782
+2026-11-16T08:59:49.389322Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.664 compose_p99_ms=10.352 request_to_present_p50_ms=11.398 request_to_present_p99_ms=15.344 pid=55782
+2026-11-16T08:59:51.389341Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.342 compose_p99_ms=8.942 request_to_present_p50_ms=12.011 request_to_present_p99_ms=14.101 pid=55782
+2026-11-16T08:59:53.389435Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.109 compose_p99_ms=8.794 request_to_present_p50_ms=11.945 request_to_present_p99_ms=14.275 pid=55782
+2026-11-16T08:59:55.389512Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.678 compose_p99_ms=13.879 request_to_present_p50_ms=11.206 request_to_present_p99_ms=19.305 pid=55782
+2026-11-16T08:59:57.389574Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.803 compose_p99_ms=16.365 request_to_present_p50_ms=12.13 request_to_present_p99_ms=21.385 pid=55782
+2026-11-16T08:59:59.389705Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.667 compose_p99_ms=8.462 request_to_present_p50_ms=11.955 request_to_present_p99_ms=13.89 pid=55782
+2026-11-16T09:00:01.389885Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.542 compose_p99_ms=15.396 request_to_present_p50_ms=11.61 request_to_present_p99_ms=19.903 pid=55782
+2026-11-16T09:00:03.389949Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.221 compose_p99_ms=14.069 request_to_present_p50_ms=10.189 request_to_present_p99_ms=19.347 pid=55782
+2026-11-16T09:00:05.253179Z  INFO chaos: NetworkLoss
+2026-11-16T09:00:05.254709Z ERROR deepgram socket error error="IO error: Connection reset by peer (os error 54)"
+2026-11-16T09:00:05.254760Z  INFO deepgram reconnecting attempt=1 delay=1s
+2026-11-16T09:00:05.350650Z  INFO slide text committed output="screen" seq=335 push_to_commit_ms="5.30" build_ms="0.11" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:05.354259Z  INFO slide text committed output="ndi-a" seq=336 push_to_commit_ms="8.80" build_ms="0.07" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:05.360137Z  INFO slide text committed output="syphon" seq=338 push_to_commit_ms="14.60" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:05.364055Z  INFO slide text committed output="card" seq=339 push_to_commit_ms="18.44" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:05.368858Z  INFO slide text committed output="ndi-b" seq=337 push_to_commit_ms="23.39" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:05.369564Z  INFO video opened path=/var/folders/19/4x5l2wkn5mz6xm36t7pdwyt80000gn/T/kairo-soak-54892/background-1080p30.mp4 backend=Hardware("videotoolbox") width=1920 height=1080 pid=55782
+2026-11-16T09:00:05.390061Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.121 compose_p99_ms=19.582 request_to_present_p50_ms=11.88 request_to_present_p99_ms=23.65 pid=55782
+2026-11-16T09:00:06.256900Z  INFO opening deepgram socket attempt=1
+2026-11-16T09:00:06.256970Z ERROR transcription grant failed reason="The network is unreachable"
+2026-11-16T09:00:06.256978Z  INFO deepgram reconnecting attempt=2 delay=2s
+2026-11-16T09:00:07.392152Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=27.928 compose_p99_ms=22.743 request_to_present_p50_ms=15.187 request_to_present_p99_ms=39.412 pid=55782
+2026-11-16T09:00:08.258461Z  INFO opening deepgram socket attempt=2
+2026-11-16T09:00:08.258520Z ERROR transcription grant failed reason="The network is unreachable"
+2026-11-16T09:00:08.258530Z  INFO deepgram reconnecting attempt=3 delay=4s
+2026-11-16T09:00:09.393141Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.38 compose_p99_ms=24.006 request_to_present_p50_ms=15.362 request_to_present_p99_ms=27.57 pid=55782
+2026-11-16T09:00:11.354136Z  INFO slide text committed output="syphon" seq=343 push_to_commit_ms="4.19" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:11.359407Z  INFO slide text committed output="screen" seq=340 push_to_commit_ms="9.59" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:11.361541Z  INFO slide text committed output="ndi-a" seq=341 push_to_commit_ms="11.68" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:11.363450Z  INFO slide text committed output="card" seq=344 push_to_commit_ms="13.49" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:11.366074Z  INFO slide text committed output="ndi-b" seq=342 push_to_commit_ms="16.17" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:11.393642Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.134 compose_p99_ms=22.641 request_to_present_p50_ms=15.198 request_to_present_p99_ms=26.174 pid=55782
+2026-11-16T09:00:12.259927Z  INFO opening deepgram socket attempt=3
+2026-11-16T09:00:12.259983Z ERROR transcription grant failed reason="The network is unreachable"
+2026-11-16T09:00:12.259992Z  INFO deepgram reconnecting attempt=4 delay=8s
+2026-11-16T09:00:13.394098Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.117 compose_p99_ms=22.301 request_to_present_p50_ms=15.819 request_to_present_p99_ms=25.873 pid=55782
+2026-11-16T09:00:15.394729Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.367 compose_p99_ms=24.087 request_to_present_p50_ms=14.976 request_to_present_p99_ms=27.585 pid=55782
+2026-11-16T09:00:17.353941Z  INFO slide text committed output="syphon" seq=348 push_to_commit_ms="3.50" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:17.359572Z  INFO slide text committed output="screen" seq=345 push_to_commit_ms="9.31" build_ms="0.08" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:17.361468Z  INFO slide text committed output="ndi-a" seq=346 push_to_commit_ms="11.14" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:17.363886Z  INFO slide text committed output="card" seq=349 push_to_commit_ms="13.39" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:17.367373Z  INFO slide text committed output="ndi-b" seq=347 push_to_commit_ms="17.00" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:17.395433Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.477 compose_p99_ms=23.506 request_to_present_p50_ms=15.152 request_to_present_p99_ms=27.102 pid=55782
+2026-11-16T09:00:19.395582Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.097 compose_p99_ms=23.283 request_to_present_p50_ms=15.418 request_to_present_p99_ms=27.039 pid=55782
+2026-11-16T09:00:20.261685Z  INFO opening deepgram socket attempt=4
+2026-11-16T09:00:20.261760Z ERROR transcription grant failed reason="The network is unreachable"
+2026-11-16T09:00:20.261771Z  INFO deepgram reconnecting attempt=5 delay=16s
+2026-11-16T09:00:21.395814Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=3.944 compose_p99_ms=22.811 request_to_present_p50_ms=14.933 request_to_present_p99_ms=26.243 pid=55782
+2026-11-16T09:00:23.386538Z  INFO slide text committed output="syphon" seq=353 push_to_commit_ms="3.82" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:23.392934Z  INFO slide text committed output="screen" seq=350 push_to_commit_ms="10.37" build_ms="0.10" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:23.394477Z  INFO slide text committed output="ndi-a" seq=351 push_to_commit_ms="11.86" build_ms="0.07" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:23.396491Z  INFO slide text committed output="card" seq=354 push_to_commit_ms="13.73" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:23.396506Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.168 compose_p99_ms=23.014 request_to_present_p50_ms=15.602 request_to_present_p99_ms=26.833 pid=55782
+2026-11-16T09:00:23.417735Z  INFO slide text committed output="ndi-b" seq=352 push_to_commit_ms="35.07" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:25.397459Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.057 compose_p99_ms=23.174 request_to_present_p50_ms=15.481 request_to_present_p99_ms=26.899 pid=55782
+2026-11-16T09:00:27.398248Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.026 compose_p99_ms=23.592 request_to_present_p50_ms=15.806 request_to_present_p99_ms=27.565 pid=55782
+2026-11-16T09:00:29.398730Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.081 compose_p99_ms=22.277 request_to_present_p50_ms=15.445 request_to_present_p99_ms=26.031 pid=55782
+2026-11-16T09:00:29.431664Z  INFO slide text committed output="syphon" seq=358 push_to_commit_ms="37.30" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:29.431724Z  INFO slide text committed output="screen" seq=355 push_to_commit_ms="37.47" build_ms="0.10" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:29.431733Z  INFO slide text committed output="ndi-a" seq=356 push_to_commit_ms="37.40" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:29.431739Z  INFO slide text committed output="card" seq=359 push_to_commit_ms="37.29" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:29.431744Z  INFO slide text committed output="ndi-b" seq=357 push_to_commit_ms="37.37" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:31.399350Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.385 compose_p99_ms=23.668 request_to_present_p50_ms=14.978 request_to_present_p99_ms=27.283 pid=55782
+2026-11-16T09:00:33.400261Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.014 compose_p99_ms=23.836 request_to_present_p50_ms=15.698 request_to_present_p99_ms=27.398 pid=55782
+2026-11-16T09:00:35.401304Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.274 compose_p99_ms=23.892 request_to_present_p50_ms=14.99 request_to_present_p99_ms=27.626 pid=55782
+2026-11-16T09:00:35.431947Z  INFO slide text committed output="syphon" seq=363 push_to_commit_ms="32.66" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:35.431991Z  INFO slide text committed output="screen" seq=360 push_to_commit_ms="32.84" build_ms="0.07" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:35.431999Z  INFO slide text committed output="ndi-a" seq=361 push_to_commit_ms="32.78" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:35.432004Z  INFO slide text committed output="card" seq=364 push_to_commit_ms="32.63" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:35.432008Z  INFO slide text committed output="ndi-b" seq=362 push_to_commit_ms="32.73" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:36.264319Z  INFO opening deepgram socket attempt=5
+2026-11-16T09:00:36.265069Z  INFO deepgram socket open attempt=5
+2026-11-16T09:00:36.265100Z  INFO draining buffered audio chunks=300 bytes=960000
+2026-11-16T09:00:36.272783Z  INFO chaos: NetworkLoss -> Recovered 20 s offline (proxy cut, licence server unreachable): health degraded with offline detector fallback, 640000 B of audio held; reconnected 10995 ms after the network returned, held audio replayed, health all good; outputs unaffected
+2026-11-16T09:00:37.401626Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.25 compose_p99_ms=22.572 request_to_present_p50_ms=15.343 request_to_present_p99_ms=26.317 pid=55782
+2026-11-16T09:00:39.402347Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.314 compose_p99_ms=23.697 request_to_present_p50_ms=15.371 request_to_present_p99_ms=27.313 pid=55782
+2026-11-16T09:00:41.403276Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.505 compose_p99_ms=22.39 request_to_present_p50_ms=15.205 request_to_present_p99_ms=26.14 pid=55782
+2026-11-16T09:00:41.503543Z  INFO slide text committed output="syphon" seq=368 push_to_commit_ms="6.06" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:41.505643Z  INFO slide text committed output="screen" seq=365 push_to_commit_ms="8.30" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:41.507974Z  INFO slide text committed output="ndi-a" seq=366 push_to_commit_ms="10.58" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:41.510078Z  INFO slide text committed output="card" seq=369 push_to_commit_ms="12.57" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:41.513245Z  INFO slide text committed output="ndi-b" seq=367 push_to_commit_ms="15.82" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:43.404316Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.259 compose_p99_ms=23.306 request_to_present_p50_ms=15.352 request_to_present_p99_ms=27.043 pid=55782
+2026-11-16T09:00:45.404495Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=4.373 compose_p99_ms=22.927 request_to_present_p50_ms=15.051 request_to_present_p99_ms=26.541 pid=55782
+2026-11-16T09:00:47.404896Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.064 compose_p99_ms=23.519 request_to_present_p50_ms=14.803 request_to_present_p99_ms=27.515 pid=55782
+2026-11-16T09:00:47.603211Z  INFO slide text committed output="syphon" seq=373 push_to_commit_ms="4.26" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:47.605516Z  INFO slide text committed output="screen" seq=370 push_to_commit_ms="6.74" build_ms="0.07" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:47.607641Z  INFO slide text committed output="ndi-a" seq=371 push_to_commit_ms="8.80" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:47.609826Z  INFO slide text committed output="card" seq=374 push_to_commit_ms="10.86" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:47.612449Z  INFO slide text committed output="ndi-b" seq=372 push_to_commit_ms="13.57" build_ms="0.04" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:49.405938Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.119 compose_p99_ms=22.659 request_to_present_p50_ms=15.227 request_to_present_p99_ms=26.451 pid=55782
+2026-11-16T09:00:51.406497Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.166 compose_p99_ms=22.663 request_to_present_p50_ms=15.511 request_to_present_p99_ms=26.497 pid=55782
+2026-11-16T09:00:53.406982Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.399 compose_p99_ms=24.741 request_to_present_p50_ms=14.986 request_to_present_p99_ms=28.07 pid=55782
+2026-11-16T09:00:53.703562Z  INFO slide text committed output="syphon" seq=378 push_to_commit_ms="10.49" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:53.705584Z  INFO slide text committed output="screen" seq=375 push_to_commit_ms="12.66" build_ms="0.08" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:53.707406Z  INFO slide text committed output="ndi-a" seq=376 push_to_commit_ms="14.43" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:53.709160Z  INFO slide text committed output="card" seq=379 push_to_commit_ms="16.07" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:53.712358Z  INFO slide text committed output="ndi-b" seq=377 push_to_commit_ms="19.35" build_ms="0.06" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:55.408035Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.022 compose_p99_ms=24.225 request_to_present_p50_ms=15.255 request_to_present_p99_ms=28.197 pid=55782
+2026-11-16T09:00:57.409084Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.079 compose_p99_ms=22.758 request_to_present_p50_ms=15.183 request_to_present_p99_ms=26.637 pid=55782
+2026-11-16T09:00:59.410124Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.926 compose_p99_ms=22.836 request_to_present_p50_ms=15.282 request_to_present_p99_ms=26.662 pid=55782
+2026-11-16T09:00:59.705488Z  INFO slide text committed output="syphon" seq=383 push_to_commit_ms="10.32" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:59.709300Z  INFO slide text committed output="screen" seq=380 push_to_commit_ms="14.28" build_ms="0.07" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:59.710826Z  INFO slide text committed output="ndi-a" seq=381 push_to_commit_ms="15.74" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:59.712458Z  INFO slide text committed output="card" seq=384 push_to_commit_ms="17.26" build_ms="0.03" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:00:59.714740Z  INFO slide text committed output="ndi-b" seq=382 push_to_commit_ms="19.62" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:01:01.410648Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.204 compose_p99_ms=23.923 request_to_present_p50_ms=15.117 request_to_present_p99_ms=27.396 pid=55782
+2026-11-16T09:01:03.411633Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.183 compose_p99_ms=22.551 request_to_present_p50_ms=14.951 request_to_present_p99_ms=26.333 pid=55782
+2026-11-16T09:01:05.303119Z  INFO slide text committed output="syphon" seq=403 push_to_commit_ms="16.14" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:01:05.306407Z  INFO slide text committed output="screen" seq=400 push_to_commit_ms="19.57" build_ms="0.11" raster_ms="7.49" cached=false pid=55782
+2026-11-16T09:01:05.308700Z  INFO slide text committed output="ndi-a" seq=401 push_to_commit_ms="21.83" build_ms="0.06" raster_ms="7.31" cached=false pid=55782
+2026-11-16T09:01:05.311673Z  INFO slide text committed output="card" seq=404 push_to_commit_ms="24.70" build_ms="0.02" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:01:05.314508Z  INFO slide text committed output="ndi-b" seq=402 push_to_commit_ms="27.62" build_ms="0.05" raster_ms="0.00" cached=true pid=55782
+2026-11-16T09:01:05.412384Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.24 compose_p99_ms=23.652 request_to_present_p50_ms=15.227 request_to_present_p99_ms=27.476 pid=55782
+2026-11-16T09:01:07.412792Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.527 compose_p99_ms=11.234 request_to_present_p50_ms=9.68 request_to_present_p99_ms=15.135 pid=55782
+2026-11-16T09:01:09.413300Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.873 compose_p99_ms=17.572 request_to_present_p50_ms=10.021 request_to_present_p99_ms=21.435 pid=55782
+2026-11-16T09:01:10.253715Z  INFO chaos: EngineHang
+2026-11-16T09:01:12.319992Z ERROR output engine failed: engine unresponsive
+2026-11-16T09:01:12.406278Z  INFO engine 0.1.0 listening, protocol 9, pid 56793 pid=56793
+2026-11-16T09:01:12.408056Z  INFO NDI runtime loaded version="NDI SDK APPLE 12:49:17 Apr 13 2026 6.3.2.0" path=/Library/NDI SDK for Apple/lib/macOS/libndi.dylib pid=56793
+2026-11-16T09:01:12.408216Z  INFO output engine 0.1.0 handshake, protocol 9
+2026-11-16T09:01:12.408231Z  INFO client 1 connected pid=56793
+2026-11-16T09:01:12.408311Z  INFO output engine running pid=56793 relaunch=true
+2026-11-16T09:01:12.415662Z  INFO NDI sender created name="Kairo Scripture" pid=56793
+2026-11-16T09:01:12.429650Z  INFO 1 display(s) pid=56793
+2026-11-16T09:01:12.478040Z  INFO compositor GPU: Apple M2 Pro pid=56793
+2026-11-16T09:01:12.484601Z  INFO extra NDI sender added output="ndi-a" name="Kairo Soak chaos A" pid=56793
+2026-11-16T09:01:12.484618Z  INFO NDI output open output="ndi-a" name="Kairo Soak chaos A" pid=56793
+2026-11-16T09:01:12.484753Z  INFO extra NDI sender added output="ndi-b" name="Kairo Soak chaos B" pid=56793
+2026-11-16T09:01:12.484805Z  INFO NDI output open output="ndi-b" name="Kairo Soak chaos B" pid=56793
+2026-11-16T09:01:12.486256Z  INFO NDI sender created name="Kairo Soak chaos A" pid=56793
+2026-11-16T09:01:12.486966Z  INFO NDI sender created name="Kairo Soak chaos B" pid=56793
+2026-11-16T09:01:12.562188Z  INFO Syphon server started name="Kairo Soak chaos" pid=56793
+2026-11-16T09:01:12.562219Z  INFO Syphon server publishing output="syphon" name="Kairo Soak chaos" pid=56793
+2026-11-16T09:01:12.585475Z  INFO slide text committed output="ndi-a" seq=413 push_to_commit_ms="100.58" build_ms="0.07" raster_ms="61.66" cached=false pid=56793
+2026-11-16T09:01:12.585499Z  INFO video card output open output="card" raster=(1920, 1080) ring=true pid=56793
+2026-11-16T09:01:12.585504Z  INFO slide text committed output="ndi-b" seq=418 push_to_commit_ms="23.90" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:12.587798Z  INFO slide text committed output="syphon" seq=422 push_to_commit_ms="25.51" build_ms="0.11" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:12.595292Z  INFO slide text committed output="card" seq=426 push_to_commit_ms="9.87" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:12.606726Z  INFO slide text committed output="screen" seq=409 push_to_commit_ms="122.15" build_ms="0.10" raster_ms="58.98" cached=false pid=56793
+2026-11-16T09:01:12.606758Z  INFO chaos: EngineHang -> Recovered SIGSTOP (hang) pid 55782; relaunched as 56793 after 2163 ms, state replayed, frame on screen at 2353 ms
+2026-11-16T09:01:12.669068Z  INFO video opened path=/var/folders/19/4x5l2wkn5mz6xm36t7pdwyt80000gn/T/kairo-soak-54892/background-1080p30.mp4 backend=Hardware("videotoolbox") width=1920 height=1080 pid=56793
+2026-11-16T09:01:13.362281Z  INFO slide text committed output="card" seq=433 push_to_commit_ms="12.07" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:13.365285Z  INFO slide text committed output="syphon" seq=432 push_to_commit_ms="15.11" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:13.366969Z  INFO slide text committed output="screen" seq=429 push_to_commit_ms="16.96" build_ms="0.06" raster_ms="6.81" cached=false pid=56793
+2026-11-16T09:01:13.368349Z  INFO slide text committed output="ndi-a" seq=430 push_to_commit_ms="18.28" build_ms="0.05" raster_ms="6.78" cached=false pid=56793
+2026-11-16T09:01:13.370954Z  INFO slide text committed output="ndi-b" seq=431 push_to_commit_ms="20.82" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:14.406939Z  INFO web display latency (software, excludes capture sampling and scanout) samples=51 capture_p99_ms=153.947 compose_p99_ms=14.241 request_to_present_p50_ms=8.069 request_to_present_p99_ms=168.188 pid=56793
+2026-11-16T09:01:16.406961Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.447 compose_p99_ms=5.762 request_to_present_p50_ms=8.272 request_to_present_p99_ms=9.806 pid=56793
+2026-11-16T09:01:18.407042Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.126 compose_p99_ms=12.321 request_to_present_p50_ms=8.281 request_to_present_p99_ms=16.004 pid=56793
+2026-11-16T09:01:20.407090Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=10.698 compose_p99_ms=24.493 request_to_present_p50_ms=8.132 request_to_present_p99_ms=27.937 pid=56793
+2026-11-16T09:01:21.452650Z  INFO slide text committed output="card" seq=438 push_to_commit_ms="17.08" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:21.455162Z  INFO slide text committed output="syphon" seq=437 push_to_commit_ms="19.64" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:21.456654Z  INFO slide text committed output="screen" seq=434 push_to_commit_ms="21.31" build_ms="0.06" raster_ms="7.49" cached=false pid=56793
+2026-11-16T09:01:21.457985Z  INFO slide text committed output="ndi-a" seq=435 push_to_commit_ms="22.56" build_ms="0.05" raster_ms="7.40" cached=false pid=56793
+2026-11-16T09:01:21.460250Z  INFO slide text committed output="ndi-b" seq=436 push_to_commit_ms="24.78" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:22.407132Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.606 compose_p99_ms=6.112 request_to_present_p50_ms=8.201 request_to_present_p99_ms=10.207 pid=56793
+2026-11-16T09:01:24.407189Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.867 compose_p99_ms=7.3 request_to_present_p50_ms=8.5 request_to_present_p99_ms=11.187 pid=56793
+2026-11-16T09:01:26.407245Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.361 compose_p99_ms=16.404 request_to_present_p50_ms=9.234 request_to_present_p99_ms=21.765 pid=56793
+2026-11-16T09:01:28.407384Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.342 compose_p99_ms=18.127 request_to_present_p50_ms=8.942 request_to_present_p99_ms=22.897 pid=56793
+2026-11-16T09:01:29.531147Z  INFO slide text committed output="card" seq=443 push_to_commit_ms="14.92" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:29.533326Z  INFO slide text committed output="syphon" seq=442 push_to_commit_ms="17.14" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:29.535423Z  INFO slide text committed output="screen" seq=439 push_to_commit_ms="19.46" build_ms="0.11" raster_ms="6.66" cached=false pid=56793
+2026-11-16T09:01:29.538413Z  INFO slide text committed output="ndi-a" seq=440 push_to_commit_ms="22.35" build_ms="0.09" raster_ms="6.85" cached=false pid=56793
+2026-11-16T09:01:29.540884Z  INFO slide text committed output="ndi-b" seq=441 push_to_commit_ms="24.75" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:30.407460Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.303 compose_p99_ms=19.135 request_to_present_p50_ms=9.084 request_to_present_p99_ms=23.84 pid=56793
+2026-11-16T09:01:32.407550Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.345 compose_p99_ms=6.557 request_to_present_p50_ms=8.829 request_to_present_p99_ms=11.567 pid=56793
+2026-11-16T09:01:34.407670Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.37 compose_p99_ms=18.517 request_to_present_p50_ms=9.252 request_to_present_p99_ms=23.633 pid=56793
+2026-11-16T09:01:36.407798Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.591 compose_p99_ms=13.836 request_to_present_p50_ms=9.0 request_to_present_p99_ms=18.837 pid=56793
+2026-11-16T09:01:37.603861Z  INFO slide text committed output="card" seq=448 push_to_commit_ms="11.96" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:37.606663Z  INFO slide text committed output="syphon" seq=447 push_to_commit_ms="14.82" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:37.611771Z  INFO slide text committed output="screen" seq=444 push_to_commit_ms="20.14" build_ms="0.07" raster_ms="6.47" cached=false pid=56793
+2026-11-16T09:01:37.612626Z  INFO slide text committed output="ndi-a" seq=445 push_to_commit_ms="20.92" build_ms="0.07" raster_ms="6.56" cached=false pid=56793
+2026-11-16T09:01:37.617198Z  INFO slide text committed output="ndi-b" seq=446 push_to_commit_ms="25.41" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:38.407940Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.042 compose_p99_ms=23.329 request_to_present_p50_ms=9.837 request_to_present_p99_ms=28.233 pid=56793
+2026-11-16T09:01:40.408110Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=27.349 compose_p99_ms=25.146 request_to_present_p50_ms=9.952 request_to_present_p99_ms=33.268 pid=56793
+2026-11-16T09:01:42.411222Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=34.96 compose_p99_ms=7.493 request_to_present_p50_ms=9.952 request_to_present_p99_ms=41.531 pid=56793
+2026-11-16T09:01:44.411446Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.274 compose_p99_ms=20.843 request_to_present_p50_ms=9.947 request_to_present_p99_ms=24.785 pid=56793
+2026-11-16T09:01:45.253003Z  INFO chaos: DisplayReplug
+2026-11-16T09:01:45.438745Z ERROR layer change for an output the compositor does not have output="screen" pid=56793
+2026-11-16T09:01:45.438767Z  WARN engine: layer change for an output the compositor does not have output="screen"
+2026-11-16T09:01:45.689500Z  INFO slide text committed output="card" seq=454 push_to_commit_ms="20.39" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:45.692062Z  INFO slide text committed output="syphon" seq=453 push_to_commit_ms="23.01" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:45.694583Z  INFO slide text committed output="ndi-a" seq=451 push_to_commit_ms="25.68" build_ms="0.08" raster_ms="7.18" cached=false pid=56793
+2026-11-16T09:01:45.701505Z  INFO slide text committed output="ndi-b" seq=452 push_to_commit_ms="32.51" build_ms="0.06" raster_ms="7.34" cached=false pid=56793
+2026-11-16T09:01:46.412049Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.674 compose_p99_ms=24.548 request_to_present_p50_ms=9.949 request_to_present_p99_ms=28.71 pid=56793
+2026-11-16T09:01:46.440561Z ERROR layer change for an output the compositor does not have output="screen" pid=56793
+2026-11-16T09:01:46.440569Z  WARN engine: layer change for an output the compositor does not have output="screen"
+2026-11-16T09:01:47.449545Z ERROR layer change for an output the compositor does not have output="screen" pid=56793
+2026-11-16T09:01:47.449576Z  WARN engine: layer change for an output the compositor does not have output="screen"
+2026-11-16T09:01:48.305128Z  INFO slide text committed output="screen" seq=455 push_to_commit_ms="37.81" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:48.305300Z  INFO chaos: DisplayReplug -> Recovered surface parked 3 s and restored; frame in 50 ms with state intact. The OS display-change event itself was not exercised (no second display to unplug)
+2026-11-16T09:01:48.412727Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.877 compose_p99_ms=25.083 request_to_present_p50_ms=9.931 request_to_present_p99_ms=29.405 pid=56793
+2026-11-16T09:01:50.412977Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.686 compose_p99_ms=7.083 request_to_present_p50_ms=9.7 request_to_present_p99_ms=11.08 pid=56793
+2026-11-16T09:01:52.413252Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.456 compose_p99_ms=22.949 request_to_present_p50_ms=8.932 request_to_present_p99_ms=27.405 pid=56793
+2026-11-16T09:01:53.741440Z  INFO slide text committed output="card" seq=462 push_to_commit_ms="21.39" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:53.745522Z  INFO slide text committed output="syphon" seq=461 push_to_commit_ms="25.52" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:53.747117Z  INFO slide text committed output="screen" seq=458 push_to_commit_ms="27.28" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:53.749988Z  INFO slide text committed output="ndi-a" seq=459 push_to_commit_ms="30.10" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:53.754339Z  INFO slide text committed output="ndi-b" seq=460 push_to_commit_ms="34.39" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:01:54.414086Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.468 compose_p99_ms=27.824 request_to_present_p50_ms=10.673 request_to_present_p99_ms=31.569 pid=56793
+2026-11-16T09:01:56.414679Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.848 compose_p99_ms=10.711 request_to_present_p50_ms=9.344 request_to_present_p99_ms=14.173 pid=56793
+2026-11-16T09:01:58.415701Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.493 compose_p99_ms=26.91 request_to_present_p50_ms=9.892 request_to_present_p99_ms=31.154 pid=56793
+2026-11-16T09:02:00.415976Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.583 compose_p99_ms=23.183 request_to_present_p50_ms=10.412 request_to_present_p99_ms=27.837 pid=56793
+2026-11-16T09:02:01.825763Z  INFO slide text committed output="card" seq=467 push_to_commit_ms="13.56" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:01.830396Z  INFO slide text committed output="syphon" seq=466 push_to_commit_ms="18.24" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:01.832836Z  INFO slide text committed output="screen" seq=463 push_to_commit_ms="20.84" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:01.835577Z  INFO slide text committed output="ndi-a" seq=464 push_to_commit_ms="23.52" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:01.839707Z  INFO slide text committed output="ndi-b" seq=465 push_to_commit_ms="27.60" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:02.416843Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=7.721 compose_p99_ms=28.143 request_to_present_p50_ms=11.734 request_to_present_p99_ms=31.493 pid=56793
+2026-11-16T09:02:04.417877Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.299 compose_p99_ms=22.956 request_to_present_p50_ms=9.925 request_to_present_p99_ms=27.122 pid=56793
+2026-11-16T09:02:06.418568Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=4.656 compose_p99_ms=27.178 request_to_present_p50_ms=23.283 request_to_present_p99_ms=31.44 pid=56793
+2026-11-16T09:02:08.418774Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.471 compose_p99_ms=27.47 request_to_present_p50_ms=29.339 request_to_present_p99_ms=31.229 pid=56793
+2026-11-16T09:02:09.906733Z  INFO slide text committed output="card" seq=477 push_to_commit_ms="12.64" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:09.910911Z  INFO slide text committed output="syphon" seq=476 push_to_commit_ms="16.86" build_ms="0.09" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:09.911932Z  INFO slide text committed output="screen" seq=473 push_to_commit_ms="18.02" build_ms="0.29" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:09.914455Z  INFO slide text committed output="ndi-a" seq=474 push_to_commit_ms="20.47" build_ms="0.27" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:09.917250Z  INFO slide text committed output="ndi-b" seq=475 push_to_commit_ms="23.23" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:10.418826Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.398 compose_p99_ms=27.046 request_to_present_p50_ms=29.431 request_to_present_p99_ms=30.665 pid=56793
+2026-11-16T09:02:12.419882Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.455 compose_p99_ms=26.772 request_to_present_p50_ms=29.44 request_to_present_p99_ms=30.772 pid=56793
+2026-11-16T09:02:14.420926Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.506 compose_p99_ms=26.917 request_to_present_p50_ms=29.474 request_to_present_p99_ms=30.54 pid=56793
+2026-11-16T09:02:16.421980Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.273 compose_p99_ms=27.163 request_to_present_p50_ms=29.492 request_to_present_p99_ms=30.833 pid=56793
+2026-11-16T09:02:17.974349Z  INFO slide text committed output="card" seq=482 push_to_commit_ms="5.51" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:17.977994Z  INFO slide text committed output="syphon" seq=481 push_to_commit_ms="9.20" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:17.979726Z  INFO slide text committed output="screen" seq=478 push_to_commit_ms="11.11" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:17.981712Z  INFO slide text committed output="ndi-a" seq=479 push_to_commit_ms="13.02" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:17.984767Z  INFO slide text committed output="ndi-b" seq=480 push_to_commit_ms="16.03" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:18.423019Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.339 compose_p99_ms=27.077 request_to_present_p50_ms=29.383 request_to_present_p99_ms=30.704 pid=56793
+2026-11-16T09:02:20.252753Z  INFO chaos: DiskNearlyFull
+2026-11-16T09:02:20.423419Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.916 compose_p99_ms=26.488 request_to_present_p50_ms=29.139 request_to_present_p99_ms=30.31 pid=56793
+2026-11-16T09:02:22.424422Z  INFO web display latency (software, excludes capture sampling and scanout) samples=58 capture_p99_ms=11.966 compose_p99_ms=31.706 request_to_present_p50_ms=29.595 request_to_present_p99_ms=43.672 pid=56793
+2026-11-16T09:02:22.796953Z  INFO recording file=/Volumes/KairoSoakDisk/Recordings/Kairo Soak 2026-11-16 10.02.22.mov source="Soak" width=1920 height=1080 fps=30 codec="h264" audio=false pid=56793
+2026-11-16T09:02:24.425044Z  INFO web display latency (software, excludes capture sampling and scanout) samples=58 capture_p99_ms=12.151 compose_p99_ms=37.537 request_to_present_p50_ms=29.955 request_to_present_p99_ms=47.396 pid=56793
+2026-11-16T09:02:26.030163Z  INFO slide text committed output="card" seq=493 push_to_commit_ms="10.10" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:26.033700Z  INFO slide text committed output="syphon" seq=492 push_to_commit_ms="13.70" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:26.035400Z  INFO slide text committed output="screen" seq=489 push_to_commit_ms="15.54" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:26.036989Z  INFO slide text committed output="ndi-a" seq=490 push_to_commit_ms="17.10" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:26.038956Z  INFO slide text committed output="ndi-b" seq=491 push_to_commit_ms="19.00" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:26.425777Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=5.054 compose_p99_ms=27.747 request_to_present_p50_ms=9.429 request_to_present_p99_ms=31.414 pid=56793
+2026-11-16T09:02:28.426822Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.554 compose_p99_ms=6.781 request_to_present_p50_ms=8.33 request_to_present_p99_ms=10.697 pid=56793
+2026-11-16T09:02:30.427093Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.5 compose_p99_ms=6.813 request_to_present_p50_ms=8.969 request_to_present_p99_ms=10.577 pid=56793
+2026-11-16T09:02:32.428148Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.65 compose_p99_ms=24.597 request_to_present_p50_ms=9.835 request_to_present_p99_ms=28.851 pid=56793
+2026-11-16T09:02:32.829269Z  INFO capture saved file=/Volumes/KairoSoakDisk/Recordings/Kairo Soak 2026-11-16 10.02.22.mov pid=56793
+2026-11-16T09:02:33.030879Z  INFO chaos: DiskNearlyFull -> Recovered recording on a 2.6 GB RAM disk filled to ~300 MB free: stopped 9106 ms after filling with "Recording stopped: the disk is nearly full (0.3 GB left)"; file kept: true; outputs unaffected
+2026-11-16T09:02:33.806056Z  WARN capture stopped with a problem file=/Volumes/KairoSoakDisk/Recordings/Kairo Soak 2026-11-16 10.02.22.mov error=Recording stopped: the disk is nearly full (0.3 GB left) pid=56793
+2026-11-16T09:02:34.103809Z  INFO slide text committed output="card" seq=500 push_to_commit_ms="12.09" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:34.111195Z  INFO slide text committed output="syphon" seq=499 push_to_commit_ms="19.54" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:34.112501Z  INFO slide text committed output="screen" seq=496 push_to_commit_ms="21.09" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:34.116053Z  INFO slide text committed output="ndi-a" seq=497 push_to_commit_ms="24.53" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:34.120232Z  INFO slide text committed output="ndi-b" seq=498 push_to_commit_ms="28.65" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:34.428633Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.799 compose_p99_ms=27.288 request_to_present_p50_ms=9.851 request_to_present_p99_ms=31.516 pid=56793
+2026-11-16T09:02:35.340812Z  INFO slide text committed output="screen" seq=501 push_to_commit_ms="7.09" build_ms="0.06" raster_ms="4.19" cached=false pid=56793
+2026-11-16T09:02:35.344166Z  INFO slide text committed output="ndi-a" seq=502 push_to_commit_ms="10.39" build_ms="0.08" raster_ms="4.13" cached=false pid=56793
+2026-11-16T09:02:35.348527Z  INFO slide text committed output="card" seq=505 push_to_commit_ms="14.62" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:35.351245Z  INFO slide text committed output="syphon" seq=504 push_to_commit_ms="17.37" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:35.355420Z  INFO slide text committed output="ndi-b" seq=503 push_to_commit_ms="21.60" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:36.429416Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.787 compose_p99_ms=25.199 request_to_present_p50_ms=9.757 request_to_present_p99_ms=29.287 pid=56793
+2026-11-16T09:02:38.430473Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.202 compose_p99_ms=26.63 request_to_present_p50_ms=9.818 request_to_present_p99_ms=30.822 pid=56793
+2026-11-16T09:02:40.431224Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.924 compose_p99_ms=7.098 request_to_present_p50_ms=9.774 request_to_present_p99_ms=11.575 pid=56793
+2026-11-16T09:02:41.444353Z  INFO slide text committed output="screen" seq=506 push_to_commit_ms="10.99" build_ms="0.07" raster_ms="6.05" cached=false pid=56793
+2026-11-16T09:02:41.445268Z  INFO slide text committed output="card" seq=510 push_to_commit_ms="11.74" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:41.447870Z  INFO slide text committed output="syphon" seq=509 push_to_commit_ms="14.37" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:41.450705Z  INFO slide text committed output="ndi-a" seq=507 push_to_commit_ms="17.30" build_ms="0.05" raster_ms="6.20" cached=false pid=56793
+2026-11-16T09:02:41.454930Z  INFO slide text committed output="ndi-b" seq=508 push_to_commit_ms="21.47" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:42.431528Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.77 compose_p99_ms=27.266 request_to_present_p50_ms=9.673 request_to_present_p99_ms=31.418 pid=56793
+2026-11-16T09:02:44.431722Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.629 compose_p99_ms=10.178 request_to_present_p50_ms=9.624 request_to_present_p99_ms=14.436 pid=56793
+2026-11-16T09:02:46.432765Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.572 compose_p99_ms=22.872 request_to_present_p50_ms=9.377 request_to_present_p99_ms=27.417 pid=56793
+2026-11-16T09:02:47.544117Z  INFO slide text committed output="screen" seq=511 push_to_commit_ms="10.90" build_ms="0.08" raster_ms="6.32" cached=false pid=56793
+2026-11-16T09:02:47.546470Z  INFO slide text committed output="ndi-a" seq=512 push_to_commit_ms="13.20" build_ms="0.06" raster_ms="6.29" cached=false pid=56793
+2026-11-16T09:02:47.550191Z  INFO slide text committed output="card" seq=515 push_to_commit_ms="16.79" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:47.552439Z  INFO slide text committed output="syphon" seq=514 push_to_commit_ms="19.08" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:47.557264Z  INFO slide text committed output="ndi-b" seq=513 push_to_commit_ms="23.93" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:48.433841Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.697 compose_p99_ms=24.301 request_to_present_p50_ms=9.543 request_to_present_p99_ms=28.521 pid=56793
+2026-11-16T09:02:50.434841Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.796 compose_p99_ms=7.239 request_to_present_p50_ms=9.524 request_to_present_p99_ms=11.419 pid=56793
+2026-11-16T09:02:52.435884Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.426 compose_p99_ms=8.277 request_to_present_p50_ms=9.416 request_to_present_p99_ms=11.833 pid=56793
+2026-11-16T09:02:53.633590Z  INFO slide text committed output="card" seq=520 push_to_commit_ms="14.66" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:53.635724Z  INFO slide text committed output="syphon" seq=519 push_to_commit_ms="16.85" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:53.638644Z  INFO slide text committed output="screen" seq=516 push_to_commit_ms="19.95" build_ms="0.06" raster_ms="4.77" cached=false pid=56793
+2026-11-16T09:02:53.643790Z  INFO slide text committed output="ndi-a" seq=517 push_to_commit_ms="25.02" build_ms="0.08" raster_ms="5.00" cached=false pid=56793
+2026-11-16T09:02:53.645759Z  INFO slide text committed output="ndi-b" seq=518 push_to_commit_ms="26.93" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:54.436946Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.39 compose_p99_ms=9.319 request_to_present_p50_ms=9.343 request_to_present_p99_ms=13.061 pid=56793
+2026-11-16T09:02:56.438015Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.773 compose_p99_ms=19.62 request_to_present_p50_ms=9.289 request_to_present_p99_ms=23.364 pid=56793
+2026-11-16T09:02:58.438422Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.288 compose_p99_ms=23.936 request_to_present_p50_ms=8.584 request_to_present_p99_ms=28.224 pid=56793
+2026-11-16T09:02:59.652015Z  INFO slide text committed output="card" seq=525 push_to_commit_ms="15.46" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:59.654157Z  INFO slide text committed output="syphon" seq=524 push_to_commit_ms="17.66" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:02:59.656817Z  INFO slide text committed output="screen" seq=521 push_to_commit_ms="20.49" build_ms="0.08" raster_ms="5.31" cached=false pid=56793
+2026-11-16T09:02:59.659444Z  INFO slide text committed output="ndi-a" seq=522 push_to_commit_ms="23.05" build_ms="0.06" raster_ms="5.35" cached=false pid=56793
+2026-11-16T09:02:59.663537Z  INFO slide text committed output="ndi-b" seq=523 push_to_commit_ms="27.08" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:00.439450Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.468 compose_p99_ms=6.335 request_to_present_p50_ms=8.638 request_to_present_p99_ms=10.126 pid=56793
+2026-11-16T09:03:02.439631Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.752 compose_p99_ms=8.055 request_to_present_p50_ms=9.022 request_to_present_p99_ms=11.792 pid=56793
+2026-11-16T09:03:04.440005Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.742 compose_p99_ms=9.088 request_to_present_p50_ms=9.436 request_to_present_p99_ms=13.479 pid=56793
+2026-11-16T09:03:05.644482Z  INFO slide text committed output="screen" seq=526 push_to_commit_ms="4.87" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:05.646416Z  INFO slide text committed output="ndi-a" seq=527 push_to_commit_ms="6.67" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:05.650047Z  INFO slide text committed output="ndi-b" seq=528 push_to_commit_ms="10.24" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:05.655582Z  INFO slide text committed output="card" seq=530 push_to_commit_ms="15.67" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:05.657927Z  INFO slide text committed output="syphon" seq=529 push_to_commit_ms="18.07" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:06.440091Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=10.597 compose_p99_ms=22.868 request_to_present_p50_ms=9.821 request_to_present_p99_ms=27.248 pid=56793
+2026-11-16T09:03:08.440156Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=10.53 compose_p99_ms=18.245 request_to_present_p50_ms=9.682 request_to_present_p99_ms=28.62 pid=56793
+2026-11-16T09:03:10.253955Z  INFO chaos: RecoveryFile
+2026-11-16T09:03:10.255337Z  WARN Could not load session recovery error=key must be a string at line 1 column 3
+2026-11-16T09:03:10.261061Z  INFO chaos: RecoveryFile -> Recovered restore without a service refused; corrupt file loaded as nothing; save into a read-only folder failed and was survived; save, load and double discard behaved
+2026-11-16T09:03:10.440194Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=28.601 compose_p99_ms=24.111 request_to_present_p50_ms=9.816 request_to_present_p99_ms=34.898 pid=56793
+2026-11-16T09:03:11.735888Z  INFO slide text committed output="card" seq=535 push_to_commit_ms="12.25" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:11.738928Z  INFO slide text committed output="syphon" seq=534 push_to_commit_ms="15.37" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:11.744318Z  INFO slide text committed output="screen" seq=531 push_to_commit_ms="20.92" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:11.744491Z  INFO slide text committed output="ndi-a" seq=532 push_to_commit_ms="21.04" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:11.748325Z  INFO slide text committed output="ndi-b" seq=533 push_to_commit_ms="24.81" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:12.440264Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.827 compose_p99_ms=20.784 request_to_present_p50_ms=9.657 request_to_present_p99_ms=25.022 pid=56793
+2026-11-16T09:03:14.440332Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.516 compose_p99_ms=8.923 request_to_present_p50_ms=9.488 request_to_present_p99_ms=12.534 pid=56793
+2026-11-16T09:03:16.440411Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.65 compose_p99_ms=8.576 request_to_present_p50_ms=9.527 request_to_present_p99_ms=12.2 pid=56793
+2026-11-16T09:03:17.740278Z  INFO slide text committed output="syphon" seq=539 push_to_commit_ms="3.69" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:17.744004Z  INFO slide text committed output="screen" seq=536 push_to_commit_ms="7.62" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:17.746216Z  INFO slide text committed output="ndi-a" seq=537 push_to_commit_ms="9.77" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:17.749680Z  INFO slide text committed output="ndi-b" seq=538 push_to_commit_ms="13.18" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:17.754488Z  INFO slide text committed output="card" seq=540 push_to_commit_ms="17.87" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:18.440503Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.052 compose_p99_ms=14.195 request_to_present_p50_ms=9.641 request_to_present_p99_ms=18.159 pid=56793
+2026-11-16T09:03:20.440938Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.434 compose_p99_ms=10.747 request_to_present_p50_ms=9.319 request_to_present_p99_ms=15.062 pid=56793
+2026-11-16T09:03:22.440944Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.452 compose_p99_ms=27.293 request_to_present_p50_ms=9.386 request_to_present_p99_ms=31.514 pid=56793
+2026-11-16T09:03:23.769525Z  INFO slide text committed output="card" seq=545 push_to_commit_ms="17.11" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:23.773245Z  INFO slide text committed output="syphon" seq=544 push_to_commit_ms="20.88" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:23.777110Z  INFO slide text committed output="screen" seq=541 push_to_commit_ms="24.89" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:23.777985Z  INFO slide text committed output="ndi-a" seq=542 push_to_commit_ms="25.71" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:23.781653Z  INFO slide text committed output="ndi-b" seq=543 push_to_commit_ms="29.33" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:24.441024Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.236 compose_p99_ms=21.116 request_to_present_p50_ms=9.407 request_to_present_p99_ms=24.874 pid=56793
+2026-11-16T09:03:26.441050Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.433 compose_p99_ms=7.723 request_to_present_p50_ms=9.227 request_to_present_p99_ms=11.388 pid=56793
+2026-11-16T09:03:28.441090Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.292 compose_p99_ms=8.283 request_to_present_p50_ms=9.424 request_to_present_p99_ms=12.196 pid=56793
+2026-11-16T09:03:29.868092Z  INFO slide text committed output="card" seq=550 push_to_commit_ms="13.26" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:29.871639Z  INFO slide text committed output="syphon" seq=549 push_to_commit_ms="16.86" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:29.874354Z  INFO slide text committed output="screen" seq=546 push_to_commit_ms="19.73" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:29.878219Z  INFO slide text committed output="ndi-a" seq=547 push_to_commit_ms="23.52" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:29.880633Z  INFO slide text committed output="ndi-b" seq=548 push_to_commit_ms="25.90" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:30.441127Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.868 compose_p99_ms=9.075 request_to_present_p50_ms=9.211 request_to_present_p99_ms=13.253 pid=56793
+2026-11-16T09:03:32.441215Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.351 compose_p99_ms=31.611 request_to_present_p50_ms=9.04 request_to_present_p99_ms=35.225 pid=56793
+2026-11-16T09:03:34.441220Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=4.204 compose_p99_ms=55.615 request_to_present_p50_ms=10.178 request_to_present_p99_ms=59.819 pid=56793
+2026-11-16T09:03:35.965675Z  INFO slide text committed output="card" seq=555 push_to_commit_ms="6.80" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:35.968447Z  INFO slide text committed output="syphon" seq=554 push_to_commit_ms="9.63" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:35.972546Z  INFO slide text committed output="ndi-a" seq=552 push_to_commit_ms="13.82" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:35.977556Z  INFO slide text committed output="ndi-b" seq=553 push_to_commit_ms="18.78" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:36.441284Z  INFO web display latency (software, excludes capture sampling and scanout) samples=58 capture_p99_ms=4.283 compose_p99_ms=48.387 request_to_present_p50_ms=8.99 request_to_present_p99_ms=51.815 pid=56793
+2026-11-16T09:03:38.441387Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.856 compose_p99_ms=7.519 request_to_present_p50_ms=9.361 request_to_present_p99_ms=10.747 pid=56793
+2026-11-16T09:03:40.253079Z  INFO chaos: DetectorFailure
+2026-11-16T09:03:40.441511Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.68 compose_p99_ms=6.045 request_to_present_p50_ms=9.338 request_to_present_p99_ms=10.616 pid=56793
+2026-11-16T09:03:42.055406Z  INFO slide text committed output="card" seq=560 push_to_commit_ms="8.78" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:42.058578Z  INFO slide text committed output="syphon" seq=559 push_to_commit_ms="12.06" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:42.063533Z  INFO slide text committed output="ndi-a" seq=557 push_to_commit_ms="17.18" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:42.067296Z  INFO slide text committed output="ndi-b" seq=558 push_to_commit_ms="20.86" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:42.441773Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.982 compose_p99_ms=20.059 request_to_present_p50_ms=9.656 request_to_present_p99_ms=24.624 pid=56793
+2026-11-16T09:03:44.442600Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.685 compose_p99_ms=20.819 request_to_present_p50_ms=9.176 request_to_present_p99_ms=25.504 pid=56793
+2026-11-16T09:03:46.446501Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.72 compose_p99_ms=24.035 request_to_present_p50_ms=9.284 request_to_present_p99_ms=28.647 pid=56793
+2026-11-16T09:03:48.158383Z  INFO slide text committed output="card" seq=565 push_to_commit_ms="12.20" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:48.161282Z  INFO slide text committed output="syphon" seq=564 push_to_commit_ms="15.17" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:48.171184Z  INFO slide text committed output="ndi-a" seq=562 push_to_commit_ms="25.19" build_ms="0.07" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:48.179570Z  INFO slide text committed output="ndi-b" seq=563 push_to_commit_ms="33.49" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:48.447686Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.793 compose_p99_ms=40.58 request_to_present_p50_ms=9.206 request_to_present_p99_ms=44.249 pid=56793
+2026-11-16T09:03:50.448776Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.275 compose_p99_ms=9.1 request_to_present_p50_ms=11.264 request_to_present_p99_ms=13.046 pid=56793
+2026-11-16T09:03:52.449894Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=3.95 compose_p99_ms=41.096 request_to_present_p50_ms=10.888 request_to_present_p99_ms=44.575 pid=56793
+2026-11-16T09:03:54.248297Z  INFO slide text committed output="card" seq=570 push_to_commit_ms="11.22" build_ms="0.02" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:54.252238Z  INFO slide text committed output="syphon" seq=569 push_to_commit_ms="15.21" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:54.257947Z  INFO slide text committed output="ndi-a" seq=567 push_to_commit_ms="20.98" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:54.263853Z  INFO slide text committed output="ndi-b" seq=568 push_to_commit_ms="26.86" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:03:54.450910Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=3.855 compose_p99_ms=39.627 request_to_present_p50_ms=11.163 request_to_present_p99_ms=43.096 pid=56793
+2026-11-16T09:03:56.452131Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.287 compose_p99_ms=12.615 request_to_present_p50_ms=9.186 request_to_present_p99_ms=16.583 pid=56793
+2026-11-16T09:03:58.452982Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.345 compose_p99_ms=21.493 request_to_present_p50_ms=9.015 request_to_present_p99_ms=25.219 pid=56793
+2026-11-16T09:04:00.349254Z  INFO slide text committed output="ndi-a" seq=572 push_to_commit_ms="8.18" build_ms="0.08" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:00.354275Z  INFO slide text committed output="ndi-b" seq=573 push_to_commit_ms="13.15" build_ms="0.04" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:00.358781Z  INFO slide text committed output="card" seq=575 push_to_commit_ms="17.58" build_ms="0.03" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:00.362774Z  INFO slide text committed output="syphon" seq=574 push_to_commit_ms="21.62" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:00.454283Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.58 compose_p99_ms=25.432 request_to_present_p50_ms=9.172 request_to_present_p99_ms=29.094 pid=56793
+2026-11-16T09:04:01.342271Z  INFO slide text committed output="screen" seq=551 push_to_commit_ms="25379.36" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:01.342325Z  INFO slide text committed output="screen" seq=556 push_to_commit_ms="19291.78" build_ms="0.11" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:01.342333Z  INFO slide text committed output="screen" seq=561 push_to_commit_ms="13194.00" build_ms="0.09" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:01.342338Z  INFO slide text committed output="screen" seq=566 push_to_commit_ms="7104.37" build_ms="0.06" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:01.342342Z  INFO slide text committed output="screen" seq=571 push_to_commit_ms="1001.16" build_ms="0.05" raster_ms="0.00" cached=true pid=56793
+2026-11-16T09:04:02.455762Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=5.305 compose_p99_ms=44.278 request_to_present_p50_ms=9.687 request_to_present_p99_ms=47.795 pid=56793
+2026-11-16T09:04:04.456308Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.496 compose_p99_ms=20.173 request_to_present_p50_ms=9.696 request_to_present_p99_ms=24.429 pid=56793
+2026-11-16T09:04:06.457327Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.312 compose_p99_ms=12.411 request_to_present_p50_ms=10.262 request_to_present_p99_ms=17.111 pid=56793
+2026-11-16T09:04:08.457639Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.878 compose_p99_ms=15.702 request_to_present_p50_ms=11.339 request_to_present_p99_ms=20.255 pid=56793
+2026-11-16T09:04:10.260637Z  INFO chaos: DetectorFailure -> Recovered two failures: provider fallback; retry after 30 s; success restored all good
+2026-11-16T09:04:10.458820Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.471 compose_p99_ms=19.68 request_to_present_p50_ms=10.822 request_to_present_p99_ms=24.553 pid=56793
+2026-11-16T09:04:12.459987Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.608 compose_p99_ms=8.443 request_to_present_p50_ms=10.646 request_to_present_p99_ms=13.449 pid=56793
+2026-11-16T09:04:14.460194Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.188 compose_p99_ms=8.977 request_to_present_p50_ms=11.976 request_to_present_p99_ms=14.487 pid=56793
+2026-11-16T09:04:16.461249Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.496 compose_p99_ms=8.888 request_to_present_p50_ms=12.431 request_to_present_p99_ms=14.169 pid=56793
+2026-11-16T09:04:18.461638Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=6.069 compose_p99_ms=14.074 request_to_present_p50_ms=11.699 request_to_present_p99_ms=18.298 pid=56793
+2026-11-16T09:04:20.462010Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.909 compose_p99_ms=14.647 request_to_present_p50_ms=10.634 request_to_present_p99_ms=18.348 pid=56793
+2026-11-16T09:04:22.463123Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=6.666 compose_p99_ms=22.412 request_to_present_p50_ms=12.953 request_to_present_p99_ms=27.42 pid=56793
+2026-11-16T09:04:24.463251Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.306 compose_p99_ms=9.308 request_to_present_p50_ms=12.555 request_to_present_p99_ms=15.224 pid=56793
+2026-11-16T09:04:26.463393Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.029 compose_p99_ms=18.1 request_to_present_p50_ms=11.825 request_to_present_p99_ms=22.853 pid=56793
+2026-11-16T09:04:28.464484Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.928 compose_p99_ms=9.771 request_to_present_p50_ms=12.409 request_to_present_p99_ms=15.458 pid=56793
+2026-11-16T09:04:30.258919Z  INFO chaos: EngineKill
+2026-11-16T09:04:30.295718Z ERROR output engine failed: engine exited (signal: 9 (SIGKILL))
+2026-11-16T09:04:30.382313Z  INFO engine 0.1.0 listening, protocol 9, pid 58034 pid=58034
+2026-11-16T09:04:30.382873Z  INFO output engine 0.1.0 handshake, protocol 9
+2026-11-16T09:04:30.382889Z  INFO client 1 connected pid=58034
+2026-11-16T09:04:30.382965Z  INFO output engine running pid=58034 relaunch=true
+2026-11-16T09:04:30.384113Z  INFO NDI runtime loaded version="NDI SDK APPLE 12:49:17 Apr 13 2026 6.3.2.0" path=/Library/NDI SDK for Apple/lib/macOS/libndi.dylib pid=58034
+2026-11-16T09:04:30.391661Z  INFO NDI sender created name="Kairo Scripture" pid=58034
+2026-11-16T09:04:30.405511Z  INFO 1 display(s) pid=58034
+2026-11-16T09:04:30.467844Z  INFO compositor GPU: Apple M2 Pro pid=58034
+2026-11-16T09:04:30.474385Z  INFO extra NDI sender added output="ndi-a" name="Kairo Soak chaos A" pid=58034
+2026-11-16T09:04:30.474417Z  INFO NDI output open output="ndi-a" name="Kairo Soak chaos A" pid=58034
+2026-11-16T09:04:30.474493Z  INFO extra NDI sender added output="ndi-b" name="Kairo Soak chaos B" pid=58034
+2026-11-16T09:04:30.474531Z  INFO NDI output open output="ndi-b" name="Kairo Soak chaos B" pid=58034
+2026-11-16T09:04:30.475923Z  INFO NDI sender created name="Kairo Soak chaos A" pid=58034
+2026-11-16T09:04:30.476447Z  INFO NDI sender created name="Kairo Soak chaos B" pid=58034
+2026-11-16T09:04:30.613804Z  INFO Syphon server started name="Kairo Soak chaos" pid=58034
+2026-11-16T09:04:30.613860Z  INFO Syphon server publishing output="syphon" name="Kairo Soak chaos" pid=58034
+2026-11-16T09:04:30.678139Z  INFO video card output open output="card" raster=(1920, 1080) ring=true pid=58034
+2026-11-16T09:04:32.382487Z  INFO web display latency (software, excludes capture sampling and scanout) samples=48 capture_p99_ms=201.258 compose_p99_ms=24.833 request_to_present_p50_ms=15.456 request_to_present_p99_ms=209.349 pid=58034
+2026-11-16T09:04:33.009119Z  INFO chaos: EngineKill -> Recovered SIGKILL pid 56793; relaunched as 58034 after 130 ms, state replayed, frame on screen at 2750 ms
+2026-11-16T09:04:34.383128Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=45.907 compose_p99_ms=19.628 request_to_present_p50_ms=10.987 request_to_present_p99_ms=54.405 pid=58034
+2026-11-16T09:04:36.383411Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.998 compose_p99_ms=8.438 request_to_present_p50_ms=11.555 request_to_present_p99_ms=13.194 pid=58034
+2026-11-16T09:04:38.383512Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.853 compose_p99_ms=14.334 request_to_present_p50_ms=12.12 request_to_present_p99_ms=18.13 pid=58034
+2026-11-16T09:04:40.383631Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=8.291 compose_p99_ms=7.834 request_to_present_p50_ms=11.261 request_to_present_p99_ms=15.056 pid=58034
+2026-11-16T09:04:42.383758Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.041 compose_p99_ms=9.804 request_to_present_p50_ms=11.431 request_to_present_p99_ms=15.598 pid=58034
+2026-11-16T09:04:44.383965Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.721 compose_p99_ms=14.598 request_to_present_p50_ms=11.438 request_to_present_p99_ms=19.025 pid=58034
+2026-11-16T09:04:46.384148Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.862 compose_p99_ms=12.353 request_to_present_p50_ms=11.642 request_to_present_p99_ms=17.474 pid=58034
+2026-11-16T09:04:48.384238Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.579 compose_p99_ms=9.072 request_to_present_p50_ms=11.84 request_to_present_p99_ms=14.748 pid=58034
+2026-11-16T09:04:50.384356Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.937 compose_p99_ms=11.479 request_to_present_p50_ms=10.752 request_to_present_p99_ms=15.688 pid=58034
+2026-11-16T09:04:52.384481Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.175 compose_p99_ms=7.609 request_to_present_p50_ms=11.222 request_to_present_p99_ms=13.038 pid=58034
+2026-11-16T09:04:54.384542Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=8.792 compose_p99_ms=13.541 request_to_present_p50_ms=11.992 request_to_present_p99_ms=18.268 pid=58034
+2026-11-16T09:04:56.384685Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.422 compose_p99_ms=17.894 request_to_present_p50_ms=12.168 request_to_present_p99_ms=23.629 pid=58034
+2026-11-16T09:04:58.389391Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=7.079 compose_p99_ms=11.704 request_to_present_p50_ms=12.637 request_to_present_p99_ms=17.073 pid=58034
+2026-11-16T09:05:00.390032Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=7.629 compose_p99_ms=11.328 request_to_present_p50_ms=12.637 request_to_present_p99_ms=17.818 pid=58034
+2026-11-16T09:05:02.390931Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.772 compose_p99_ms=14.603 request_to_present_p50_ms=12.436 request_to_present_p99_ms=20.524 pid=58034
+2026-11-16T09:05:04.391931Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.616 compose_p99_ms=14.983 request_to_present_p50_ms=12.543 request_to_present_p99_ms=19.898 pid=58034
+2026-11-16T09:05:05.338526Z  INFO slide text committed output="card" seq=754 push_to_commit_ms="54.89" build_ms="0.02" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:05.343013Z  INFO slide text committed output="ndi-b" seq=752 push_to_commit_ms="59.47" build_ms="0.15" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:05.346211Z  INFO slide text committed output="ndi-a" seq=751 push_to_commit_ms="62.83" build_ms="0.16" raster_ms="42.37" cached=false pid=58034
+2026-11-16T09:05:05.349590Z  INFO slide text committed output="screen" seq=750 push_to_commit_ms="66.27" build_ms="0.20" raster_ms="44.58" cached=false pid=58034
+2026-11-16T09:05:05.353530Z  INFO slide text committed output="syphon" seq=753 push_to_commit_ms="69.94" build_ms="0.02" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:05.425635Z  INFO video opened path=/var/folders/19/4x5l2wkn5mz6xm36t7pdwyt80000gn/T/kairo-soak-54892/background-1080p30.mp4 backend=Hardware("videotoolbox") width=1920 height=1080 pid=58034
+2026-11-16T09:05:06.392966Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=6.763 compose_p99_ms=22.642 request_to_present_p50_ms=12.569 request_to_present_p99_ms=26.525 pid=58034
+2026-11-16T09:05:08.393528Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.511 compose_p99_ms=14.549 request_to_present_p50_ms=11.642 request_to_present_p99_ms=18.286 pid=58034
+2026-11-16T09:05:10.394572Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.544 compose_p99_ms=14.448 request_to_present_p50_ms=11.434 request_to_present_p99_ms=18.284 pid=58034
+2026-11-16T09:05:11.399052Z  INFO slide text committed output="card" seq=759 push_to_commit_ms="12.16" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:11.403582Z  INFO slide text committed output="ndi-b" seq=757 push_to_commit_ms="16.83" build_ms="0.06" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:11.405484Z  INFO slide text committed output="ndi-a" seq=756 push_to_commit_ms="18.79" build_ms="0.07" raster_ms="5.99" cached=false pid=58034
+2026-11-16T09:05:11.407499Z  INFO slide text committed output="screen" seq=755 push_to_commit_ms="20.86" build_ms="0.06" raster_ms="6.04" cached=false pid=58034
+2026-11-16T09:05:11.409944Z  INFO slide text committed output="syphon" seq=758 push_to_commit_ms="23.13" build_ms="0.05" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:12.395159Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=4.624 compose_p99_ms=14.632 request_to_present_p50_ms=11.893 request_to_present_p99_ms=18.901 pid=58034
+2026-11-16T09:05:14.395424Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.514 compose_p99_ms=14.819 request_to_present_p50_ms=11.112 request_to_present_p99_ms=18.723 pid=58034
+2026-11-16T09:05:16.396475Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=4.246 compose_p99_ms=14.601 request_to_present_p50_ms=11.931 request_to_present_p99_ms=18.295 pid=58034
+2026-11-16T09:05:17.488852Z  INFO slide text committed output="card" seq=764 push_to_commit_ms="19.54" build_ms="0.02" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:17.492265Z  INFO slide text committed output="ndi-b" seq=762 push_to_commit_ms="23.04" build_ms="0.05" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:17.495004Z  INFO slide text committed output="ndi-a" seq=761 push_to_commit_ms="25.84" build_ms="0.07" raster_ms="6.35" cached=false pid=58034
+2026-11-16T09:05:17.496509Z  INFO slide text committed output="screen" seq=760 push_to_commit_ms="27.42" build_ms="0.06" raster_ms="6.26" cached=false pid=58034
+2026-11-16T09:05:17.498526Z  INFO slide text committed output="syphon" seq=763 push_to_commit_ms="29.27" build_ms="0.02" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:18.397540Z  INFO web display latency (software, excludes capture sampling and scanout) samples=61 capture_p99_ms=4.468 compose_p99_ms=15.812 request_to_present_p50_ms=15.456 request_to_present_p99_ms=19.468 pid=58034
+2026-11-16T09:05:20.398591Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.462 compose_p99_ms=14.787 request_to_present_p50_ms=16.524 request_to_present_p99_ms=18.61 pid=58034
+2026-11-16T09:05:22.399259Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.314 compose_p99_ms=14.505 request_to_present_p50_ms=11.123 request_to_present_p99_ms=18.69 pid=58034
+2026-11-16T09:05:23.486706Z  INFO slide text committed output="card" seq=769 push_to_commit_ms="11.47" build_ms="0.06" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:23.489087Z  INFO slide text committed output="ndi-b" seq=767 push_to_commit_ms="13.95" build_ms="0.05" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:23.490768Z  INFO slide text committed output="ndi-a" seq=766 push_to_commit_ms="15.68" build_ms="0.07" raster_ms="4.05" cached=false pid=58034
+2026-11-16T09:05:23.492581Z  INFO slide text committed output="screen" seq=765 push_to_commit_ms="17.57" build_ms="0.07" raster_ms="4.03" cached=false pid=58034
+2026-11-16T09:05:23.495053Z  INFO slide text committed output="syphon" seq=768 push_to_commit_ms="19.88" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:24.399776Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.393 compose_p99_ms=15.002 request_to_present_p50_ms=10.855 request_to_present_p99_ms=19.028 pid=58034
+2026-11-16T09:05:26.400823Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.414 compose_p99_ms=15.131 request_to_present_p50_ms=11.096 request_to_present_p99_ms=18.642 pid=58034
+2026-11-16T09:05:28.401027Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.639 compose_p99_ms=15.121 request_to_present_p50_ms=15.193 request_to_present_p99_ms=18.699 pid=58034
+2026-11-16T09:05:29.586910Z  INFO slide text committed output="card" seq=774 push_to_commit_ms="13.04" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:29.589844Z  INFO slide text committed output="ndi-b" seq=772 push_to_commit_ms="16.07" build_ms="0.05" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:29.593151Z  INFO slide text committed output="ndi-a" seq=771 push_to_commit_ms="19.44" build_ms="0.07" raster_ms="5.90" cached=false pid=58034
+2026-11-16T09:05:29.594885Z  INFO slide text committed output="screen" seq=770 push_to_commit_ms="21.26" build_ms="0.07" raster_ms="5.96" cached=false pid=58034
+2026-11-16T09:05:29.596685Z  INFO slide text committed output="syphon" seq=773 push_to_commit_ms="22.88" build_ms="0.04" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:30.402115Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.476 compose_p99_ms=14.968 request_to_present_p50_ms=16.954 request_to_present_p99_ms=18.786 pid=58034
+2026-11-16T09:05:32.403059Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.27 compose_p99_ms=15.357 request_to_present_p50_ms=10.828 request_to_present_p99_ms=19.283 pid=58034
+2026-11-16T09:05:34.403401Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.326 compose_p99_ms=15.471 request_to_present_p50_ms=13.463 request_to_present_p99_ms=19.394 pid=58034
+2026-11-16T09:05:35.680325Z  INFO slide text committed output="card" seq=779 push_to_commit_ms="9.00" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:35.682732Z  INFO slide text committed output="ndi-b" seq=777 push_to_commit_ms="11.51" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:35.687182Z  INFO slide text committed output="ndi-a" seq=776 push_to_commit_ms="16.00" build_ms="0.04" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:35.687220Z  INFO slide text committed output="screen" seq=775 push_to_commit_ms="16.08" build_ms="0.07" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:35.688604Z  INFO slide text committed output="syphon" seq=778 push_to_commit_ms="17.34" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:36.404455Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.351 compose_p99_ms=14.809 request_to_present_p50_ms=12.478 request_to_present_p99_ms=18.823 pid=58034
+2026-11-16T09:05:38.404824Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.452 compose_p99_ms=15.685 request_to_present_p50_ms=11.566 request_to_present_p99_ms=19.68 pid=58034
+2026-11-16T09:05:40.405371Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.821 compose_p99_ms=14.627 request_to_present_p50_ms=11.35 request_to_present_p99_ms=18.641 pid=58034
+2026-11-16T09:05:41.693546Z  INFO slide text committed output="card" seq=784 push_to_commit_ms="14.72" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:41.696937Z  INFO slide text committed output="ndi-b" seq=782 push_to_commit_ms="18.18" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:41.699096Z  INFO slide text committed output="ndi-a" seq=781 push_to_commit_ms="20.39" build_ms="0.04" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:41.701033Z  INFO slide text committed output="screen" seq=780 push_to_commit_ms="22.39" build_ms="0.06" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:41.703704Z  INFO slide text committed output="syphon" seq=783 push_to_commit_ms="24.93" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:42.406411Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.734 compose_p99_ms=15.377 request_to_present_p50_ms=12.388 request_to_present_p99_ms=18.919 pid=58034
+2026-11-16T09:05:44.407474Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.408 compose_p99_ms=15.002 request_to_present_p50_ms=11.513 request_to_present_p99_ms=18.613 pid=58034
+2026-11-16T09:05:46.408057Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.562 compose_p99_ms=15.329 request_to_present_p50_ms=11.239 request_to_present_p99_ms=19.073 pid=58034
+2026-11-16T09:05:47.774671Z  INFO slide text committed output="card" seq=789 push_to_commit_ms="6.58" build_ms="0.02" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:47.778369Z  INFO slide text committed output="ndi-b" seq=787 push_to_commit_ms="10.38" build_ms="0.06" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:47.781071Z  INFO slide text committed output="ndi-a" seq=786 push_to_commit_ms="13.13" build_ms="0.06" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:47.782830Z  INFO slide text committed output="screen" seq=785 push_to_commit_ms="14.96" build_ms="0.08" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:47.786797Z  INFO slide text committed output="syphon" seq=788 push_to_commit_ms="18.75" build_ms="0.04" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:48.409094Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.485 compose_p99_ms=15.134 request_to_present_p50_ms=11.269 request_to_present_p99_ms=18.869 pid=58034
+2026-11-16T09:05:50.409882Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.453 compose_p99_ms=14.899 request_to_present_p50_ms=11.434 request_to_present_p99_ms=18.746 pid=58034
+2026-11-16T09:05:52.410934Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.946 compose_p99_ms=15.591 request_to_present_p50_ms=11.155 request_to_present_p99_ms=19.148 pid=58034
+2026-11-16T09:05:53.865102Z  INFO slide text committed output="card" seq=794 push_to_commit_ms="10.51" build_ms="0.02" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:53.869110Z  INFO slide text committed output="ndi-b" seq=792 push_to_commit_ms="14.60" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:53.871748Z  INFO slide text committed output="ndi-a" seq=791 push_to_commit_ms="17.28" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:53.873371Z  INFO slide text committed output="screen" seq=790 push_to_commit_ms="18.97" build_ms="0.05" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:53.875448Z  INFO slide text committed output="syphon" seq=793 push_to_commit_ms="20.91" build_ms="0.02" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:54.411703Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.399 compose_p99_ms=15.658 request_to_present_p50_ms=10.664 request_to_present_p99_ms=19.387 pid=58034
+2026-11-16T09:05:56.412767Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=5.023 compose_p99_ms=14.706 request_to_present_p50_ms=10.678 request_to_present_p99_ms=18.66 pid=58034
+2026-11-16T09:05:58.413734Z  INFO web display latency (software, excludes capture sampling and scanout) samples=59 capture_p99_ms=4.424 compose_p99_ms=15.231 request_to_present_p50_ms=11.192 request_to_present_p99_ms=19.207 pid=58034
+2026-11-16T09:05:59.872873Z  INFO slide text committed output="card" seq=799 push_to_commit_ms="7.38" build_ms="0.03" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:59.876059Z  INFO slide text committed output="ndi-b" seq=797 push_to_commit_ms="10.69" build_ms="0.05" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:59.878295Z  INFO slide text committed output="ndi-a" seq=796 push_to_commit_ms="12.99" build_ms="0.06" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:59.880034Z  INFO slide text committed output="screen" seq=795 push_to_commit_ms="14.80" build_ms="0.09" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:05:59.882480Z  INFO slide text committed output="syphon" seq=798 push_to_commit_ms="17.06" build_ms="0.05" raster_ms="0.00" cached=true pid=58034
+2026-11-16T09:06:00.413872Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.331 compose_p99_ms=15.856 request_to_present_p50_ms=11.507 request_to_present_p99_ms=19.998 pid=58034
+2026-11-16T09:06:02.414933Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.473 compose_p99_ms=14.956 request_to_present_p50_ms=11.298 request_to_present_p99_ms=18.601 pid=58034
+2026-11-16T09:06:04.414972Z  INFO web display latency (software, excludes capture sampling and scanout) samples=60 capture_p99_ms=4.624 compose_p99_ms=15.051 request_to_present_p50_ms=11.519 request_to_present_p99_ms=19.021 pid=58034
+2026-11-16T09:06:05.284369Z  INFO deepgram disconnected
+2026-11-16T09:06:05.293750Z  INFO shutdown requested pid=58034
+2026-11-16T09:06:05.296229Z  INFO Syphon server stopped name="Kairo Soak chaos" pid=58034
+PASS — report in native-migration/evidence/108/chaos
+2026-11-16T09:06:05.514539Z  INFO deepgram disconnected

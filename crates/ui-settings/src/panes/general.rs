@@ -21,6 +21,7 @@ use kairo_domain::documents::SlideConverterState;
 use kairo_domain::settings::DisplayTheme;
 use kairo_domain::status::UpdateStatus;
 use kairo_domain::workspace::{MediaFolderMigration, WorkspaceInfo};
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::tokens::{TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
@@ -340,6 +341,7 @@ impl SettingsWindow {
                                     .font_family(text::MONO_FAMILY)
                                     .child(
                                         Input::new(&self.gloss)
+                                            .kairo_size()
                                             .id(ids::GLOSS)
                                             .appearance(false)
                                             .small()

@@ -15,6 +15,7 @@ use gpui_kit::{
 use kairo_domain::cloud::{
     DevicePairingStatus, MIN_PASSWORD_LENGTH, SignInInput, SignUpInput, validate_sign_up,
 };
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::KairoThemeExt;
 use kairo_ui_kit::tokens::{TextStep, text};
 
@@ -289,6 +290,7 @@ impl AuthPanel {
     ) -> impl IntoElement {
         v_flex().child(style::label(label, cx)).child(
             Input::new(input)
+                .kairo_size()
                 .id(id)
                 .aria_label(label)
                 .disabled(self.busy),
@@ -394,6 +396,7 @@ impl Render for AuthPanel {
             .gap_4()
             .child(
                 Button::new(ids::GOOGLE)
+                    .child(kairo_ui_kit::brand::google_logo(cx))
                     .label("Continue with Google")
                     .disabled(busy)
                     .on_click(cx.listener(|this, _, _, cx| this.pair_in_browser(cx))),
@@ -446,6 +449,7 @@ impl Render for AuthPanel {
                     )
                     .child(
                         Input::new(&self.password)
+                            .kairo_size()
                             .id(ids::PASSWORD)
                             .aria_label("Password")
                             .mask_toggle()

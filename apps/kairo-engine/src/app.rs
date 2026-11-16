@@ -1372,6 +1372,7 @@ impl Engine {
         let (state, sink) = match self.devices.as_ref() {
             Some(devices) => (devices.output_status(&output), devices.sink_for(&output)),
             None => {
+                self.compose_without_sink(index);
                 return Some(SurfaceStatus::Unavailable {
                     reason: "Output unavailable".into(),
                 });
@@ -1381,6 +1382,7 @@ impl Engine {
             if self.surfaces[index].card.is_some() {
                 self.close_window(index);
             }
+            self.compose_without_sink(index);
             let reason = if state.reason.is_empty() {
                 "Output unavailable".into()
             } else {
@@ -1412,6 +1414,22 @@ impl Engine {
         self.surfaces[index].card = Some(sink);
         self.show_state(index, frame_height);
         Some(SurfaceStatus::Ready)
+    }
+
+    /// Keeps composing an output whose sink is missing (no card), offscreen
+    /// like the Screens sample, so the operator's monitor still shows what
+    /// the output would. The status stays Unavailable.
+    fn compose_without_sink(&mut self, index: usize) {
+        if self.surfaces[index].preview_open {
+            return;
+        }
+        let output = self.surfaces[index].output().to_owned();
+        let Ok(compositor) = self.compositor() else {
+            return;
+        };
+        compositor.open(&output, 1080, Sink::Offscreen);
+        self.surfaces[index].preview_open = true;
+        self.show_state(index, 1080);
     }
 
     /// The Screens sample uses exactly the program renderer, but never

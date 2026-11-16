@@ -24,6 +24,43 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  bridge-contract:
+    name: Electron bridge validation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - name: Checkout native
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Checkout deployed Electron reference
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: CodeLawd/kairo-presenter
+          ref: af978c5159f4d433dc93b2de7a8f92f92765b74e
+          path: .bridge-electron
+          persist-credentials: false
+
+      - name: Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Install deployed updater test runtime
+        # No Electron binary, app install scripts, or changes to the shipping repo.
+        run: |
+          npm install --prefix .bridge-runtime --ignore-scripts --no-audit --no-fund --no-package-lock electron-updater@6.8.9
+          ln -s "$GITHUB_WORKSPACE/.bridge-runtime/node_modules" .bridge-electron/node_modules
+
+      - name: Check bridge contracts and negative cases
+        env:
+          BRIDGE_ELECTRON: .bridge-electron
+        run: node --test packaging/bridge/check-electron-bridge.test.mjs
+
   workspace:
     name: Workspace (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -103,3 +140,28 @@ jobs:
         env:
           KAIRO_REQUIRE_GPU: ${{ runner.os != 'macOS' && '1' || '' }}
         run: cargo test --locked --workspace --no-fail-fast
+
+  performance:
+    # Prompt 107: budgets from 06-testing-performance-strategy.md, asserted as
+    # written on an optimised build (KAIRO_PERF_STRICT). Apple silicon is the
+    # baseline machine class; other runners run the same tests unoptimised
+    # with four times the budget inside the workspace job.
+    name: Performance budgets (macos-15)
+    runs-on: macos-15
+    env:
+      KAIRO_PERF_STRICT: "1"
+      # Release builds refuse to compile without https API URLs; these tests
+      # make no requests.
+      KAIRO_API_URL: https://api.example.com
+      KAIRO_WEB_URL: https://example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Select workspace Rust toolchain
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Slide raster, scripture search and detector budgets
+        run: cargo test --release --locked -p kairo-scene -p kairo-scripture --test perf_budgets -- --nocapture

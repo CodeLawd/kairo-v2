@@ -13,6 +13,7 @@ pub mod a11y_audit;
 pub mod brand;
 pub mod coach;
 pub mod components;
+pub mod control;
 pub mod fonts;
 pub mod gallery;
 pub mod icons;
@@ -23,6 +24,7 @@ pub mod onboarding;
 pub mod theme;
 pub mod tokens;
 
+pub use control::ControlSize;
 pub use icons::{KairoAssets, KairoIcon};
 pub use theme::{KairoTheme, KairoThemeExt, set_appearance, set_reduced_motion, set_solid_chrome};
 pub use tokens::{Appearance, Hue, KairoColors};

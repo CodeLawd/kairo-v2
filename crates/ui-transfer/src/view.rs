@@ -1,5 +1,6 @@
 //! The host mounted once over the operator window (`TransferHost.tsx`).
 
+use kairo_ui_kit::ControlSize;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -896,7 +897,7 @@ impl TransferHost {
             .px_5()
             .py_3()
             .child(
-                Input::new(&picker.query).small().prefix(
+                Input::new(&picker.query).kairo_size().small().prefix(
                     Icon::new(KairoIcon::ScanSearch)
                         .size_3p5()
                         .text_color(k.text(TextStep::T500)),
@@ -1015,7 +1016,7 @@ impl TransferHost {
             .gap_2p5()
             .px_5()
             .py_3()
-            .child(Input::new(&picker.name).small())
+            .child(Input::new(&picker.name).kairo_size().small())
             .child(
                 h_flex()
                     .justify_end()
@@ -1119,6 +1120,8 @@ fn primary_button(id: &'static str, label: impl Into<SharedString>, cx: &App) ->
                 .hover(k.accent(Step::S600))
                 .active(k.accent(Step::S600)),
         )
+        // Solid fill: the custom variant paints its colour at 20%.
+        .bg(k.accent(Step::S500))
         .small()
         .label(label.into())
 }
@@ -1134,6 +1137,8 @@ fn secondary_button(id: &'static str, label: impl Into<SharedString>, cx: &App) 
                 .hover(k.surface_elevated)
                 .active(k.surface_elevated),
         )
+        // Solid fill: the custom variant paints its colour at 20%.
+        .bg(k.surface_tertiary)
         .small()
         .label(label.into())
 }

@@ -9,6 +9,7 @@ use gpui_kit::{
     AnyElement, App, Div, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement,
     SharedString, Styled, Window, anchored, deferred, div, point, prelude::FluentBuilder, px,
 };
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::tokens::{Step, TextStep, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
@@ -59,7 +60,9 @@ pub fn primary_button(
                 .hover(k.accent(Step::S600))
                 .active(k.accent(Step::S600)),
         )
-        .small()
+        // Solid fill: the custom variant paints its colour at 20%.
+        .bg(k.accent(Step::S500))
+        .kairo_size()
         .label(label.into())
 }
 
@@ -78,7 +81,9 @@ pub fn secondary_button(
                 .hover(k.surface_elevated)
                 .active(k.surface_elevated),
         )
-        .small()
+        // Solid fill: the custom variant paints its colour at 20%.
+        .bg(k.surface_tertiary)
+        .kairo_size()
         .label(label.into())
 }
 

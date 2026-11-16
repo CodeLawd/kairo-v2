@@ -9,6 +9,7 @@
 //! or [`LibrarySection::set_error`].
 
 use crate::components::PopoverTriggerExt;
+use crate::control::ControlSize;
 use crate::icons::KairoIcon;
 use crate::theme::KairoThemeExt;
 use crate::tokens::{Hue, TextStep, radius, text};
@@ -586,6 +587,7 @@ impl Render for LibrarySection {
                         }))
                         .child(
                             Input::new(&input)
+                                .kairo_size()
                                 .id(self.row_id(&library.id, "name"))
                                 .small()
                                 .aria_label("Library name"),

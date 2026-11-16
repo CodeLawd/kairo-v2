@@ -2,6 +2,7 @@
 //! (`OperatorQueueSearch.tsx`), the live sermon's passages and the staged
 //! queue (`Operator.tsx`, the rail's `search`).
 
+use kairo_ui_kit::ControlSize;
 use std::time::Duration;
 
 use gpui_kit::base::TestSupportExt;
@@ -306,6 +307,7 @@ impl Render for QueueSearch {
         let live = self.open && should_live_suggest_scripture_query(&query);
         let field = h_flex().relative().child(
             Input::new(&self.input)
+                .kairo_size()
                 .small()
                 .prefix(
                     Icon::new(KairoIcon::Search)

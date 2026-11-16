@@ -4,6 +4,7 @@
 //! picks, rubber band, drag reorder, OS file drops, the card and grid
 //! menus, the selection bar and the Media Inspector.
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -567,7 +568,12 @@ impl MediaDockView {
                         .id(ids::RENAME_PLAYLIST)
                         .test_support()
                         .px_1p5()
-                        .child(Input::new(&self.rename).small().aria_label("Playlist name"))
+                        .child(
+                            Input::new(&self.rename)
+                                .kairo_size()
+                                .small()
+                                .aria_label("Playlist name"),
+                        )
                         .into_any_element();
                 }
                 let active = matches!(m.selection(), Some(Selection::Playlist(id)) if *id == p.id);
@@ -757,7 +763,12 @@ impl MediaDockView {
             div()
                 .id(ids::RENAME_ITEM)
                 .test_support()
-                .child(Input::new(&self.rename).xsmall().aria_label("Media name"))
+                .child(
+                    Input::new(&self.rename)
+                        .kairo_size()
+                        .xsmall()
+                        .aria_label("Media name"),
+                )
                 .into_any_element()
         } else {
             h_flex()
@@ -946,6 +957,7 @@ impl MediaDockView {
         ]);
         let items = Rc::new(items);
         let measured = self.grid_bounds.clone();
+        let view = cx.entity();
         let empty = (items.is_empty() && !in_playlist).then(|| {
             div()
                 .id(ids::NO_ITEMS)
@@ -998,7 +1010,11 @@ impl MediaDockView {
                                 (measured.get().size.width - bounds.size.width).abs() > px(0.5);
                             measured.set(bounds);
                             if resized {
-                                window.refresh();
+                                // Refreshing mid-draw is ignored, and a cached view would not redraw:
+                                // notify the view once this frame ends.
+                                window.on_next_frame(move |_, cx| {
+                                    view.update(cx, |_, cx| cx.notify())
+                                });
                             }
                         }
                     },

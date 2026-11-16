@@ -4,6 +4,7 @@
 //! draw over the page.
 
 use gpui_kit::component::FocusTrapElement;
+use kairo_ui_kit::ControlSize;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Duration;
@@ -2484,6 +2485,7 @@ impl AudiencePage {
             .child(
                 div().id(ids::SLIDO_CODE).test_support().mt_1().child(
                     Input::new(&self.slido_code)
+                        .kairo_size()
                         .small()
                         .disabled(self.busy)
                         .aria_label("Event code or link"),
@@ -3130,7 +3132,12 @@ impl AudiencePage {
                             div()
                                 .id(SharedString::from(ids::action(&id, "reply-text")))
                                 .test_support()
-                                .child(Input::new(&self.reply_text).small().aria_label("Reply")),
+                                .child(
+                                    Input::new(&self.reply_text)
+                                        .kairo_size()
+                                        .small()
+                                        .aria_label("Reply"),
+                                ),
                         )
                         .child(
                             h_flex()
@@ -3195,6 +3202,7 @@ impl AudiencePage {
                                 .test_support()
                                 .child(
                                     Input::new(&self.edit_text)
+                                        .kairo_size()
                                         .small()
                                         .aria_label("Question text"),
                                 ),
@@ -3602,7 +3610,7 @@ impl AudiencePage {
                     t.close_dialog(cx);
                 }
             }))
-            .child(
+            .child(kairo_ui_kit::motion::enter(
                 v_flex()
                     .id("engage-dialog-panel")
                     .role(Role::Dialog)
@@ -3655,7 +3663,9 @@ impl AudiencePage {
                             .child(footer),
                     )
                     .focus_trap("engage-dialog-panel", self.dialog_focus.handle()),
-            )
+                "engage-enter",
+                cx,
+            ))
             .into_any_element()
     }
 
@@ -3695,6 +3705,7 @@ impl AudiencePage {
             .child(
                 div().id(ids::NEW_TITLE).test_support().mt_1p5().child(
                     Input::new(&self.new_title)
+                        .kairo_size()
                         .disabled(pending.is_some())
                         .aria_label("Title"),
                 ),
@@ -3710,6 +3721,7 @@ impl AudiencePage {
                             .child(
                                 div().id(ids::NEW_STARTS).test_support().mt_1p5().child(
                                     Input::new(&self.new_starts)
+                                        .kairo_size()
                                         .disabled(pending.is_some())
                                         .aria_label("Start date"),
                                 ),
@@ -3719,6 +3731,7 @@ impl AudiencePage {
                         v_flex().flex_1().child(label("End date · optional")).child(
                             div().id(ids::NEW_ENDS).test_support().mt_1p5().child(
                                 Input::new(&self.new_ends)
+                                    .kairo_size()
                                     .disabled(pending.is_some())
                                     .aria_label("End date"),
                             ),
@@ -3810,7 +3823,11 @@ impl AudiencePage {
                             .id(SharedString::from(ids::poll_option(i)))
                             .test_support()
                             .flex_1()
-                            .child(Input::new(f).aria_label(format!("Answer {}", i + 1))),
+                            .child(
+                                Input::new(f)
+                                    .kairo_size()
+                                    .aria_label(format!("Answer {}", i + 1)),
+                            ),
                     )
                     .child(
                         Button::new(SharedString::from(ids::poll_remove(i)))
@@ -3838,7 +3855,7 @@ impl AudiencePage {
                     .id(ids::POLL_TITLE)
                     .test_support()
                     .mt_1p5()
-                    .child(Input::new(&title_input).aria_label("Question")),
+                    .child(Input::new(&title_input).kairo_size().aria_label("Question")),
             )
             .child(
                 div()
@@ -4363,7 +4380,7 @@ impl AudiencePage {
                         switch_row(ids::style("author"), "Show sender name", "Display who asked the question above the text.", s.show_author, false, cx.listener(|t, on: &bool, _, cx| { let on = *on; t.patch_style(|s| s.show_author = on, cx) }), cx),
                     ])))
                     .child(v_flex().gap_1p5().child(small("Join screen & QR code on screen", cx)).child(group(vec![
-                        row("Prompt headline", div().id(ids::style("headline")).test_support().w(px(210.)).child(Input::new(&self.headline).small().aria_label("Prompt headline")).into_any_element()),
+                        row("Prompt headline", div().id(ids::style("headline")).test_support().w(px(210.)).child(Input::new(&self.headline).kairo_size().small().aria_label("Prompt headline")).into_any_element()),
                         row("QR code size", with(qr, n(s.qr_size_px, "px"))),
                         switch_row(ids::style("join-url"), "Show join link", "Display the web link underneath the join code.", s.show_join_url, false, cx.listener(|t, on: &bool, _, cx| { let on = *on; t.preview_join = true; t.patch_style(|s| s.show_join_url = on, cx) }), cx),
                     ])))
@@ -4501,7 +4518,7 @@ impl AudiencePage {
                         h_flex()
                             .gap_2p5()
                             .child(div().size_8().flex_none().rounded_full().bg(k.surface_secondary).flex().items_center().justify_center().child(Icon::new(KairoIcon::CircleUser).size_4()))
-                            .child(div().id(ids::INVITE_EMAIL).test_support().flex_1().child(Input::new(&self.invite_email).disabled(busy || inviting).aria_label("Collaborator email")))
+                            .child(div().id(ids::INVITE_EMAIL).test_support().flex_1().child(Input::new(&self.invite_email).kairo_size().disabled(busy || inviting).aria_label("Collaborator email")))
                             .child(Button::new(ids::INVITE).primary().label(if inviting { "Inviting…" } else { "Invite" }).disabled(busy || inviting || empty).on_click(cx.listener(|t, _, _, cx| t.invite(cx)))),
                     )
                     .children(error.map(|e| alert(ids::SET_ERROR, &e, cx)))

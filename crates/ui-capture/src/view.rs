@@ -855,6 +855,8 @@ fn primary_button(id: &'static str, label: &'static str, cx: &App) -> Button {
                 .hover(k.accent(Step::S600))
                 .active(k.accent(Step::S600)),
         )
+        // Solid fill: the custom variant paints its colour at 20%.
+        .bg(k.accent(Step::S500))
         .small()
         .label(label)
 }
@@ -869,6 +871,8 @@ fn secondary_button(id: &'static str, label: &'static str, cx: &App) -> Button {
                 .hover(k.surface_border)
                 .active(k.surface_border),
         )
+        // Solid fill: the custom variant paints its colour at 20%.
+        .bg(k.surface_elevated)
         .small()
         .label(label)
 }

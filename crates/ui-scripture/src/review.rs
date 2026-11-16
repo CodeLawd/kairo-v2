@@ -8,6 +8,7 @@
 //! the next scan replaces them. Edits rescan after 300 ms, off the UI
 //! thread, through [`ScriptureBackend`].
 
+use kairo_ui_kit::ControlSize;
 use std::ops::Range;
 use std::sync::Arc;
 use std::time::Duration;
@@ -560,10 +561,12 @@ impl Render for SermonReview {
                             ),
                     )
                     .child(
-                        div()
-                            .id(ids::TITLE)
-                            .test_support()
-                            .child(Input::new(&self.title).small().aria_label("Playlist name")),
+                        div().id(ids::TITLE).test_support().child(
+                            Input::new(&self.title)
+                                .kairo_size()
+                                .small()
+                                .aria_label("Playlist name"),
+                        ),
                     )
                     .child(
                         div()
@@ -829,6 +832,7 @@ impl Render for SermonReview {
             .child(
                 div().id(ids::SEARCH).test_support().mx_3().mb_2().child(
                     Input::new(&self.search)
+                        .kairo_size()
                         .small()
                         .prefix(Icon::new(KairoIcon::ScanSearch).size_3())
                         .when(filtering, |i| {
@@ -919,7 +923,7 @@ impl Render for SermonReview {
                 .justify_center()
                 .bg(dark.scrim())
                 .occlude()
-                .child(
+                .child(kairo_ui_kit::motion::enter(
                     v_flex()
                         .id(ids::DIALOG)
                         .test_support()
@@ -950,7 +954,9 @@ impl Render for SermonReview {
                                 .child(aside),
                         )
                         .child(footer),
-                ),
+                    "scripture-review-enter",
+                    cx,
+                )),
         )
         .with_priority(2)
     }

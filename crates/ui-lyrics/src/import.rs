@@ -5,6 +5,7 @@
 
 use gpui_kit::FocusHandle;
 use gpui_kit::component::FocusTrapElement;
+use kairo_ui_kit::ControlSize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -1299,7 +1300,7 @@ impl ImportDialog {
             .py_4()
             .child(
                 v_flex()
-                    .child(Input::new(&self.query).prefix(Icon::new(KairoIcon::ScanSearch).size_3p5()))
+                    .child(Input::new(&self.query).kairo_size().prefix(Icon::new(KairoIcon::ScanSearch).size_3p5()))
                     .child(div().mt_1p5().text_size(text::LABEL.size).text_color(k.text(TextStep::T500)).child("Click a result to preview lyrics, then Import if it’s the right song.")),
             )
             .children(self.render_error(cx))
@@ -1616,11 +1617,11 @@ impl ImportDialog {
                             .px_4()
                             .py_3()
                             .children(dup)
-                            .child(Input::new(&self.queued_title).appearance(false))
+                            .child(Input::new(&self.queued_title).kairo_size().appearance(false))
                             .child(
                                 h_flex()
                                     .gap_1()
-                                    .child(div().flex_1().child(Input::new(&self.queued_artist).small().appearance(false)))
+                                    .child(div().flex_1().child(Input::new(&self.queued_artist).kairo_size().small().appearance(false)))
                                     .child(div().flex_none().text_size(text::LABEL.size).text_color(k.text(TextStep::T500)).child(q.file_name.clone())),
                             ),
                     )
@@ -1727,7 +1728,7 @@ impl ImportDialog {
                         .text_color(k.text(TextStep::T400))
                         .child(label),
                 )
-                .child(Input::new(input))
+                .child(Input::new(input).kairo_size())
         };
         v_flex()
             .id("lyrics-import-paste")
@@ -1836,7 +1837,7 @@ impl Render for ImportDialog {
             .occlude()
             .on_mouse_down(gpui_kit::MouseButton::Left, move |_, _, cx| backdrop.update(cx, |this, cx| this.close(cx)))
             .child(
-                v_flex()
+                kairo_ui_kit::motion::enter(v_flex()
                     .id(ids::DIALOG)
                     .test_support()
                     .role(Role::Dialog)
@@ -1871,7 +1872,7 @@ impl Render for ImportDialog {
                             .child(Button::new("lyrics-import-cancel").label(if self.tab == Tab::Online { "Close" } else { "Cancel" }).on_click(move |_, _, cx| cancel.update(cx, |this, cx| this.close(cx))))
                             .children(confirm),
                     )
-.focus_trap(ids::DIALOG, &self.modal_focus),
+.focus_trap(ids::DIALOG, &self.modal_focus), "lyrics-import-enter", cx),
             )
     }
 }

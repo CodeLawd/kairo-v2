@@ -4,7 +4,6 @@ use crate::{
 };
 use futures_util::StreamExt;
 use gpui_kit::base::TestSupportExt;
-use gpui_kit::component::Selectable;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{ContextMenuExt, DropdownMenu, PopupMenuItem};
@@ -12,6 +11,7 @@ use gpui_kit::component::{Disableable, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use kairo_domain::{overlay::*, settings::AppSettings};
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::components::{
     MovableDialog, MovableDialogEvent, TrafficLights, confirm, messages,
@@ -37,6 +37,8 @@ pub struct ScreensWindow {
     pub(crate) message: String,
     pub(crate) busy: bool,
     pub(crate) refreshing: bool,
+    /// The card Signal details are unfolded (`<details>` in `SignalDetails`).
+    pub(crate) signal_open: bool,
     pub(crate) fields:
         std::collections::HashMap<String, Entity<kairo_ui_kit::components::NumberField>>,
     _subscriptions: Vec<Subscription>,
@@ -121,6 +123,7 @@ impl ScreensWindow {
             message: String::new(),
             busy: false,
             refreshing: false,
+            signal_open: false,
             fields: Default::default(),
             _subscriptions: subscriptions,
             field_subscriptions: Vec::new(),
@@ -646,7 +649,7 @@ impl ScreensWindow {
                     },
                 );
                 let e = entity.clone();
-                let additions: Vec<_> = OverlayOutputKind::ALL
+                let mut additions: Vec<_> = OverlayOutputKind::ALL
                     .iter()
                     .copied()
                     .filter(|kind| {
@@ -669,49 +672,49 @@ impl ScreensWindow {
                         }
                     })
                     .collect();
-                let add = Button::new(SharedString::from(format!("screens-add-{stage}")))
-                    .small()
-                    .ghost()
-                    .icon(KairoIcon::Plus)
-                    .accessibility_label(if stage {
-                        "Add stage display"
-                    } else {
-                        "Add to Audience"
-                    })
-                    .popover_trigger()
-                    .dropdown_menu(move |mut menu, _, _| {
-                        if stage {
-                            let e = e.clone();
-                            return menu.item(PopupMenuItem::new("Add stage display").on_click(
-                                move |_, w, cx| e.update(cx, |t, cx| t.add_stage(w, cx)),
-                            ));
-                        }
-                        for kind in &additions {
-                            let e = e.clone();
-                            let kind = *kind;
-                            menu = menu.item(PopupMenuItem::new(model::kind_title(kind)).on_click(
-                                move |_, w, cx| e.update(cx, |t, cx| t.add_output(kind, w, cx)),
-                            ));
-                        }
-                        menu
-                    });
-                let mut group = v_flex().gap_1().child(
-                    h_flex()
-                        .items_center()
-                        .gap_2()
-                        .px_3()
-                        .py_2()
-                        .bg(k.surface_tertiary)
-                        .child(toggle)
-                        .child(
-                            div()
-                                .flex_1()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(if stage { "Stage" } else { "Audience" }),
-                        )
-                        .child(add),
-                );
-                let rows: Vec<(String, String, String, bool)> = if stage {
+                // Electron's menu order: display, NDI, Syphon, video card.
+                additions.sort_by_key(|kind| match kind {
+                    OverlayOutputKind::Screen => 0,
+                    OverlayOutputKind::Ndi => 1,
+                    OverlayOutputKind::Syphon => 2,
+                    OverlayOutputKind::Device => 3,
+                });
+                // One addition is a plain button; several open a menu (`SidebarSection`).
+                let add = if stage {
+                    let e = e.clone();
+                    Button::new("screens-add-true")
+                        .small()
+                        .ghost()
+                        .icon(KairoIcon::Plus)
+                        .accessibility_label("Add stage display")
+                        .on_click(move |_, w, cx| e.update(cx, |t, cx| t.add_stage(w, cx)))
+                        .into_any_element()
+                } else {
+                    Button::new("screens-add-false")
+                        .small()
+                        .ghost()
+                        .icon(KairoIcon::Plus)
+                        .accessibility_label("Add to Audience")
+                        .popover_trigger()
+                        .dropdown_menu(move |mut menu, _, _| {
+                            for kind in &additions {
+                                let e = e.clone();
+                                let kind = *kind;
+                                menu = menu.item(
+                                    PopupMenuItem::new(model::kind_title(kind)).on_click(
+                                        move |_, w, cx| {
+                                            e.update(cx, |t, cx| t.add_output(kind, w, cx))
+                                        },
+                                    ),
+                                );
+                            }
+                            menu
+                        })
+                        .into_any_element()
+                };
+                // Rows as `SidebarRow`: name, then the display, card or kind,
+                // and the status as a dot (its text in the tooltip).
+                let rows: Vec<(String, String, String, String, bool)> = if stage {
                     settings
                         .presentation
                         .stage_displays
@@ -720,79 +723,171 @@ impl ScreensWindow {
                             (
                                 format!("stage:{}", s.id),
                                 s.name.clone(),
-                                self.stage_status(&s.id),
+                                model::describe_binding(
+                                    s.display_id,
+                                    &s.display_label,
+                                    &s.display_size,
+                                    &snapshot.displays,
+                                ),
+                                if s.enabled {
+                                    self.stage_status(&s.id)
+                                } else {
+                                    "Off".into()
+                                },
                                 s.enabled,
                             )
                         })
                         .collect()
                 } else {
-                    settings
-                        .overlay
-                        .outputs
-                        .iter()
+                    model::audience_order(&settings.overlay.outputs)
+                        .into_iter()
                         .map(|o| {
                             (
                                 o.id.clone(),
                                 o.name.clone(),
+                                model::row_detail(o, &snapshot.displays, &snapshot.devices),
                                 self.output_status(o),
                                 o.enabled,
                             )
                         })
                         .collect()
                 };
-                if rows.is_empty() {
-                    group = group.child(
+                // The group switch shows only when the group has screens.
+                let header = h_flex()
+                    .items_center()
+                    .gap_2()
+                    .px_3()
+                    .h(px(40.))
+                    .bg(k.surface_tertiary)
+                    .when(!rows.is_empty(), |el| el.child(toggle))
+                    .child(
                         div()
+                            .flex_1()
+                            .min_w_0()
+                            .text_size(px(14.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(k.text_primary)
+                            .child(if stage { "Stage" } else { "Audience" }),
+                    )
+                    .child(add);
+                let mut group = v_flex().gap_0p5().child(header);
+                if rows.is_empty() && !stage {
+                    let e = entity.clone();
+                    group = group.child(
+                        v_flex()
+                            .items_center()
+                            .gap_1()
                             .px_3()
-                            .py_4()
-                            .text_size(text::XS.size)
-                            .text_color(k.text(TextStep::T500))
-                            .child(if stage {
-                                "No stage displays yet"
-                            } else {
-                                "No audience screens yet"
-                            }),
+                            .pt_4()
+                            .pb_3()
+                            .text_center()
+                            .child(
+                                div()
+                                    .text_size(px(12.))
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(k.text(TextStep::T300))
+                                    .child("No audience screens yet"),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(11.))
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(
+                                        "A projector or TV, a video card, an NDI feed or Syphon.",
+                                    ),
+                            )
+                            .child(
+                                Button::new("screens-empty-add")
+                                    .small()
+                                    .icon(KairoIcon::Plus)
+                                    .label("Add a screen")
+                                    .on_click(move |_, w, cx| {
+                                        e.update(cx, |t, cx| {
+                                            t.add_output(OverlayOutputKind::Screen, w, cx)
+                                        })
+                                    }),
+                            ),
                     );
                 }
-                for (key, name, detail, on) in rows {
+                for (key, name, detail, status, on) in rows {
                     let e = entity.clone();
                     let target = key.clone();
                     let selected = self.selected.as_ref() == Some(&key);
                     let remove_entity = entity.clone();
                     let remove_key = key.clone();
-                    let row = Button::new(SharedString::from(format!("screens-row-{key}")))
-                        .ghost()
+                    let dot = match model::tone(&status, stage) {
+                        model::Tone::Live => k.live,
+                        model::Tone::Warn => k.text(TextStep::T400),
+                        model::Tone::Off => k.text(TextStep::T600),
+                    };
+                    let hover = k.surface_tertiary;
+                    let row = h_flex()
+                        .id(SharedString::from(format!("screens-row-{key}")))
+                        .test_support()
+                        .role(Role::Button)
+                        .aria_label(SharedString::from(format!("{name}: {detail}, {status}")))
                         .w_full()
-                        .h_auto()
-                        .px_2()
-                        .py_2()
-                        .selected(selected)
-                        .label(name)
-                        .accessibility_label(format!("{key}: {detail}"))
+                        .items_center()
+                        .gap_2()
+                        .rounded_lg()
+                        .px(px(10.))
+                        .py(px(6.))
+                        .cursor_pointer()
+                        .when(selected, |el| el.bg(k.surface_elevated))
+                        .when(!selected, |el| el.hover(move |s| s.bg(hover)))
                         .on_click(move |_, w, cx| {
                             e.update(cx, |t, cx| t.select(target.clone(), w, cx))
+                        })
+                        .child(
+                            v_flex()
+                                .flex_1()
+                                .min_w_0()
+                                .child(
+                                    div()
+                                        .truncate()
+                                        .text_size(px(13.))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(if selected {
+                                            k.text_primary
+                                        } else if !on {
+                                            k.text(TextStep::T500)
+                                        } else {
+                                            k.text(TextStep::T200)
+                                        })
+                                        .child(name),
+                                )
+                                .child(
+                                    div()
+                                        .truncate()
+                                        .text_size(px(11.))
+                                        .text_color(if selected {
+                                            k.text(TextStep::T300)
+                                        } else {
+                                            k.text(TextStep::T500)
+                                        })
+                                        .child(detail),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("screens-dot-{key}")))
+                                .size(px(6.))
+                                .flex_shrink_0()
+                                .rounded_full()
+                                .bg(dot)
+                                .tooltip(move |w, cx| {
+                                    gpui_kit::component::tooltip::Tooltip::new(status.clone())
+                                        .build(w, cx)
+                                }),
+                        )
+                        .context_menu(move |menu, _, _| {
+                            let e = remove_entity.clone();
+                            let key = remove_key.clone();
+                            menu.item(PopupMenuItem::new("Delete").on_click(move |_, w, cx| {
+                                e.update(cx, |t, cx| t.ask_remove(key.clone(), w, cx))
+                            }))
                         });
-                    group = group.child(
-                        v_flex()
-                            .id(SharedString::from(format!("screens-item-{key}")))
-                            .px_2()
-                            .opacity(if on { 1. } else { 0.5 })
-                            .child(row)
-                            .child(
-                                div()
-                                    .px_2()
-                                    .text_size(text::LABEL.size)
-                                    .text_color(k.text(TextStep::T500))
-                                    .child(detail),
-                            )
-                            .context_menu(move |menu, _, _| {
-                                let e = remove_entity.clone();
-                                let key = remove_key.clone();
-                                menu.item(PopupMenuItem::new("Delete").on_click(move |_, w, cx| {
-                                    e.update(cx, |t, cx| t.ask_remove(key.clone(), w, cx))
-                                }))
-                            }),
-                    );
+                    group = group.child(div().px(px(10.)).child(row));
                 }
                 groups = groups.child(group);
             }
@@ -806,33 +901,70 @@ impl ScreensWindow {
             .border_color(k.panel_border)
             .child(lights)
             .child(groups)
-            .child(
+            // `SidebarFooter`: two plain left-aligned rows, then the test buttons.
+            .child({
+                let show_open = self
+                    .selected
+                    .as_deref()
+                    .is_some_and(|key| model::SHOW_KEYS.contains(&key));
+                let hover = k.surface_tertiary;
+                let footer_row = |id: &'static str, label: &'static str, current: bool| {
+                    h_flex()
+                        .id(id)
+                        .test_support()
+                        .role(Role::Button)
+                        .aria_label(SharedString::new_static(label))
+                        .w_full()
+                        .items_center()
+                        .px_3()
+                        .py(px(10.))
+                        .text_size(px(13.))
+                        .cursor_pointer()
+                        .when(current, |el| {
+                            el.bg(k.surface_elevated)
+                                .text_color(k.text_primary)
+                                .font_weight(FontWeight::MEDIUM)
+                        })
+                        .when(!current, |el| {
+                            el.text_color(k.text(TextStep::T400))
+                                .hover(move |s| s.bg(hover).text_color(k.text(TextStep::T200)))
+                        })
+                        .child(label)
+                };
                 v_flex()
+                    .flex_shrink_0()
                     .border_t_1()
                     .border_color(k.panel_border)
-                    .p_2()
-                    .gap_1()
                     .child(
-                        Button::new("screens-show")
-                            .ghost()
-                            .label("Looks & transition")
-                            .on_click(
-                                cx.listener(|t, _, w, cx| t.select("show:setup".into(), w, cx)),
-                            ),
+                        footer_row("screens-show", "Looks & transition", show_open).on_click(
+                            cx.listener(|t, _, w, cx| t.select("show:setup".into(), w, cx)),
+                        ),
                     )
                     .child(
-                        Button::new("screens-identify")
-                            .ghost()
-                            .label("Identify screens")
-                            .disabled(self.busy)
-                            .on_click(cx.listener(|t, _, _, cx| t.run(Command::Identify, cx))),
+                        footer_row("screens-identify", "Identify screens", false)
+                            .tooltip(|w, cx| {
+                                gpui_kit::component::tooltip::Tooltip::new(
+                                    "Show each display's number on it",
+                                )
+                                .build(w, cx)
+                            })
+                            .on_click(cx.listener(|t, _, _, cx| {
+                                if !t.busy {
+                                    t.run(Command::Identify, cx)
+                                }
+                            })),
                     )
                     .child(
                         h_flex()
-                            .gap_2()
+                            .border_t_1()
+                            .border_color(k.panel_border)
+                            .gap(px(6.))
+                            .px_3()
+                            .py(px(10.))
                             .child(
                                 Button::new("screens-test")
                                     .small()
+                                    .flex_1()
                                     .label("Test verse")
                                     .disabled(self.busy)
                                     .on_click(
@@ -846,8 +978,8 @@ impl ScreensWindow {
                                     .disabled(self.busy)
                                     .on_click(cx.listener(|t, _, _, cx| t.run(Command::Clear, cx))),
                             ),
-                    ),
-            )
+                    )
+            })
             .into_any_element()
     }
     pub(crate) fn output_status(&self, o: &OverlayOutput) -> String {
@@ -939,21 +1071,47 @@ impl ScreensWindow {
         } else {
             tabs[0].into()
         };
-        let status = output
-            .as_ref()
-            .map(|o| format!("{} · {}", model::kind_title(o.kind), self.output_status(o)))
-            .unwrap_or_else(|| {
-                stage
-                    .as_ref()
-                    .map(|s| {
-                        if s.enabled {
-                            self.stage_status(&s.id)
-                        } else {
-                            "Off".into()
-                        }
-                    })
-                    .unwrap_or_default()
-            });
+        // `Detail`: the display or card (else the kind), then the status
+        // unless it is live.
+        let status = if let Some(o) = &output {
+            let text = self.output_status(o);
+            let resolution = match o.kind {
+                OverlayOutputKind::Screen => Some(model::describe_binding(
+                    o.display_id,
+                    &o.display_label,
+                    &o.display_size,
+                    &snapshot.displays,
+                )),
+                OverlayOutputKind::Device => model::describe_card(o, &snapshot.devices),
+                _ => None,
+            };
+            model::subtitle(
+                resolution.as_deref(),
+                model::kind_title(o.kind),
+                &text,
+                model::tone(&text, false) == model::Tone::Live,
+            )
+        } else if let Some(s) = &stage {
+            let text = if s.enabled {
+                self.stage_status(&s.id)
+            } else {
+                "Off".into()
+            };
+            let resolution = model::describe_binding(
+                s.display_id,
+                &s.display_label,
+                &s.display_size,
+                &snapshot.displays,
+            );
+            model::subtitle(
+                Some(&resolution),
+                "Stage display",
+                &text,
+                model::tone(&text, true) == model::Tone::Live,
+            )
+        } else {
+            String::new()
+        };
         let k = *cx.kairo();
         let header = self
             .dialog
@@ -966,25 +1124,16 @@ impl ScreensWindow {
                 h_flex()
                     .gap_3()
                     .items_center()
+                    // Name and status only (af978c5): screens are removed
+                    // from the list, not from the detail header.
                     .child(
                         div().flex_1().child(
                             Input::new(&self.name)
+                                .kairo_size()
                                 .appearance(false)
                                 .text_size(px(17.))
                                 .aria_label("Name"),
                         ),
-                    )
-                    .child(
-                        Button::new("screens-delete")
-                            .ghost()
-                            .small()
-                            .icon(KairoIcon::Trash2)
-                            .accessibility_label("Delete screen")
-                            .on_click(cx.listener(|t, _, w, cx| {
-                                if let Some(key) = t.selected.clone() {
-                                    t.ask_remove(key, w, cx)
-                                }
-                            })),
                     ),
             )
             .child(crate::fields::muted(status, cx));
@@ -1068,14 +1217,38 @@ impl ScreensWindow {
                     .min_h_0()
                     .overflow_y_scroll()
                     .p_6()
+                    // `Detail`: a box of at most 760 px, the tabs a compact
+                    // pill centred on its top edge.
                     .child(
-                        v_flex().gap_4().child(tabs).child(
-                            div()
-                                .bg(k.surface_secondary)
-                                .rounded(radius::lg())
-                                .p_5()
-                                .child(fields),
-                        ),
+                        div()
+                            .w_full()
+                            .max_w(px(760.))
+                            .mx_auto()
+                            .mt_3()
+                            .relative()
+                            .child(
+                                div()
+                                    .bg(k.surface_secondary)
+                                    .rounded(radius::lg())
+                                    .px_5()
+                                    .pb_5()
+                                    .pt(px(36.))
+                                    .child(fields),
+                            )
+                            .child(
+                                h_flex()
+                                    .absolute()
+                                    .top(px(-16.))
+                                    .left_0()
+                                    .right_0()
+                                    .justify_center()
+                                    .child(
+                                        div()
+                                            .bg(k.surface_tertiary)
+                                            .rounded(radius::lg())
+                                            .child(tabs),
+                                    ),
+                            ),
                     ),
             )
             .into_any_element()

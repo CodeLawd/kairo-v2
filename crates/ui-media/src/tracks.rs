@@ -5,6 +5,7 @@
 //! which follows the library; the panel reads its position at display rate
 //! only while a track plays.
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -476,7 +477,12 @@ impl TracksPanel {
                 .test_support()
                 .flex_1()
                 .min_w_0()
-                .child(Input::new(&self.rename).xsmall().aria_label("Track name"))
+                .child(
+                    Input::new(&self.rename)
+                        .kairo_size()
+                        .xsmall()
+                        .aria_label("Track name"),
+                )
                 .into_any_element()
         } else {
             div()

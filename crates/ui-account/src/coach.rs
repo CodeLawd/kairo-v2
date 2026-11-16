@@ -14,8 +14,8 @@ use gpui_kit::component::{h_flex, v_flex};
 use gpui_kit::{
     Bounds, Context, DispatchPhase, EventEmitter, FontWeight, InteractiveElement, IntoElement,
     KeyDownEvent, MouseUpEvent, ParentElement, Pixels, Render, Role, SharedString,
-    StatefulInteractiveElement, Styled, Window, canvas, div, point, prelude::FluentBuilder, px,
-    size,
+    StatefulInteractiveElement, Styled, Task, Window, canvas, div, point, prelude::FluentBuilder,
+    px, size,
 };
 use kairo_ui_kit::KairoThemeExt;
 use kairo_ui_kit::tokens::{TextStep, text};
@@ -166,6 +166,8 @@ pub struct CoachTour {
     index: usize,
     step_at: Instant,
     card_height: f32,
+    /// Wakes the tour to skip a target that has not appeared.
+    give_up: Option<Task<()>>,
 }
 
 impl EventEmitter<CoachDone> for CoachTour {}
@@ -178,6 +180,7 @@ impl CoachTour {
             index: 0,
             step_at: Instant::now(),
             card_height: 140.0,
+            give_up: None,
         }
     }
 
@@ -193,6 +196,7 @@ impl CoachTour {
         } else {
             self.index += 1;
             self.step_at = Instant::now();
+            self.give_up = None;
             cx.notify();
         }
     }
@@ -200,8 +204,7 @@ impl CoachTour {
 
 impl Render for CoachTour {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Follow the target every frame (layouts settle, rails resize).
-        window.request_animation_frame();
+        // No per-frame redraw: anchors ask for a frame when they move.
         let Some(step) = self.steps.get(self.index).copied() else {
             return div().into_any_element();
         };
@@ -210,6 +213,13 @@ impl Render for CoachTour {
             if self.step_at.elapsed() > GIVE_UP {
                 let entity = cx.entity();
                 window.defer(cx, move |_, cx| entity.update(cx, |this, cx| this.next(cx)));
+            } else if self.give_up.is_none() {
+                let wait =
+                    GIVE_UP.saturating_sub(self.step_at.elapsed()) + Duration::from_millis(16);
+                self.give_up = Some(cx.spawn(async move |this, cx| {
+                    cx.background_executor().timer(wait).await;
+                    let _ = this.update(cx, |_, cx| cx.notify());
+                }));
             }
             return div().into_any_element();
         };
@@ -351,7 +361,12 @@ impl Render for CoachTour {
                     .border(px(1.5))
                     .border_color(k.text(TextStep::T500)),
             )
-            .child(card)
+            // Each tip fades in (`spring-in`), as the card moves on.
+            .child(kairo_ui_kit::motion::enter(
+                card,
+                SharedString::from(format!("coach-card-{}", self.index)),
+                cx,
+            ))
             .child(watcher)
             .into_any_element()
     }

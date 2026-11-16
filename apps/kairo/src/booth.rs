@@ -136,7 +136,9 @@ impl BoothBackend for ServicesBooth {
             licence,
             program: self.services.program.state(),
             presentation,
-            devices: audio_devices(),
+            // Listing devices starts CoreAudio, which blocked the UI thread
+            // for about 80 ms at launch (prompt 107); `listen` sends them.
+            devices: DeviceLabels::default(),
         }
     }
 
@@ -234,6 +236,12 @@ impl BoothBackend for ServicesBooth {
                     )));
                 }
                 feed(BoothFeed::Plans(plans.list_plans()));
+            }
+        }));
+        let feed = sink.clone();
+        tasks.push(runtime.spawn(async move {
+            if let Ok(devices) = tokio::task::spawn_blocking(audio_devices).await {
+                feed(BoothFeed::Devices(devices));
             }
         }));
         Box::new(Feeds(tasks))

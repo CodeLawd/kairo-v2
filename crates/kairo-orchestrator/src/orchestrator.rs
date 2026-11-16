@@ -1329,8 +1329,11 @@ impl Orchestrator {
         content: PushContent,
     ) -> Option<String> {
         let engine = &self.inner.services.engine;
-        if let Some(reason) = engine.unavailable_reason(output) {
-            return Some(reason);
+        // A missing sink still gets the slide when the engine composes the
+        // output, so the monitor previews it; the push counts as not taken.
+        let missing = engine.unavailable_reason(output);
+        if missing.is_some() && !engine.composes(output) {
+            return missing;
         }
         let theme = self.with_live_background(
             output_theme_for(output, kind),
@@ -1358,6 +1361,9 @@ impl Orchestrator {
         );
         if ms > 750 {
             tracing::warn!(output = output.name, ms, "slow push");
+        }
+        if let Some(reason) = missing {
+            return Some(reason);
         }
         if shown {
             return None;

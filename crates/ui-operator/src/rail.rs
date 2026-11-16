@@ -432,8 +432,8 @@ impl LiveRail {
                     .active(k.tints.rose)
             } else {
                 ButtonCustomVariant::new(cx)
-                    .color(k.neutral(Step::S800))
-                    .foreground(k.accent(Step::S300))
+                    .color(k.accent(Step::S500).opacity(0.22))
+                    .foreground(k.accent(Step::S200))
                     .hover(k.tints.red)
                     .active(k.tints.red)
             }
@@ -443,7 +443,16 @@ impl LiveRail {
                 .hover(k.neutral(Step::S900))
                 .active(k.neutral(Step::S900))
         };
+        // Kit paints a custom variant at 20%; a lit layer needs a solid fill.
+        let fill = on.then(|| {
+            if danger {
+                k.tints.red
+            } else {
+                k.accent(Step::S500).opacity(0.22)
+            }
+        });
         div()
+            .relative()
             .flex()
             .h_full()
             .min_w_0()
@@ -454,7 +463,8 @@ impl LiveRail {
             .child(
                 Button::new(id)
                     .custom(variant)
-                    .icon(Icon::new(icon).size_3p5())
+                    .when_some(fill, |b, fill| b.bg(fill))
+                    .icon(Icon::new(icon).size_4())
                     .rounded(px(0.))
                     .w_full()
                     .h_full()
@@ -463,6 +473,18 @@ impl LiveRail {
                     .disabled(!on || self.busy)
                     .on_click(click),
             )
+            // A lit layer also carries an accent bar along its foot.
+            .when(on && !danger, |this| {
+                this.child(
+                    div()
+                        .absolute()
+                        .left_0()
+                        .right_0()
+                        .bottom_0()
+                        .h(px(2.))
+                        .bg(k.accent(Step::S400)),
+                )
+            })
             .into_any_element()
     }
 
@@ -852,13 +874,9 @@ impl Render for LiveRail {
                                 this.child(self.transport(media, cx))
                             })
                             .child(
-                                h_flex()
-                                    .justify_between()
-                                    .gap_3()
-                                    .px_3()
-                                    .pb_2()
-                                    .pt_2()
-                                    .child(self.picker(cx)),
+                                // A column, so the picker stretches to the
+                                // monitor's width (Electron's `w-full`).
+                                v_flex().px_3().pb_2().pt_2().child(self.picker(cx)),
                             )
                             .when(off, |this| {
                                 this.child(

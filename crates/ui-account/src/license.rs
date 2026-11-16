@@ -12,6 +12,7 @@ use gpui_kit::{
     prelude::FluentBuilder, px,
 };
 use kairo_domain::cloud::is_signed_in;
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::KairoThemeExt;
 use kairo_ui_kit::tokens::{TextStep, radius, text};
 
@@ -158,6 +159,7 @@ impl Render for LicensePanel {
                         .child(
                             div().flex_1().font_family(text::MONO_FAMILY).child(
                                 Input::new(&self.key)
+                                    .kairo_size()
                                     .id(ids::KEY)
                                     .aria_label("Activation key"),
                             ),

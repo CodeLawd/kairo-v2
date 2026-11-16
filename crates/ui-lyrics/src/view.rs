@@ -6,6 +6,7 @@
 //! The slide grid replaces the song pane's section list in 081.
 
 use gpui_kit::component::FocusTrapElement;
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -642,7 +643,12 @@ impl LyricsWorkspace {
                             .id(ids::PLAYLIST_RENAME)
                             .test_support()
                             .mb_0p5()
-                            .child(Input::new(&self.rename).small().aria_label("Playlist name"))
+                            .child(
+                                Input::new(&self.rename)
+                                    .kairo_size()
+                                    .small()
+                                    .aria_label("Playlist name"),
+                            )
                             .into_any_element();
                     }
                     let selected = viewing.as_deref() == Some(list.id.as_str());
@@ -1465,6 +1471,7 @@ impl LyricsWorkspace {
             .child(
                 div().id(ids::QUERY).test_support().child(
                     Input::new(&self.query)
+                        .kairo_size()
                         .small()
                         .prefix(Icon::new(KairoIcon::ScanSearch).size_3())
                         .when(has_query, |i| {
@@ -1875,7 +1882,7 @@ impl LyricsWorkspace {
                         backdrop.update(cx, |m, cx| m.close_usage(cx))
                     })
                     .child(
-                        v_flex()
+                        kairo_ui_kit::motion::enter(v_flex()
                             .id(ids::USAGE)
                             .test_support()
                             .role(Role::Dialog)
@@ -1935,14 +1942,14 @@ impl LyricsWorkspace {
                                             .w_32()
                                             .gap_1()
                                             .child("From")
-                                            .child(div().id(ids::USAGE_FROM).test_support().child(Input::new(&self.usage_from).small().aria_label("From (yyyy-mm-dd)"))),
+                                            .child(div().id(ids::USAGE_FROM).test_support().child(Input::new(&self.usage_from).kairo_size().small().aria_label("From (yyyy-mm-dd)"))),
                                     )
                                     .child(
                                         v_flex()
                                             .w_32()
                                             .gap_1()
                                             .child("To")
-                                            .child(div().id(ids::USAGE_TO).test_support().child(Input::new(&self.usage_to).small().aria_label("To (yyyy-mm-dd)"))),
+                                            .child(div().id(ids::USAGE_TO).test_support().child(Input::new(&self.usage_to).kairo_size().small().aria_label("To (yyyy-mm-dd)"))),
                                     )
                                     .child(div().ml_auto().pb_2().child(format!(
                                         "{} · {}",
@@ -1988,7 +1995,7 @@ impl LyricsWorkspace {
                                             }),
                                     ),
                             )
-.focus_trap(ids::USAGE, self.usage_focus.handle()),
+.focus_trap(ids::USAGE, self.usage_focus.handle()), "song-usage-enter", cx),
                     ),
             )
             .with_priority(1)

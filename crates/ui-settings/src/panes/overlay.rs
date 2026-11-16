@@ -12,6 +12,7 @@ use gpui_kit::{
     AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Role, SharedString,
     StatefulInteractiveElement, Styled, div,
 };
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::tokens::{radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
@@ -143,6 +144,7 @@ impl SettingsWindow {
                         .font_family(text::MONO_FAMILY)
                         .child(
                             Input::new(&self.max_verses)
+                                .kairo_size()
                                 .id(ids::MAX_VERSES)
                                 .appearance(false)
                                 .small()

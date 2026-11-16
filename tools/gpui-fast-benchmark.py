@@ -4,13 +4,16 @@ backend,route=sys.argv[1:3]
 base=repo/'target/gpui-fast-benchmark'
 base.mkdir(exist_ok=True)
 app=base/'Kairo Benchmark.app'; mac=app/'Contents/MacOS'; mac.mkdir(parents=True,exist_ok=True)
-shutil.copy2(repo/'target/release/kairo',mac/'KairoBenchmark')
+shutil.copy2(os.environ.get('KAIRO_BENCH_BINARY',str(repo/'target/release/kairo')),mac/'KairoBenchmark')
 (app/'Contents/Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable':'KairoBenchmark','CFBundleIdentifier':'com.kairo.backend-benchmark','CFBundleName':'Kairo Benchmark','CFBundlePackageType':'APPL','NSHighResolutionCapable':True,'NSPrincipalClass':'NSApplication','LSMinimumSystemVersion':'13.0'}))
 report=base/f'{backend}-{route}.json'
 if report.exists(): report.unlink()
 started=report.with_suffix('.started')
 if started.exists(): started.unlink()
-env=dict(os.environ,KAIRO_BENCH_ROOT=str(base/'profile'),KAIRO_BENCH_ROUTE=route,KAIRO_BENCH_REPORT=str(report),KAIRO_BIBLE_DB=str(repo/'target/package-macos/inputs/resources/bible.db'),KAIRO_ENGINE_BINARY=str(repo/'target/package-macos/out-arm64/Kairo.app/Contents/MacOS/kairo-engine'))
+# KAIRO_BIBLE_DB and KAIRO_ENGINE_BINARY, when set, override the packaged inputs.
+env=dict(os.environ,KAIRO_BENCH_ROOT=str(base/'profile'),KAIRO_BENCH_ROUTE=route,KAIRO_BENCH_REPORT=str(report))
+env.setdefault('KAIRO_BIBLE_DB',str(repo/'target/package-macos/inputs/resources/bible.db'))
+env.setdefault('KAIRO_ENGINE_BINARY',str(repo/'target/package-macos/out-arm64/Kairo.app/Contents/MacOS/kairo-engine'))
 if route=='stream':
     env['KAIRO_BENCH_STREAM']='1'
     env['KAIRO_STT_REPLAY_PATH']=str(base/'replay.jsonl')

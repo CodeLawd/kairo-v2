@@ -1,0 +1,12 @@
+version: 1.99.0
+files:
+  - url: Kairo-1.99.0-arm64-mac.zip
+    sha512: gF7io5Nj6dfJPx51KCGIbAOa5wuM5d8k7CGgtgndUXnJ8eZQWJwc2QjH+OLyDKFdHc2eUWAzJwa9/IL/p/gYvA==
+    size: 69888773
+  - url: Kairo-1.99.0-arm64.dmg
+    sha512: IX+nG1KNq1W0/bxuIwIgq3v8x56cRJc1k3VpEWShnaTLcvIZkbggKJQCC8we1Jj7qiOxd6XnNOGlNLkxw71WoA==
+    size: 69817355
+path: Kairo-1.99.0-arm64-mac.zip
+sha512: gF7io5Nj6dfJPx51KCGIbAOa5wuM5d8k7CGgtgndUXnJ8eZQWJwc2QjH+OLyDKFdHc2eUWAzJwa9/IL/p/gYvA==
+releaseDate: '2026-11-15T20:50:00.000Z'
+minimumSystemVersion: 22.0.0

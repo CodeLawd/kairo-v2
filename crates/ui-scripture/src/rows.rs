@@ -38,7 +38,7 @@ pub const CARD_ZOOM_MIN: f32 = 50.0;
 pub const CARD_ZOOM_MAX: f32 = 250.0;
 pub const CARD_ZOOM_DEFAULT: f32 = 100.0;
 /// Minimum card width at 100%, the same as a lyric card.
-pub const CARD_BASE_WIDTH: f32 = 180.0;
+pub const CARD_BASE_WIDTH: f32 = 240.0;
 
 /// The card minimum width at a zoom (`Math.round(CARD_BASE_WIDTH * zoom/100)`).
 pub fn card_min_width(zoom: f32) -> f32 {
@@ -360,8 +360,9 @@ pub fn highlight(text: &str, query: &str) -> Vec<(String, bool)> {
 
 /// Gap between cards (`gap-3`).
 pub const CARD_GAP: f32 = 12.0;
-/// The label bar under a slide (`h-7`) plus its hairline frame.
-pub const CARD_CHROME: f32 = 28.0 + 2.0;
+/// The black label bar under a slide (34 px, DECISIONS 113) plus the
+/// frame (1 px a side when live or picked).
+pub const CARD_CHROME: f32 = 34.0 + 2.0;
 /// A passage header bar (`min-h-9`) and its `mb-3`.
 pub const HEADER_HEIGHT: f32 = 36.0;
 pub const HEADER_GAP: f32 = 12.0;

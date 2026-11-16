@@ -1343,6 +1343,27 @@ Decision: thumbnails (`kairo_core_gpui::thumbnails::Thumbnails`) hold the slide'
 
 Affects prompts: 067, 076, 078, 081, 086.
 
+## 2026-11-16 — Owner — 109 — Parity audit closed with a waiver
+
+Decision: the owner closed prompt 109 after a partial audit, to move on. Done:
+- Sync queue emptied at Electron `af978c5` (SYNC.md).
+- A01, A02, A14 and A15 PASS on two displays, and A16's replug part PASS (`evidence/109/displays.md`).
+- The owner's side-by-side check of sign-in and Screens raised FAILs, written up as prompt 113.
+
+Waived: every other row of `04-feature-parity-matrix.md`, the API items in `api-inventory.md`, and the A10 stage-display side-by-side check, none of them walked. Prompt 113 must walk them before cutover (112).
+Why: the owner judged the Electron UI itself due for cleanup, and chose to fix the UI in 113 rather than hold 109.
+Affects prompts: 109, 113, 112.
+
+## 2026-11-16 — Owner — 108 — Engine RSS 5.06% waived
+
+Decision: the owner accepted prompt 108's clean-run engine RSS growth of 5.06% (627.1 to 658.8 MiB, slope +0.57 MiB/min, cycle-2 baseline) against the under-5% budget, and marked 108 done. Why: 0.06 points is inside the sample-to-sample swing seen in earlier runs (about 170 to 640 MiB). Handles and client RSS were flat, and all 12 chaos events recovered. Follow-up: before release, loop the soak for longer, and investigate engine memory if the growth persists. A slow leak is not ruled out.
+Affects prompts: 108, 109.
+
+## 2026-11-16 — Owner — 108 — Leak baseline starts at the second cycle
+
+Decision: in prompt 108, RSS and handle growth are measured from the first minute of the second 5-minute service cycle (300–360 s) to the last minute. This replaces "after the first 2 minutes". Why: the 2-minute baseline came before the first document segment (180 s), so first-time page, decoder and cache loads counted as growth. The first clean run measured +14.2% engine RSS that way. The series peaked at about 6 minutes, then stayed flat or fell. Limit: a 10-minute run gives only about 4 minutes of comparison window; a slower leak is not ruled out.
+Affects prompts: 108.
+
 ## 2026-11-14 — Owner — Long runs are capped at 10 minutes
 
 Decision: the owner limited every soak, spike and endurance run in the remaining prompts to 10 minutes. Prompt 006's web-host run is 10 minutes instead of 20; prompt 108's scripted service is 10 minutes instead of 4 hours, still run twice, with RSS growth measured after the first 2 minutes instead of 30. Prompt 110 already used 10-minute runs. Prompt 091's "2-hour service" is the size of transcript the view must handle, not a run length, and is unchanged. Results from these shorter runs are reported as 10-minute results; a leak slower than they can show is not ruled out.
@@ -1731,6 +1752,11 @@ Decision: `scripts/dev-processes.mjs` and its test start the API server and audi
 Edge cases from the sources and where they are handled: bad manual tag (prepare job, `version_from_tag`); tag ≠ manifest (`check-tag`); run not on the tag (prepare job); unknown bump, version not newer, tag exists, dirty tree, detached HEAD, upstream ahead, cancelled confirmation, failed gates (`prepare`); missing or stale changelog entry, entry not dated today (warning) (`check-tag`, `prepare`); empty endpoint variables (platform workflows); no signing certificate (ad-hoc or unsigned with a warning, unchanged from 101–102); signature checks (platform verify scripts); missing upload (`if-no-files-found: error`); arch version mismatch and a single-arch Mac feed (generated feed, `verify`); duplicate file across platforms (stage step); incomplete matrix (`needs` plus `verify`); feed/file hash or size mismatch, stale assets, empty files (`verify`); published release already there (prepare and publish); earlier draft (replaced); missing token (publish); Electron latest unreadable (prepare fails rather than guessing); network blips (download and notarization retries already in the scripts); macOS 11–12 Electron installs (`minimumSystemVersion`); website fallback to `changelog[0].version` (draft releases skip the changelog).
 Affects prompts: 105, 111, 112.
 
+## 2026-11-15 — 105 — Owner — Start before 104 is done
+
+Decision: prompt 105 starts while 104 is `in-progress` (its dry run has not run), at the owner's direction. Work that needs 104's published draft release (a real GitHub-hosted upgrade, Windows and Linux artifacts from CI) is recorded as not verified rather than faked; the local macOS test uses a private feed instead.
+Affects prompts: 105.
+
 ## 2026-11-15 — 106 — Accessibility and keyboard pass
 
 Decision: the audit reads the AccessKit tree GPUI sends to VoiceOver and Narrator (`Window::debug_a11y_tree_json`). `.cargo/config.toml` sets `GPUI_A11Y_ACTIVE=1` for every process cargo runs, which GPUI honours only in `test-support` builds, so every UI test window builds the tree. `kairo_ui_kit::a11y_audit::check` runs in each UI crate's test draw helper (18 harnesses), so every state an existing UI test reaches is audited. Rules: every control (pressable, checkable, editable or clickable node) has a name (an edit field may use its placeholder, as Chromium does); every pressable role offers `Click` unless Kit reports it disabled. Sibling-name uniqueness is an opt-in check (`twin_names`), because Electron repeats per-row names ("Reply" on each question) too. `KAIRO_A11Y_AUDIT_LOG=<file>` logs violations instead of failing, for surveys.
@@ -1742,3 +1768,31 @@ Decision: modal dialogs follow Radix `Dialog`: focus moves in, Tab cycles inside
 API difference: `FocusTrapContainer` replaces its element's id with the trap id, which changed the AccessKit node id and broke id lookups in tests. Each trap reuses its element's own id. Kit's component `Button` implements only `InteractiveElement`, so it has no `on_a11y_action` or `aria_expanded`. Kit's `ColorPicker` swatch button opens on a mouse press and takes no handler from outside, so it offers no `Click`. The audit excludes that one source location (`a11y_audit::kit_limit`) and still requires its name. Fixing it needs a Kit change.
 Decision: reduced transparency and increased contrast use solid chrome (`index.css:686`, DESIGN.md). Native has no window vibrancy or backdrop blur (DECISIONS 070, with its 074 amendment); the window background is the solid `surface`, so the header, rail and page sidebars were already solid, which is what Electron's media query produces. The remaining translucent tones (`.glass` 55%, `.modal-glass` 78%, the unused 62% material tint) are drawn opaque under `KairoColors::solid_chrome`. This goes beyond Electron, whose query did not touch `.glass`: the native glass has no blur behind it, so its transparency only lowers contrast. The app reads `accessibilityDisplayShouldReduceTransparency` and `accessibilityDisplayShouldIncreaseContrast` at launch and on window focus, with reduced motion; `KAIRO_SOLID_CHROME=1|0` overrides them. Windows and Linux are not read yet, as for reduced motion (072).
 Affects prompts: 107, 109.
+
+## 2026-11-16 — 105 — Bridge validation completion
+
+Decision: finish the bridge preparation while 104 remains in progress, continuing the owner's 2026-11-15 exception. A missing selected feed, a skipped required signing check, or invalid CLI arguments must not produce a successful validation result. Default validation requires all platform feeds; the platform selectors deliberately limit the scope. The native zip must contain exactly `Kairo.app` with id `com.kairo.app`.
+Decision: regression tests use the deployed electron-updater 6.8.9 parser and pickers, with synthetic package bytes that are never executed. CI uses a throwaway checkout of the read-only Electron source at `af978c5159f4d433dc93b2de7a8f92f92765b74e`; it installs only the updater's test runtime, without Electron or its app dependencies. These tests prove feed validation, not OS installation or data migration.
+Release choices (staging percentage and the final macOS 11/12 Electron message) remain open. No public release, owner acceptance, or unperformed OS upgrade is implied by this preparation.
+Affects prompts: 104, 105, 112.
+
+## 2026-11-16 — 107 — Performance budgets and startup fixes
+
+Decision: scripture search budget is p95 under 16 ms (one 60 Hz frame) through `ScriptureService::search`; 06 had none and the Electron baseline measured only the SQL.
+Decision: every HTTP client shares one rustls `ClientConfig` (`kairo_net::transport`, via `use_preconfigured_tls`): native roots loaded once, unparseable roots skipped, ring provider, TLS 1.2/1.3, SNI, HTTP/1.1 ALPN, matching what reqwest 0.12.28 built per client. TLS options set on a builder afterwards are ignored; none are used. `rustls` 0.23 and `rustls-native-certs` 0.8 are direct dependencies with reqwest's own features, so no new crates are built.
+Decision: performance tests assert budgets as written in optimised builds or with `KAIRO_PERF_STRICT=1`, and 4× in unoptimised runs (gross-regression guard). CI runs them strict in release on macos-15 only.
+Waiver (owner, 2026-11-16): the idle-memory target (at most 40% of Electron) is waived for 107. Measured 224,560 KiB with 0 outputs, 55% of Electron. Reduction (32 MB CG image, heap, window drawables in pinned GPUI) is deferred to later work. Lyrics/media scroll draw p95 and CPU are above the 2026-11-15 figures; not confirmed as a regression.
+Affects prompts: 108, 109.
+
+## 2026-11-16 — 113 — UI parity cleanup and owner design changes
+
+Deviation (owner, 2026-11-16): the Documents page has no large live-page preview above the slide grid. The live page is marked in the grid (red border and number). The "Preview only · No output connected" status line stays.
+Deviation (owner, 2026-11-16): scripture verse cards draw the projected theme's background (the main output's scripture theme: image, else colour; the checkerboard only when transparent). Cards have square corners, no border unless live (red) or picked (white), and a 34 px black reference strip.
+Deviation (owner, 2026-11-16): a display output is called "External display" (Electron `af978c5`: "Kairo screen"). The add menu lists External display, NDI feed, Syphon, Video card. Outputs already saved keep their stored names.
+Decision: the Live monitor previews an output whose sink is missing. When a video card or display is absent, the engine still composes that output offscreen (`compose_without_sink`), and pushes go to every output the engine composes (`OutputEngine::composes`). The output still reports its sink missing, and dispatch health still counts such a push as not taken.
+Decision: Kit's `ButtonCustomVariant` paints its colour at 20% (`mix_oklab(transparent, 0.2)`), so every custom-coloured button gets an explicit solid `bg` with the same colour. Shared controls take Electron's sizes through `kairo_ui_kit::ControlSize`: buttons 32 px tall with 14 px side padding, inputs at least 36 px with 12 px side padding.
+Decision: a measuring canvas that needs another frame calls `window.on_next_frame(|w, _| w.refresh())`. `Window::refresh` is ignored during a draw, which left the lyrics, scripture, documents and media grids sized for a stale width. Coach anchors keep their last bounds without a time limit, because cached layers skip repainting unchanged controls (the tour flickered).
+Decision: overlays enter with `kairo_ui_kit::motion::enter`: opacity only, over `spring-in`'s 0.2 s curve, skipped under reduced motion. Applied to the shell overlays, What's New, the quit question, `MovableDialog`, the Documents dialogs and slideshow menu, the lyrics import, quick open and song usage dialogs, the Media Inspector, scripture review, the Engage dialog and the coach card. Kit's own popovers, menus and selects are not animated: they are inside the pinned `gpui-kit =0.9.1`.
+Deviation (owner, 2026-11-16): lyric and scripture cards default to 240 px minimum width at 100 % (Electron: 180). Scripture card artwork carries a 40% black scrim, and resting cards a 0.5 px border. Lit Live-rail layer buttons get an accent fill and foot bar.
+Decision: a measuring canvas notifies its own view on the next frame. `Window::refresh` alone does not redraw a view that gpui-fast keeps cached, which left grids at a stale width. The engine handle forwards content to a video-card surface without its card (`surface_composes`); before, it dropped every slide there, so the monitor stayed empty.
+Affects prompts: 110, 111, 112.

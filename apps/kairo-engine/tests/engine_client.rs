@@ -229,3 +229,76 @@ async fn engine_client_follows_program_surface_rules() {
     );
     engine.shutdown();
 }
+
+/// A video card output with no card still composes, so the operator's
+/// monitor previews what it would show (113, item 18).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_card_output_without_its_card_still_composes() {
+    let mut options = EngineOptions::new(ENGINE);
+    options.grace = Duration::from_secs(2);
+    let engine = EngineHandle::spawn(options);
+    let mut status = engine.watch_status();
+    loop {
+        match status.borrow_and_update().clone() {
+            EngineStatus::Running { .. } => break,
+            EngineStatus::Restarting { reason } | EngineStatus::Failed { reason }
+                if reason.contains("exit status: 70")
+                    && std::env::var_os("KAIRO_REQUIRE_ENGINE").is_none() =>
+            {
+                eprintln!("skipped: no window system ({reason})");
+                return;
+            }
+            EngineStatus::Failed { reason } => panic!("{reason}"),
+            _ => {}
+        }
+        tokio::time::timeout(Duration::from_secs(10), status.changed())
+            .await
+            .expect("engine start")
+            .unwrap();
+    }
+    let surfaces = EngineSurfaces::new(engine.clone());
+    let mut card = make_overlay_output("card", OverlayOutputKind::Device);
+    card.enabled = true;
+    surfaces.set_outputs(vec![card.clone()]);
+    engine.command(Command::OpenSurface(SurfaceSpec {
+        output: "card".into(),
+        label: "Video card (card)".into(),
+        sink: SinkSpec::Device {
+            port_id: String::new(),
+            mode_id: String::new(),
+            key_fill: false,
+        },
+    }));
+    until("card status", || engine.surface_status("card").is_some()).await;
+    assert!(
+        surfaces.unavailable_reason(&card).is_some(),
+        "no card is attached"
+    );
+    assert!(surfaces.composes(&card), "the program still composes");
+    assert_eq!(
+        surfaces
+            .live_targets(None)
+            .into_iter()
+            .map(|o| o.id)
+            .collect::<Vec<_>>(),
+        ["card"]
+    );
+    let sent = engine.command(Command::ShowSlide {
+        output: "card".into(),
+        source: "card".into(),
+        slide: SlideContent {
+            reference: "John 3:16".into(),
+            text: "For God so loved the world".into(),
+            theme: Json::encode(&*DEFAULT_OVERLAY_THEME),
+            colored_lines: None,
+        },
+        instant: true,
+    });
+    assert!(sent.accepted);
+    assert!(
+        engine
+            .wait_frame("card", sent.seq, Duration::from_secs(5))
+            .await,
+        "the slide reaches a composed frame"
+    );
+}

@@ -13,10 +13,57 @@ pub const READ_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// A builder with the shared connect and read timeouts. Add a user agent,
 /// redirect policy or whole-request timeout as the caller needs.
+///
+/// Every client shares one TLS configuration. Left to itself, `reqwest`
+/// reads the operating system's root certificates again for each client it
+/// builds, which took about 115 ms per client on macOS and five clients
+/// are built during launch (prompt 107). TLS options set on the builder
+/// after this call are ignored; none are used.
 pub fn client_builder() -> reqwest::ClientBuilder {
-    reqwest::Client::builder()
+    let builder = reqwest::Client::builder()
         .connect_timeout(CONNECT_TIMEOUT)
-        .read_timeout(READ_TIMEOUT)
+        .read_timeout(READ_TIMEOUT);
+    match shared_tls() {
+        Some(tls) => builder.use_preconfigured_tls(tls.clone()),
+        None => builder,
+    }
+}
+
+/// Loads the shared TLS configuration now, so the first client built on a
+/// startup path does not wait for the root store. Call it on a spare thread.
+pub fn warm_tls() {
+    let _ = shared_tls();
+}
+
+/// The TLS configuration `reqwest` would build for a default client:
+/// native roots (unparseable ones skipped, as `reqwest` does), the ring
+/// provider, TLS 1.2 and 1.3, SNI, HTTP/1.1 ALPN. `None` when the native
+/// store has no usable root, so `reqwest` reports that error itself.
+fn shared_tls() -> Option<&'static rustls::ClientConfig> {
+    static TLS: std::sync::OnceLock<Option<rustls::ClientConfig>> = std::sync::OnceLock::new();
+    TLS.get_or_init(|| {
+        let loaded = rustls_native_certs::load_native_certs();
+        for error in &loaded.errors {
+            tracing::debug!(%error, "native root certificate store error");
+        }
+        let mut roots = rustls::RootCertStore::empty();
+        let (valid, invalid) = roots.add_parsable_certificates(loaded.certs);
+        tracing::debug!(valid, invalid, "native root certificates loaded");
+        if valid == 0 {
+            return None;
+        }
+        let provider = rustls::crypto::CryptoProvider::get_default()
+            .cloned()
+            .unwrap_or_else(|| std::sync::Arc::new(rustls::crypto::ring::default_provider()));
+        let mut config = rustls::ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .ok()?
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        config.alpn_protocols = vec![b"http/1.1".to_vec()];
+        Some(config)
+    })
+    .as_ref()
 }
 
 /// The shared client with default settings.
@@ -185,6 +232,35 @@ pub async fn download_to_file<H: sha2::Digest>(
 mod tests {
     use super::*;
     use sha2::Digest as _;
+
+    #[tokio::test]
+    #[ignore = "needs the network"]
+    async fn the_shared_tls_configuration_verifies_a_real_server() {
+        let status = client()
+            .get("https://example.com/")
+            .send()
+            .await
+            .unwrap()
+            .status();
+        assert!(status.is_success(), "{status}");
+        let bad = client().get("https://self-signed.badssl.com/").send().await;
+        assert!(bad.is_err(), "a self-signed certificate was accepted");
+    }
+
+    #[test]
+    fn clients_share_one_tls_configuration() {
+        // Building clients after the first must not reload the root store.
+        let _ = client();
+        let start = std::time::Instant::now();
+        for _ in 0..5 {
+            client_builder().build().unwrap();
+        }
+        let five = start.elapsed();
+        assert!(
+            five < std::time::Duration::from_millis(100),
+            "five clients took {five:?}"
+        );
+    }
 
     /// Serves one HTTP response with `body` on a local port.
     async fn serve(body: &'static [u8], length: usize) -> String {

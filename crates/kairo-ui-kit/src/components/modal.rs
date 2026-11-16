@@ -179,47 +179,53 @@ impl MovableDialog {
         let viewport = window.viewport_size();
         let left = (viewport.width - self.size.width) / 2.0 + px(self.offset.x);
         let top = (viewport.height - self.size.height) / 2.0 + px(self.offset.y);
-        div()
-            .id(self.id.clone())
-            .absolute()
-            .inset_0()
-            .bg(k.scrim())
-            .occlude()
-            .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
-                cx.stop_propagation()
-            })
-            .child(
-                div()
-                    .id("movable-dialog-frame")
-                    .test_support()
-                    .role(Role::Dialog)
-                    .aria_label(self.label.clone())
-                    .track_focus(&self.focus)
-                    .key_context("MovableDialog")
-                    .on_key_down(cx.listener(|_, event: &KeyDownEvent, _, cx| {
-                        if event.keystroke.key == "escape" {
-                            cx.stop_propagation();
-                            cx.emit(MovableDialogEvent::Dismiss);
-                        }
-                    }))
-                    .absolute()
-                    .left(left)
-                    .top(top)
-                    .w(self.size.width)
-                    .h(self.size.height)
-                    .rounded(radius::xl())
-                    .overflow_hidden()
-                    .bg(k.surface)
-                    .border(metrics::panel_border_width())
-                    .border_color(k.panel_border)
-                    .when(self.dragging, |this| this.cursor_grabbing())
-                    .child(content)
-                    .focus_trap(
-                        ElementId::NamedChild(std::sync::Arc::new(self.id.clone()), "trap".into()),
-                        &self.focus,
-                    ),
-            )
-            .into_any_element()
+        crate::motion::enter(
+            div()
+                .id(self.id.clone())
+                .absolute()
+                .inset_0()
+                .bg(k.scrim())
+                .occlude()
+                .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
+                    cx.stop_propagation()
+                })
+                .child(
+                    div()
+                        .id("movable-dialog-frame")
+                        .test_support()
+                        .role(Role::Dialog)
+                        .aria_label(self.label.clone())
+                        .track_focus(&self.focus)
+                        .key_context("MovableDialog")
+                        .on_key_down(cx.listener(|_, event: &KeyDownEvent, _, cx| {
+                            if event.keystroke.key == "escape" {
+                                cx.stop_propagation();
+                                cx.emit(MovableDialogEvent::Dismiss);
+                            }
+                        }))
+                        .absolute()
+                        .left(left)
+                        .top(top)
+                        .w(self.size.width)
+                        .h(self.size.height)
+                        .rounded(radius::xl())
+                        .overflow_hidden()
+                        .bg(k.surface)
+                        .border(metrics::panel_border_width())
+                        .border_color(k.panel_border)
+                        .when(self.dragging, |this| this.cursor_grabbing())
+                        .child(content)
+                        .focus_trap(
+                            ElementId::NamedChild(
+                                std::sync::Arc::new(self.id.clone()),
+                                "trap".into(),
+                            ),
+                            &self.focus,
+                        ),
+                ),
+            "movable-dialog-enter",
+            cx,
+        )
     }
 
     /// The frame's bounds in window coordinates, for tests and anchoring.

@@ -12,6 +12,7 @@ use gpui_kit::{
     AnyElement, App, ClickEvent, ElementId, InteractiveElement, IntoElement, ParentElement, Role,
     SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
 };
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PrefGroup;
 use kairo_ui_kit::tokens::{TextStep, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
@@ -177,7 +178,7 @@ pub fn button(
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> Button {
     Button::new(id)
-        .small()
+        .kairo_size()
         .label(label)
         .disabled(disabled)
         .on_click(on_click)

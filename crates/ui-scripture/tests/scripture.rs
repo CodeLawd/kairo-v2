@@ -1049,7 +1049,8 @@ fn the_grid_builds_only_what_is_on_screen(cx: &mut TestAppContext) {
             .update(cx, |m, cx| m.select_plan_item("item-53", cx))
     });
     draw(cx, &opened);
-    assert!(exists(cx, &opened, &ids::card(377)));
+    // Its first verse (54 items × 7: card 371) is on screen, the top is not.
+    assert!(exists(cx, &opened, &ids::card(371)));
     assert!(!exists(cx, &opened, &ids::card(0)));
 }
 

@@ -208,6 +208,8 @@ impl RenderOnce for SelectionAction {
         };
         Button::new(self.id)
             .custom(variant)
+            // Solid fill: the custom variant paints its colour at 20%.
+            .when(!self.danger, |b| b.bg(k.surface_elevated))
             .label(self.label)
             .small()
             .h_7()

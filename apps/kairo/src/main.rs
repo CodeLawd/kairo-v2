@@ -826,6 +826,13 @@ fn main() {
         }
     };
     let _log = start(&paths);
+    // Reading the system root certificates takes about 100 ms on macOS;
+    // do it beside window setup instead of in the first service that
+    // builds an HTTP client (prompt 107).
+    std::thread::Builder::new()
+        .name("kairo-tls-warm".into())
+        .spawn(kairo_net::transport::warm_tls)
+        .ok();
 
     // One Kairo per profile; dev builds may run beside the installed app.
     let mut instance = None;

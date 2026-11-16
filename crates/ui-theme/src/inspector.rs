@@ -10,6 +10,7 @@
 //! not written back from the draft until something else changes it (undo,
 //! another control, another theme).
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverButtonTriggerExt;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::collections::HashMap;
@@ -365,6 +366,7 @@ impl Render for ColorField {
             .child(
                 div().flex_1().min_w_0().child(
                     Input::new(&self.hex)
+                        .kairo_size()
                         .appearance(false)
                         .small()
                         .aria_label(if self.free {
@@ -381,6 +383,7 @@ impl Render for ColorField {
                     .gap_0p5()
                     .child(
                         Input::new(p)
+                            .kairo_size()
                             .appearance(false)
                             .small()
                             .aria_label(format!("{} opacity", self.label)),
@@ -1501,6 +1504,7 @@ impl ThemeInspector {
             .child(
                 div().flex_1().min_w_0().child(
                     Input::new(&input)
+                        .kairo_size()
                         .appearance(false)
                         .small()
                         .aria_label("Size"),

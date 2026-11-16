@@ -9,6 +9,7 @@ use crate::components::{
     NumberField, NumberModel, PrefGroup, PressTarget, RailItem, SegmentOption, SegmentedControl,
     SelectionAction, SelectionBar, TrafficLights, ZoomControl, ZoomRange,
 };
+use crate::control::ControlSize;
 use crate::icons::KairoIcon;
 use crate::motion;
 use crate::theme::{KairoThemeExt, set_appearance, set_reduced_motion};
@@ -545,101 +546,101 @@ impl Render for Gallery {
                     ),
             );
 
-        let inputs = section("inputs", "Fields", &k)
-            .child(
-                h_flex()
-                    .gap_4()
-                    .items_start()
-                    .child(
-                        v_flex()
-                            .w_64()
-                            .gap_1()
-                            .child(label("Search", &k))
-                            .child(Input::new(&self.name).id("gallery-search")),
-                    )
-                    .child(
-                        v_flex().w_64().gap_1().child(label("Password", &k)).child(
-                            Input::new(&self.password)
-                                .id("gallery-password")
-                                .mask_toggle(),
+        let inputs =
+            section("inputs", "Fields", &k)
+                .child(
+                    h_flex()
+                        .gap_4()
+                        .items_start()
+                        .child(
+                            v_flex()
+                                .w_64()
+                                .gap_1()
+                                .child(label("Search", &k))
+                                .child(Input::new(&self.name).kairo_size().id("gallery-search")),
+                        )
+                        .child(
+                            v_flex().w_64().gap_1().child(label("Password", &k)).child(
+                                Input::new(&self.password)
+                                    .kairo_size()
+                                    .id("gallery-password")
+                                    .mask_toggle(),
+                            ),
+                        )
+                        .child(
+                            v_flex().w_48().gap_1().child(label("Disabled", &k)).child(
+                                Input::new(&self.disabled_input).kairo_size().disabled(true),
+                            ),
+                        )
+                        .child(div().w_40().child(self.number.clone())),
+                )
+                .child(
+                    h_flex()
+                        .gap_4()
+                        .child(
+                            v_flex()
+                                .w_48()
+                                .gap_1()
+                                .child(label("Output", &k))
+                                .child(Select::new(&self.select)),
+                        )
+                        .child(
+                            v_flex()
+                                .w_48()
+                                .gap_1()
+                                .child(label("Opacity", &k))
+                                .child(Slider::new(&self.slider).accessibility_label("Opacity")),
+                        )
+                        .child(
+                            Switch::new("gallery-switch")
+                                .label("Show reference")
+                                .checked(self.switch_on)
+                                .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                                    this.switch_on = *checked;
+                                    cx.notify();
+                                })),
+                        )
+                        .child(self.zoom.clone()),
+                )
+                .child(
+                    h_flex()
+                        .gap_4()
+                        .child(
+                            SegmentedControl::new("gallery-segment", "Content")
+                                .options([
+                                    SegmentOption::new("scripture", "Scripture"),
+                                    SegmentOption::new("lyrics", "Lyrics"),
+                                    SegmentOption::new("media", "Media"),
+                                ])
+                                .selected(self.segment.clone())
+                                .on_change(cx.listener(|this, key: &SharedString, _, cx| {
+                                    this.segment = key.clone();
+                                    cx.notify();
+                                })),
+                        )
+                        .child(
+                            SegmentedControl::new("gallery-tabs", "Booth tools")
+                                .tabs()
+                                .fit()
+                                .options([
+                                    SegmentOption::new("verses", "Verses"),
+                                    SegmentOption::new("songs", "Songs"),
+                                    SegmentOption::new("timers", "Timers"),
+                                    SegmentOption::new("messages", "Messages"),
+                                ])
+                                .selected(self.tab.clone())
+                                .on_change(cx.listener(|this, key: &SharedString, _, cx| {
+                                    this.tab = key.clone();
+                                    cx.notify();
+                                })),
                         ),
-                    )
-                    .child(
-                        v_flex()
-                            .w_48()
-                            .gap_1()
-                            .child(label("Disabled", &k))
-                            .child(Input::new(&self.disabled_input).disabled(true)),
-                    )
-                    .child(div().w_40().child(self.number.clone())),
-            )
-            .child(
-                h_flex()
-                    .gap_4()
-                    .child(
-                        v_flex()
-                            .w_48()
-                            .gap_1()
-                            .child(label("Output", &k))
-                            .child(Select::new(&self.select)),
-                    )
-                    .child(
-                        v_flex()
-                            .w_48()
-                            .gap_1()
-                            .child(label("Opacity", &k))
-                            .child(Slider::new(&self.slider).accessibility_label("Opacity")),
-                    )
-                    .child(
-                        Switch::new("gallery-switch")
-                            .label("Show reference")
-                            .checked(self.switch_on)
-                            .on_click(cx.listener(|this, checked: &bool, _, cx| {
-                                this.switch_on = *checked;
-                                cx.notify();
-                            })),
-                    )
-                    .child(self.zoom.clone()),
-            )
-            .child(
-                h_flex()
-                    .gap_4()
-                    .child(
-                        SegmentedControl::new("gallery-segment", "Content")
-                            .options([
-                                SegmentOption::new("scripture", "Scripture"),
-                                SegmentOption::new("lyrics", "Lyrics"),
-                                SegmentOption::new("media", "Media"),
-                            ])
-                            .selected(self.segment.clone())
-                            .on_change(cx.listener(|this, key: &SharedString, _, cx| {
-                                this.segment = key.clone();
-                                cx.notify();
-                            })),
-                    )
-                    .child(
-                        SegmentedControl::new("gallery-tabs", "Booth tools")
-                            .tabs()
-                            .fit()
-                            .options([
-                                SegmentOption::new("verses", "Verses"),
-                                SegmentOption::new("songs", "Songs"),
-                                SegmentOption::new("timers", "Timers"),
-                                SegmentOption::new("messages", "Messages"),
-                            ])
-                            .selected(self.tab.clone())
-                            .on_change(cx.listener(|this, key: &SharedString, _, cx| {
-                                this.tab = key.clone();
-                                cx.notify();
-                            })),
-                    ),
-            )
-            .child(
-                v_flex()
-                    .gap_1()
-                    .child(label("Confirmation code", &k))
-                    .child(self.code.clone()),
-            );
+                )
+                .child(
+                    v_flex()
+                        .gap_1()
+                        .child(label("Confirmation code", &k))
+                        .child(self.code.clone()),
+                );
 
         let pref =
             section("pref", "Settings groups", &k).child(

@@ -374,6 +374,8 @@ impl Shell {
             UpdateState::Available { version } => Some(
                 Button::new("update-pill")
                     .custom(solid)
+                    // Solid fill: the custom variant paints its colour at 20%.
+                    .bg(k.live)
                     .icon(Icon::new(KairoIcon::Download).size_3())
                     .label("Update")
                     .small()
@@ -403,6 +405,8 @@ impl Shell {
                 Some(
                     Button::new("update-pill")
                         .custom(solid)
+                        // Solid fill: the custom variant paints its colour at 20%.
+                        .bg(k.live)
                         .icon(Icon::new(KairoIcon::Download).size_3())
                         .label(label)
                         .small()
@@ -450,6 +454,8 @@ impl Shell {
             .active(k.surface_elevated);
         Button::new(id)
             .custom(variant)
+            // Solid fill: the custom variant paints its colour at 20%.
+            .when(open, |b| b.bg(k.surface_elevated))
             .w_full()
             .h_auto()
             .py_1()
@@ -1078,7 +1084,7 @@ impl Shell {
             return Some(view.into_any_element());
         }
         let k = *cx.kairo();
-        Some(
+        Some(kairo_ui_kit::motion::enter(
             div()
                 .id("overlay-scrim")
                 .absolute()
@@ -1137,9 +1143,10 @@ impl Shell {
                                     ),
                                 ),
                         ),
-                )
-                .into_any_element(),
-        )
+                ),
+            "overlay-enter",
+            cx,
+        ))
     }
 
     fn render_notices(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
@@ -1370,7 +1377,7 @@ impl Shell {
                 }))
                 .into_any_element()
         };
-        Some(
+        Some(kairo_ui_kit::motion::enter(
             div()
                 .id("whats-new-scrim")
                 .absolute()
@@ -1471,9 +1478,10 @@ impl Shell {
                                 ),
                         )
                         .focus_trap("whats-new", self.whats_new_focus.handle()),
-                )
-                .into_any_element(),
-        )
+                ),
+            "whats-new-enter",
+            cx,
+        ))
     }
 
     fn render_quit(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -1487,7 +1495,7 @@ impl Shell {
             ""
         };
         Some(
-            div()
+            kairo_ui_kit::motion::enter(div()
                 .id("quit-scrim")
                 .absolute()
                 .inset_0()
@@ -1554,8 +1562,7 @@ impl Shell {
                                 ),
                         )
                         .focus_trap("quit-confirmation", self.quit_focus.handle()),
-                )
-                .into_any_element(),
+                ), "quit-enter", cx),
         )
     }
 }

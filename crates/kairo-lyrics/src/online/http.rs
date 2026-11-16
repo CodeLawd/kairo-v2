@@ -101,18 +101,22 @@ pub fn success(status: u16) -> bool {
 
 /// The production client.
 #[derive(Clone)]
+/// The client is built on first use, not at construction: building it loads
+/// the system root certificates, which took over 100 ms on the UI thread
+/// during launch on macOS (prompt 107).
+#[derive(Default)]
 pub struct ReqwestHttp {
-    client: reqwest::Client,
+    client: std::sync::OnceLock<reqwest::Client>,
 }
 
-impl Default for ReqwestHttp {
-    fn default() -> Self {
-        Self {
-            client: kairo_net::transport::client_builder()
+impl ReqwestHttp {
+    fn client(&self) -> &reqwest::Client {
+        self.client.get_or_init(|| {
+            kairo_net::transport::client_builder()
                 .redirect(reqwest::redirect::Policy::limited(5))
                 .build()
-                .unwrap_or_default(),
-        }
+                .unwrap_or_default()
+        })
     }
 }
 
@@ -124,7 +128,7 @@ impl Http for ReqwestHttp {
     ) -> BoxFuture<'_, Result<HttpResponse, HttpError>> {
         Box::pin(async move {
             let mut builder = self
-                .client
+                .client()
                 .get(&request.url)
                 .query(&request.query)
                 .timeout(request.timeout);

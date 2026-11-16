@@ -5,6 +5,7 @@
 //! Every panel acts on Kairo's own screens and NDI feeds. Presentation edits
 //! show at once and are saved behind (`useDraftPresentation`).
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverButtonTriggerExt;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::time::Duration;
@@ -767,6 +768,12 @@ impl TimersPanel {
                             .hover(k.surface_tertiary)
                             .active(k.surface_tertiary),
                     )
+                    // Solid fill: the custom variant paints its colour at 20%.
+                    .bg(if up {
+                        k.tints.teal
+                    } else {
+                        gpui_kit::transparent_black()
+                    })
                     .small()
                     .icon(Icon::new(KairoIcon::MonitorPlay).size(px(15.)))
                     .selected(up)
@@ -872,7 +879,12 @@ impl TimersPanel {
                 .px_4()
                 .pb_4()
                 .pt_1()
-                .child(Input::new(&e.name).small().aria_label("Timer name"))
+                .child(
+                    Input::new(&e.name)
+                        .kairo_size()
+                        .small()
+                        .aria_label("Timer name"),
+                )
                 .child(
                     v_flex()
                         .gap_2p5()
@@ -916,16 +928,19 @@ impl TimersPanel {
                             ),
                         )
                         .child(match def.kind {
-                            TimerKind::Countdown => {
-                                h_flex()
-                                    .items_center()
-                                    .gap_3()
-                                    .child(label("Time"))
-                                    .child(div().flex_1().child(
-                                        Input::new(&e.duration).small().aria_label("Duration"),
-                                    ))
-                                    .into_any_element()
-                            }
+                            TimerKind::Countdown => h_flex()
+                                .items_center()
+                                .gap_3()
+                                .child(label("Time"))
+                                .child(
+                                    div().flex_1().child(
+                                        Input::new(&e.duration)
+                                            .kairo_size()
+                                            .small()
+                                            .aria_label("Duration"),
+                                    ),
+                                )
+                                .into_any_element(),
                             TimerKind::CountdownTo => h_flex()
                                 .items_center()
                                 .gap_3()
@@ -938,13 +953,21 @@ impl TimersPanel {
                                         .gap_1p5()
                                         .child(
                                             div().w_16().child(
-                                                Input::new(&e.hour).small().aria_label("Hour"),
+                                                Input::new(&e.hour)
+                                                    .kairo_size()
+                                                    .small()
+                                                    .aria_label("Hour"),
                                             ),
                                         )
                                         .child(div().text_color(k.text(TextStep::T500)).child(":"))
-                                        .child(div().w_16().child(
-                                            Input::new(&e.minute).small().aria_label("Minute"),
-                                        ))
+                                        .child(
+                                            div().w_16().child(
+                                                Input::new(&e.minute)
+                                                    .kairo_size()
+                                                    .small()
+                                                    .aria_label("Minute"),
+                                            ),
+                                        )
                                         .child(
                                             Button::new("timer-ampm")
                                                 .outline()
@@ -1094,6 +1117,12 @@ impl Render for TimersPanel {
                             .hover(k.surface_elevated)
                             .active(k.surface_elevated),
                     )
+                    // Solid fill: the custom variant paints its colour at 20%.
+                    .bg(if clock_on {
+                        k.neutral(Step::S200)
+                    } else {
+                        k.surface_tertiary
+                    })
                     .xsmall()
                     .rounded_full()
                     .label(if clock_on { "On screens" } else { "Show" })
@@ -1165,10 +1194,12 @@ impl Render for TimersPanel {
                     h_flex()
                         .gap_2()
                         .child(
-                            div()
-                                .id(ids::STAGE_INPUT)
-                                .flex_1()
-                                .child(Input::new(&self.stage).small().aria_label("Stage message")),
+                            div().id(ids::STAGE_INPUT).flex_1().child(
+                                Input::new(&self.stage)
+                                    .kairo_size()
+                                    .small()
+                                    .aria_label("Stage message"),
+                            ),
                         )
                         .child(
                             primary_button(ids::STAGE_SEND, "Send", cx)
@@ -2003,7 +2034,7 @@ impl Render for PropsPanel {
                     this.child(
                         div()
                             .mt_1()
-                            .child(Input::new(&input).xsmall().aria_label("Name")),
+                            .child(Input::new(&input).kairo_size().xsmall().aria_label("Name")),
                     )
                 })
         });
@@ -2632,6 +2663,8 @@ impl Render for VideoPanel {
                                     .hover(k.live.opacity(0.9))
                                     .active(k.live.opacity(0.9)),
                             )
+                            // Solid fill: the custom variant paints its colour at 20%.
+                            .bg(k.live)
                             .small()
                             .label("Take off")
                             .on_click(cx.listener(|this, _, _, cx| {
@@ -2785,7 +2818,7 @@ impl Render for SoundPanel {
                                 }),
                         )
                         .child(hint(
-                            "Video and input sound play from the first Kairo screen (else the NDI feed) only, so screens never echo each other.",
+                            "Video and input sound play from the first external display (else the NDI feed) only, so screens never echo each other.",
                             cx,
                         )),
                 )

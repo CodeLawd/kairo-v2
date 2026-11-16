@@ -1,0 +1,27 @@
+✔ missing selected feed fails instead of reporting a successful release check (76.102292ms)
+✔ a partial release fails the default all-platform check (117.911708ms)
+✔ conflicting platform selectors are rejected (38.789167ms)
+✔ unknown options are rejected (36.013417ms)
+✔ valid Windows feed passes its selected checks (83.595875ms)
+✔ Windows rejects hash mismatch (71.270666ms)
+✔ Windows rejects downgrade (76.016583ms)
+✔ Windows rejects elevation (70.95975ms)
+✔ Windows reports missing artifact bytes (68.603166ms)
+✔ rejects invalid arguments --dir (35.890792ms)
+✔ rejects invalid arguments --from --win-only (35.677ms)
+✔ rejects invalid arguments --win-only --win-only (35.531459ms)
+✔ Linux checks both package types with the real deployed pickers (73.6445ms)
+✔ Linux refuses a feed missing .deb (69.84225ms)
+✔ Linux refuses a feed missing .AppImage (71.089958ms)
+✔ malformed YAML cannot pass validation (68.261834ms)
+✔ macOS rejects a differently named app at the zip root (160.425417ms)
+✔ macOS cannot pass without an installed signing reference (195.708708ms)
+✔ Windows rejects elevation on the selected file, where electron-updater reads it (77.012375ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1518.118375

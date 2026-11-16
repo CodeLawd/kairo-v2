@@ -2,6 +2,7 @@
 //! recording light, talk time and name (click to review), End, and the Save,
 //! Discard and Review dialogs.
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::time::Duration;
 
@@ -198,7 +199,7 @@ impl ServicePanel {
         });
         self.plan_id = active.notes.first().map(|n| n.id.clone());
         self.open = Some(Open::End);
-        self.frame("Save service", 448., 360., window, cx);
+        self.frame("Save service", 448., 392., window, cx);
         cx.notify();
     }
 
@@ -263,7 +264,7 @@ impl ServicePanel {
 
     pub fn ask_discard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.open = Some(Open::Discard);
-        self.frame("Discard this service?", 384., 200., window, cx);
+        self.frame("Discard this service?", 384., 216., window, cx);
         cx.notify();
     }
 
@@ -394,6 +395,8 @@ impl ServicePanel {
                             .hover(k.tints.red.opacity(2.0))
                             .active(k.tints.red.opacity(2.0)),
                     )
+                    // Solid fill: the custom variant paints its colour at 20%.
+                    .bg(k.tints.red)
                     .small()
                     .icon(Icon::new(KairoIcon::Square).size(px(9.)))
                     .label("End")
@@ -451,7 +454,7 @@ impl ServicePanel {
                     .gap_4()
                     .child(field(
                         "Service name",
-                        Input::new(&self.title)
+                        Input::new(&self.title).kairo_size()
                             .small()
                             .disabled(busy)
                             .aria_label("Service name")
@@ -459,7 +462,7 @@ impl ServicePanel {
                     ))
                     .child(field(
                         "Speaker (optional)",
-                        Input::new(&self.speaker)
+                        Input::new(&self.speaker).kairo_size()
                             .small()
                             .disabled(busy)
                             .aria_label("Speaker (optional)")
@@ -603,6 +606,8 @@ impl ServicePanel {
                                     .hover(k.destructive.opacity(0.85))
                                     .active(k.destructive.opacity(0.85)),
                             )
+        // Solid fill: the custom variant paints its colour at 20%.
+        .bg(k.destructive)
                             .small()
                             .label(if busy { "Discarding…" } else { "Discard" })
                             .disabled(busy)

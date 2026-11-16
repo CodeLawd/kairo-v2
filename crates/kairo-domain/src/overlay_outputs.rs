@@ -19,7 +19,7 @@ pub const MAX_SYPHON_OUTPUTS: usize = 4;
 /// `outputDestinationLabel`.
 pub fn output_destination_label(kind: OverlayOutputKind) -> &'static str {
     match kind {
-        OverlayOutputKind::Screen => "Kairo screen",
+        OverlayOutputKind::Screen => "External display",
         OverlayOutputKind::Device => "Video card",
         OverlayOutputKind::Ndi => "NDI feed",
         OverlayOutputKind::Syphon => "Syphon",

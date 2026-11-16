@@ -6,6 +6,7 @@
 //! pasting a song with blank lines or `[Chorus]` lines keeps its shape.
 //! Misspelt words get the system spell checker's wavy underline.
 
+use kairo_ui_kit::ControlSize;
 use kairo_ui_kit::components::PopoverTriggerExt;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -630,11 +631,12 @@ impl SongEditor {
                 }
             });
         let rename = (self.renaming == Some(b)).then(|| {
-            div()
-                .id(ids::RENAME)
-                .test_support()
-                .w(px(220.))
-                .child(Input::new(&self.rename).small().aria_label("Section name"))
+            div().id(ids::RENAME).test_support().w(px(220.)).child(
+                Input::new(&self.rename)
+                    .kairo_size()
+                    .small()
+                    .aria_label("Section name"),
+            )
         });
         let slides: Vec<AnyElement> = block
             .slides
@@ -776,13 +778,13 @@ impl Render for SongEditor {
                     .gap_1()
                     .px_4()
                     .pb_2()
-                    .child(div().id(ids::TITLE).test_support().child(Input::new(&self.title).appearance(false)))
+                    .child(div().id(ids::TITLE).test_support().child(Input::new(&self.title).kairo_size().appearance(false)))
                     .child(
                         h_flex()
                             .gap_1()
-                            .child(div().flex_1().child(Input::new(&self.artist).small().appearance(false)))
-                            .child(div().flex_1().child(Input::new(&self.copyright).small().appearance(false)))
-                            .child(div().w_24().child(Input::new(&self.ccli).small().appearance(false))),
+                            .child(div().flex_1().child(Input::new(&self.artist).kairo_size().small().appearance(false)))
+                            .child(div().flex_1().child(Input::new(&self.copyright).kairo_size().small().appearance(false)))
+                            .child(div().w_24().child(Input::new(&self.ccli).kairo_size().small().appearance(false))),
                     ),
             )
             .children(error.map(|e| {
