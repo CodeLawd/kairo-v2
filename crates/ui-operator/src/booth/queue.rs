@@ -12,8 +12,8 @@ use gpui_kit::component::{Icon, Sizable, h_flex, v_flex};
 use gpui_kit::{
     AnyElement, AppContext, Context, Entity, FocusHandle, Focusable, FontWeight,
     InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, Subscription, Task, Window, div, prelude::FluentBuilder,
-    px,
+    StatefulInteractiveElement, Styled, Subscription, Task, Window, deferred, div,
+    prelude::FluentBuilder, px,
 };
 use kairo_domain::scripture::ScriptureResult;
 use kairo_domain::scripture::query::{
@@ -281,6 +281,11 @@ impl QueueSearch {
             }
         }
         if key == "enter" {
+            // "phi 4 19" could be Philemon or Philippians: the book list is
+            // open, so Enter waits for a choice instead of searching.
+            if get_book_completions(&query).len() > 1 {
+                return true;
+            }
             let submitted = resolve_submitted_scripture_query(&query);
             self.input.update(cx, |input, cx| {
                 input.set_value(submitted.clone(), window, cx)
@@ -384,52 +389,59 @@ impl Render for QueueSearch {
                 .absolute()
                 .left_0()
                 .right_0()
-                .top(px(34.))
+                .top(px(44.))
                 .rounded_lg()
+                .border_1()
+                .border_color(k.surface_border)
                 .bg(k.surface_elevated)
                 .shadow_2xl()
                 .overflow_hidden()
                 .occlude()
         };
-        if completions.len() > 1 && !self.open {
+        let choosing_book = completions.len() > 1 && !self.open;
+        if choosing_book {
+            // Deferred: drawn over the error line and the queue below it.
             root = root.child(
-                popup()
-                    .id("queue-books")
-                    .child(
-                        div()
-                            .px_2p5()
-                            .py_1p5()
-                            .text_size(text::MICRO.size)
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(k.text(TextStep::T500))
-                            .child("Choose a Bible book"),
-                    )
-                    .children(completions.into_iter().map(|c| {
-                        let value = c.value.clone();
-                        h_flex()
-                            .id(SharedString::from(format!("queue-book-{}", c.book)))
-                            .test_support()
-                            .justify_between()
-                            .px_2p5()
-                            .py_2()
-                            .cursor_pointer()
-                            .text_size(text::MICRO.size)
-                            .hover(|s| s.bg(k.surface_tertiary))
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                let submitted = resolve_submitted_scripture_query(&value);
-                                this.input.update(cx, |input, cx| {
-                                    input.set_value(submitted.clone(), window, cx)
-                                });
-                                this.run(submitted, window, cx);
-                            }))
-                            .child(
-                                div()
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(k.accent(Step::S300))
-                                    .child(c.book),
-                            )
-                            .child(div().text_color(k.text(TextStep::T500)).child(c.value))
-                    })),
+                deferred(
+                    popup()
+                        .id("queue-books")
+                        .child(
+                            div()
+                                .px_2p5()
+                                .py_1p5()
+                                .text_size(text::MICRO.size)
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(k.text(TextStep::T500))
+                                .child("Choose a Bible book"),
+                        )
+                        .children(completions.into_iter().map(|c| {
+                            let value = c.value.clone();
+                            h_flex()
+                                .id(SharedString::from(format!("queue-book-{}", c.book)))
+                                .test_support()
+                                .justify_between()
+                                .px_2p5()
+                                .py_2()
+                                .cursor_pointer()
+                                .text_size(text::MICRO.size)
+                                .hover(|s| s.bg(k.surface_tertiary))
+                                .on_click(cx.listener(move |this, _, window, cx| {
+                                    let submitted = resolve_submitted_scripture_query(&value);
+                                    this.input.update(cx, |input, cx| {
+                                        input.set_value(submitted.clone(), window, cx)
+                                    });
+                                    this.run(submitted, window, cx);
+                                }))
+                                .child(
+                                    div()
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(k.accent(Step::S300))
+                                        .child(c.book),
+                                )
+                                .child(div().text_color(k.text(TextStep::T500)).child(c.value))
+                        })),
+                )
+                .with_priority(1),
             );
         }
         if live {
@@ -525,9 +537,9 @@ impl Render for QueueSearch {
                         ),
                 );
             }
-            root = root.child(list);
+            root = root.child(deferred(list).with_priority(1));
         }
-        if let Some(error) = &self.error {
+        if let Some(error) = self.error.as_ref().filter(|_| !choosing_book) {
             root = root.child(
                 div()
                     .id(ids::ERROR)

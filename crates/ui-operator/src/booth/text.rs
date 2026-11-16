@@ -196,9 +196,19 @@ pub fn projected_ids(
     let Some((reference, text)) = projection else {
         return HashSet::new();
     };
+    // The program reports `John 3:16 (NKJV)` when the translation shows on
+    // screen; the row holds `John 3:16`.
+    let key = |r: &str| -> String {
+        let r = r.trim();
+        match r.rfind(" (") {
+            Some(i) if r.ends_with(')') => r[..i].trim().to_owned(),
+            _ => r.to_owned(),
+        }
+    };
+    let live = key(reference);
     let same_reference: Vec<_> = suggestions
         .iter()
-        .filter(|item| &item.reference == reference)
+        .filter(|item| key(&item.reference) == live)
         .collect();
     let same_wording: Vec<_> = same_reference
         .iter()
@@ -518,8 +528,20 @@ mod tests {
         assert_eq!(ids, HashSet::from(["k".to_owned()]));
         // Reformatted text: the reference decides.
         let projection = ("John 1:1".to_owned(), "IN THE BEGINNING".to_owned());
-        assert_eq!(projected_ids(Some(&projection), &[kjv, niv]).len(), 2);
+        assert_eq!(
+            projected_ids(Some(&projection), &[kjv.clone(), niv]).len(),
+            2
+        );
         assert!(projected_ids(None, &[]).is_empty());
+        // The screen shows the translation after the reference.
+        let projection = (
+            "John 1:1 (KJV)".to_owned(),
+            "In the beginning was the Word".to_owned(),
+        );
+        assert_eq!(
+            projected_ids(Some(&projection), &[kjv]),
+            HashSet::from(["k".to_owned()])
+        );
     }
 
     #[test]
