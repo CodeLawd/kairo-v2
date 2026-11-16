@@ -50,6 +50,12 @@ pub struct AccountView {
     pub email: Option<SharedString>,
     /// `false` when this launch's sign-in will not be remembered.
     pub credentials_persisted: Option<bool>,
+    /// Signed in but the session is stale (offline).
+    pub offline: bool,
+    /// The church and the operator's role in it (`ROLE_LABEL`).
+    pub org: Option<(SharedString, SharedString)>,
+    /// When the account last synced, in Unix milliseconds.
+    pub last_synced_ms: Option<u64>,
 }
 
 /// A rendered output (screen or NDI) and whether it is on the air.
@@ -198,6 +204,10 @@ pub enum ShellRequest {
     WindowFocused,
     /// Clear text and the dock background.
     ClearLive,
+    /// The Account popover's Sign out.
+    SignOut,
+    /// The Account popover's Show tips again: replay the Operator tour.
+    ShowTips,
     /// The header's Media button: open or close the media dock.
     ToggleMedia,
     /// Check for updates.

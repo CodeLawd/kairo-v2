@@ -131,6 +131,7 @@ impl TranscriptPanel {
             )
             .child(
                 Button::new(ids::NUGGETS)
+                    .cursor_pointer()
                     .custom(if open {
                         ButtonCustomVariant::new(cx)
                             .color(k.tints.amber)
@@ -217,6 +218,7 @@ impl TranscriptPanel {
                             .self_start()
                             .child(
                                 Button::new(SharedString::from(format!("nugget-copy-{id}")))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(Icon::new(KairoIcon::Copy).size(px(11.)))
@@ -230,6 +232,7 @@ impl TranscriptPanel {
                             )
                             .child(
                                 Button::new(SharedString::from(format!("nugget-remove-{id}")))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(Icon::new(KairoIcon::X).size(px(11.)))
@@ -271,6 +274,7 @@ impl TranscriptPanel {
                     )
                     .child(
                         Button::new(ids::NUGGETS_EXPORT)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::Download).size(px(11.)))
@@ -324,6 +328,7 @@ impl TranscriptPanel {
                             "segment-save-{index}-{}",
                             segment.id
                         )))
+                        .cursor_pointer()
                         .custom(
                             ButtonCustomVariant::new(cx)
                                 .foreground(if saved {
@@ -491,6 +496,7 @@ impl TranscriptPanel {
                     .child(coach_anchor("transcript-start"))
                     .child(
                         Button::new(ids::LISTEN)
+                            .cursor_pointer()
                             .custom(if transcribing {
                                 ButtonCustomVariant::new(cx)
                                     .foreground(k.text(TextStep::T200))

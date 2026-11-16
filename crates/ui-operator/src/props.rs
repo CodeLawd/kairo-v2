@@ -1400,6 +1400,7 @@ impl PropsEditor {
                         .group_hover("prop-row", |s| s.visible())
                         .child(
                             Button::new(SharedString::from(ids::delete_prop(&prop.id)))
+                                .cursor_pointer()
                                 .xsmall()
                                 .ghost()
                                 .icon(Icon::new(KairoIcon::Trash2))
@@ -1474,6 +1475,7 @@ impl PropsEditor {
                 )
                 .child(
                     Button::new(id)
+                        .cursor_pointer()
                         .ghost()
                         .small()
                         .icon(Icon::new(KairoIcon::Plus))
@@ -1560,6 +1562,7 @@ impl PropsEditor {
             .children(Tool::ALL.into_iter().map(|tool| {
                 let this = this.clone();
                 Button::new(SharedString::from(ids::tool(tool.key())))
+                    .cursor_pointer()
                     .ghost()
                     .small()
                     .icon(Icon::new(tool.icon()))
@@ -1598,7 +1601,7 @@ impl PropsEditor {
                             .child("A prop sits over the slides — a logo in the corner, a welcome banner, a giving card. Build one here, then show it from Operator → Show."),
                     )
                     .child(
-                        Button::new(ids::EMPTY_NEW)
+                        Button::new(ids::EMPTY_NEW).cursor_pointer()
                             .primary()
                             .small()
                             .icon(Icon::new(KairoIcon::Plus))
@@ -1861,6 +1864,7 @@ impl PropsEditor {
                         .border_color(k.surface_line)
                         .child(
                             Button::new(ids::SAVE)
+                                .cursor_pointer()
                                 .primary()
                                 .small()
                                 .w_full()
@@ -1936,6 +1940,7 @@ impl PropsEditor {
         let remove = {
             let (this, id) = (this.clone(), d.id.clone());
             Button::new(ids::REMOVE)
+                .cursor_pointer()
                 .ghost()
                 .small()
                 .w_full()
@@ -2041,6 +2046,7 @@ impl PropsEditor {
                 .child({
                     let (this, id) = (this.clone(), f.id.clone());
                     Button::new(ids::DELETE_OBJECT)
+                        .cursor_pointer()
                         .ghost()
                         .xsmall()
                         .icon(Icon::new(KairoIcon::Trash2))
@@ -2074,6 +2080,7 @@ impl PropsEditor {
                         let this = this.clone();
                         let on = current == a;
                         Button::new(SharedString::from(ids::align(&format!("{key}-{name}"))))
+                            .cursor_pointer()
                             .xsmall()
                             .icon(Icon::new(icon))
                             .when(on, |b| b.primary())
@@ -2317,6 +2324,7 @@ impl PropsEditor {
                 let change = {
                     let this = this.clone();
                     Button::new(ids::CHANGE_IMAGE)
+                        .cursor_pointer()
                         .xsmall()
                         .label("Change")
                         .on_click(move |_, _, cx| this.update(cx, |t, cx| t.change_image(cx)))
@@ -2390,6 +2398,7 @@ impl PropsEditor {
                             let this = this.clone();
                             let on = (current - value).abs() < 0.005;
                             Button::new(SharedString::from(ids::slide(key)))
+                                .cursor_pointer()
                                 .xsmall()
                                 .icon(Icon::new(icon))
                                 .when(on, |b| b.primary())
@@ -2537,6 +2546,7 @@ impl PropsEditor {
                 .gap_1p5()
                 .child(
                     Button::new(ids::FORWARD)
+                        .cursor_pointer()
                         .xsmall()
                         .icon(Icon::new(KairoIcon::ArrowUp))
                         .label("Forward")
@@ -2547,6 +2557,7 @@ impl PropsEditor {
                 )
                 .child(
                     Button::new(ids::BACK)
+                        .cursor_pointer()
                         .xsmall()
                         .icon(Icon::new(KairoIcon::ArrowDown))
                         .label("Back")

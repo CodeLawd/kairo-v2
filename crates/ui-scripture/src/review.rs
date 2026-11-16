@@ -512,7 +512,7 @@ impl Render for SermonReview {
                     ),
             )
             .child(
-                Button::new(ids::CLOSE)
+                Button::new(ids::CLOSE).cursor_pointer()
                     .ghost()
                     .small()
                     .icon(Icon::new(KairoIcon::X))
@@ -592,6 +592,7 @@ impl Render for SermonReview {
                                 .child(div().flex_1().child(error))
                                 .child(
                                     Button::new(ids::RETRY)
+                                        .cursor_pointer()
                                         .outline()
                                         .small()
                                         .label("Retry scan")
@@ -807,6 +808,7 @@ impl Render for SermonReview {
                             .gap_1()
                             .child(
                                 Button::new(ids::PREV)
+                                    .cursor_pointer()
                                     .ghost()
                                     .small()
                                     .icon(Icon::new(KairoIcon::ArrowUp))
@@ -818,6 +820,7 @@ impl Render for SermonReview {
                             )
                             .child(
                                 Button::new(ids::NEXT)
+                                    .cursor_pointer()
                                     .ghost()
                                     .small()
                                     .icon(Icon::new(KairoIcon::ArrowDown))
@@ -838,6 +841,7 @@ impl Render for SermonReview {
                         .when(filtering, |i| {
                             i.suffix(
                                 Button::new(ids::CLEAR_SEARCH)
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(Icon::new(KairoIcon::X))
@@ -895,6 +899,7 @@ impl Render for SermonReview {
                     .gap_2p5()
                     .child(
                         Button::new(ids::CANCEL)
+                            .cursor_pointer()
                             .outline()
                             .label("Cancel")
                             .disabled(self.confirming)
@@ -902,6 +907,7 @@ impl Render for SermonReview {
                     )
                     .child(
                         Button::new(ids::CREATE)
+                            .cursor_pointer()
                             .primary()
                             .when(self.confirming, |b| b.icon(Icon::new(KairoIcon::Loader)))
                             .label(if self.confirming {

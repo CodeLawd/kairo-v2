@@ -70,20 +70,24 @@ fn card_background(
             .flatten()
     };
     let opacity = bg.opacity.clamp(0.0, 1.0) as f32;
-    match bg.kind {
+    let mut card = match bg.kind {
         OverlayBackgroundType::Image => ui_scripture::backend::CardBackground {
             color: color(),
             image: bg.media_path.clone().filter(|p| !p.is_empty()),
             opacity,
+            theme: None,
         },
-        OverlayBackgroundType::Transparent => Default::default(),
+        OverlayBackgroundType::Transparent => ui_scripture::backend::CardBackground::default(),
         // A video or gradient shows its base colour.
         _ => ui_scripture::backend::CardBackground {
             color: color(),
             image: None,
             opacity,
+            theme: None,
         },
-    }
+    };
+    card.theme = Some(Box::new(theme.clone()));
+    card
 }
 
 /// Feed tasks; they stop when the guard drops.

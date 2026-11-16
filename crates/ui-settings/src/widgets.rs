@@ -143,6 +143,7 @@ pub fn save_bar(
         .pt_1()
         .child(
             Button::new(SharedString::from(crate::window::ids::save(section.id())))
+                .cursor_pointer()
                 .small()
                 .icon(Icon::new(if saved {
                     KairoIcon::CheckCircle
@@ -178,6 +179,7 @@ pub fn button(
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
 ) -> Button {
     Button::new(id)
+        .cursor_pointer()
         .kairo_size()
         .label(label)
         .disabled(disabled)

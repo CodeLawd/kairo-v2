@@ -166,6 +166,7 @@ impl Render for LicensePanel {
                         )
                         .child(
                             Button::new(ids::ACTIVATE)
+                                .cursor_pointer()
                                 .primary()
                                 .disabled(self.busy || empty)
                                 .label(if self.busy {

@@ -340,6 +340,7 @@ impl ThemeEditor {
                 .map(|t| (t.id.to_owned(), t.name.to_owned(), t.theme.clone()))
                 .collect();
             Button::new(ids::NEW)
+                .cursor_pointer()
                 .ghost()
                 .xsmall()
                 .icon(Icon::new(KairoIcon::Plus))
@@ -539,6 +540,7 @@ impl ThemeEditor {
                     .group_hover(group, |s| s.opacity(1.0))
                     .child(
                         Button::new(SharedString::from(ids::tile_menu(&item.id)))
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::MoreHorizontal))
@@ -860,6 +862,7 @@ impl ThemeEditor {
         let blank = {
             let editor = editor.clone();
             Button::new(ids::EMPTY_BLANK)
+                .cursor_pointer()
                 .small()
                 .label("Blank")
                 .on_click(move |_, window, cx| {
@@ -869,6 +872,7 @@ impl ThemeEditor {
         let templates = built_in_themes_for_kind(kind).into_iter().map(|t| {
             let (editor, name, theme) = (editor.clone(), t.name.to_owned(), t.theme.clone());
             Button::new(SharedString::from(ids::template(t.id)))
+                .cursor_pointer()
                 .small()
                 .label(t.name)
                 .on_click(move |_, window, cx| {
@@ -920,6 +924,7 @@ impl ThemeEditor {
                        run: fn(&mut ThemeEditor, &mut Context<ThemeEditor>)| {
             let editor = editor.clone();
             Button::new(id)
+                .cursor_pointer()
                 .ghost()
                 .small()
                 .icon(Icon::new(icon))
@@ -1294,6 +1299,7 @@ impl ThemeEditor {
             |id: &'static str, icon: KairoIcon, label: &'static str, tip: String, off: bool| {
                 // Electron's toolbar button: `h-8 px-3`.
                 Button::new(id)
+                    .cursor_pointer()
                     .ghost()
                     .with_size(gpui_kit::component::Size::Medium)
                     .h(px(32.))
@@ -1609,6 +1615,7 @@ impl ThemeEditor {
                     .border_color(k.surface_line)
                     .child(
                         Button::new(ids::RESET)
+                            .cursor_pointer()
                             .small()
                             .flex_1()
                             .icon(Icon::new(KairoIcon::RotateCcw))
@@ -1621,6 +1628,7 @@ impl ThemeEditor {
                     )
                     .child(
                         Button::new(ids::SAVE)
+                            .cursor_pointer()
                             .small()
                             .primary()
                             .flex_1()

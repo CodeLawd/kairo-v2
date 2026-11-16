@@ -681,6 +681,7 @@ impl LyricsWorkspace {
                                     .hover(|s| s.bg(k.white.opacity(0.05)))
                             }
                         })
+                        .cursor_pointer()
                         .on_click(move |event, _, cx| {
                             let id = sid.clone();
                             if event.click_count() >= 2 {
@@ -838,6 +839,7 @@ impl LyricsWorkspace {
                         .hover(|s| s.bg(k.white.opacity(0.05)))
                 }
             })
+            .cursor_pointer()
             .on_click(move |_, _, cx| {
                 model.update(cx, |m, cx| m.select_filter(Filter::Favorites, cx))
             })
@@ -884,6 +886,7 @@ impl LyricsWorkspace {
         let viewing = m.viewing_setlist_id().map(str::to_owned);
         let model = self.model.clone();
         let options = Button::new(ids::OPTIONS)
+            .cursor_pointer()
             .ghost()
             .xsmall()
             .icon(Icon::new(KairoIcon::MoreHorizontal))
@@ -981,6 +984,7 @@ impl LyricsWorkspace {
                     .relative()
                     .child(
                         Button::new(ids::NEW_SONG)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::Plus))
@@ -1168,6 +1172,7 @@ impl LyricsWorkspace {
                                 .hover(|s| s.text_color(k.favorite))
                         }
                     })
+                    .cursor_pointer()
                     .on_click(move |_, _, cx| {
                         cx.stop_propagation();
                         fav.update(cx, |m, cx| m.toggle_favorite(fid.clone(), cx))
@@ -1190,6 +1195,7 @@ impl LyricsWorkspace {
                         .group_hover("song-row", |s| s.opacity(1.))
                         .text_color(k.text(TextStep::T600))
                         .hover(|s| s.text_color(k.danger_text))
+                        .cursor_pointer()
                         .on_click(move |_, _, cx| {
                             cx.stop_propagation();
                             remove.update(cx, |m, cx| m.remove_from_setlist(rid.clone(), cx))
@@ -1333,6 +1339,7 @@ impl LyricsWorkspace {
                 .child(note(ids::NO_MATCH, "Nothing in your library matches that.").py_0())
                 .child(
                     Button::new(ids::SEARCH_ONLINE)
+                        .cursor_pointer()
                         .small()
                         .icon(Icon::new(KairoIcon::Globe))
                         .label("Search online")
@@ -1352,6 +1359,7 @@ impl LyricsWorkspace {
                 .text_size(text::LABEL.size)
                 .text_color(k.text(TextStep::T500))
                 .hover(|s| s.text_color(k.notice_text))
+                .cursor_pointer()
                 .on_click(move |_, _, cx| model.update(cx, |m, cx| m.search_online(cx)))
                 .child(Icon::new(KairoIcon::Globe).size_2p5())
                 .child("Search online for more")
@@ -1477,6 +1485,7 @@ impl LyricsWorkspace {
                         .when(has_query, |i| {
                             i.suffix(
                                 Button::new(ids::CLEAR_QUERY)
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(Icon::new(KairoIcon::X))
@@ -1558,6 +1567,7 @@ impl LyricsWorkspace {
                     .child(
                         div().child(
                             Button::new(ids::PREVIEW_IMPORT)
+                                .cursor_pointer()
                                 .small()
                                 .label("Open source")
                                 .on_click(move |_, _, cx| {
@@ -1621,6 +1631,7 @@ impl LyricsWorkspace {
             Some(existing) => {
                 let open = model.clone();
                 Button::new(ids::PREVIEW_OPEN_EXISTING)
+                    .cursor_pointer()
                     .primary()
                     .small()
                     .icon(Icon::new(KairoIcon::Library))
@@ -1633,6 +1644,7 @@ impl LyricsWorkspace {
                 let import = model.clone();
                 let result = r.clone();
                 Button::new(ids::PREVIEW_IMPORT)
+                    .cursor_pointer()
                     .primary()
                     .small()
                     .icon(Icon::new(if importing {
@@ -1768,6 +1780,7 @@ impl LyricsWorkspace {
                         .child({
                             let import = self.model.clone();
                             Button::new("lyrics-empty-import")
+                                .cursor_pointer()
                                 .outline()
                                 .small()
                                 .icon(Icon::new(KairoIcon::Upload))
@@ -1778,6 +1791,7 @@ impl LyricsWorkspace {
                         })
                         .child(
                             Button::new("lyrics-empty-new")
+                                .cursor_pointer()
                                 .primary()
                                 .small()
                                 .icon(Icon::new(KairoIcon::Plus))
@@ -1891,7 +1905,7 @@ impl LyricsWorkspace {
                             .max_h(px(640.))
                             .overflow_hidden()
                             .rounded(radius::xl2())
-                            .bg(k.glass_modal())
+                            .bg(k.surface_elevated)
                             .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| cx.stop_propagation())
                             .child(
                                 h_flex()
@@ -1919,7 +1933,7 @@ impl LyricsWorkspace {
                                             ),
                                     )
                                     .child(
-                                        Button::new(ids::USAGE_CLOSE)
+                                        Button::new(ids::USAGE_CLOSE).cursor_pointer()
                                             .ghost()
                                             .xsmall()
                                             .icon(Icon::new(KairoIcon::X))
@@ -1984,7 +1998,7 @@ impl LyricsWorkspace {
                                             }),
                                     )
                                     .child(
-                                        Button::new(ids::USAGE_EXPORT)
+                                        Button::new(ids::USAGE_EXPORT).cursor_pointer()
                                             .primary()
                                             .small()
                                             .icon(Icon::new(KairoIcon::Download))
@@ -2062,6 +2076,7 @@ fn web_row(
     let (r1, r2) = (result.clone(), result.clone());
     let action = match result.existing_song_id.clone() {
         Some(existing) => Button::new(SharedString::from(ids::web_action(index)))
+            .cursor_pointer()
             .ghost()
             .xsmall()
             .icon(Icon::new(KairoIcon::Library))
@@ -2071,6 +2086,7 @@ fn web_row(
                 act.update(cx, |m, cx| m.open_existing(existing.clone(), cx))
             }),
         None => Button::new(SharedString::from(ids::web_action(index)))
+            .cursor_pointer()
             .ghost()
             .xsmall()
             .icon(Icon::new(if busy {
@@ -2108,6 +2124,7 @@ fn web_row(
                 d.hover(|s| s.bg(k.surface_tertiary))
             }
         })
+        .cursor_pointer()
         .on_click(move |_, _, cx| select.update(cx, |m, cx| m.preview_suggestion(r1.clone(), cx)))
         .child(
             div()
@@ -2240,6 +2257,7 @@ impl LyricsWorkspace {
                     .bg(k.surface)
                     .child(
                         Button::new(ids::EDIT_CANCEL)
+                            .cursor_pointer()
                             .ghost()
                             .small()
                             .label("Cancel")
@@ -2248,6 +2266,7 @@ impl LyricsWorkspace {
                     )
                     .child(
                         Button::new(ids::EDIT_SAVE)
+                            .cursor_pointer()
                             .primary()
                             .small()
                             .icon(Icon::new(if saving {

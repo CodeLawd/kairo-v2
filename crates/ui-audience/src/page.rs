@@ -268,8 +268,8 @@ pub struct AudiencePage {
     /// Focus for the open dialog (Radix dialog behaviour).
     dialog_focus: kairo_ui_kit::components::ModalFocus,
     new_title: Entity<InputState>,
-    new_starts: Entity<InputState>,
-    new_ends: Entity<InputState>,
+    new_starts: Entity<gpui_kit::component::date_picker::DatePickerState>,
+    new_ends: Entity<gpui_kit::component::date_picker::DatePickerState>,
     new_settings: AudienceRoomSettings,
     pending: Option<&'static str>,
     slow: bool,
@@ -372,8 +372,15 @@ impl AudiencePage {
         });
         let slido_code = input(window, cx, "#1234567");
         let new_title = input(window, cx, model::DEFAULT_TITLE);
-        let new_starts = input(window, cx, "YYYY-MM-DD");
-        let new_ends = input(window, cx, "YYYY-MM-DD");
+        // Date pickers (owner, DECISIONS 113); Electron uses text boxes.
+        let new_starts = cx.new(|cx| {
+            gpui_kit::component::date_picker::DatePickerState::new(window, cx)
+                .date_format("%Y-%m-%d")
+        });
+        let new_ends = cx.new(|cx| {
+            gpui_kit::component::date_picker::DatePickerState::new(window, cx)
+                .date_format("%Y-%m-%d")
+        });
         let reply_text = input(window, cx, "Write a reply");
         let edit_text = input(window, cx, "");
         let invite_email = input(window, cx, "Email");
@@ -393,10 +400,16 @@ impl AudiencePage {
                     this.submit_new(true, cx)
                 }
             }),
-            cx.subscribe_in(&new_starts, window, |_, _, _: &InputEvent, _, cx| {
-                cx.notify()
-            }),
-            cx.subscribe_in(&new_ends, window, |_, _, _: &InputEvent, _, cx| cx.notify()),
+            cx.subscribe_in(
+                &new_starts,
+                window,
+                |_, _, _: &gpui_kit::component::date_picker::DatePickerEvent, _, cx| cx.notify(),
+            ),
+            cx.subscribe_in(
+                &new_ends,
+                window,
+                |_, _, _: &gpui_kit::component::date_picker::DatePickerEvent, _, cx| cx.notify(),
+            ),
             cx.subscribe_in(&reply_text, window, |_, _, _: &InputEvent, _, cx| {
                 cx.notify()
             }),
@@ -1327,8 +1340,16 @@ impl AudiencePage {
     // ─── New engagement ────────────────────────────────────────────────────
 
     pub fn open_new(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        for f in [&self.new_title, &self.new_starts, &self.new_ends] {
-            f.update(cx, |i, cx| i.set_value("", window, cx));
+        self.new_title
+            .update(cx, |i, cx| i.set_value("", window, cx));
+        for f in [&self.new_starts, &self.new_ends] {
+            f.update(cx, |d, cx| {
+                d.set_date(
+                    gpui_kit::component::calendar::Date::Single(None),
+                    window,
+                    cx,
+                )
+            });
         }
         self.new_settings = AudienceRoomSettings::default();
         self.errors.remove("new");
@@ -1343,8 +1364,8 @@ impl AudiencePage {
 
     fn new_dates(&self, cx: &App) -> (Option<f64>, Option<f64>) {
         (
-            model::day_to_time(&value(&self.new_starts, cx), false),
-            model::day_to_time(&value(&self.new_ends, cx), true),
+            model::day_to_time(&day(&self.new_starts, cx), false),
+            model::day_to_time(&day(&self.new_ends, cx), true),
         )
     }
 
@@ -1585,8 +1606,8 @@ impl AudiencePage {
 pub struct PageInputs {
     pub slido_code: Entity<InputState>,
     pub new_title: Entity<InputState>,
-    pub new_starts: Entity<InputState>,
-    pub new_ends: Entity<InputState>,
+    pub new_starts: Entity<gpui_kit::component::date_picker::DatePickerState>,
+    pub new_ends: Entity<gpui_kit::component::date_picker::DatePickerState>,
     pub reply: Entity<InputState>,
     pub edit: Entity<InputState>,
     pub invite: Entity<InputState>,
@@ -1802,6 +1823,7 @@ impl AudiencePage {
                 heading("INTEGRATIONS", cx).when(has_slido && !self.adding_slido, |d| {
                     d.child(
                         Button::new("engage-add-slido")
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::Plus))
@@ -1878,6 +1900,7 @@ impl AudiencePage {
                     .child(div().text_size(text::SM.size).child("Sample questions"))
                     .child(
                         Button::new(ids::SAMPLE_REMOVE)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::X))
@@ -1908,6 +1931,7 @@ impl AudiencePage {
             .when(running == 0 && self.state.sample_available, |d| {
                 d.child(
                     Button::new(ids::LOAD_SAMPLE)
+                        .cursor_pointer()
                         .ghost()
                         .small()
                         .icon(Icon::new(KairoIcon::Plus))
@@ -1942,6 +1966,7 @@ impl AudiencePage {
                     .gap_0p5()
                     .child(
                         Button::new(ids::RELOAD)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::RefreshCw))
@@ -1952,6 +1977,7 @@ impl AudiencePage {
                     )
                     .child(
                         Button::new(ids::NEW_ENGAGEMENT)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::Plus))
@@ -1966,6 +1992,7 @@ impl AudiencePage {
         }
         let new_button = |id: &'static str, cx: &mut Context<Self>| {
             Button::new(id)
+                .cursor_pointer()
                 .primary()
                 .small()
                 .w_full()
@@ -2041,6 +2068,7 @@ impl AudiencePage {
                             .gap_2()
                             .child(
                                 Button::new(SharedString::from(ids::delete_cancel(&a)))
+                                    .cursor_pointer()
                                     .small()
                                     .flex_1()
                                     .label("Cancel")
@@ -2048,6 +2076,7 @@ impl AudiencePage {
                             )
                             .child(
                                 Button::new(SharedString::from(ids::delete_confirm(&b)))
+                                    .cursor_pointer()
                                     .danger()
                                     .small()
                                     .flex_1()
@@ -2147,6 +2176,7 @@ impl AudiencePage {
                                 .group_hover("engage-item", |s| s.visible())
                                 .child(
                                     Button::new(SharedString::from(ids::delete(&item.code)))
+                                        .cursor_pointer()
                                         .ghost()
                                         .xsmall()
                                         .icon(Icon::new(KairoIcon::Trash2))
@@ -2211,6 +2241,7 @@ impl AudiencePage {
                 .gap_1p5()
                 .child(
                     Button::new(ids::REOPEN)
+                        .cursor_pointer()
                         .primary()
                         .small()
                         .flex_1()
@@ -2221,6 +2252,7 @@ impl AudiencePage {
                 )
                 .child(
                     Button::new(ids::SETTINGS)
+                        .cursor_pointer()
                         .small()
                         .icon(Icon::new(KairoIcon::Settings))
                         .accessibility_label("Settings and collaboration")
@@ -2244,6 +2276,7 @@ impl AudiencePage {
                         .gap_2()
                         .child(
                             Button::new(ids::END_KEEP)
+                                .cursor_pointer()
                                 .small()
                                 .flex_1()
                                 .label("Keep going")
@@ -2251,6 +2284,7 @@ impl AudiencePage {
                         )
                         .child(
                             Button::new(ids::END_CONFIRM)
+                                .cursor_pointer()
                                 .danger()
                                 .small()
                                 .flex_1()
@@ -2266,6 +2300,7 @@ impl AudiencePage {
                 .gap_1p5()
                 .child(
                     Button::new(ids::SHOW_CODE)
+                        .cursor_pointer()
                         .small()
                         .flex_1()
                         .when(!self.code_shown, |b| b.primary())
@@ -2280,6 +2315,7 @@ impl AudiencePage {
                 )
                 .child(
                     Button::new(ids::AUDIENCE_PAGE)
+                        .cursor_pointer()
                         .small()
                         .icon(Icon::new(KairoIcon::ExternalLink))
                         .accessibility_label("Open the audience page")
@@ -2288,6 +2324,7 @@ impl AudiencePage {
                 )
                 .child(
                     Button::new(ids::SETTINGS)
+                        .cursor_pointer()
                         .small()
                         .icon(Icon::new(KairoIcon::Settings))
                         .accessibility_label("Settings and collaboration")
@@ -2298,6 +2335,7 @@ impl AudiencePage {
                 )
                 .child(
                     Button::new(ids::END)
+                        .cursor_pointer()
                         .small()
                         .icon(Icon::new(KairoIcon::LogOut))
                         .accessibility_label("End engagement")
@@ -2467,6 +2505,7 @@ impl AudiencePage {
                     )
                     .child(
                         Button::new(ids::SLIDO_CANCEL)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::X))
@@ -2504,6 +2543,7 @@ impl AudiencePage {
                 steps(&[("Finding the event", 0), ("Reading questions", -1)], cx)
             } else {
                 Button::new(ids::SLIDO_SUBMIT)
+                    .cursor_pointer()
                     .primary()
                     .small()
                     .w_full()
@@ -2546,6 +2586,7 @@ impl AudiencePage {
         let link = model::slido_link(source);
         let main: AnyElement = if sign_in || moderator {
             Button::new(SharedString::from(ids::slido_window(&id)))
+                .cursor_pointer()
                 .small()
                 .flex_1()
                 .when(sign_in, |b| b.primary())
@@ -2560,6 +2601,7 @@ impl AudiencePage {
                 .into_any_element()
         } else {
             Button::new(SharedString::from(ids::slido_copy(&id)))
+                .cursor_pointer()
                 .small()
                 .flex_1()
                 .icon(Icon::new(if copied {
@@ -2669,6 +2711,7 @@ impl AudiencePage {
                     .child(main)
                     .child(
                         Button::new(SharedString::from(ids::slido_settings(&id)))
+                            .cursor_pointer()
                             .small()
                             .icon(Icon::new(KairoIcon::Settings))
                             .toggled(open)
@@ -2679,6 +2722,7 @@ impl AudiencePage {
                     )
                     .child(
                         Button::new(SharedString::from(ids::slido_disconnect(&id)))
+                            .cursor_pointer()
                             .small()
                             .icon(Icon::new(KairoIcon::LogOut))
                             .accessibility_label("Disconnect Slido")
@@ -2868,6 +2912,7 @@ impl AudiencePage {
                     f: QuestionAction,
                     cx: &mut Context<Self>| {
             Button::new(SharedString::from(ids::action(&id, what)))
+                .cursor_pointer()
                 .ghost()
                 .small()
                 .icon(Icon::new(icon))
@@ -2899,6 +2944,7 @@ impl AudiencePage {
                 actions = if review {
                     actions.child(
                         Button::new(SharedString::from(ids::action(&id, "approve")))
+                            .cursor_pointer()
                             .primary()
                             .small()
                             .label("Approve")
@@ -2910,6 +2956,7 @@ impl AudiencePage {
                 } else if live {
                     actions.child(
                         Button::new(SharedString::from(ids::action(&id, "clear")))
+                            .cursor_pointer()
                             .small()
                             .icon(Icon::new(KairoIcon::X))
                             .label("Clear")
@@ -2919,6 +2966,7 @@ impl AudiencePage {
                 } else {
                     actions.child(
                         Button::new(SharedString::from(ids::action(&id, "show")))
+                            .cursor_pointer()
                             .primary()
                             .small()
                             .icon(Icon::new(KairoIcon::MonitorPlay))
@@ -2940,6 +2988,7 @@ impl AudiencePage {
             AudienceQuestionState::Hidden => {
                 actions = actions.child(
                     Button::new(SharedString::from(ids::action(&id, "restore")))
+                        .cursor_pointer()
                         .small()
                         .icon(Icon::new(KairoIcon::Eye))
                         .label("Restore")
@@ -3172,6 +3221,7 @@ impl AudiencePage {
                                         &id,
                                         "reply-cancel",
                                     )))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .label("Cancel")
@@ -3179,6 +3229,7 @@ impl AudiencePage {
                                 )
                                 .child(
                                     Button::new(SharedString::from(ids::action(&id, "reply-send")))
+                                        .cursor_pointer()
                                         .primary()
                                         .xsmall()
                                         .label("Reply")
@@ -3217,6 +3268,7 @@ impl AudiencePage {
                                         &id,
                                         "edit-cancel",
                                     )))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .label("Cancel")
@@ -3224,6 +3276,7 @@ impl AudiencePage {
                                 )
                                 .child(
                                     Button::new(SharedString::from(ids::action(&id, "edit-save")))
+                                        .cursor_pointer()
                                         .primary()
                                         .xsmall()
                                         .label("Save")
@@ -3240,6 +3293,7 @@ impl AudiencePage {
                         .gap_3()
                         .child(
                             Button::new(SharedString::from(ids::action(&id, "reply")))
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .label("Reply")
@@ -3251,6 +3305,7 @@ impl AudiencePage {
                         .when(q.state == AudienceQuestionState::Review, |d| {
                             d.child(
                                 Button::new(SharedString::from(ids::action(&id, "fix")))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .label("Fix typo")
@@ -3337,6 +3392,7 @@ impl AudiencePage {
                     )
                     .child(
                         Button::new(ids::NEW_POLL)
+                            .cursor_pointer()
                             .primary()
                             .small()
                             .icon(Icon::new(KairoIcon::Plus))
@@ -3453,6 +3509,7 @@ impl AudiencePage {
                     .when(state == EngagementStatus::Draft, |d| {
                         d.child(
                             Button::new(SharedString::from(ids::poll_action(&id, "edit")))
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .label("Edit")
@@ -3518,6 +3575,7 @@ impl AudiencePage {
                     .gap_2()
                     .child(if state == EngagementStatus::Open {
                         Button::new(SharedString::from(ids::poll_action(&id, "close")))
+                            .cursor_pointer()
                             .small()
                             .label("Close voting")
                             .disabled(busy)
@@ -3526,6 +3584,7 @@ impl AudiencePage {
                             }))
                     } else {
                         Button::new(SharedString::from(ids::poll_action(&id, "open")))
+                            .cursor_pointer()
                             .primary()
                             .small()
                             .label(if state == EngagementStatus::Draft {
@@ -3540,6 +3599,7 @@ impl AudiencePage {
                     })
                     .child(
                         Button::new(SharedString::from(ids::poll_action(&id, "screen")))
+                            .cursor_pointer()
                             .small()
                             .icon(Icon::new(if live {
                                 KairoIcon::X
@@ -3588,6 +3648,7 @@ impl AudiencePage {
         &self,
         title: &str,
         width: f32,
+        height: Option<f32>,
         body: AnyElement,
         footer: AnyElement,
         cx: &mut Context<Self>,
@@ -3616,6 +3677,9 @@ impl AudiencePage {
                     .role(Role::Dialog)
                     .aria_label(title.to_owned())
                     .w(px(width))
+                    // A fixed height keeps tabbed dialogs from resizing as
+                    // their sections change.
+                    .when_some(height, |d, h| d.h(px(h)))
                     .max_h(relative(0.9))
                     .overflow_hidden()
                     .rounded(radius::xl())
@@ -3635,6 +3699,7 @@ impl AudiencePage {
                             )
                             .child(
                                 Button::new(ids::DIALOG_CLOSE)
+                                    .cursor_pointer()
                                     .ghost()
                                     .small()
                                     .icon(Icon::new(KairoIcon::X))
@@ -3646,6 +3711,7 @@ impl AudiencePage {
                     .child(
                         div()
                             .id("engage-dialog-body")
+                            .flex_1()
                             .min_h_0()
                             .overflow_y_scroll()
                             .px_6()
@@ -3720,20 +3786,22 @@ impl AudiencePage {
                             .child(label("Start date · optional"))
                             .child(
                                 div().id(ids::NEW_STARTS).test_support().mt_1p5().child(
-                                    Input::new(&self.new_starts)
-                                        .kairo_size()
-                                        .disabled(pending.is_some())
-                                        .aria_label("Start date"),
+                                    gpui_kit::component::date_picker::DatePicker::new(
+                                        &self.new_starts,
+                                    )
+                                    .placeholder("Pick a date")
+                                    .cleanable(true)
+                                    .disabled(pending.is_some()),
                                 ),
                             ),
                     )
                     .child(
                         v_flex().flex_1().child(label("End date · optional")).child(
                             div().id(ids::NEW_ENDS).test_support().mt_1p5().child(
-                                Input::new(&self.new_ends)
-                                    .kairo_size()
-                                    .disabled(pending.is_some())
-                                    .aria_label("End date"),
+                                gpui_kit::component::date_picker::DatePicker::new(&self.new_ends)
+                                    .placeholder("Pick a date")
+                                    .cleanable(true)
+                                    .disabled(pending.is_some()),
                             ),
                         ),
                     ),
@@ -3774,6 +3842,7 @@ impl AudiencePage {
             .gap_2()
             .child(
                 Button::new(ids::NEW_SAVE)
+                    .cursor_pointer()
                     .label(if pending == Some("save") {
                         "Saving…"
                     } else {
@@ -3784,6 +3853,7 @@ impl AudiencePage {
             )
             .child(
                 Button::new(ids::NEW_START)
+                    .cursor_pointer()
                     .primary()
                     .label(if pending == Some("start") {
                         "Starting…"
@@ -3794,7 +3864,7 @@ impl AudiencePage {
                     .on_click(cx.listener(|t, _, _, cx| t.submit_new(true, cx))),
             )
             .into_any_element();
-        self.dialog_frame("New engagement", 460.0, body, footer, cx)
+        self.dialog_frame("New engagement", 460.0, None, body, footer, cx)
     }
 
     fn render_poll_editor(&mut self, cx: &mut Context<Self>) -> AnyElement {
@@ -3831,6 +3901,7 @@ impl AudiencePage {
                     )
                     .child(
                         Button::new(SharedString::from(ids::poll_remove(i)))
+                            .cursor_pointer()
                             .ghost()
                             .small()
                             .icon(Icon::new(KairoIcon::Trash2))
@@ -3869,6 +3940,7 @@ impl AudiencePage {
             .when(count < model::MAX_POLL_OPTIONS, |d| {
                 d.child(
                     Button::new(ids::POLL_ADD)
+                        .cursor_pointer()
                         .ghost()
                         .small()
                         .mt_2()
@@ -3903,19 +3975,21 @@ impl AudiencePage {
             .gap_2()
             .child(
                 Button::new("engage-poll-cancel")
+                    .cursor_pointer()
                     .label("Cancel")
                     .disabled(saving)
                     .on_click(cx.listener(|t, _, _, cx| t.close_dialog(cx))),
             )
             .child(
                 Button::new(ids::POLL_SAVE)
+                    .cursor_pointer()
                     .primary()
                     .label(if saving { "Saving…" } else { "Save poll" })
                     .disabled(saving || !ready)
                     .on_click(cx.listener(|t, _, _, cx| t.save_poll(cx))),
             )
             .into_any_element();
-        self.dialog_frame(title, 460.0, body, footer, cx)
+        self.dialog_frame(title, 460.0, None, body, footer, cx)
     }
 
     fn style_slider(
@@ -4222,8 +4296,8 @@ impl AudiencePage {
                                                 h_flex()
                                                     .mt_3()
                                                     .gap_2()
-                                                    .child(Button::new(ids::SET_QR).small().icon(Icon::new(KairoIcon::Download)).label("Download QR code").on_click(cx.listener(|t, _, _, cx| t.download_qr(cx))))
-                                                    .child(Button::new(ids::SET_COPY).small().icon(Icon::new(if copied { KairoIcon::Check } else { KairoIcon::Copy })).label(if copied { "Copied" } else { "Copy link" }).on_click(cx.listener(move |t, _, _, cx| t.copy("settings", url.clone(), cx)))),
+                                                    .child(Button::new(ids::SET_QR).cursor_pointer().small().icon(Icon::new(KairoIcon::Download)).label("Download QR code").on_click(cx.listener(|t, _, _, cx| t.download_qr(cx))))
+                                                    .child(Button::new(ids::SET_COPY).cursor_pointer().small().icon(Icon::new(if copied { KairoIcon::Check } else { KairoIcon::Copy })).label(if copied { "Copied" } else { "Copy link" }).on_click(cx.listener(move |t, _, _, cx| t.copy("settings", url.clone(), cx)))),
                                             ),
                                     ),
                             ),
@@ -4478,6 +4552,7 @@ impl AudiencePage {
                             )
                             .child(
                                 Button::new(SharedString::from(ids::moderator_menu(&m.id)))
+                                    .cursor_pointer()
                                     .ghost()
                                     .small()
                                     .icon(Icon::new(KairoIcon::MoreVertical))
@@ -4498,6 +4573,7 @@ impl AudiencePage {
                                         .p_1()
                                         .child(
                                             Button::new(SharedString::from(ids::revoke(&m.id)))
+                                                .cursor_pointer()
                                                 .ghost()
                                                 .small()
                                                 .label("Revoke access")
@@ -4519,7 +4595,7 @@ impl AudiencePage {
                             .gap_2p5()
                             .child(div().size_8().flex_none().rounded_full().bg(k.surface_secondary).flex().items_center().justify_center().child(Icon::new(KairoIcon::CircleUser).size_4()))
                             .child(div().id(ids::INVITE_EMAIL).test_support().flex_1().child(Input::new(&self.invite_email).kairo_size().disabled(busy || inviting).aria_label("Collaborator email")))
-                            .child(Button::new(ids::INVITE).primary().label(if inviting { "Inviting…" } else { "Invite" }).disabled(busy || inviting || empty).on_click(cx.listener(|t, _, _, cx| t.invite(cx)))),
+                            .child(Button::new(ids::INVITE).cursor_pointer().primary().label(if inviting { "Inviting…" } else { "Invite" }).disabled(busy || inviting || empty).on_click(cx.listener(|t, _, _, cx| t.invite(cx)))),
                     )
                     .children(error.map(|e| alert(ids::SET_ERROR, &e, cx)))
                     .child(v_flex().pt_3().border_t_1().border_color(k.white.opacity(0.1)).child(if rows.is_empty() {
@@ -4535,6 +4611,7 @@ impl AudiencePage {
                 .gap_2()
                 .child(
                     Button::new(ids::SET_RESET)
+                        .cursor_pointer()
                         .small()
                         .label("Reset")
                         .disabled(self.saving_style)
@@ -4542,6 +4619,7 @@ impl AudiencePage {
                 )
                 .child(
                     Button::new(ids::SET_SAVE)
+                        .cursor_pointer()
                         .primary()
                         .small()
                         .label(if self.saving_style {
@@ -4555,6 +4633,7 @@ impl AudiencePage {
                 .into_any_element()
         } else {
             Button::new(ids::SET_DONE)
+                .cursor_pointer()
                 .primary()
                 .small()
                 .label("Done")
@@ -4604,7 +4683,7 @@ impl AudiencePage {
             )
             .child(div().flex_1().min_w_0().child(pane))
             .into_any_element();
-        self.dialog_frame("Settings", 740.0, body, footer, cx)
+        self.dialog_frame("Settings", 740.0, Some(640.0), body, footer, cx)
     }
 }
 
@@ -4718,5 +4797,15 @@ fn style_label(key: &str) -> &'static str {
         "radius" => "Corner rounding",
         "qr" => "QR code size",
         _ => "Question style",
+    }
+}
+
+/// A date picker's day as `YYYY-MM-DD`, or empty.
+fn day(picker: &Entity<gpui_kit::component::date_picker::DatePickerState>, cx: &App) -> String {
+    match picker.read(cx).date() {
+        gpui_kit::component::calendar::Date::Single(Some(day)) => {
+            day.format("%Y-%m-%d").to_string()
+        }
+        _ => String::new(),
     }
 }

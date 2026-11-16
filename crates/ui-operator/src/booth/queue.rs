@@ -749,6 +749,7 @@ impl QueuePanel {
             .when(!queue.is_empty(), |this| {
                 this.child(
                     Button::new(ids::CLEAR_ALL)
+                        .cursor_pointer()
                         .ghost()
                         .xsmall()
                         .label("Clear all")

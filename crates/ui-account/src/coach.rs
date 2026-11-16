@@ -336,6 +336,7 @@ impl Render for CoachTour {
                     })
                     .child(
                         gpui_kit::component::button::Button::new(ids::NEXT)
+                            .cursor_pointer()
                             .primary()
                             .xsmall()
                             .label(if last { "Got it" } else { "Next" })

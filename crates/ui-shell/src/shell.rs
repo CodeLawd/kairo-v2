@@ -136,6 +136,8 @@ pub struct Shell {
     /// argument says whether the Lyrics page is showing).
     pub(crate) screen_themes: Option<(AnyView, ScreenThemesOpened)>,
     pub(crate) screen_themes_open: bool,
+    /// The rail's Audio popover body, and what to do when it opens.
+    pub(crate) audio: Option<(AnyView, AudioOpened)>,
     /// The `.kairo` transfer host: review, export picker, notice (091).
     pub(crate) transfer: Option<AnyView>,
     /// A window the shell does not own covers the workspace.
@@ -151,6 +153,9 @@ pub struct Shell {
 
 /// Called as the Screen Themes popover opens; `true` on the Lyrics page.
 pub type ScreenThemesOpened = std::rc::Rc<dyn Fn(bool, &mut gpui_kit::Window, &mut gpui_kit::App)>;
+
+/// Called when the Audio popover opens.
+pub type AudioOpened = std::rc::Rc<dyn Fn(&mut gpui_kit::Window, &mut gpui_kit::App)>;
 
 impl EventEmitter<ShellRequest> for Shell {}
 
@@ -249,6 +254,7 @@ impl Shell {
             media_open: false,
             screen_themes: None,
             screen_themes_open: false,
+            audio: None,
             transfer: None,
             covered: false,
             live_menu: None,
@@ -530,6 +536,12 @@ impl Shell {
     /// Hands a route its real workspace view in place of the placeholder.
     pub fn set_workspace(&mut self, route: Route, view: AnyView, cx: &mut Context<Self>) {
         self.workspaces.insert(route, view);
+        cx.notify();
+    }
+
+    /// Gives the rail's Audio button its popover.
+    pub fn set_audio(&mut self, view: AnyView, opened: AudioOpened, cx: &mut Context<Self>) {
+        self.audio = Some((view, opened));
         cx.notify();
     }
 

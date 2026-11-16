@@ -126,6 +126,7 @@ impl Render for ZoomControl {
                       direction: i8,
                       enabled: bool| {
             Button::new(id)
+                .cursor_pointer()
                 .custom(variant)
                 .icon(Icon::new(icon).size_3())
                 .small()
@@ -163,6 +164,7 @@ impl Render for ZoomControl {
             .tooltip(move |window, cx| {
                 gpui_kit::component::tooltip::Tooltip::new(tooltip.clone()).build(window, cx)
             })
+            .cursor_pointer()
             .on_click(cx.listener(|this, event: &ClickEvent, window, cx| {
                 if event.click_count() == 2 {
                     this.set(this.range.default, window, cx);

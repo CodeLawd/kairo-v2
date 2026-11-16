@@ -374,6 +374,7 @@ fn select(
 ) -> AnyElement {
     let change = Rc::new(change);
     Button::new(id)
+        .cursor_pointer()
         .small()
         .w(px(220.))
         .label(current)
@@ -848,6 +849,7 @@ impl Render for CaptureSettingsWindow {
 fn primary_button(id: &'static str, label: &'static str, cx: &App) -> Button {
     let k = cx.kairo();
     Button::new(id)
+        .cursor_pointer()
         .custom(
             ButtonCustomVariant::new(cx)
                 .color(k.accent(Step::S500))
@@ -864,6 +866,7 @@ fn primary_button(id: &'static str, label: &'static str, cx: &App) -> Button {
 fn secondary_button(id: &'static str, label: &'static str, cx: &App) -> Button {
     let k = cx.kairo();
     Button::new(id)
+        .cursor_pointer()
         .custom(
             ButtonCustomVariant::new(cx)
                 .color(k.surface_elevated)

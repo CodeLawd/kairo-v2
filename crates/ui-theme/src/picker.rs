@@ -298,6 +298,7 @@ impl Render for ThemePicker {
             let current = screen.as_ref().map(|s| s.id.clone());
             let options = outputs.clone();
             Button::new(ids::SCREEN)
+                .cursor_pointer()
                 .small()
                 .w_full()
                 .dropdown_caret(true)

@@ -317,6 +317,7 @@ impl LyricsWorkspace {
             .border_color(border)
             .when(!live && !picked, |d| d.hover(|s| s.border_color(k.stone)))
             .when(pushing, |d| d.opacity(0.7))
+            .cursor_pointer()
             .on_click(move |event, _, cx| {
                 let mods = event.modifiers();
                 let gesture = if mods.shift {
@@ -493,6 +494,7 @@ impl LyricsWorkspace {
                     .child(
                         div().absolute().right(px(6.)).top(px(6.)).child(
                             Button::new(ids::QUICK_EDIT_SAVE)
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::X))
@@ -658,6 +660,7 @@ impl LyricsWorkspace {
         let translate_model = model.clone();
         let undo_model = model.clone();
         Button::new(ids::ACTIONS)
+            .cursor_pointer()
             .ghost()
             .xsmall()
             .icon(Icon::new(KairoIcon::MoreHorizontal))
@@ -825,6 +828,7 @@ impl LyricsWorkspace {
         let done = (selecting).then(|| {
             let model = self.model.clone();
             Button::new(ids::DONE)
+                .cursor_pointer()
                 .small()
                 .icon(Icon::new(KairoIcon::Check))
                 .label("Done")
@@ -882,6 +886,7 @@ impl LyricsWorkspace {
                             .child({
                                 let edit = self.model.clone();
                                 Button::new(super::ids::EDIT)
+                                    .cursor_pointer()
                                     .outline()
                                     .small()
                                     .icon(Icon::new(KairoIcon::Edit2))

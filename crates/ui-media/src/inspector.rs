@@ -649,6 +649,7 @@ impl Inspector {
                         .gap_2()
                         .child(
                             Button::new(ids::BACK)
+                                .cursor_pointer()
                                 .small()
                                 .label("−10s")
                                 .disabled(dur <= 0.)
@@ -661,6 +662,7 @@ impl Inspector {
                         )
                         .child(
                             Button::new(ids::PLAY)
+                                .cursor_pointer()
                                 .small()
                                 .icon(Icon::new(if playing {
                                     KairoIcon::Pause
@@ -679,6 +681,7 @@ impl Inspector {
                         )
                         .child(
                             Button::new(ids::AHEAD)
+                                .cursor_pointer()
                                 .small()
                                 .label("+10s")
                                 .disabled(dur <= 0.)
@@ -742,6 +745,7 @@ impl Inspector {
                             )
                             .child(
                                 Button::new(ids::USE_START)
+                                    .cursor_pointer()
                                     .small()
                                     .label("Use playhead")
                                     .accessibility_label("Set start to playhead")
@@ -765,6 +769,7 @@ impl Inspector {
                             )
                             .child(
                                 Button::new(ids::USE_END)
+                                    .cursor_pointer()
                                     .small()
                                     .label("Use playhead")
                                     .accessibility_label("Set end to playhead")
@@ -841,7 +846,7 @@ impl Inspector {
                     .gap_4()
                     .child(div().text_size(text::SM.size).font_weight(FontWeight::SEMIBOLD).child("Appearance"))
                     .child(label("Scaling"))
-                    .child(Button::new("media-inspector-fit").small().label(fit_label).dropdown_caret(true).popover_trigger().dropdown_menu(move |mut menu, _, _| {
+                    .child(Button::new("media-inspector-fit").cursor_pointer().small().label(fit_label).dropdown_caret(true).popover_trigger().dropdown_menu(move |mut menu, _, _| {
                         for (fit, name) in [(None, "Use output setting"), (Some(MediaFit::Contain), "Scale to fit"), (Some(MediaFit::Cover), "Fill and crop"), (Some(MediaFit::Fill), "Stretch to fill")] {
                             let e = e.clone();
                             menu = menu.item(PopupMenuItem::new(name).on_click(move |_, _, cx| e.update(cx, |i, cx| i.set_fit(fit, cx))));
@@ -851,7 +856,7 @@ impl Inspector {
                     .when(self.fit.is_none(), |d| d.child(div().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child("The preview shows the full source. Each output uses its own scaling.")))
                     .child(div().text_size(text::XS.size).font_weight(FontWeight::SEMIBOLD).child("Adjust color"))
                     .children(sliders)
-                    .child(Button::new(ids::RESET).small().label("Reset appearance").on_click(move |_, w, cx| reset.update(cx, |i, cx| { i.set_grade(Grade::default(), w, cx); i.set_fit(None, cx) })))
+                    .child(Button::new(ids::RESET).cursor_pointer().small().label("Reset appearance").on_click(move |_, w, cx| reset.update(cx, |i, cx| { i.set_grade(Grade::default(), w, cx); i.set_fit(None, cx) })))
                     .into_any_element()
             }
             Panel::Details => {
@@ -941,6 +946,7 @@ impl Render for Inspector {
                             d.text_color(k.text(TextStep::T400))
                         }
                     })
+                    .cursor_pointer()
                     .on_click(move |_, _, cx| e.update(cx, |i, cx| i.set_panel(p, cx)))
                     .child(p.name())
                     .into_any_element()
@@ -1051,6 +1057,7 @@ impl Render for Inspector {
                                 )
                                 .child(
                                     Button::new(ids::CANCEL)
+                                        .cursor_pointer()
                                         .small()
                                         .label("Cancel")
                                         .disabled(self.saving)
@@ -1060,6 +1067,7 @@ impl Render for Inspector {
                                 )
                                 .child(
                                     Button::new(ids::SAVE)
+                                        .cursor_pointer()
                                         .primary()
                                         .small()
                                         .label(if self.saving {

@@ -1507,6 +1507,14 @@ impl ApplicationServices {
                 name: account.user.as_ref().map(|u| u.name.clone().into()),
                 email: account.user.as_ref().map(|u| u.email.clone().into()),
                 credentials_persisted: account.credentials_persisted,
+                offline: account.state == kairo_domain::cloud::CloudSessionState::Stale,
+                org: account.org.as_ref().map(|o| {
+                    (
+                        o.name.clone().into(),
+                        ui_settings::panes::role_label(o.role).into(),
+                    )
+                }),
+                last_synced_ms: account.last_synced_at.map(|t| t.max(0.0) as u64),
             },
             activated: Some(licence.activated),
             recording: self
@@ -1589,6 +1597,8 @@ impl ApplicationServices {
             use ui_shell::ShellRequest::*;
             match request {
                 Bootstrap { generation } => services.bootstrap(generation).await,
+                // The UI side handles these (`open_operator_window`).
+                SignOut | ShowTips => {}
                 WindowFocused => {
                     services
                         .core

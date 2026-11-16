@@ -156,6 +156,15 @@ fn kit_limit(node: &A11yNode) -> bool {
     })
 }
 
+/// Kit's `DatePicker` combo box takes no accessible name from outside
+/// (DECISIONS 113); its visible label sits beside it. Fixing it needs a Kit
+/// change.
+fn kit_unnamed(node: &A11yNode) -> bool {
+    node.source.as_deref().is_some_and(|s| {
+        s.contains("gpui-base-") && s.ends_with(".rs:34:19") && s.contains("date_picker.rs")
+    })
+}
+
 /// The last tree a window built.
 #[derive(Debug, Default)]
 pub struct A11yTree {
@@ -328,7 +337,7 @@ impl A11yTree {
                 || EDITABLE.contains(&role)
                 || CONTROL.contains(&role)
                 || node.pressable();
-            if control && node.name().is_none() {
+            if control && node.name().is_none() && !kit_unnamed(node) {
                 let within = parents
                     .get(node.key.as_str())
                     .and_then(|p| self.nodes.get(*p))

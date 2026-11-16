@@ -757,6 +757,7 @@ impl QuickOpen {
                         .py_2p5()
                         .child(
                             Button::new(ids::ADD)
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .label(add_label)
@@ -768,6 +769,7 @@ impl QuickOpen {
                         )
                         .child(
                             Button::new(ids::OPEN)
+                                .cursor_pointer()
                                 .primary()
                                 .xsmall()
                                 .label(open_label)
@@ -915,6 +917,7 @@ impl Render for QuickOpen {
                 .rounded(radius::md())
                 .text_color(k.text(TextStep::T300))
                 .hover(|s| s.bg(k.surface_tertiary))
+                .cursor_pointer()
                 .on_click(move |_, _, cx| e.update(cx, |this, cx| this.search_web(cx)))
                 .child(Icon::new(KairoIcon::Globe).size_3())
                 .child(
@@ -937,6 +940,7 @@ impl Render for QuickOpen {
         let clear = (!self.query.is_empty()).then(|| {
             let e = entity.clone();
             Button::new(ids::CLEAR)
+                .cursor_pointer()
                 .ghost()
                 .xsmall()
                 .icon(Icon::new(KairoIcon::X))
@@ -977,7 +981,7 @@ impl Render for QuickOpen {
                             .flex_none()
                             .overflow_hidden()
                             .rounded(radius::xl())
-                            .bg(k.glass_modal())
+                            .bg(k.surface_elevated)
                             .child(
                                 h_flex()
                                     .h_12()

@@ -161,6 +161,7 @@ impl SettingsWindow {
                                 .gap_1p5()
                                 .child(
                                     Button::new(ids::SEND)
+                                        .cursor_pointer()
                                         .small()
                                         .icon(Icon::new(KairoIcon::Send))
                                         .label("Send")
@@ -171,6 +172,7 @@ impl SettingsWindow {
                                 )
                                 .child(
                                     Button::new(ids::CLEAR)
+                                        .cursor_pointer()
                                         .small()
                                         .icon(Icon::new(KairoIcon::Trash2))
                                         .label("Clear")

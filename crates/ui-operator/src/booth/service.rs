@@ -388,6 +388,7 @@ impl ServicePanel {
             )
             .child(
                 Button::new(ids::END)
+                    .cursor_pointer()
                     .custom(
                         ButtonCustomVariant::new(cx)
                             .color(k.tints.red)
@@ -470,7 +471,7 @@ impl ServicePanel {
                     ))
                     .child(field(
                         "Sermon notes",
-                        Button::new("service-plan")
+                        Button::new("service-plan").cursor_pointer()
                             .outline()
                             .small()
                             .w_full()
@@ -522,7 +523,7 @@ impl ServicePanel {
                     .justify_between()
                     .gap_2()
                     .child(
-                        Button::new(ids::DISCARD_LINK)
+                        Button::new(ids::DISCARD_LINK).cursor_pointer()
                             .ghost()
                             .xsmall()
                             .label("Discard service")
@@ -598,7 +599,7 @@ impl ServicePanel {
                             .on_click(cx.listener(|this, _, _, cx| this.close(cx))),
                     )
                     .child(
-                        Button::new(ids::DISCARD)
+                        Button::new(ids::DISCARD).cursor_pointer()
                             .custom(
                                 ButtonCustomVariant::new(cx)
                                     .color(k.destructive)
@@ -722,6 +723,7 @@ impl ServicePanel {
                             .children(recap)
                             .child(
                                 Button::new("service-export")
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .label("Export")
@@ -731,6 +733,7 @@ impl ServicePanel {
                             )
                             .child(
                                 Button::new("service-json")
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .label("JSON")
@@ -768,6 +771,7 @@ impl ServicePanel {
             .child(
                 div().absolute().top_3().right_3().child(
                     Button::new("service-review-close")
+                        .cursor_pointer()
                         .ghost()
                         .xsmall()
                         .icon(Icon::new(KairoIcon::X).size(px(14.)))
@@ -795,6 +799,7 @@ impl ServicePanel {
                         format!("/dashboard/sermons/{id}")
                     });
                 Button::new("service-recap")
+                    .cursor_pointer()
                     .ghost()
                     .xsmall()
                     .label("Recap published")
@@ -809,6 +814,7 @@ impl ServicePanel {
             UploadStatus::Failed => {
                 let id = record.id.clone();
                 let mut button = Button::new("service-recap")
+                    .cursor_pointer()
                     .ghost()
                     .xsmall()
                     .label("Recap not sent — Retry")
@@ -878,6 +884,7 @@ impl ServicePanel {
                             )
                             .child(
                                 Button::new("service-scan")
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .label("Scan speech")
@@ -925,6 +932,7 @@ impl ServicePanel {
                                                 "nugget-copy-{}",
                                                 nugget.id
                                             )))
+                                            .cursor_pointer()
                                             .ghost()
                                             .xsmall()
                                             .label("Copy")
@@ -939,6 +947,7 @@ impl ServicePanel {
                                                 "nugget-remove-{}",
                                                 nugget.id
                                             )))
+                                            .cursor_pointer()
                                             .ghost()
                                             .xsmall()
                                             .label("Remove")

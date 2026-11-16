@@ -916,6 +916,7 @@ impl ThemeInspector {
             let key = format!("{scope}.adjust");
             a.adjusted().then(|| {
                 Button::new(ids::ADJUST_RESET)
+                    .cursor_pointer()
                     .ghost()
                     .xsmall()
                     .label("Reset")
@@ -1468,6 +1469,7 @@ impl ThemeInspector {
         };
         let this = cx.entity();
         let presets = Button::new(ids::SIZE_PRESETS)
+            .cursor_pointer()
             .ghost()
             .xsmall()
             .icon(Icon::new(KairoIcon::ChevronDown))
@@ -1559,6 +1561,7 @@ impl ThemeInspector {
                     let active = value == deco;
                     let this = this.clone();
                     Button::new(SharedString::from(ids::decoration(key)))
+                        .cursor_pointer()
                         .xsmall()
                         .when(active, |b| b.primary())
                         .when(!active, |b| b.ghost())
@@ -1615,6 +1618,7 @@ impl ThemeInspector {
             })
             .button_trigger(
                 Button::new("theme-spacing-trigger")
+                    .cursor_pointer()
                     .xsmall()
                     .ghost()
                     .icon(Icon::new(KairoIcon::Settings))
@@ -1698,6 +1702,7 @@ impl ThemeInspector {
                     let active = layout.position == position;
                     div().w(relative_half()).child(
                         Button::new(SharedString::from(ids::preset(position.as_str())))
+                            .cursor_pointer()
                             .small()
                             .w_full()
                             .when(active, |b| b.toggled(true))
@@ -1774,6 +1779,7 @@ impl ThemeInspector {
                     let active = layer == id;
                     div().flex_1().child(
                         Button::new(SharedString::from(ids::layer_switch(id)))
+                            .cursor_pointer()
                             .small()
                             .w_full()
                             .when(active, |b| b.toggled(true))
@@ -1876,6 +1882,7 @@ impl ThemeInspector {
             let this = this.clone();
             let on = layout.backdrop_box;
             Button::new(ids::BACKDROP_EYE)
+                .cursor_pointer()
                 .ghost()
                 .xsmall()
                 .icon(Icon::new(if on {
@@ -2010,6 +2017,7 @@ impl ThemeInspector {
                 .gap_3()
                 .child(
                     Button::new(ids::DONE)
+                        .cursor_pointer()
                         .ghost()
                         .xsmall()
                         .label("← Theme settings")
@@ -2041,6 +2049,7 @@ impl ThemeInspector {
                             h_flex()
                                 .child(
                                     Button::new(ids::DUPLICATE)
+                                        .cursor_pointer()
                                         .ghost()
                                         .small()
                                         .icon(Icon::new(KairoIcon::Copy))
@@ -2060,6 +2069,7 @@ impl ThemeInspector {
                                 )
                                 .child(
                                     Button::new(ids::DELETE)
+                                        .cursor_pointer()
                                         .ghost()
                                         .small()
                                         .icon(Icon::new(KairoIcon::Trash2))
@@ -2089,6 +2099,7 @@ impl ThemeInspector {
                 let (this, id) = (this.clone(), id.clone());
                 div().flex_1().child(
                     Button::new(SharedString::from(ids::flip(key)))
+                        .cursor_pointer()
                         .small()
                         .w_full()
                         .icon(Icon::new(icon))
@@ -2163,6 +2174,7 @@ impl ThemeInspector {
                 let (this, id) = (this.clone(), id.clone());
                 div().w(relative_third()).child(
                     Button::new(SharedString::from(ids::element_align(key)))
+                        .cursor_pointer()
                         .small()
                         .w_full()
                         .icon(Icon::new(icon))
@@ -2270,6 +2282,7 @@ impl ThemeInspector {
             let eye = {
                 let (this, sid) = (this.clone(), id.clone());
                 Button::new(ids::STROKE_EYE)
+                    .cursor_pointer()
                     .ghost()
                     .xsmall()
                     .icon(Icon::new(if stroke_on {
@@ -2454,6 +2467,7 @@ impl ThemeInspector {
                 let (this, rid) = (this.clone(), id.clone());
                 div().flex_1().child(
                     Button::new(SharedString::from(ids::reorder(key)))
+                        .cursor_pointer()
                         .xsmall()
                         .w_full()
                         .label(text_)
@@ -2550,6 +2564,7 @@ impl ThemeInspector {
             })
             .button_trigger(
                 Button::new("theme-element-shape-trigger")
+                    .cursor_pointer()
                     .small()
                     .w_full()
                     .dropdown_caret(true)
@@ -2776,6 +2791,7 @@ fn select(
         .unwrap_or_else(|| value.to_owned());
     let value = value.to_owned();
     Button::new(id)
+        .cursor_pointer()
         .small()
         .w_full()
         .label(current)
@@ -2828,6 +2844,7 @@ fn icon_group(
             let next = (*v).to_owned();
             div().flex_1().child(
                 Button::new(SharedString::from(ids::align(&format!("{key}-{v}"))))
+                    .cursor_pointer()
                     .xsmall()
                     .w_full()
                     .icon(Icon::new(*icon))

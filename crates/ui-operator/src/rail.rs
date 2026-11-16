@@ -462,6 +462,7 @@ impl LiveRail {
             })
             .child(
                 Button::new(id)
+                    .cursor_pointer()
                     .custom(variant)
                     .when_some(fill, |b, fill| b.bg(fill))
                     .icon(Icon::new(icon).size_4())
@@ -590,6 +591,7 @@ impl LiveRail {
         let looped = media.playback.looped;
         let button = |id: &'static str, label: String, icon: KairoIcon| {
             Button::new(id)
+                .cursor_pointer()
                 .ghost()
                 .xsmall()
                 .icon(Icon::new(icon).size_3())
@@ -682,6 +684,7 @@ impl LiveRail {
                     )
                     .child(
                         Button::new("video-loop")
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::Repeat).size_3())
@@ -715,6 +718,7 @@ impl LiveRail {
                 )
                 .child(
                     Button::new("turn-on-screen")
+                        .cursor_pointer()
                         .ghost()
                         .xsmall()
                         .label("Turn on a screen")
@@ -732,6 +736,7 @@ impl LiveRail {
         let rail = cx.entity();
         let selected_id = selected.id.clone();
         Button::new("preview-output")
+            .cursor_pointer()
             .outline()
             .small()
             .w_full()

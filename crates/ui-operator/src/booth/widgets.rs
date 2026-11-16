@@ -33,6 +33,7 @@ pub fn icon_button(
     let k = cx.kairo();
     let label = label.into();
     Button::new(id)
+        .cursor_pointer()
         .custom(
             ButtonCustomVariant::new(cx)
                 .foreground(k.text(TextStep::T500))
@@ -53,6 +54,7 @@ pub fn primary_button(
 ) -> Button {
     let k = cx.kairo();
     Button::new(id)
+        .cursor_pointer()
         .custom(
             ButtonCustomVariant::new(cx)
                 .color(k.accent(Step::S500))
@@ -74,6 +76,7 @@ pub fn secondary_button(
 ) -> Button {
     let k = cx.kairo();
     Button::new(id)
+        .cursor_pointer()
         .custom(
             ButtonCustomVariant::new(cx)
                 .color(k.surface_tertiary)

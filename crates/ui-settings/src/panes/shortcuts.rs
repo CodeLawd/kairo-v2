@@ -393,7 +393,7 @@ impl SettingsWindow {
                             .on_click(cx.listener(|this, _, _, cx| this.restore_shortcuts(cx))),
                     )
                     .child(
-                        Button::new(ids::SAVE)
+                        Button::new(ids::SAVE).cursor_pointer()
                             .primary()
                             .small()
                             .disabled(saving || recording)

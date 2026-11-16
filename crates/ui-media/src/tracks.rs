@@ -528,6 +528,7 @@ impl TracksPanel {
                             .gap_2()
                             .child(
                                 Button::new(SharedString::from(ids::play(&item.id)))
+                                    .cursor_pointer()
                                     .xsmall()
                                     .map(|b| if active { b.primary() } else { b.ghost() })
                                     .icon(Icon::new(if playing {
@@ -550,6 +551,7 @@ impl TracksPanel {
                             .when(active, |d| {
                                 d.child(
                                     Button::new(SharedString::from(ids::stop(&item.id)))
+                                        .cursor_pointer()
                                         .ghost()
                                         .xsmall()
                                         .icon(Icon::new(KairoIcon::X))
@@ -566,6 +568,7 @@ impl TracksPanel {
                             })
                             .child(
                                 Button::new(SharedString::from(ids::more(&item.id)))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(Icon::new(KairoIcon::MoreHorizontal))
@@ -675,7 +678,7 @@ impl Render for TracksPanel {
                 .child(div().flex().items_center().justify_center().size_9().rounded_full().bg(k.surface_tertiary).child(Icon::new(KairoIcon::Music2).size_4().text_color(k.text(TextStep::T400))))
                 .child(div().text_size(text::XS.size).font_weight(FontWeight::MEDIUM).text_color(k.text(TextStep::T300)).child("No walk-in tracks yet"))
                 .child(div().max_w(px(256.)).text_center().text_size(text::LABEL.size).text_color(k.text(TextStep::T500)).child("Music for before and after the service. It plays on this Mac, from a folder next to your Media."))
-                .child(Button::new(ids::ADD_FIRST).primary().xsmall().icon(Icon::new(KairoIcon::Plus)).label("Add tracks").disabled(busy).on_click(move |_, _, cx| add_first.update(cx, |p, cx| p.add(cx))))
+                .child(Button::new(ids::ADD_FIRST).cursor_pointer().primary().xsmall().icon(Icon::new(KairoIcon::Plus)).label("Add tracks").disabled(busy).on_click(move |_, _, cx| add_first.update(cx, |p, cx| p.add(cx))))
                 .into_any_element()
         } else {
             v_flex()
@@ -705,6 +708,7 @@ impl Render for TracksPanel {
                     )
                     .child(
                         Button::new(ids::RESCAN)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::RefreshCw))
@@ -715,6 +719,7 @@ impl Render for TracksPanel {
                     )
                     .child(
                         Button::new(ids::FOLDER)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::FolderOpen))
@@ -728,6 +733,7 @@ impl Render for TracksPanel {
                     .when(!items.is_empty(), |d| {
                         d.child(
                             Button::new(ids::ADD)
+                                .cursor_pointer()
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::Plus))
                                 .label("Add")

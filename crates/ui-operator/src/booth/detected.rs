@@ -171,7 +171,7 @@ impl DetectedPanel {
                             .flex_shrink_0()
                             .gap_2()
                             .child(
-                                Button::new(ids::DISCARD)
+                                Button::new(ids::DISCARD).cursor_pointer()
                                     .outline()
                                     .small()
                                     .label("Discard")
@@ -309,6 +309,7 @@ impl DetectedPanel {
                     .when(any, |this| {
                         this.child(
                             Button::new(ids::CLEAR)
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .label("Clear")
@@ -376,6 +377,7 @@ impl DetectedPanel {
             let gid = group.id.clone();
             let current = shown.translation.clone();
             Button::new(SharedString::from(ids::translation(&group.id)))
+                .cursor_pointer()
                 .ghost()
                 .xsmall()
                 .when(retranslating, |b| b.loading(true))

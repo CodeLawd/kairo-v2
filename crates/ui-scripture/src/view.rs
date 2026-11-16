@@ -612,11 +612,16 @@ impl ScriptureWorkspace {
 // ─── Small pieces ───────────────────────────────────────────────────────────
 
 fn quiet_button(id: impl Into<gpui_kit::ElementId>, label: impl Into<SharedString>) -> Button {
-    Button::new(id).ghost().xsmall().label(label)
+    Button::new(id)
+        .cursor_pointer()
+        .ghost()
+        .xsmall()
+        .label(label)
 }
 
 fn icon_button(id: impl Into<gpui_kit::ElementId>, icon: KairoIcon, label: &str) -> Button {
     Button::new(id)
+        .cursor_pointer()
         .ghost()
         .xsmall()
         .icon(Icon::new(icon))
@@ -811,6 +816,7 @@ impl ScriptureWorkspace {
                                     .hover(|s| s.bg(k.surface_tertiary))
                             }
                         })
+                        .cursor_pointer()
                         .on_click(move |event, window, cx| {
                             focus.focus(window, cx);
                             match gesture(event) {
@@ -1152,6 +1158,7 @@ impl ScriptureWorkspace {
                                 .gap_1p5()
                                 .child(
                                     Button::new(ids::RENAME_SAVE)
+                                        .cursor_pointer()
                                         .xsmall()
                                         .flex_1()
                                         .icon(Icon::new(KairoIcon::Check))
@@ -1194,6 +1201,7 @@ impl ScriptureWorkspace {
                         )
                         .child(
                             Button::new(SharedString::from(ids::delete_confirm(&id)))
+                                .cursor_pointer()
                                 .danger()
                                 .xsmall()
                                 .flex_1()
@@ -1233,6 +1241,7 @@ impl ScriptureWorkspace {
                                 k.text(TextStep::T300)
                             })
                             .when(!selected, |d| d.hover(|s| s.bg(k.white.opacity(0.05))))
+                            .cursor_pointer()
                             .on_click(move |_, _, cx| {
                                 open.update(cx, |m, cx| m.open_plan(&open_id, cx))
                             })
@@ -1573,6 +1582,7 @@ impl ScriptureWorkspace {
         };
         // Toolbar controls share the search field's 36 px height.
         let translation_select = Button::new(ids::TRANSLATION)
+            .cursor_pointer()
             .with_size(gpui_kit::component::Size::Medium)
             .h(px(36.))
             .w(px(96.))
@@ -1659,6 +1669,7 @@ impl ScriptureWorkspace {
                         )
                         .child(
                             Button::new(ids::RECENTS)
+                                .cursor_pointer()
                                 .with_size(gpui_kit::component::Size::Medium)
                                 .size(px(36.))
                                 .icon(Icon::new(KairoIcon::ChevronDown))
@@ -1681,6 +1692,7 @@ impl ScriptureWorkspace {
         let use_for_service = m.selected_plan().map(|plan| {
             let in_use = m.live_plan().and_then(|l| l.plan_id.as_deref()) == Some(plan.id.as_str());
             Button::new(ids::USE_FOR_SERVICE)
+                .cursor_pointer()
                 .small()
                 .icon(Icon::new(KairoIcon::BookOpen))
                 .label(if in_use {
@@ -1950,6 +1962,7 @@ impl ScriptureWorkspace {
         Popover::new(ids::OPTIONS)
             .button_trigger(
                 Button::new("scripture-options-trigger")
+                    .cursor_pointer()
                     .with_size(gpui_kit::component::Size::Medium)
                     .h(px(36.))
                     .px(px(12.))
@@ -2039,6 +2052,7 @@ impl ScriptureWorkspace {
                             .child(
                                 h_flex().justify_between().child(heading("Bible")).child(
                                     Button::new("scripture-get-more")
+                                        .cursor_pointer()
                                         .ghost()
                                         .xsmall()
                                         .label("Get more")
@@ -2050,6 +2064,7 @@ impl ScriptureWorkspace {
                             )
                             .child(
                                 Button::new("scripture-default-bible")
+                                    .cursor_pointer()
                                     .small()
                                     .w_full()
                                     .label(current_name)
@@ -2367,6 +2382,7 @@ impl ScriptureWorkspace {
                     SelectionBar::new(count, "verse")
                         .action(
                             Button::new(ids::PICKED_ADD)
+                                .cursor_pointer()
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::Plus))
                                 .label("Add to playlist")
@@ -2440,6 +2456,7 @@ impl ScriptureWorkspace {
                 .p_0p5()
                 .child(
                     Button::new(ids::SCOPE_VERSE)
+                        .cursor_pointer()
                         .xsmall()
                         .map(|b| {
                             if scope == Scope::Verse {
@@ -2459,6 +2476,7 @@ impl ScriptureWorkspace {
                 )
                 .child(
                     Button::new(ids::SCOPE_CHAPTER)
+                        .cursor_pointer()
                         .xsmall()
                         .map(|b| {
                             if scope == Scope::Chapter {
@@ -2484,6 +2502,7 @@ impl ScriptureWorkspace {
         let save_menu = in_search.then(|| {
             let model = model.clone();
             Button::new(ids::SAVE)
+                .cursor_pointer()
                 .ghost()
                 .xsmall()
                 .label("Save")
@@ -2577,6 +2596,7 @@ impl ScriptureWorkspace {
                                 .bg(k.surface)
                                 .child(
                                     Button::new(ids::PREV)
+                                        .cursor_pointer()
                                         .ghost()
                                         .xsmall()
                                         .icon(Icon::new(
@@ -2597,6 +2617,7 @@ impl ScriptureWorkspace {
                                 )
                                 .child(
                                     Button::new(ids::NEXT)
+                                        .cursor_pointer()
                                         .ghost()
                                         .xsmall()
                                         .label("Next")
@@ -2616,6 +2637,7 @@ impl ScriptureWorkspace {
                         )
                         .child(
                             Button::new(ids::GO_LIVE)
+                                .cursor_pointer()
                                 .primary()
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::Send))

@@ -176,6 +176,8 @@ fn handle_request(
                 tracing::warn!(%error, "[Shell] could not record What's New as seen");
             }
         }
+        // Handled beside the account flow in `open_operator_window`.
+        ShellRequest::ShowTips | ShellRequest::SignOut => {}
         ShellRequest::FeaturePanicked { route, message } => {
             tracing::error!(route = route.as_str(), %message, "[Shell] workspace panic contained");
             services.request(request.clone());
@@ -275,6 +277,8 @@ fn open_operator_window(
         scripture::ServicesScripture::new(services.clone(), ui_state.clone()),
     );
     let tracks_services = services.clone();
+    let audio_services = services.clone();
+    let audio_backend = settings_backend.clone();
     let documents_backend: Arc<dyn ui_documents::DocumentsBackend> = Arc::new(
         documents::ServicesDocuments::new(services.clone(), ui_state.clone()),
     );
@@ -308,7 +312,29 @@ fn open_operator_window(
             shell.update(cx, |s, cx| s.set_migration_notes(notes, cx));
         }
         let flow = cx.new(|cx| ui_account::AccountFlow::new(account.clone(), window, cx));
+        {
+            // The Account popover's Show tips again and Sign out.
+            let (flow, account) = (flow.downgrade(), account.clone());
+            cx.subscribe(&shell, move |_, request: &ShellRequest, cx| match request {
+                ShellRequest::ShowTips => {
+                    let _ = flow.update(cx, |flow, cx| flow.replay_tips(cx));
+                }
+                ShellRequest::SignOut => {
+                    let request = account.read(cx).backend().sign_out();
+                    let account = account.clone();
+                    cx.spawn(async move |cx| {
+                        if let Ok(session) = request.await {
+                            account.update(cx, |a, cx| a.set_session(session, cx));
+                        }
+                    })
+                    .detach();
+                }
+                _ => {}
+            })
+            .detach();
+        }
         let booth_account = account.clone();
+        install_audio_rail(&shell, audio_backend, &audio_services, cx);
         install_screens(&shell, screens_backend, window, cx);
         install_settings(
             &shell,
@@ -1007,5 +1033,62 @@ fn main() {
         .detach();
         watch_incoming(instance, cx);
         cx.activate(true);
+    });
+}
+
+/// The rail's Audio popover: the saved input and its choices from the
+/// settings backend, and the capture's level from the core.
+fn install_audio_rail(
+    shell: &Entity<Shell>,
+    backend: Arc<dyn ui_settings::SettingsBackend>,
+    services: &Arc<services::ApplicationServices>,
+    cx: &mut App,
+) {
+    let rail = cx.new(|_| ui_settings::AudioRail::new(backend));
+    // The core publishes levels only while capturing; the latest is kept
+    // here and read on the UI thread when it changes.
+    let latest = Arc::new(std::sync::Mutex::new(
+        None::<kairo_domain::status::AudioLevel>,
+    ));
+    let writer = latest.clone();
+    let mut levels = services.core.watch::<kairo_domain::status::AudioLevel>();
+    services.spawn(async move {
+        while let Some(level) = levels.next().await {
+            *writer.lock().unwrap_or_else(|e| e.into_inner()) = Some((*level).clone());
+        }
+    });
+    let target = rail.downgrade();
+    cx.spawn(async move |cx| {
+        let mut seen = f64::NAN;
+        loop {
+            cx.background_executor()
+                .timer(std::time::Duration::from_millis(50))
+                .await;
+            let level = latest.lock().unwrap_or_else(|e| e.into_inner()).clone();
+            let Some(level) = level.filter(|l| l.timestamp != seen) else {
+                if target.upgrade().is_none() {
+                    break;
+                }
+                continue;
+            };
+            seen = level.timestamp;
+            if target.update(cx, |r, cx| r.set_level(level, cx)).is_err() {
+                break;
+            }
+        }
+    })
+    .detach();
+    let settings = shell.downgrade();
+    cx.subscribe(&rail, move |_, _: &ui_settings::OpenAudioSettings, cx| {
+        let _ = settings.update(cx, |shell, cx| shell.open_settings("audio", cx));
+    })
+    .detach();
+    let opened = rail.clone();
+    shell.update(cx, |shell, cx| {
+        shell.set_audio(
+            rail.into(),
+            std::rc::Rc::new(move |_, cx| opened.update(cx, |r, cx| r.opened(cx))),
+            cx,
+        )
     });
 }

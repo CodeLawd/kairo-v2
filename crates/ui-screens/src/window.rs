@@ -683,6 +683,7 @@ impl ScreensWindow {
                 let add = if stage {
                     let e = e.clone();
                     Button::new("screens-add-true")
+                        .cursor_pointer()
                         .small()
                         .ghost()
                         .icon(KairoIcon::Plus)
@@ -691,6 +692,7 @@ impl ScreensWindow {
                         .into_any_element()
                 } else {
                     Button::new("screens-add-false")
+                        .cursor_pointer()
                         .small()
                         .ghost()
                         .icon(KairoIcon::Plus)
@@ -798,6 +800,7 @@ impl ScreensWindow {
                             )
                             .child(
                                 Button::new("screens-empty-add")
+                                    .cursor_pointer()
                                     .small()
                                     .icon(KairoIcon::Plus)
                                     .label("Add a screen")
@@ -963,6 +966,7 @@ impl ScreensWindow {
                             .py(px(10.))
                             .child(
                                 Button::new("screens-test")
+                                    .cursor_pointer()
                                     .small()
                                     .flex_1()
                                     .label("Test verse")
@@ -973,6 +977,7 @@ impl ScreensWindow {
                             )
                             .child(
                                 Button::new("screens-clear")
+                                    .cursor_pointer()
                                     .small()
                                     .label("Clear")
                                     .disabled(self.busy)
@@ -1027,6 +1032,7 @@ impl ScreensWindow {
                 .child("Loading screens…")
                 .child(
                     Button::new("screens-retry")
+                        .cursor_pointer()
                         .label("Retry")
                         .on_click(cx.listener(|t, _, w, cx| t.load(w, cx))),
                 )

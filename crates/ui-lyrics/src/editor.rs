@@ -566,6 +566,7 @@ impl SongEditor {
         let entity = cx.entity();
         let label = block.label.clone();
         let gutter = Button::new(SharedString::from(ids::gutter(b)))
+            .cursor_pointer()
             .ghost()
             .xsmall()
             .label(label.clone())
@@ -662,6 +663,7 @@ impl SongEditor {
                             .child(div().flex_1().child(format!("{n}.")))
                             .child(
                                 Button::new(SharedString::from(ids::slide_menu(key)))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(Icon::new(KairoIcon::ChevronDown))
@@ -822,7 +824,7 @@ impl Render for SongEditor {
                                     .gap_3()
                                     .pt_1()
                                     .child(
-                                        Button::new(ids::ADD_SECTION)
+                                        Button::new(ids::ADD_SECTION).cursor_pointer()
                                             .ghost()
                                             .small()
                                             .icon(Icon::new(KairoIcon::Plus))

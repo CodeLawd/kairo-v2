@@ -486,7 +486,7 @@ impl SettingsWindow {
                         .flex_wrap()
                         .gap_2()
                         .child(
-                            Button::new(ids::REVEAL)
+                            Button::new(ids::REVEAL).cursor_pointer()
                                 .small()
                                 .icon(Icon::new(KairoIcon::FolderOpen))
                                 .label("Show folder")
@@ -547,6 +547,7 @@ impl SettingsWindow {
                     .gap_2()
                     .child(
                         Button::new(ids::ADOPT_MOVE)
+                            .cursor_pointer()
                             .small()
                             .primary()
                             .label(if busy == Some(WorkspaceBusy::Adopt) {
@@ -656,6 +657,7 @@ impl SettingsWindow {
             )
             .into_any_element(),
             Some(s) if s.state != SlideConverterState::Unsupported => Button::new(ids::CONVERTER)
+                .cursor_pointer()
                 .small()
                 .primary()
                 .icon(Icon::new(KairoIcon::Download))

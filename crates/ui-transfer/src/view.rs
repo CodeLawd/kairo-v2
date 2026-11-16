@@ -686,6 +686,7 @@ impl TransferHost {
                         ))
                         .checked(choice == SongImportChoice::Add)
                         .disabled(busy)
+                        .cursor_pointer()
                         .on_click({
                             let id = id.clone();
                             let entity = entity.clone();
@@ -1113,6 +1114,7 @@ impl TransferHost {
 fn primary_button(id: &'static str, label: impl Into<SharedString>, cx: &App) -> Button {
     let k = cx.kairo();
     Button::new(id)
+        .cursor_pointer()
         .custom(
             ButtonCustomVariant::new(cx)
                 .color(k.accent(Step::S500))
@@ -1130,6 +1132,7 @@ fn primary_button(id: &'static str, label: impl Into<SharedString>, cx: &App) ->
 fn secondary_button(id: &'static str, label: impl Into<SharedString>, cx: &App) -> Button {
     let k = cx.kairo();
     Button::new(id)
+        .cursor_pointer()
         .custom(
             ButtonCustomVariant::new(cx)
                 .color(k.surface_tertiary)

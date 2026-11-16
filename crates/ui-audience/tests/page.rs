@@ -391,6 +391,25 @@ fn read<R>(cx: &mut TestAppContext, o: &Opened, f: impl FnOnce(&AudiencePage) ->
     cx.read(|cx| f(o.page.read(cx)))
 }
 
+fn pick_day(
+    cx: &mut TestAppContext,
+    o: &Opened,
+    pick: impl Fn(
+        &ui_audience::page::PageInputs,
+    ) -> Entity<gpui_kit::component::date_picker::DatePickerState>,
+    day: Option<(i32, u32, u32)>,
+) {
+    let picker = read(cx, o, |p| pick(&p.inputs()));
+    let day = day.and_then(|(y, m, d)| chrono::NaiveDate::from_ymd_opt(y, m, d));
+    cx.update_window(o.handle, move |_, w, cx| {
+        picker.update(cx, |p, cx| {
+            p.set_date(gpui_kit::component::calendar::Date::Single(day), w, cx)
+        })
+    })
+    .unwrap();
+    draw(cx, o);
+}
+
 fn type_in(
     cx: &mut TestAppContext,
     o: &Opened,
@@ -515,8 +534,8 @@ fn a_new_engagement_starts_or_saves_and_checks_its_dates(cx: &mut TestAppContext
         read(cx, &o, |p| p.dialog().cloned()),
         Some(Dialog::NewEngagement)
     );
-    type_in(cx, &o, |i| i.new_starts.clone(), "2026-03-14");
-    type_in(cx, &o, |i| i.new_ends.clone(), "2026-03-12");
+    pick_day(cx, &o, |i| i.new_starts.clone(), Some((2026, 3, 14)));
+    pick_day(cx, &o, |i| i.new_ends.clone(), Some((2026, 3, 12)));
     assert!(exists(cx, &o, ids::NEW_DATES));
     act(cx, &o, |p, _, cx| p.submit_new(true, cx));
     assert!(
@@ -526,7 +545,7 @@ fn a_new_engagement_starts_or_saves_and_checks_its_dates(cx: &mut TestAppContext
             .any(|c| matches!(c, AudienceCall::Start { .. })),
         "invalid dates do nothing"
     );
-    type_in(cx, &o, |i| i.new_ends.clone(), "");
+    pick_day(cx, &o, |i| i.new_ends.clone(), None);
     click(cx, &o, &ids::room("new-review"));
     click(cx, &o, ids::NEW_SAVE);
     let created = core.calls().into_iter().find_map(|c| match c {

@@ -338,7 +338,7 @@ impl AuthPanel {
                     .child("Check that the browser shows this same code. Kairo will finish signing in automatically."),
             )
             .child(
-                Button::new(ids::PAIRING_REOPEN)
+                Button::new(ids::PAIRING_REOPEN).cursor_pointer()
                     .label("Open browser again")
                     .on_click(cx.listener(move |this, _, _, cx| {
                         let path = format!("/activate?userCode={}", encode_uri_component(&reopen));
@@ -396,6 +396,7 @@ impl Render for AuthPanel {
             .gap_4()
             .child(
                 Button::new(ids::GOOGLE)
+                    .cursor_pointer()
                     .child(kairo_ui_kit::brand::google_logo(cx))
                     .label("Continue with Google")
                     .disabled(busy)
@@ -471,6 +472,7 @@ impl Render for AuthPanel {
             )
             .child(
                 Button::new(ids::SUBMIT)
+                    .cursor_pointer()
                     .primary()
                     .loading(busy)
                     .disabled(busy)

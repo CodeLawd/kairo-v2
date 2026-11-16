@@ -142,6 +142,7 @@ impl ScreensWindow {
                             "screens-display-{}",
                             display.id
                         )))
+                        .cursor_pointer()
                         .ghost()
                         .size_full()
                         .small()

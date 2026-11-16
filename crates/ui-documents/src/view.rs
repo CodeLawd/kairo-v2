@@ -1979,6 +1979,7 @@ impl DocumentsPage {
             )
             .child(
                 Button::new(ids::IMPORT_EMPTY)
+                    .cursor_pointer()
                     .small()
                     .icon(Icon::new(KairoIcon::Upload))
                     .label("Import slides")
@@ -2072,6 +2073,7 @@ impl DocumentsPage {
                     .gap_0p5()
                     .child(
                         Button::new(ids::SLIDESHOW)
+                            .cursor_pointer()
                             .small()
                             .ghost()
                             .selected(self.playing)
@@ -2096,6 +2098,7 @@ impl DocumentsPage {
                     )
                     .child(
                         Button::new(ids::SLIDESHOW_SETTINGS)
+                            .cursor_pointer()
                             .small()
                             .ghost()
                             .icon(Icon::new(KairoIcon::SlidersHorizontal))
@@ -2135,6 +2138,7 @@ impl DocumentsPage {
                     )
                     .child(
                         Button::new(ids::REMOVE)
+                            .cursor_pointer()
                             .small()
                             .ghost()
                             .icon(Icon::new(KairoIcon::Trash2))
@@ -2157,6 +2161,7 @@ impl DocumentsPage {
             .map(|&s| {
                 let page = cx.entity();
                 Button::new(SharedString::from(ids::preset(s as u32)))
+                    .cursor_pointer()
                     .xsmall()
                     .ghost()
                     .selected(self.settings.slideshow_sec == s)
@@ -2301,6 +2306,7 @@ impl DocumentsPage {
                             .gap_1()
                             .child(
                                 Button::new(SharedString::from(ids::video_toggle(i)))
+                                    .cursor_pointer()
                                     .xsmall()
                                     .ghost()
                                     .icon(Icon::new(if playing {
@@ -2320,6 +2326,7 @@ impl DocumentsPage {
                             )
                             .child(
                                 Button::new(SharedString::from(ids::video_restart(i)))
+                                    .cursor_pointer()
                                     .xsmall()
                                     .ghost()
                                     .icon(Icon::new(KairoIcon::RotateCcw))
@@ -2332,6 +2339,7 @@ impl DocumentsPage {
                             )
                             .child(
                                 Button::new(SharedString::from(ids::video_back(i)))
+                                    .cursor_pointer()
                                     .xsmall()
                                     .ghost()
                                     .icon(Icon::new(KairoIcon::SkipBack))
@@ -2345,6 +2353,7 @@ impl DocumentsPage {
                             )
                             .child(
                                 Button::new(SharedString::from(ids::video_forward(i)))
+                                    .cursor_pointer()
                                     .xsmall()
                                     .ghost()
                                     .icon(Icon::new(KairoIcon::SkipForward))
@@ -2629,12 +2638,14 @@ impl DocumentsPage {
                 .gap_2()
                 .child(wide(
                     Button::new(ids::IMPORT_RETRY)
+                        .cursor_pointer()
                         .primary()
                         .label("Choose file again")
                         .on_click(move |_, _, cx| retry.update(cx, |p, cx| p.retry_import(cx))),
                 ))
                 .child(wide(
                     Button::new(ids::IMPORT_CLOSE)
+                        .cursor_pointer()
                         .secondary()
                         .label("Close")
                         .on_click(move |_, _, cx| close.update(cx, |p, cx| p.close_import(cx))),
@@ -2642,6 +2653,7 @@ impl DocumentsPage {
         } else {
             v_flex().mt_6().child(wide(
                 Button::new(ids::IMPORT_CANCEL)
+                    .cursor_pointer()
                     .secondary()
                     .label(if self.canceling {
                         "Canceling…"
@@ -2850,6 +2862,7 @@ impl DocumentsPage {
                         .when(!busy && view != ConverterView::Unsupported, |d| {
                             d.child(
                                 Button::new(ids::CONVERTER_DOWNLOAD)
+                                    .cursor_pointer()
                                     .primary()
                                     .w_full()
                                     .icon(Icon::new(KairoIcon::Download))
@@ -2865,6 +2878,7 @@ impl DocumentsPage {
                         })
                         .child(
                             Button::new(ids::CONVERTER_CANCEL)
+                                .cursor_pointer()
                                 .w_full()
                                 .label(if busy { "Stop download" } else { "Cancel" })
                                 .on_click(move |_, _, cx| {
@@ -2874,6 +2888,7 @@ impl DocumentsPage {
                         .when(can_simplify && !busy, |d| {
                             d.child(
                                 Button::new(ids::CONVERTER_SIMPLIFIED)
+                                    .cursor_pointer()
                                     .ghost()
                                     .w_full()
                                     .label("Import a simplified version instead")
@@ -2923,7 +2938,8 @@ fn modal(
                     .rounded(radius::xl2())
                     .border_1()
                     .border_color(k.white.opacity(0.08))
-                    .bg(k.glass_modal())
+                    // Solid: the frosted glass let the grid show through.
+                    .bg(k.surface_elevated)
                     .child(content)
                     .focus_trap(id, focus),
             ),

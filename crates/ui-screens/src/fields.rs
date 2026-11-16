@@ -95,6 +95,7 @@ fn choices(
     // A select (`input`): full width, the choice on the left, a caret on the right.
     // Electron's `.input` select: filled, 36 px tall, 12 px a side.
     Button::new(id)
+        .cursor_pointer()
         .secondary()
         .with_size(gpui_kit::component::Size::Medium)
         .h(px(36.))
@@ -393,6 +394,7 @@ impl ScreensWindow {
                         ))
                         .child(
                             Button::new("screens-choose-display")
+                                .cursor_pointer()
                                 .small()
                                 .label("Choose one")
                                 .on_click(cx.listener(|t, _, _, cx| {
@@ -521,6 +523,7 @@ impl ScreensWindow {
                 .child(div().flex_1().min_w_0().child(field("Fit", fit)))
                 .child(
                     Button::new("screens-frame")
+                        .cursor_pointer()
                         .secondary()
                         .with_size(gpui_kit::component::Size::Medium)
                         .size(px(36.))
@@ -866,6 +869,7 @@ impl ScreensWindow {
             if driver_explains {
                 body = body.child(
                     Button::new("screens-driver-download")
+                        .cursor_pointer()
                         .small()
                         .label("Open download page")
                         .on_click(|_, _, cx| {
@@ -941,7 +945,7 @@ impl ScreensWindow {
                     },
                 )))
                 .child(
-                    Button::new("screens-refresh")
+                    Button::new("screens-refresh").cursor_pointer()
                         .small()
                         .icon(KairoIcon::RefreshCw)
                         .accessibility_label("Look for video cards again")
@@ -1200,6 +1204,7 @@ impl ScreensWindow {
                 let id = o.id.clone();
                 head = head.child(
                     Button::new(SharedString::from(format!("looks-column-{}", o.id)))
+                        .cursor_pointer()
                         .small()
                         .ghost()
                         .w(px(108.))
@@ -1341,6 +1346,7 @@ impl ScreensWindow {
         }
         body = body.child(
             Button::new("screens-setup-test")
+                .cursor_pointer()
                 .small()
                 .label("Send test verse")
                 .disabled(self.busy)

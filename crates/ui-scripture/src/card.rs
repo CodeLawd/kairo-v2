@@ -132,6 +132,7 @@ impl RenderOnce for VerseCard {
             k.white.opacity(0.12)
         };
         let background = self.background.clone();
+        let themed = background.theme.clone();
         let checker = background.image.is_none() && background.color.is_none();
         // Text scales with the slide: a 1080-line slide's ~54 px body.
         let body = (f32::from(self.slide_height) * 0.07).clamp(7.0, 40.0);
@@ -203,43 +204,54 @@ impl RenderOnce for VerseCard {
                                 .bg(gpui_kit::black().opacity(0.4)),
                         )
                     })
-                    .child(
-                        div()
-                            .absolute()
-                            .size_full()
-                            .flex()
-                            .flex_col()
-                            .items_center()
-                            .justify_center()
-                            .gap(px(body * 0.4))
-                            .px(px(body))
-                            .text_color(k.white)
-                            .map(|d| match self.text {
-                                Some(text) => d
-                                    .child(
+                    .map(|d| match (themed, self.text.clone()) {
+                        // As the output lays it out: the theme's verse and
+                        // reference frames, fonts and colours at card scale.
+                        (Some(theme), Some(text)) => d.child(themed_text(
+                            &theme,
+                            text,
+                            self.slide_reference.clone(),
+                            self.width,
+                            self.slide_height,
+                        )),
+                        _ => d.child(
+                            div()
+                                .absolute()
+                                .size_full()
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .justify_center()
+                                .gap(px(body * 0.4))
+                                .px(px(body))
+                                .text_color(k.white)
+                                .map(|d| match self.text {
+                                    Some(text) => d
+                                        .child(
+                                            div()
+                                                .text_size(px(body))
+                                                .line_height(px(body * 1.25))
+                                                .text_center()
+                                                .overflow_hidden()
+                                                .max_h(self.slide_height * 0.72)
+                                                .child(text),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_size(px(body * 0.7))
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .child(self.slide_reference),
+                                        ),
+                                    None => d.child(
                                         div()
-                                            .text_size(px(body))
-                                            .line_height(px(body * 1.25))
-                                            .text_center()
-                                            .overflow_hidden()
-                                            .max_h(self.slide_height * 0.72)
-                                            .child(text),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_size(px(body * 0.7))
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .child(self.slide_reference),
+                                            .text_size(text::LABEL.size)
+                                            .italic()
+                                            .text_color(k.text(TextStep::T500))
+                                            .child("Verse text unavailable"),
                                     ),
-                                None => d.child(
-                                    div()
-                                        .text_size(text::LABEL.size)
-                                        .italic()
-                                        .text_color(k.text(TextStep::T500))
-                                        .child("Verse text unavailable"),
-                                ),
-                            }),
-                    ),
+                                }),
+                        ),
+                    }),
             )
             .child(
                 div()
@@ -282,4 +294,107 @@ impl RenderOnce for VerseCard {
                 )
             })
     }
+}
+
+/// `#rrggbb` (or `#rgb`) with an opacity.
+fn css_color(value: &str, opacity: f64) -> Option<gpui_kit::Hsla> {
+    let hex = value.trim().trim_start_matches('#');
+    let hex = match hex.len() {
+        3 => hex.chars().flat_map(|c| [c, c]).collect::<String>(),
+        6 => hex.to_owned(),
+        _ => return None,
+    };
+    let rgb = u32::from_str_radix(&hex, 16).ok()?;
+    Some(gpui_kit::Hsla::from(gpui_kit::rgb(rgb)).opacity(opacity.clamp(0.0, 1.0) as f32))
+}
+
+/// One text box at its theme frame, scaled from 1920 × 1080.
+fn text_box(
+    style: &kairo_domain::overlay::OverlayTextStyle,
+    text: SharedString,
+    scale: f32,
+    fit: bool,
+) -> gpui_kit::Div {
+    use kairo_domain::overlay::{OverlayTextAlign, OverlayVerticalAlign};
+    let frame = &style.frame;
+    let mut size = (style.font_size_px as f32 * scale).max(4.0);
+    let line = style.line_height.max(0.8) as f32;
+    if fit {
+        // `autoFitText`: shrink until the text fits its frame, by estimate
+        // (an average glyph is about half the font size wide).
+        let (w, h) = (
+            (frame.width_pct / 100.0) as f32 * 1920.0 * scale,
+            (frame.height_pct / 100.0) as f32 * 1080.0 * scale,
+        );
+        let chars = text.chars().count() as f32;
+        let needed = |s: f32| (chars * s * 0.5 / w.max(1.0)).ceil() * s * line;
+        while size > 4.0 && needed(size) > h {
+            size *= 0.92;
+        }
+    }
+    let color = css_color(&style.color, style.color_opacity).unwrap_or(gpui_kit::white());
+    div()
+        .absolute()
+        .left(gpui_kit::relative((frame.x_pct / 100.0) as f32))
+        .top(gpui_kit::relative((frame.y_pct / 100.0) as f32))
+        .w(gpui_kit::relative((frame.width_pct / 100.0) as f32))
+        .h(gpui_kit::relative((frame.height_pct / 100.0) as f32))
+        .flex()
+        .flex_col()
+        .overflow_hidden()
+        .map(|d| match style.vertical_align {
+            OverlayVerticalAlign::Top => d.justify_start(),
+            OverlayVerticalAlign::Bottom => d.justify_end(),
+            _ => d.justify_center(),
+        })
+        .child(
+            div()
+                .w_full()
+                .when(!style.font_family.trim().is_empty(), |d| {
+                    d.font_family(SharedString::from(
+                        style
+                            .font_family
+                            .split(',')
+                            .next()
+                            .unwrap_or("")
+                            .trim()
+                            .trim_matches('"')
+                            .to_owned(),
+                    ))
+                })
+                .text_size(px(size))
+                .line_height(px(size * line))
+                .font_weight(FontWeight(style.font_weight as f32))
+                .text_color(color)
+                .map(|d| match style.align {
+                    OverlayTextAlign::Left => d.text_left(),
+                    OverlayTextAlign::Right => d.text_right(),
+                    _ => d.text_center(),
+                })
+                .child(text),
+        )
+}
+
+/// The verse and its reference, laid out by `theme` on a `width` slide.
+fn themed_text(
+    theme: &kairo_domain::overlay::OverlayTheme,
+    text: SharedString,
+    reference: SharedString,
+    width: Pixels,
+    height: Pixels,
+) -> gpui_kit::AnyElement {
+    let scale = (f32::from(width) / 1920.0).min(f32::from(height) / 1080.0);
+    div()
+        .absolute()
+        .size_full()
+        .child(text_box(
+            &theme.verse,
+            text,
+            scale,
+            theme.layout.auto_fit_text,
+        ))
+        .when(theme.reference.show, |d| {
+            d.child(text_box(&theme.reference.text, reference, scale, false))
+        })
+        .into_any_element()
 }

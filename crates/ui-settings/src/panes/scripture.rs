@@ -453,6 +453,7 @@ impl SettingsWindow {
             let entity = entity.clone();
             let saved = sc.default_translation.clone();
             Button::new(ids::TRANSLATION)
+                .cursor_pointer()
                 .small()
                 .outline()
                 .w(px(168.))
@@ -946,6 +947,7 @@ impl SettingsWindow {
             let downloadable = pack.downloadable;
             Some(
                 Button::new(SharedString::from(ids::pack_action(&pack.id)))
+                    .cursor_pointer()
                     .ghost()
                     .small()
                     .icon(Icon::new(KairoIcon::CheckCircle))
@@ -977,6 +979,7 @@ impl SettingsWindow {
             };
             Some(
                 Button::new(SharedString::from(ids::pack_action(&pack.id)))
+                    .cursor_pointer()
                     .ghost()
                     .small()
                     .icon(Icon::new(KairoIcon::Download))
@@ -1171,6 +1174,7 @@ impl SettingsWindow {
                     )
                     .child(
                         Button::new(ids::TRACE_REFRESH)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::RefreshCw))

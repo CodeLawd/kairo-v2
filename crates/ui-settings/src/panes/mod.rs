@@ -10,7 +10,7 @@ mod overlay;
 mod scripture;
 mod shortcuts;
 
-pub use account::AccountPane;
+pub use account::{AccountPane, role_label};
 pub use audio::AudioPane;
 pub use general::{WorkspaceBusy, WorkspacePane};
 pub use scripture::{LibraryPane, TracePane};

@@ -40,6 +40,9 @@ pub struct CardBackground {
     pub image: Option<String>,
     /// The background's opacity, 0 to 1.
     pub opacity: f32,
+    /// The theme itself: the card lays out its verse and reference as the
+    /// output does.
+    pub theme: Option<Box<kairo_domain::overlay::OverlayTheme>>,
 }
 
 impl Default for SlideOptions {

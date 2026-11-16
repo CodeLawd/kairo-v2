@@ -913,6 +913,7 @@ impl WebPage {
                             .group_hover("web-bookmark", |s| s.visible())
                             .child(
                                 Button::new(SharedString::from(ids::remove(&b.id)))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(Icon::new(KairoIcon::X))
@@ -983,6 +984,7 @@ impl WebPage {
                    f: fn(&mut WebPage, &mut Window, &mut Context<WebPage>)| {
             let this = this.clone();
             Button::new(id)
+                .cursor_pointer()
                 .ghost()
                 .small()
                 .icon(Icon::new(icon))
@@ -1248,12 +1250,14 @@ impl WebPage {
                     .when(live, |row| {
                         row.child(
                             Button::new(ids::RELOAD_SCREENS)
+                                .cursor_pointer()
                                 .small()
                                 .label("Reload screens")
                                 .on_click(move |_, _, cx| r.update(cx, |t, _| t.reload_screens())),
                         )
                         .child(
                             Button::new(ids::TAKE_DOWN)
+                                .cursor_pointer()
                                 .small()
                                 .when(is_live, |b| b.danger())
                                 .label("Take down")
@@ -1263,6 +1267,7 @@ impl WebPage {
                     .when(!is_live, |row| {
                         row.child(
                             Button::new(ids::SHOW)
+                                .cursor_pointer()
                                 .small()
                                 .primary()
                                 .label("Show on screens")

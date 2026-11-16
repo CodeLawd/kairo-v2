@@ -500,20 +500,52 @@ impl Render for Gallery {
                 h_flex()
                     .gap_2()
                     .flex_wrap()
-                    .child(Button::new("btn-primary").primary().label("Go live"))
-                    .child(Button::new("btn-outline").outline().label("Outline"))
-                    .child(Button::new("btn-secondary").secondary().label("Secondary"))
-                    .child(Button::new("btn-ghost").ghost().label("Ghost"))
-                    .child(Button::new("btn-danger").danger().label("Clear output"))
-                    .child(Button::new("btn-link").link().label("Open Screens"))
+                    .child(
+                        Button::new("btn-primary")
+                            .cursor_pointer()
+                            .primary()
+                            .label("Go live"),
+                    )
+                    .child(
+                        Button::new("btn-outline")
+                            .cursor_pointer()
+                            .outline()
+                            .label("Outline"),
+                    )
+                    .child(
+                        Button::new("btn-secondary")
+                            .cursor_pointer()
+                            .secondary()
+                            .label("Secondary"),
+                    )
+                    .child(
+                        Button::new("btn-ghost")
+                            .cursor_pointer()
+                            .ghost()
+                            .label("Ghost"),
+                    )
+                    .child(
+                        Button::new("btn-danger")
+                            .cursor_pointer()
+                            .danger()
+                            .label("Clear output"),
+                    )
+                    .child(
+                        Button::new("btn-link")
+                            .cursor_pointer()
+                            .link()
+                            .label("Open Screens"),
+                    )
                     .child(
                         Button::new("btn-disabled")
+                            .cursor_pointer()
                             .primary()
                             .label("Disabled")
                             .disabled(true),
                     )
                     .child(
                         Button::new("btn-loading")
+                            .cursor_pointer()
                             .secondary()
                             .label("Saving")
                             .loading(true),
@@ -524,21 +556,41 @@ impl Render for Gallery {
                     .gap_2()
                     .child(
                         Button::new("btn-xs")
+                            .cursor_pointer()
                             .secondary()
                             .label("Extra small")
                             .xsmall(),
                     )
-                    .child(Button::new("btn-sm").secondary().label("Small").small())
-                    .child(Button::new("btn-md").secondary().label("Default"))
-                    .child(Button::new("btn-lg").secondary().label("Large").large())
+                    .child(
+                        Button::new("btn-sm")
+                            .cursor_pointer()
+                            .secondary()
+                            .label("Small")
+                            .small(),
+                    )
+                    .child(
+                        Button::new("btn-md")
+                            .cursor_pointer()
+                            .secondary()
+                            .label("Default"),
+                    )
+                    .child(
+                        Button::new("btn-lg")
+                            .cursor_pointer()
+                            .secondary()
+                            .label("Large")
+                            .large(),
+                    )
                     .child(
                         Button::new("btn-icon")
+                            .cursor_pointer()
                             .ghost()
                             .icon(Icon::new(KairoIcon::Settings))
                             .tooltip("Settings"),
                     )
                     .child(
                         Button::new("btn-icon-sm")
+                            .cursor_pointer()
                             .ghost()
                             .small()
                             .icon(Icon::new(KairoIcon::Plus))
@@ -942,6 +994,7 @@ impl Render for Gallery {
                     .gap_2()
                     .child(
                         Button::new("ask-discard")
+                            .cursor_pointer()
                             .secondary()
                             .label("Discard changes")
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -950,6 +1003,7 @@ impl Render for Gallery {
                     )
                     .child(
                         Button::new("ask-trash")
+                            .cursor_pointer()
                             .secondary()
                             .label("Move track to Trash")
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -958,6 +1012,7 @@ impl Render for Gallery {
                     )
                     .child(
                         Button::new("ask-download")
+                            .cursor_pointer()
                             .secondary()
                             .label("Download translation")
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -974,6 +1029,7 @@ impl Render for Gallery {
                     )
                     .child(
                         Button::new("ask-media")
+                            .cursor_pointer()
                             .secondary()
                             .label("Delete backgrounds")
                             .on_click(cx.listener(|this, _, window, cx| {
@@ -982,6 +1038,7 @@ impl Render for Gallery {
                     )
                     .child(
                         Button::new("show-alert")
+                            .cursor_pointer()
                             .secondary()
                             .label("Display taken")
                             .on_click(|_, window, cx| {
@@ -994,6 +1051,7 @@ impl Render for Gallery {
                     )
                     .child(
                         Button::new("open-movable")
+                            .cursor_pointer()
                             .secondary()
                             .label("Open Settings window")
                             .on_click(
@@ -1030,6 +1088,7 @@ impl Render for Gallery {
         let motion_section = section("motion", "Motion", &k)
             .child(
                 Button::new("motion-replay")
+                    .cursor_pointer()
                     .self_start()
                     .secondary()
                     .small()
@@ -1098,6 +1157,7 @@ impl Render for Gallery {
                             .child("Drag the title bar. Escape closes.")
                             .child(
                                 Button::new("settings-done")
+                                    .cursor_pointer()
                                     .primary()
                                     .label("Done")
                                     .mt_3()

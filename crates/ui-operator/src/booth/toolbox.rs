@@ -676,6 +676,7 @@ impl TimersPanel {
             .py_3()
             .child(
                 Button::new(SharedString::from(ids::timer_toggle(&def.id)))
+                    .cursor_pointer()
                     .ghost()
                     .xsmall()
                     .icon(
@@ -753,6 +754,7 @@ impl TimersPanel {
             )
             .child(
                 Button::new(SharedString::from(ids::timer_screens(&def.id)))
+                    .cursor_pointer()
                     .custom(
                         ButtonCustomVariant::new(cx)
                             .color(if up {
@@ -892,6 +894,7 @@ impl TimersPanel {
                         .child(
                             h_flex().items_center().gap_3().child(label("Type")).child(
                                 Button::new("timer-kind")
+                                    .cursor_pointer()
                                     .outline()
                                     .small()
                                     .flex_1()
@@ -970,6 +973,7 @@ impl TimersPanel {
                                         )
                                         .child(
                                             Button::new("timer-ampm")
+                                                .cursor_pointer()
                                                 .outline()
                                                 .small()
                                                 .label(if pm { "PM" } else { "AM" })
@@ -1033,6 +1037,7 @@ impl TimersPanel {
                         .gap_2()
                         .child(
                             Button::new("timer-edit-design")
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::Edit2).size(px(11.)))
@@ -1048,6 +1053,7 @@ impl TimersPanel {
                         .when(can_remove, |this| {
                             this.child(
                                 Button::new(SharedString::from(ids::timer_delete(&def.id)))
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .icon(
@@ -1102,6 +1108,7 @@ impl Render for TimersPanel {
             "Clock",
             Some(
                 Button::new(ids::CLOCK)
+                    .cursor_pointer()
                     .custom(
                         ButtonCustomVariant::new(cx)
                             .color(if clock_on {
@@ -1254,6 +1261,7 @@ impl Render for TimersPanel {
                     )
                     .child(
                         Button::new("timers-design")
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .mt_1p5()
@@ -1522,6 +1530,7 @@ impl MessagesPanel {
                 let seg = |label: &'static str, value: TopOrBottom, booth: Entity<Booth>| {
                     let on = position == value;
                     Button::new(SharedString::from(format!("message-position-{label}")))
+                        .cursor_pointer()
                         .xsmall()
                         .when(on, |b| b.primary())
                         .when(!on, |b| b.ghost())
@@ -2064,6 +2073,7 @@ impl Render for PropsPanel {
                     .when(active.len() > 1, |this| {
                         this.child(
                             Button::new(ids::PROPS_DOWN)
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .label("Take all down")
@@ -2602,6 +2612,7 @@ impl Render for VideoPanel {
             |id: &'static str, label: String, aria: &'static str, items: Vec<(String, String)>| {
                 let panel = panel.clone();
                 Button::new(id)
+                    .cursor_pointer()
                     .outline()
                     .small()
                     .w_full()
@@ -2656,6 +2667,7 @@ impl Render for VideoPanel {
                     )))
                     .child(if state.camera.is_some() {
                         Button::new(ids::CAMERA_OFF)
+                            .cursor_pointer()
                             .custom(
                                 ButtonCustomVariant::new(cx)
                                     .color(k.live)
@@ -2797,7 +2809,7 @@ impl Render for SoundPanel {
                         .gap_1p5()
                         .child(Slider::new(&self.volume).accessibility_label("Volume"))
                         .child(
-                            Button::new("sound-output")
+                            Button::new("sound-output").cursor_pointer()
                                 .outline()
                                 .small()
                                 .w_full()

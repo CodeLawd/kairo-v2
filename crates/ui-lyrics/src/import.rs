@@ -1042,6 +1042,7 @@ impl ImportDialog {
                             .hover(|s| s.text_color(k.text_primary))
                     }
                 })
+                .cursor_pointer()
                 .on_click(move |_, window, cx| e.update(cx, |this, cx| this.set_tab(t, window, cx)))
                 .child(label)
         };
@@ -1096,6 +1097,7 @@ impl ImportDialog {
                 let action = match r.existing_song_id.clone() {
                     Some(existing) => {
                         Button::new(SharedString::from(format!("{}-act", ids::result(i))))
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .label("In library")
@@ -1105,6 +1107,7 @@ impl ImportDialog {
                             })
                     }
                     None => Button::new(SharedString::from(format!("{}-act", ids::result(i))))
+                        .cursor_pointer()
                         .ghost()
                         .xsmall()
                         .label(if busy {
@@ -1134,6 +1137,7 @@ impl ImportDialog {
                             d.hover(|s| s.bg(k.surface_elevated))
                         }
                     })
+                    .cursor_pointer()
                     .on_click(move |_, _, cx| {
                         pick.update(cx, |this, cx| this.preview_result(r1.clone(), cx))
                     })
@@ -1230,6 +1234,7 @@ impl ImportDialog {
                 let result = r.clone();
                 let action = match r.existing_song_id.clone() {
                     Some(id) => Button::new("lyrics-import-preview-open")
+                        .cursor_pointer()
                         .primary()
                         .small()
                         .label("Open in library")
@@ -1237,6 +1242,7 @@ impl ImportDialog {
                             e.update(cx, |this, cx| this.open_existing(id.clone(), cx))
                         }),
                     None => Button::new("lyrics-import-preview-import")
+                        .cursor_pointer()
                         .primary()
                         .small()
                         .label(if self.online.importing.is_some() {
@@ -1473,6 +1479,7 @@ impl ImportDialog {
                             d.hover(|s| s.bg(k.surface_tertiary))
                         }
                     })
+                    .cursor_pointer()
                     .on_click(move |_, _, cx| {
                         pick.update(cx, |this, cx| this.select_queued(k1.clone(), cx))
                     })
@@ -1522,6 +1529,7 @@ impl ImportDialog {
                     }))
                     .child(
                         Button::new(SharedString::from(format!("{}-remove", ids::queued(i))))
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::X))
@@ -1560,6 +1568,7 @@ impl ImportDialog {
                         let e = entity.clone();
                         let on = q.action == a;
                         Button::new(SharedString::from(ids::action(id)))
+                            .cursor_pointer()
                             .xsmall()
                             .label(label)
                             .map(|b| if on { b.primary() } else { b.ghost() })
@@ -1688,6 +1697,7 @@ impl ImportDialog {
                                     ))
                                     .child(
                                         Button::new(ids::CLEAR_ALL)
+                                            .cursor_pointer()
                                             .ghost()
                                             .xsmall()
                                             .label("Clear all")
@@ -1752,7 +1762,7 @@ impl ImportDialog {
                             .child(div().mt_0p5().text_size(text::LABEL.size).text_color(k.text(TextStep::T500)).child("Copy a song from any lyrics site, then paste it here — title, artist and site clutter are sorted out for you.")),
                     )
                     .child(
-                        Button::new(ids::CLIPBOARD)
+                        Button::new(ids::CLIPBOARD).cursor_pointer()
                             .small()
                             .label("Paste from clipboard")
                             .on_click(move |_, window, cx| entity.update(cx, |this, cx| this.read_clipboard(false, window, cx))),
@@ -1802,6 +1812,7 @@ impl Render for ImportDialog {
                 let n = self.included();
                 Some(
                     Button::new(ids::CONFIRM)
+                        .cursor_pointer()
                         .primary()
                         .label(if n > 1 {
                             format!("Add {n} Songs")
@@ -1817,6 +1828,7 @@ impl Render for ImportDialog {
                 let e = entity.clone();
                 Some(
                     Button::new(ids::CONFIRM)
+                        .cursor_pointer()
                         .primary()
                         .label("Import Song")
                         .disabled(title.trim().is_empty() || text_.trim().is_empty() || self.busy)
@@ -1847,7 +1859,7 @@ impl Render for ImportDialog {
                     .max_h(px(860.))
                     .overflow_hidden()
                     .rounded(radius::xl2())
-                    .bg(k.glass_modal())
+                    .bg(k.surface_elevated)
                     .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child(
                         h_flex()
@@ -1859,7 +1871,7 @@ impl Render for ImportDialog {
                                     .child(div().text_size(text::BASE.size).font_weight(FontWeight::SEMIBOLD).text_color(k.text_primary).child("Import Song"))
                                     .child(div().mt_0p5().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child("Search online, upload song files, or paste a song from your clipboard")),
                             )
-                            .child(Button::new(ids::CLOSE).ghost().small().icon(Icon::new(KairoIcon::X)).accessibility_label("Close").on_click(move |_, _, cx| close.update(cx, |this, cx| this.close(cx)))),
+                            .child(Button::new(ids::CLOSE).cursor_pointer().ghost().small().icon(Icon::new(KairoIcon::X)).accessibility_label("Close").on_click(move |_, _, cx| close.update(cx, |this, cx| this.close(cx)))),
                     )
                     .child(self.render_tabs(cx))
                     .child(body)
@@ -1869,7 +1881,7 @@ impl Render for ImportDialog {
                             .gap_2p5()
                             .px_5()
                             .py_3p5()
-                            .child(Button::new("lyrics-import-cancel").label(if self.tab == Tab::Online { "Close" } else { "Cancel" }).on_click(move |_, _, cx| cancel.update(cx, |this, cx| this.close(cx))))
+                            .child(Button::new("lyrics-import-cancel").cursor_pointer().label(if self.tab == Tab::Online { "Close" } else { "Cancel" }).on_click(move |_, _, cx| cancel.update(cx, |this, cx| this.close(cx))))
                             .children(confirm),
                     )
 .focus_trap(ids::DIALOG, &self.modal_focus), "lyrics-import-enter", cx),

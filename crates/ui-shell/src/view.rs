@@ -373,6 +373,7 @@ impl Shell {
             ),
             UpdateState::Available { version } => Some(
                 Button::new("update-pill")
+                    .cursor_pointer()
                     .custom(solid)
                     // Solid fill: the custom variant paints its colour at 20%.
                     .bg(k.live)
@@ -404,6 +405,7 @@ impl Shell {
                 };
                 Some(
                     Button::new("update-pill")
+                        .cursor_pointer()
                         .custom(solid)
                         // Solid fill: the custom variant paints its colour at 20%.
                         .bg(k.live)
@@ -453,6 +455,7 @@ impl Shell {
             .hover(k.surface_tertiary)
             .active(k.surface_elevated);
         Button::new(id)
+            .cursor_pointer()
             .custom(variant)
             // Solid fill: the custom variant paints its colour at 20%.
             .when(open, |b| b.bg(k.surface_elevated))
@@ -494,14 +497,14 @@ impl Shell {
                 )
                 .popover_trigger(),
             )
-            .content(|_, _, cx| {
-                let k = *cx.kairo();
-                div()
-                    .w_64()
-                    .p_3()
-                    .text_size(text::XS.size)
-                    .text_color(k.text(TextStep::T400))
-                    .child("Audio input and level arrive with prompt 091.")
+            .when_some(self.audio.clone(), |popover, (view, opened)| {
+                popover
+                    .on_open_change(move |open, window, cx| {
+                        if *open {
+                            opened(window, cx);
+                        }
+                    })
+                    .content(move |_, _, _| view.clone())
             });
         v_flex()
             .id(ids::RAIL)
@@ -592,49 +595,256 @@ impl Shell {
                 .popover_trigger(),
             )
             .content(move |_, _, cx| {
+                // `AccountRailButton`: who is signed in on a toned band, the
+                // connection at a glance, then the actions.
                 let k = *cx.kairo();
-                let entity = entity.clone();
+                let (settings, tips, out) = (entity.clone(), entity.clone(), entity.clone());
+                let signed_out = !account.signed_in;
+                let (status, dot) = if signed_out {
+                    ("Signed out", k.neutral(kairo_ui_kit::tokens::Step::S600))
+                } else if account.offline {
+                    ("Offline", k.hue(Hue::Orange))
+                } else {
+                    ("Online", k.hue(Hue::Green))
+                };
+                let synced = if account.offline {
+                    "Waiting".to_owned()
+                } else {
+                    account.last_synced_ms.map_or("—".to_owned(), synced_label)
+                };
+                let title = account
+                    .name
+                    .clone()
+                    .or(account.email.clone())
+                    .unwrap_or_else(|| "Not signed in".into());
+                let initial: String = title
+                    .chars()
+                    .next()
+                    .map(|c| c.to_uppercase().collect())
+                    .unwrap_or_default();
+                let chip = |content: AnyElement| {
+                    h_flex()
+                        .gap_1p5()
+                        .max_w_full()
+                        .px_2()
+                        .py_0p5()
+                        .rounded_full()
+                        .border_1()
+                        .border_color(k.surface_border)
+                        .bg(k.surface_elevated)
+                        .text_size(gpui_kit::px(10.))
+                        .child(content)
+                };
+                let tile = |label: &'static str, value: AnyElement| {
+                    v_flex()
+                        .flex_1()
+                        .min_w_0()
+                        .px_2p5()
+                        .py_1p5()
+                        .rounded(radius::md())
+                        .border_1()
+                        .border_color(k.surface_border)
+                        .bg(k.surface_tertiary)
+                        .child(
+                            div()
+                                .text_size(gpui_kit::px(10.))
+                                .font_weight(gpui_kit::FontWeight::MEDIUM)
+                                .text_color(k.text(TextStep::T500))
+                                .child(label.to_uppercase()),
+                        )
+                        .child(
+                            div()
+                                .mt_0p5()
+                                .text_size(gpui_kit::px(12.))
+                                .font_weight(gpui_kit::FontWeight::MEDIUM)
+                                .text_color(k.text_primary)
+                                .child(value),
+                        )
+                };
+                let row = |id: &'static str,
+                           icon: KairoIcon,
+                           label: &'static str,
+                           danger: bool,
+                           click: Box<dyn Fn(&mut App)>| {
+                    h_flex()
+                        .id(id)
+                        .test_support()
+                        .role(Role::Button)
+                        .aria_label(label)
+                        .w_full()
+                        .gap_2p5()
+                        .px_2()
+                        .py_1p5()
+                        .rounded(radius::md())
+                        .cursor_pointer()
+                        .hover(|s| s.bg(k.white.opacity(0.06)))
+                        .text_size(gpui_kit::px(12.))
+                        .text_color(if danger {
+                            k.danger_text
+                        } else {
+                            k.text(TextStep::T200)
+                        })
+                        .on_click(move |_, _, cx| click(cx))
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .size_7()
+                                .flex_none()
+                                .rounded(radius::md())
+                                .bg(k.white.opacity(0.06))
+                                .child(Icon::new(icon).size_3()),
+                        )
+                        .child(div().flex_1().min_w_0().truncate().child(label))
+                        .when(!danger, |r| {
+                            r.child(
+                                Icon::new(KairoIcon::ChevronRight)
+                                    .size_3()
+                                    .text_color(k.text(TextStep::T500)),
+                            )
+                        })
+                };
                 v_flex()
                     .w_64()
-                    .p_1()
                     .child(
                         v_flex()
-                            .px_3()
-                            .py_2()
+                            .p_3()
+                            .gap_2p5()
+                            .bg(k.surface_tertiary)
+                            .border_b_1()
+                            .border_color(k.surface_border)
                             .child(
-                                div()
-                                    .text_size(text::SM.size)
-                                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                    .text_color(k.text_primary)
+                                h_flex()
+                                    .gap_2p5()
                                     .child(
-                                        account
-                                            .name
-                                            .clone()
-                                            .or(account.email.clone())
-                                            .unwrap_or_else(|| "Signed out".into()),
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .size_9()
+                                            .flex_none()
+                                            .rounded_full()
+                                            .bg(k.hue(Hue::Blue).opacity(0.25))
+                                            .text_color(k.text_primary)
+                                            .text_size(gpui_kit::px(14.))
+                                            .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                            .child(initial),
+                                    )
+                                    .child(
+                                        v_flex()
+                                            .min_w_0()
+                                            .child(
+                                                div()
+                                                    .truncate()
+                                                    .text_size(gpui_kit::px(13.))
+                                                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                                    .text_color(k.text_primary)
+                                                    .child(title),
+                                            )
+                                            .when_some(
+                                                account
+                                                    .email
+                                                    .clone()
+                                                    .filter(|_| account.name.is_some()),
+                                                |this, email| {
+                                                    this.child(
+                                                        div()
+                                                            .truncate()
+                                                            .text_size(gpui_kit::px(11.))
+                                                            .text_color(k.text(TextStep::T400))
+                                                            .child(email),
+                                                    )
+                                                },
+                                            ),
                                     ),
                             )
-                            .when_some(
-                                account.email.clone().filter(|_| account.name.is_some()),
-                                |this, email| {
-                                    this.child(
-                                        div()
-                                            .text_size(text::XS.size)
-                                            .text_color(k.text(TextStep::T500))
-                                            .child(email),
-                                    )
-                                },
-                            ),
+                            .when_some(account.org.clone(), |this, (org, role)| {
+                                this.child(
+                                    h_flex()
+                                        .flex_wrap()
+                                        .gap_1()
+                                        .child(chip(
+                                            h_flex()
+                                                .gap_1p5()
+                                                .min_w_0()
+                                                .text_color(k.text(TextStep::T200))
+                                                .child(
+                                                    Icon::new(KairoIcon::Church)
+                                                        .size(gpui_kit::px(10.)),
+                                                )
+                                                .child(div().truncate().child(org))
+                                                .into_any_element(),
+                                        ))
+                                        .child(chip(
+                                            div()
+                                                .text_color(k.text(TextStep::T400))
+                                                .child(role)
+                                                .into_any_element(),
+                                        )),
+                                )
+                            }),
                     )
                     .child(
-                        Button::new("account-settings")
-                            .ghost()
-                            .small()
-                            .w_full()
-                            .icon(Icon::new(KairoIcon::Settings).size_3())
-                            .label("Account settings")
-                            .on_click(move |_, _, cx| {
-                                entity.update(cx, |this, cx| this.open_settings("account", cx))
+                        h_flex()
+                            .gap_1p5()
+                            .px_2()
+                            .pt_2()
+                            .child(tile(
+                                "Status",
+                                h_flex()
+                                    .gap_1p5()
+                                    .items_center()
+                                    .child(div().size(gpui_kit::px(6.)).rounded_full().bg(dot))
+                                    .child(status)
+                                    .into_any_element(),
+                            ))
+                            .child(tile(
+                                "Last synced",
+                                div().truncate().child(synced).into_any_element(),
+                            )),
+                    )
+                    .child(
+                        v_flex()
+                            .p_1p5()
+                            .child(row(
+                                "account-settings",
+                                KairoIcon::Settings,
+                                "Account settings",
+                                false,
+                                Box::new(move |cx| {
+                                    settings
+                                        .update(cx, |this, cx| this.open_settings("account", cx))
+                                }),
+                            ))
+                            .child(row(
+                                "account-tips",
+                                KairoIcon::Lightbulb,
+                                "Show tips again",
+                                false,
+                                Box::new(move |cx| {
+                                    tips.update(cx, |_, cx| cx.emit(ShellRequest::ShowTips))
+                                }),
+                            ))
+                            .when(!signed_out, |this| {
+                                this.child(
+                                    div()
+                                        .mt_1()
+                                        .pt_1()
+                                        .border_t_1()
+                                        .border_color(k.surface_border)
+                                        .child(row(
+                                            "account-sign-out",
+                                            KairoIcon::LogOut,
+                                            "Sign out",
+                                            true,
+                                            Box::new(move |cx| {
+                                                out.update(cx, |_, cx| {
+                                                    cx.emit(ShellRequest::SignOut)
+                                                })
+                                            }),
+                                        )),
+                                )
                             }),
                     )
             })
@@ -876,6 +1086,7 @@ impl Shell {
                                     "feedback-{}",
                                     kind.as_str()
                                 )))
+                                .cursor_pointer()
                                 .ghost()
                                 .xsmall()
                                 .selected(selected)
@@ -928,6 +1139,7 @@ impl Shell {
                     )
                     .child(
                         Button::new("feedback-send")
+                            .cursor_pointer()
                             .primary()
                             .small()
                             .label(if sending { "Sending…" } else { "Send" })
@@ -1048,7 +1260,7 @@ impl Shell {
                     )
                     .child(
                         h_flex().justify_end().child(
-                            Button::new("reload-page")
+                            Button::new("reload-page").cursor_pointer()
                                 .secondary()
                                 .label(if can_reload { "Reload page" } else { "Restart Kairo to recover" })
                                 .disabled(!can_reload)
@@ -1094,6 +1306,7 @@ impl Shell {
                 .justify_center()
                 .bg(k.scrim())
                 .occlude()
+                .cursor_pointer()
                 .on_click(cx.listener(|this, _, _, cx| this.close_overlay(cx)))
                 .child(
                     v_flex()
@@ -1105,6 +1318,7 @@ impl Shell {
                         .rounded(radius::xl2())
                         .overflow_hidden()
                         .bg(k.surface)
+                        .cursor_pointer()
                         .on_click(|_, _, cx| cx.stop_propagation())
                         .child(
                             FrostedPanel::new(Frost::Panel).rounded(false).child(
@@ -1125,14 +1339,14 @@ impl Shell {
                                         .text_size(text::SM.size)
                                         .text_color(k.text(TextStep::T400))
                                         .child(format!(
-                                            "{} arrives with prompt {}.",
-                                            overlay.title(),
-                                            overlay.owner_prompt()
+                                            "{} couldn’t open. Close this and try again.",
+                                            overlay.title()
                                         )),
                                 )
                                 .child(
                                     h_flex().justify_end().child(
                                         Button::new("overlay-close")
+                                            .cursor_pointer()
                                             .secondary()
                                             .label("Close")
                                             .on_click(
@@ -1186,6 +1400,7 @@ impl Shell {
                             )
                             .child(
                                 Button::new("migration-notes-dismiss")
+                                    .cursor_pointer()
                                     .ghost()
                                     .xsmall()
                                     .label("Dismiss")
@@ -1249,6 +1464,7 @@ impl Shell {
                                     .gap_2()
                                     .child(
                                         Button::new("toast-restart")
+                                            .cursor_pointer()
                                             .outline()
                                             .xsmall()
                                             .label("Restart now")
@@ -1260,6 +1476,7 @@ impl Shell {
                                     )
                                     .child(
                                         Button::new("toast-later")
+                                            .cursor_pointer()
                                             .ghost()
                                             .xsmall()
                                             .label("Later")
@@ -1310,6 +1527,7 @@ impl Shell {
                     )
                     .child(
                         Button::new("dismiss-keychain")
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::X).size_3())
@@ -1388,6 +1606,7 @@ impl Shell {
                 .p_6()
                 .bg(k.scrim())
                 .occlude()
+                .cursor_pointer()
                 .on_click(cx.listener(|this, _, _, cx| this.close_whats_new(cx)))
                 .child(
                     v_flex()
@@ -1401,6 +1620,7 @@ impl Shell {
                         .rounded(radius::xl2())
                         .overflow_hidden()
                         .bg(k.glass)
+                        .cursor_pointer()
                         .on_click(|_, _, cx| cx.stop_propagation())
                         .child(
                             v_flex()
@@ -1449,6 +1669,7 @@ impl Shell {
                                 .child(
                                     h_flex().mt_8().justify_center().child(
                                         Button::new("release-notes")
+                                            .cursor_pointer()
                                             .link()
                                             .label("View full release notes")
                                             .on_click(cx.listener(|_, _, _, cx| {
@@ -1469,6 +1690,7 @@ impl Shell {
                                 .py_4()
                                 .child(
                                     Button::new("whats-new-continue")
+                                        .cursor_pointer()
                                         .primary()
                                         .min_w(gpui_kit::rems(8.75))
                                         .label("Continue")
@@ -1548,14 +1770,14 @@ impl Shell {
                                 .px_7()
                                 .py_5()
                                 .child(
-                                    Button::new("keep-open")
+                                    Button::new("keep-open").cursor_pointer()
                                         .track_focus(&self.keep_open_focus)
                                         .secondary()
                                         .label("Keep Kairo open")
                                         .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(false, cx))),
                                 )
                                 .child(
-                                    Button::new("quit-kairo")
+                                    Button::new("quit-kairo").cursor_pointer()
                                         .primary()
                                         .label("Quit Kairo")
                                         .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(true, cx))),
@@ -1588,7 +1810,7 @@ pub fn highlight_mark(name: &str) -> (KairoIcon, Hue) {
     }
 }
 
-/// A workspace's content until its prompt builds it.
+/// A workspace's content until its view is installed.
 fn workspace_placeholder(route: Route, cx: &App) -> AnyElement {
     let k = cx.kairo();
     let w = route.workspace();
@@ -1609,7 +1831,21 @@ fn workspace_placeholder(route: Route, cx: &App) -> AnyElement {
             div()
                 .text_size(text::SM.size)
                 .text_color(k.text(TextStep::T500))
-                .child(format!("Built in prompt {}.", route.owner_prompt())),
+                .child("Loading…"),
         )
         .into_any_element()
+}
+
+/// `relativeTime` for the Account popover's Last synced.
+fn synced_label(at_ms: u64) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64);
+    let minutes = now.saturating_sub(at_ms) / 60_000;
+    match minutes {
+        0 => "Just now".into(),
+        1..=59 => format!("{minutes} min ago"),
+        60..=1439 => format!("{} hr ago", minutes / 60),
+        _ => format!("{} days ago", minutes / 1440),
+    }
 }

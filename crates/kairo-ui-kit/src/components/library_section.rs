@@ -513,6 +513,7 @@ impl Render for LibrarySection {
             .active(k.surface_tertiary);
         let add: AnyElement = if self.add_items.is_empty() {
             Button::new("library-new")
+                .cursor_pointer()
                 .custom(plus_variant)
                 .icon(Icon::new(KairoIcon::Plus).size_3())
                 .xsmall()
@@ -528,6 +529,7 @@ impl Render for LibrarySection {
             let entity = cx.entity();
             let items = self.add_items.clone();
             Button::new("library-add")
+                .cursor_pointer()
                 .custom(plus_variant)
                 .icon(Icon::new(KairoIcon::Plus).size_3())
                 .xsmall()

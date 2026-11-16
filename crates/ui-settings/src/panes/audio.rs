@@ -412,6 +412,7 @@ impl SettingsWindow {
                     )
                     .child(
                         Button::new(ids::OUTPUT)
+                            .cursor_pointer()
                             .outline()
                             .small()
                             .w_full()

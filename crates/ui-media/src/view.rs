@@ -629,6 +629,7 @@ impl MediaDockView {
                 .text_size(text::XS.size)
                 .text_color(k.text(TextStep::T500))
                 .hover(|s| s.bg(k.surface_tertiary))
+                .cursor_pointer()
                 .on_click(move |_, _, cx| m.update(cx, |m, cx| m.new_playlist(cx)))
                 .child(Icon::new(KairoIcon::Plus).size_3())
                 .child("New playlist")
@@ -655,6 +656,7 @@ impl MediaDockView {
                     .child(heading("Playlists"))
                     .child(
                         Button::new(ids::NEW_PLAYLIST)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::Plus))
@@ -896,6 +898,7 @@ impl MediaDockView {
                     })
                     .when(busy, |d| d.opacity(0.7))
                     .on_drag(drag, |d, _, _, cx| cx.new(|_| d.clone()))
+                    .cursor_pointer()
                     .on_click(
                         cx.listener(move |this, event: &gpui_kit::ClickEvent, _, cx| {
                             if std::mem::take(&mut this.marquee_cleared_click) {
@@ -1150,6 +1153,7 @@ impl MediaDockView {
                 let model = self.model.clone();
                 bar = bar.action(
                     Button::new("media-picked-add")
+                        .cursor_pointer()
                         .xsmall()
                         .icon(Icon::new(KairoIcon::Plus))
                         .label("Add to playlist")
@@ -1205,6 +1209,7 @@ impl MediaDockView {
                     .pt_2()
                     .child(
                         Button::new(ids::SIDEBAR_TOGGLE)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::SidebarLeft))
@@ -1250,6 +1255,7 @@ impl MediaDockView {
                     .when(in_playlist, |d| {
                         d.child(
                             Button::new(ids::ADD_MEDIA)
+                                .cursor_pointer()
                                 .primary()
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::Plus))
@@ -1262,6 +1268,7 @@ impl MediaDockView {
                     })
                     .child(
                         Button::new(ids::CLOSE)
+                            .cursor_pointer()
                             .ghost()
                             .xsmall()
                             .icon(Icon::new(KairoIcon::ChevronDown))
@@ -1493,7 +1500,7 @@ impl Render for MediaDockView {
             v_flex()
                 .flex_1()
                 .min_h_0()
-                .child(div().flex().justify_end().px_4().py_1().child(Button::new("media-dock-close-empty").ghost().xsmall().label("Close media").on_click(move |_, _, cx| close.update(cx, |m, cx| m.set_open(false, cx)))))
+                .child(div().flex().justify_end().px_4().py_1().child(Button::new("media-dock-close-empty").cursor_pointer().ghost().xsmall().label("Close media").on_click(move |_, _, cx| close.update(cx, |m, cx| m.set_open(false, cx)))))
                 .child(
                     v_flex()
                         .id(ids::EMPTY)
@@ -1506,7 +1513,7 @@ impl Render for MediaDockView {
                         .child(div().flex().items_center().justify_center().size_11().bg(k.surface_secondary).child(Icon::new(KairoIcon::Folder).size_5().text_color(k.text(TextStep::T400))))
                         .child(div().text_size(text::BASE.size).font_weight(FontWeight::SEMIBOLD).text_color(k.text_primary).child("Choose your backgrounds folder"))
                         .child(div().max_w(px(460.)).text_center().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child("Point Kairo at the folder your motion backgrounds already live in. Files already there stay put. Adding media to a playlist copies new files in."))
-                        .child(Button::new(ids::CHOOSE).primary().small().label("Choose folder…").on_click(move |_, _, cx| choose.update(cx, |m, cx| m.choose_folder(cx)))),
+                        .child(Button::new(ids::CHOOSE).cursor_pointer().primary().small().label("Choose folder…").on_click(move |_, _, cx| choose.update(cx, |m, cx| m.choose_folder(cx)))),
                 )
                 .into_any_element()
         } else {

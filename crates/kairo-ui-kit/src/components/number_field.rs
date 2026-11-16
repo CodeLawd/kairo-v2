@@ -288,6 +288,7 @@ impl Render for NumberField {
         let stepper =
             |cx: &mut Context<Self>, direction: i8, id: ElementId, enabled: bool, label: String| {
                 Button::new(id)
+                    .cursor_pointer()
                     .custom(
                         ButtonCustomVariant::new(cx)
                             .foreground(k.text(TextStep::T500))

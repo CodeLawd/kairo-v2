@@ -110,6 +110,7 @@ impl RenderOnce for SelectionBar {
                     )
                     .child(
                         Button::new("selection-clear")
+                            .cursor_pointer()
                             .custom(
                                 ButtonCustomVariant::new(cx)
                                     .foreground(k.text(TextStep::T400))
@@ -207,6 +208,7 @@ impl RenderOnce for SelectionAction {
                 .active(k.surface_border)
         };
         Button::new(self.id)
+            .cursor_pointer()
             .custom(variant)
             // Solid fill: the custom variant paints its colour at 20%.
             .when(!self.danger, |b| b.bg(k.surface_elevated))
