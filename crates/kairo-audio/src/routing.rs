@@ -33,6 +33,11 @@ pub fn audio_surface(
     live_targets(outputs, &has_surface)
         .find(|o| o.kind == OverlayOutputKind::Screen)
         .or_else(|| live_targets(outputs, &has_surface).find(|o| Some(o.id.as_str()) == primary))
+        // Else the first live video card (DECISIONS 113), so a video is never
+        // silent while it shows. A second NDI sender still never sounds.
+        .or_else(|| {
+            live_targets(outputs, &has_surface).find(|o| o.kind == OverlayOutputKind::Device)
+        })
         .map(|o| o.id.as_str())
 }
 
@@ -140,9 +145,11 @@ mod tests {
         let mut lobby = output("lobby", OverlayOutputKind::Screen);
         lobby.source = OutputSource::Playlist;
         let card = output("card", OverlayOutputKind::Device);
+        // With no screen or NDI feed, the program's video card sounds
+        // (DECISIONS 113); the lobby screen still never does.
         assert_eq!(
             audio_surface(&[lobby.clone(), card.clone()], |_| true),
-            None
+            Some("card")
         );
         let ndi = output("ndi", OverlayOutputKind::Ndi);
         assert_eq!(audio_surface(&[lobby, card, ndi], |_| true), Some("ndi"));

@@ -701,6 +701,19 @@ impl SurfaceManager {
             .find(|o| o.kind == OverlayOutputKind::Screen)
             .or_else(|| targets.iter().find(|o| self.is_primary_ndi(&o.id)))
             .map(|o| o.id.clone())
+            // No screen or NDI feed can take it (say a video card without
+            // its card): the first output still composing the program plays
+            // the sound through the chosen speakers, so a video is never
+            // silent while the monitor shows it.
+            .or_else(|| {
+                self.rendered_with_surface()
+                    .find(|o| {
+                        o.kind == OverlayOutputKind::Device
+                            && follows_program(o.kind, o.source)
+                            && o.show.backgrounds
+                    })
+                    .map(|o| o.id.clone())
+            })
     }
 
     fn apply_config(&mut self, presentation: &PresentationSettings) {
