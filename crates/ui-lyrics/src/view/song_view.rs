@@ -402,11 +402,11 @@ impl LyricsWorkspace {
                             .h(px(bar_h.max(34.)))
                             .gap_2()
                             .px_3()
-                            .bg(gpui_kit::black())
-                            .text_color(k.text(TextStep::T200))
+                            // The section's colour fills the strip so the
+                            // sections read apart at a glance (owner).
+                            .bg(fill)
+                            .text_color(section_text())
                             .text_size(px((13. * scale).round()))
-                            // The section's colour as a small swatch.
-                            .child(div().flex_none().size(px(8.)).rounded_full().bg(fill))
                             .child(
                                 div()
                                     .flex_1()
