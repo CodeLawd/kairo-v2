@@ -7,6 +7,7 @@
 //! setup again" (a reset onboarding state) clears this launch's dismissal.
 
 use crate::coach::{CoachDone, CoachTour, CoachTourId, coach_tour};
+use crate::fluid::{Flick, Tuning};
 use crate::gate::AccountGate;
 use crate::model::{Account, AccountChanged};
 use crate::wizard::{OnboardingWizard, QuickStart, WizardEvent};
@@ -16,6 +17,7 @@ use gpui_kit::{
 };
 use kairo_domain::cloud::should_offer_account_gate;
 use kairo_domain::cloud::should_offer_onboarding;
+use kairo_ui_kit::KairoThemeExt;
 
 /// What the flow asks of the shell.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,6 +38,7 @@ pub struct AccountFlow {
     wizard: Option<(Entity<OnboardingWizard>, Subscription)>,
     gate: Option<Entity<AccountGate>>,
     coach: Option<(Entity<CoachTour>, Subscription)>,
+    closing: Option<(gpui_kit::AnyView, Flick)>,
     _account: Subscription,
 }
 
@@ -62,6 +65,7 @@ impl AccountFlow {
             wizard: None,
             gate: None,
             coach: None,
+            closing: None,
             _account: subscription,
         };
         flow.sync(window, cx);
@@ -112,15 +116,15 @@ impl AccountFlow {
             let subscription = cx.subscribe_in(&wizard, window, Self::on_wizard);
             wizard.read(cx).focus_handle(cx).focus(window, cx);
             self.wizard = Some((wizard, subscription));
-        } else if !wizard_open {
-            self.wizard = None;
+        } else if !wizard_open && let Some((wizard, _)) = self.wizard.take() {
+            self.close_stage(wizard.into(), cx);
         }
-        if gate && self.gate.is_none() {
+        if gate && !wizard_open && self.gate.is_none() {
             let account = self.account.clone();
             self.gate = Some(cx.new(|cx| AccountGate::new(account, window, cx)));
             // The wall replaces the booth; tips over it would point at nothing.
             self.coach = None;
-        } else if !gate {
+        } else if !gate || wizard_open {
             self.gate = None;
         }
         cx.notify();
@@ -151,8 +155,17 @@ impl AccountFlow {
         self.sync(window, cx);
     }
 
+    fn close_stage(&mut self, view: gpui_kit::AnyView, cx: &gpui_kit::App) {
+        if cx.reduced_motion() {
+            return;
+        }
+        let mut fade = Flick::at(1., cx.background_executor().now());
+        fade.to(0., Tuning::LEAVE, cx.background_executor().now());
+        self.closing = Some((view, fade));
+    }
+
     fn start_coach(&mut self, id: CoachTourId, cx: &mut Context<Self>) {
-        let tour = cx.new(|_| CoachTour::new(coach_tour(id)));
+        let tour = cx.new(|cx| CoachTour::at(coach_tour(id), cx.background_executor().now()));
         let subscription = cx.subscribe(&tour, |this, _, _: &CoachDone, cx| {
             this.coach = None;
             cx.notify();
@@ -173,7 +186,26 @@ pub fn coach_tour_for(route: Option<QuickStart>) -> CoachTourId {
 }
 
 impl Render for AccountFlow {
-    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let closing = if let Some((view, fade)) = &mut self.closing {
+            if fade.tick(cx.background_executor().now(), cx.reduced_motion()) {
+                window.request_animation_frame();
+                Some(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .opacity(fade.value().clamp(0., 1.))
+                        .child(view.clone()),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if closing.is_none() {
+            self.closing = None;
+        }
         let front = if let Some((wizard, _)) = &self.wizard {
             Some(wizard.clone().into_any_element())
         } else {
@@ -182,14 +214,18 @@ impl Render for AccountFlow {
         let coach = self
             .coach
             .as_ref()
-            .filter(|_| front.is_none())
+            .filter(|_| front.is_none() && closing.is_none())
             .map(|(tour, _)| tour.clone().into_any_element());
         // Nothing to show takes no space and no input.
         div()
             .absolute()
             .top_0()
             .left_0()
-            .when(front.is_some() || coach.is_some(), |this| this.size_full())
+            .when(
+                front.is_some() || coach.is_some() || closing.is_some(),
+                |this| this.size_full(),
+            )
+            .when(front.is_none(), |el| el.children(closing))
             .children(front)
             .children(coach)
     }

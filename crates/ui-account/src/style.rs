@@ -1,10 +1,11 @@
 //! Shared bits of the account views' look (`.label`, the quiet text
 //! buttons, the error and notice lines). Colours come from the Kairo tokens.
 
-use gpui_kit::base::TestSupportExt;
+use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::{Disableable, Sizable};
+use gpui_kit::rems;
 use gpui_kit::{
-    App, ClickEvent, Div, ElementId, Hsla, InteractiveElement, IntoElement, ParentElement, Role,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, px,
+    App, ClickEvent, Div, ElementId, Hsla, ParentElement, SharedString, Styled, Window, div,
 };
 use kairo_ui_kit::KairoThemeExt;
 use kairo_ui_kit::tokens::{TextStep, text};
@@ -13,7 +14,7 @@ use kairo_ui_kit::tokens::{TextStep, text};
 pub fn label(text_: impl Into<SharedString>, cx: &App) -> Div {
     let k = cx.kairo();
     div()
-        .mb(px(6.))
+        .mb(rems(0.375))
         .text_size(text::XS.size)
         .font_weight(gpui_kit::FontWeight::MEDIUM)
         .text_color(k.text(TextStep::T300))
@@ -25,25 +26,21 @@ pub fn text_button(
     id: impl Into<ElementId>,
     label_: impl Into<SharedString>,
     color: Hsla,
-    hover: Hsla,
+    _hover: Hsla,
     disabled: bool,
     on_click: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
-) -> impl Styled + IntoElement {
-    let label_ = label_.into();
-    let el = div()
-        .id(id)
-        .test_support()
-        .role(Role::Button)
-        .aria_label(label_.clone())
+) -> Button {
+    Button::new(id)
+        .ghost()
+        .small()
+        .cursor_pointer()
+        .label(label_)
         .text_color(color)
-        .child(label_);
-    if disabled {
-        el.opacity(0.5)
-    } else {
-        el.cursor_pointer()
-            .hover(move |s| s.text_color(hover))
-            .on_click(on_click)
-    }
+        .disabled(disabled)
+        .h_auto()
+        .px_0()
+        .py_0()
+        .on_click(on_click)
 }
 
 /// The error colour (`text-rose-400`).

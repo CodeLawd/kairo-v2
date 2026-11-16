@@ -17,14 +17,7 @@ use kairo_domain::overlay::DisplayInfo;
 use kairo_ui_kit::KairoThemeExt;
 use kairo_ui_kit::tokens::{TextStep, text};
 
-/// Something bound to a display (`DisplayBound`).
-#[derive(Clone, Debug, PartialEq)]
-pub struct DisplayBound {
-    /// Its name, for "used by …".
-    pub name: String,
-    /// Its binding.
-    pub binding: DisplayBinding,
-}
+pub use kairo_domain::displays::DisplayBound;
 
 /// A choice in the picker.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -270,9 +263,9 @@ mod tests {
     }
 
     fn bound(name: &str, id: Option<f64>, label: &str) -> DisplayBound {
-        DisplayBound {
-            name: name.into(),
-            binding: DisplayBinding {
+        DisplayBound::new(
+            name,
+            DisplayBinding {
                 display_id: id,
                 display_label: label.into(),
                 display_size: id.map(|_| Size {
@@ -281,7 +274,7 @@ mod tests {
                     extra: Default::default(),
                 }),
             },
-        }
+        )
     }
 
     #[test]

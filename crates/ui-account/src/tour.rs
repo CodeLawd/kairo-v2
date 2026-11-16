@@ -835,10 +835,13 @@ pub fn render_slide(
     slide: &TourSlide,
     clock: Clock,
     width: f32,
+    offset: f32,
     ob: &OnboardingColors,
     cx: &App,
 ) -> AnyElement {
     let k = cx.kairo();
+    let story = clock;
+    let clock = Clock::still();
     let headline = (width * 0.06).clamp(44.0, 72.0);
     let subhead = (width * 0.026).clamp(22.0, 30.0);
     let narrow = width <= 820.0;
@@ -848,7 +851,7 @@ pub fn render_slide(
         .child(
             clock.ob_in(
                 div()
-                    .text_size(px(headline))
+                    .text_size(gpui_kit::rems(headline / 16.))
                     .line_height(relative(1.0))
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(ob.text)
@@ -861,8 +864,8 @@ pub fn render_slide(
         .child(
             clock.ob_in(
                 div()
-                    .mt(px(10.))
-                    .text_size(px(subhead))
+                    .mt(gpui_kit::rems(0.625))
+                    .text_size(gpui_kit::rems(subhead / 16.))
                     .line_height(relative(1.15))
                     .font_weight(FontWeight::MEDIUM)
                     .text_color(ob.text_deep)
@@ -874,9 +877,9 @@ pub fn render_slide(
         )
         .child(
             v_flex()
-                .mt(px(36.))
-                .gap(px(14.))
-                .text_size(px(17.))
+                .mt(gpui_kit::rems(2.25))
+                .gap(gpui_kit::rems(0.875))
+                .text_size(gpui_kit::rems(1.0625))
                 .text_color(k.text(TextStep::T300))
                 .children(slide.bullets.iter().enumerate().map(|(i, bullet)| {
                     clock
@@ -886,8 +889,8 @@ pub fn render_slide(
                                 .gap_3()
                                 .child(
                                     div()
-                                        .mt(px(9.))
-                                        .size(px(6.))
+                                        .mt(gpui_kit::rems(0.5625))
+                                        .size(gpui_kit::rems(0.375))
                                         .flex_shrink_0()
                                         .rounded_full()
                                         .bg(ob.blue_soft),
@@ -900,18 +903,24 @@ pub fn render_slide(
                         .into_any_element()
                 })),
         );
-    let art = Art { clock, ob, cx };
+    let art = Art {
+        clock: story,
+        ob,
+        cx,
+    };
     h_flex()
         .size_full()
         .items_center()
-        .gap(px(48.))
+        .gap(gpui_kit::rems(3.0))
         .pt(px(if narrow { 32.0 } else { 48.0 }))
         .px(px(if narrow { 28.0 } else { 48.0 }))
-        .pb(px(16.))
+        .pb(gpui_kit::rems(1.0))
         .child(words)
         .when(!narrow, |el| {
             el.child(
                 div()
+                    .relative()
+                    .left(px(offset * -24.))
                     .min_w_0()
                     .flex_basis(relative(6.0 / 11.0))
                     .child(art.for_slide(slide.id)),

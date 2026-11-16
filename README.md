@@ -17,7 +17,13 @@ cargo build --workspace
 cargo run -p kairo
 ```
 
-The bootstrap window displays **Hello, world!**.
+The app uses the hosted Kairo API and web app by default, configured in
+[.cargo/config.toml](.cargo/config.toml). These public URLs are compiled into the
+binary; changing them requires rebuilding. To use local services explicitly:
+
+```sh
+KAIRO_API_URL=http://localhost:3000 KAIRO_WEB_URL=http://localhost:3001 cargo run -p kairo
+```
 
 ## Quality gates
 

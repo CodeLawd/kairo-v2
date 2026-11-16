@@ -6,10 +6,11 @@ use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{Disableable, h_flex, v_flex};
+use gpui_kit::rems;
 use gpui_kit::{
     AppContext, Context, Entity, InteractiveElement, IntoElement, ParentElement, Render, Role,
     SharedString, StatefulInteractiveElement, Styled, Subscription, Window, div,
-    prelude::FluentBuilder, px,
+    prelude::FluentBuilder,
 };
 use kairo_domain::cloud::is_signed_in;
 use kairo_ui_kit::ControlSize;
@@ -146,7 +147,7 @@ impl Render for LicensePanel {
                 .items_center()
                 .text_size(text::SM.size)
                 .text_color(k.text(TextStep::T300))
-                .child(div().size(px(6.)).rounded_full().bg(k.success_text))
+                .child(div().size(rems(0.375)).rounded_full().bg(k.success_text))
                 .child("This computer is activated.")
                 .into_any_element()
         } else {
@@ -208,7 +209,7 @@ impl Render for LicensePanel {
             .test_support()
             .role(Role::Group)
             .aria_label("Activation")
-            .gap(if self.bare { px(8.) } else { px(12.) })
+            .gap(if self.bare { rems(0.5) } else { rems(0.75) })
             .when(!self.bare, |el| {
                 el.rounded(radius::lg()).bg(k.surface_tertiary).p_4().child(
                     div()

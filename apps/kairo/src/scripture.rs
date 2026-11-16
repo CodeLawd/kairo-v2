@@ -54,9 +54,14 @@ fn card_background(
     outputs: &[kairo_domain::overlay::OverlayOutput],
 ) -> ui_scripture::backend::CardBackground {
     use kairo_domain::overlay::{OverlayBackgroundType, OverlayContentKind};
-    let Some(output) = kairo_domain::overlay_outputs::primary_rendered_output(outputs)
-        .or_else(|| outputs.iter().find(|o| o.enabled))
-        .or(outputs.first())
+    // The first enabled output in list order: the Live monitor's default,
+    // so cards show what the preview shows.
+    let ordered = kairo_domain::overlay_outputs::preview_outputs(outputs);
+    let Some(output) = ordered
+        .iter()
+        .copied()
+        .find(|o| o.enabled && kairo_domain::overlay_outputs::is_rendered_kind(o.kind))
+        .or_else(|| ordered.first().copied())
     else {
         return Default::default();
     };

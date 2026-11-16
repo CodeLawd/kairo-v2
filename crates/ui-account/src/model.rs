@@ -56,10 +56,14 @@ pub enum AccountChanged {
 pub struct Account {
     backend: Arc<dyn AccountBackend>,
     session: SessionSnapshot,
+    session_revision: u64,
+    identity_revision: u64,
     pairing: DevicePairingState,
     license: Option<LicenseSnapshot>,
     onboarding: OnboardingState,
+    reset_revision: u64,
     settings: Option<AppSettings>,
+    settings_revision: u64,
     displays: Vec<DisplayInfo>,
     local_zone: String,
 }
@@ -73,10 +77,14 @@ impl Account {
         Self {
             backend,
             session: signed_out(),
+            session_revision: 0,
+            identity_revision: 0,
             pairing: idle_pairing(),
             license: None,
             onboarding: OnboardingState::default(),
+            reset_revision: 0,
             settings: None,
+            settings_revision: 0,
             displays: Vec::new(),
             local_zone: local_zone.into(),
         }
@@ -90,6 +98,10 @@ impl Account {
     pub fn session(&self) -> &SessionSnapshot {
         &self.session
     }
+    /// Generation used to reject async replies from an older session.
+    pub fn session_revision(&self) -> u64 {
+        self.session_revision
+    }
     /// Browser pairing.
     pub fn pairing(&self) -> &DevicePairingState {
         &self.pairing
@@ -101,6 +113,10 @@ impl Account {
     /// Setup progress.
     pub fn onboarding(&self) -> &OnboardingState {
         &self.onboarding
+    }
+    /// Generation of settings snapshots, used by async setup saves.
+    pub fn settings_revision(&self) -> u64 {
+        self.settings_revision
     }
     /// Settings, once startup delivered them.
     pub fn settings(&self) -> Option<&AppSettings> {
@@ -118,7 +134,16 @@ impl Account {
     /// `setSession`.
     pub fn set_session(&mut self, session: SessionSnapshot, cx: &mut Context<Self>) {
         if self.session != session {
+            let previous = self.session.user.as_ref().map(|u| u.id.as_str());
+            let next = session.user.as_ref().map(|u| u.id.as_str());
+            if (previous.is_some() && previous != next)
+                || (kairo_domain::cloud::can_enter_app(&self.session)
+                    && !kairo_domain::cloud::can_enter_app(&session))
+            {
+                self.identity_revision = self.identity_revision.wrapping_add(1);
+            }
             self.session = session;
+            self.session_revision = self.session_revision.wrapping_add(1);
             cx.emit(AccountChanged::Session);
             cx.notify();
         }
@@ -139,9 +164,17 @@ impl Account {
             cx.notify();
         }
     }
+    /// Session and explicit progress-reset generation for setup effects.
+    pub fn write_epoch(&self) -> (u64, u64) {
+        (self.identity_revision, self.reset_revision)
+    }
+
     /// `setOnboarding`.
     pub fn set_onboarding(&mut self, state: OnboardingState, cx: &mut Context<Self>) {
         if self.onboarding != state {
+            if state == kairo_domain::cloud::reset_onboarding(&self.onboarding) {
+                self.reset_revision = self.reset_revision.wrapping_add(1);
+            }
             self.onboarding = state;
             cx.emit(AccountChanged::Onboarding);
             cx.notify();
@@ -151,6 +184,7 @@ impl Account {
     pub fn set_settings(&mut self, settings: AppSettings, cx: &mut Context<Self>) {
         if self.settings.as_ref() != Some(&settings) {
             self.settings = Some(settings);
+            self.settings_revision = self.settings_revision.wrapping_add(1);
             cx.emit(AccountChanged::Settings);
             cx.notify();
         }
@@ -163,6 +197,7 @@ impl Account {
     ) {
         if let Some(settings) = self.settings.as_mut() {
             update(settings);
+            self.settings_revision = self.settings_revision.wrapping_add(1);
             cx.emit(AccountChanged::Settings);
             cx.notify();
         }

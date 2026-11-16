@@ -851,6 +851,7 @@ impl ThemeInspector {
             col = col.child(self.adjustments(
                 "bg",
                 Adjustments::of_background(theme),
+                Adjustments::of_background,
                 |t, a| {
                     let mut n = t.clone();
                     let bg = &mut n.background;
@@ -904,12 +905,14 @@ impl ThemeInspector {
         &mut self,
         scope: &str,
         a: Adjustments,
+        get: impl Fn(&OverlayTheme) -> Adjustments + 'static,
         set: impl Fn(&OverlayTheme, Adjustments) -> OverlayTheme + 'static,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let k = *cx.kairo();
         let set = Rc::new(set);
+        let get = Rc::new(get);
         let this = cx.entity();
         let reset = {
             let set = set.clone();
@@ -978,8 +981,7 @@ impl ThemeInspector {
                 .children(reset),
         );
         for (name, label, value, range, shown, pick) in rows {
-            let set = set.clone();
-            let current = a;
+            let (set, get) = (set.clone(), get.clone());
             let _ = k;
             col = col.child(self.slider(
                 &format!("{scope}.{name}"),
@@ -987,8 +989,10 @@ impl ThemeInspector {
                 value,
                 range,
                 shown,
+                // Start from the theme as it is now, not as it was when this
+                // slider was first drawn: other sliders may have moved since.
                 move |t, v| {
-                    let mut next = current;
+                    let mut next = get(t);
                     pick(&mut next, v);
                     set(t, next)
                 },
@@ -2497,9 +2501,17 @@ impl ThemeInspector {
 
         if media {
             let aid = id.clone();
+            let live = id.clone();
+            // Per element, so another element's sliders never edit this one.
             col = col.child(self.adjustments(
-                "element",
+                &format!("element.{id}"),
                 Adjustments::of_element(el),
+                move |t| {
+                    t.elements
+                        .iter()
+                        .find(|e| e.id == live)
+                        .map_or(panels::NEUTRAL, Adjustments::of_element)
+                },
                 move |t, a| {
                     element_edit(t, &aid, |e| {
                         e.hue = a.hue;

@@ -71,8 +71,24 @@ pub fn valid_license_lease(
     feature: Option<LicensedFeature>,
     now: f64,
 ) -> bool {
-    let (Some(lease), Some(key)) = (lease, trusted_key.and_then(parse_public_key)) else {
-        return false;
+    lease_problem(lease, trusted_key, org_id, device_id, feature, now).is_none()
+}
+
+/// The first rule `lease` breaks, named for logs. `None` when it verifies.
+/// Every rejection reads the same in the UI, so support needs the reason.
+fn lease_problem(
+    lease: Option<&SignedLicenseLease>,
+    trusted_key: Option<&str>,
+    org_id: &str,
+    device_id: &str,
+    feature: Option<LicensedFeature>,
+    now: f64,
+) -> Option<&'static str> {
+    let Some(lease) = lease else {
+        return Some("no lease");
+    };
+    let Some(key) = trusted_key.and_then(parse_public_key) else {
+        return Some("no usable public key");
     };
     // The received text is the source of truth when there is one; a typed
     // view that no longer matches it was edited after receipt.
@@ -80,42 +96,64 @@ pub fn valid_license_lease(
         Some(raw) => {
             let received = serde_json::from_str::<kairo_domain::cloud::LicenseLeaseClaims>(raw);
             if received.ok().as_ref() != Some(&lease.claims) {
-                return false;
+                return Some("claims changed after receipt");
             }
             js_stringify(raw)
         }
         None => to_js_string(&lease.claims).ok(),
     };
     let claims = &lease.claims;
-    if org_id.is_empty()
-        || device_id.is_empty()
-        || claims.org_id != org_id
-        || claims.device_id != device_id
-        || ![
-            claims.issued_at,
-            claims.refresh_after,
-            claims.expires_at,
-            now,
-        ]
-        .into_iter()
-        .all(f64::is_finite)
-        || claims.issued_at > now + CLOCK_TOLERANCE
-        || claims.expires_at <= now
-        || claims.expires_at <= claims.issued_at
-        || claims.expires_at - claims.issued_at > MAX_GRACE
-        || claims.license_expires_at.is_some_and(|expiry| {
-            !expiry.is_finite() || expiry <= now || claims.expires_at > expiry
-        })
-        || feature.is_some_and(|feature| !claims.features.contains(&feature))
+    if org_id.is_empty() || device_id.is_empty() {
+        return Some("signed in without an organisation or device id");
+    }
+    if claims.org_id != org_id {
+        return Some("lease is for another organisation");
+    }
+    if claims.device_id != device_id {
+        return Some("lease is for another device");
+    }
+    if ![
+        claims.issued_at,
+        claims.refresh_after,
+        claims.expires_at,
+        now,
+    ]
+    .into_iter()
+    .all(f64::is_finite)
     {
-        return false;
+        return Some("lease times are not finite");
+    }
+    if claims.issued_at > now + CLOCK_TOLERANCE {
+        return Some("lease issued in the future (clock skew)");
+    }
+    if claims.expires_at <= now {
+        return Some("lease expired");
+    }
+    if claims.expires_at <= claims.issued_at {
+        return Some("lease expires before it was issued");
+    }
+    if claims.expires_at - claims.issued_at > MAX_GRACE {
+        return Some("lease is longer than the grace ceiling");
+    }
+    if claims
+        .license_expires_at
+        .is_some_and(|expiry| !expiry.is_finite() || expiry <= now || claims.expires_at > expiry)
+    {
+        return Some("licence expired, or shorter than the lease");
+    }
+    if feature.is_some_and(|feature| !claims.features.contains(&feature)) {
+        return Some("feature is not licensed");
     }
     let (Some(payload), Ok(signature)) = (payload, STANDARD.decode(&lease.signature)) else {
-        return false;
+        return Some("signature is not decodable");
     };
-    UnparsedPublicKey::new(&ED25519, key)
+    if UnparsedPublicKey::new(&ED25519, key)
         .verify(payload.as_bytes(), &signature)
-        .is_ok()
+        .is_err()
+    {
+        return Some("signature does not match the claims");
+    }
+    None
 }
 
 /// A JSON value with object keys in the order they arrived, as `JSON.parse`
@@ -708,7 +746,7 @@ impl LicensingService {
                     .as_ref()
                     .map(|lease| lease.public_key.as_str())
             });
-            if !valid_license_lease(
+            if let Some(problem) = lease_problem(
                 snapshot.lease.as_ref(),
                 key,
                 &context.org_id,
@@ -716,6 +754,15 @@ impl LicensingService {
                 None,
                 now,
             ) {
+                let lease = snapshot.lease.as_ref().map(|lease| &lease.claims);
+                tracing::warn!(
+                    problem,
+                    org = context.org_id.as_str(),
+                    device = self.0.session.device_id(),
+                    lease_org = lease.map(|c| c.org_id.as_str()).unwrap_or(""),
+                    lease_device = lease.map(|c| c.device_id.as_str()).unwrap_or(""),
+                    "[Licence] activation lease rejected"
+                );
                 return Err(ApiError::new("The activation lease could not be verified."));
             }
             if state.trusted_key.is_none()

@@ -4,9 +4,11 @@
 use crate::model::Account;
 use crate::style::{self, encode_uri_component};
 use gpui_kit::base::TestSupportExt;
+use gpui_kit::component::Sizable;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{Disableable, h_flex, v_flex};
+use gpui_kit::rems;
 use gpui_kit::{
     AppContext, Context, Entity, EventEmitter, InteractiveElement, IntoElement, ParentElement,
     Render, Role, SharedString, StatefulInteractiveElement, Styled, Subscription, Window, div,
@@ -80,6 +82,7 @@ pub struct AuthPanel {
     busy: bool,
     /// The synchronous single-flight gate (`createSingleFlight`).
     in_flight: bool,
+    resetting: bool,
     error: Option<SharedString>,
     notice: Option<SharedString>,
     _subscriptions: Vec<Subscription>,
@@ -116,6 +119,7 @@ impl AuthPanel {
             password,
             busy: false,
             in_flight: false,
+            resetting: false,
             error: None,
             notice: None,
             _subscriptions: subscriptions,
@@ -215,6 +219,9 @@ impl AuthPanel {
     }
 
     fn reset_password(&mut self, cx: &mut Context<Self>) {
+        if self.resetting || self.busy {
+            return;
+        }
         let email = self.value(&self.email, cx).trim().to_owned();
         if email.is_empty() {
             self.error = Some("Enter your email address first".into());
@@ -222,6 +229,8 @@ impl AuthPanel {
             cx.notify();
             return;
         }
+        self.resetting = true;
+        cx.notify();
         let request = self
             .account
             .read(cx)
@@ -232,6 +241,7 @@ impl AuthPanel {
             // Deliberately unconditional: the API will not say whether the
             // address is registered, and neither does this.
             let _ = this.update(cx, |this, cx| {
+                this.resetting = false;
                 this.error = None;
                 this.notice =
                     Some("If that address has an account, a reset link is on its way.".into());
@@ -397,8 +407,23 @@ impl Render for AuthPanel {
             .child(
                 Button::new(ids::GOOGLE)
                     .cursor_pointer()
-                    .child(kairo_ui_kit::brand::google_logo(cx))
-                    .label("Continue with Google")
+                    .w_full()
+                    .large()
+                    .outline()
+                    .accessibility_label("Continue with Google")
+                    .loading(busy)
+                    .loading_icon(gpui_kit::component::IconName::Loader)
+                    .when(busy, |button| {
+                        button.icon(gpui_kit::component::IconName::Loader)
+                    })
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .justify_center()
+                            .gap_3()
+                            .when(!busy, |row| row.child(kairo_ui_kit::brand::google_logo(cx)))
+                            .child("Continue with Google"),
+                    )
                     .disabled(busy)
                     .on_click(cx.listener(|this, _, _, cx| this.pair_in_browser(cx))),
             )
@@ -432,7 +457,7 @@ impl Render for AuthPanel {
                 v_flex()
                     .child(
                         h_flex()
-                            .mb(px(6.))
+                            .mb(rems(0.375))
                             .items_baseline()
                             .justify_between()
                             .gap_3()
@@ -443,7 +468,7 @@ impl Render for AuthPanel {
                                     "Forgot password",
                                     k.text(TextStep::T500),
                                     k.text(TextStep::T300),
-                                    busy,
+                                    busy || self.resetting,
                                     cx.listener(|this, _, _, cx| this.reset_password(cx)),
                                 )))
                             }),
@@ -462,7 +487,7 @@ impl Render for AuthPanel {
                     .id(ids::MESSAGE)
                     .test_support()
                     .role(Role::Status)
-                    .min_h(px(16.))
+                    .min_h(rems(1.))
                     .text_size(text::XS.size)
                     .when_some(message, |el, (message, color)| {
                         el.aria_label(message.clone())
@@ -474,15 +499,22 @@ impl Render for AuthPanel {
                 Button::new(ids::SUBMIT)
                     .cursor_pointer()
                     .primary()
+                    .large()
                     .loading(busy)
+                    .loading_icon(gpui_kit::component::IconName::Loader)
+                    .when(busy, |button| {
+                        button.icon(gpui_kit::component::IconName::Loader)
+                    })
                     .disabled(busy)
                     .label(if sign_up { "Create account" } else { "Sign in" })
                     .on_click(cx.listener(|this, _, _, cx| this.submit(cx))),
             )
             .child(
                 h_flex()
+                    .w_full()
+                    .justify_center()
                     .gap_1()
-                    .pt(px(2.))
+                    .pt(rems(0.125))
                     .text_size(text::XS.size)
                     .text_color(k.text(TextStep::T500))
                     .child(if sign_up {

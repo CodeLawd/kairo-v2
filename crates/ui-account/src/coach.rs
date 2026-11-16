@@ -175,10 +175,15 @@ impl EventEmitter<CoachDone> for CoachTour {}
 impl CoachTour {
     /// A tour of `steps`.
     pub fn new(steps: &'static [CoachStep]) -> Self {
+        Self::at(steps, Instant::now())
+    }
+
+    /// Creates a tour using the caller’s clock.
+    pub fn at(steps: &'static [CoachStep], now: Instant) -> Self {
         Self {
             steps,
             index: 0,
-            step_at: Instant::now(),
+            step_at: now,
             card_height: 140.0,
             give_up: None,
         }
@@ -195,7 +200,7 @@ impl CoachTour {
             cx.emit(CoachDone);
         } else {
             self.index += 1;
-            self.step_at = Instant::now();
+            self.step_at = cx.background_executor().now();
             self.give_up = None;
             cx.notify();
         }
@@ -210,12 +215,20 @@ impl Render for CoachTour {
         };
         let found = cx.try_global::<Anchors>().and_then(|a| a.get(step.target));
         let Some(rect) = found else {
-            if self.step_at.elapsed() > GIVE_UP {
+            if cx
+                .background_executor()
+                .now()
+                .saturating_duration_since(self.step_at)
+                > GIVE_UP
+            {
                 let entity = cx.entity();
                 window.defer(cx, move |_, cx| entity.update(cx, |this, cx| this.next(cx)));
             } else if self.give_up.is_none() {
-                let wait =
-                    GIVE_UP.saturating_sub(self.step_at.elapsed()) + Duration::from_millis(16);
+                let wait = GIVE_UP.saturating_sub(
+                    cx.background_executor()
+                        .now()
+                        .saturating_duration_since(self.step_at),
+                ) + Duration::from_millis(16);
                 self.give_up = Some(cx.spawn(async move |this, cx| {
                     cx.background_executor().timer(wait).await;
                     let _ = this.update(cx, |_, cx| cx.notify());

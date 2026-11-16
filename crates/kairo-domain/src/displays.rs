@@ -210,3 +210,22 @@ pub fn test_pattern_layout(
         bounds,
     }
 }
+
+/// Something bound to a display (`DisplayBound`).
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct DisplayBound {
+    /// Its name, for "used by …".
+    pub name: String,
+    /// Its binding.
+    pub binding: DisplayBinding,
+}
+
+impl DisplayBound {
+    pub fn new(name: impl Into<String>, binding: DisplayBinding) -> Self {
+        Self {
+            name: name.into(),
+            binding,
+        }
+    }
+}

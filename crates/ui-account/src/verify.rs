@@ -4,10 +4,11 @@
 use crate::model::Account;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::v_flex;
+use gpui_kit::rems;
 use gpui_kit::{
     AppContext, Context, Entity, Focusable, InteractiveElement, IntoElement, ParentElement, Render,
     Role, SharedString, StatefulInteractiveElement, Styled, Subscription, Window, div,
-    prelude::FluentBuilder, px,
+    prelude::FluentBuilder,
 };
 use kairo_ui_kit::KairoThemeExt;
 use kairo_ui_kit::components::code_field::{CodeField, CodeFieldEvent};
@@ -213,7 +214,7 @@ impl Render for VerifyEmail {
                     .test_support()
                     .role(Role::Status)
                     .aria_label(SharedString::from(status.clone()))
-                    .min_h(px(18.))
+                    .min_h(rems(1.125))
                     .flex()
                     .flex_wrap()
                     .gap_1()

@@ -22,10 +22,6 @@ pub struct Clock {
     pub still: bool,
 }
 
-/// How long after appearing anything in setup still moves, apart from the
-/// loops (caret, countdown).
-pub const SETTLE_MS: f32 = 3_200.0;
-
 impl Clock {
     /// A clock at rest.
     pub fn still() -> Self {
@@ -104,11 +100,6 @@ impl Clock {
             from - ((self.t / 1000.0).floor() as u32 % (from + 1))
         };
         format!("{:02}:{:02}", left / 60, left % 60)
-    }
-
-    /// Whether anything is still settling.
-    pub fn settling(&self) -> bool {
-        !self.still && self.t < SETTLE_MS
     }
 }
 
