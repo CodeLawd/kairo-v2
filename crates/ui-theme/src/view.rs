@@ -642,39 +642,48 @@ pub(crate) fn slide_picture(
     for el in theme.elements.iter().filter(|e| !e.above_text) {
         slide = slide.child(element(el));
     }
-    let text_box = |style: &kairo_domain::overlay::OverlayTextStyle, words: String| {
-        let color = css(&style.color, style.color_opacity).unwrap_or(k.text_primary);
-        let family = style
-            .font_family
-            .split(',')
-            .next()
-            .unwrap_or("")
-            .trim()
-            .trim_matches(['\'', '"'])
-            .to_owned();
-        let size = (style.font_size_px * f64::from(scale)).max(2.0) as f32;
-        place(&style.frame)
-            .overflow_hidden()
-            .flex()
-            .flex_col()
-            .when(style.vertical_align == OverlayVerticalAlign::Middle, |d| {
-                d.justify_center()
-            })
-            .when(style.vertical_align == OverlayVerticalAlign::Bottom, |d| {
-                d.justify_end()
-            })
-            .when(style.align == OverlayTextAlign::Center, |d| d.text_center())
-            .when(style.align == OverlayTextAlign::Right, |d| d.text_right())
-            .text_color(color)
-            .text_size(px(size))
-            .when(!family.is_empty(), |d| d.font_family(family))
-            .font_weight(FontWeight(style.font_weight as f32))
-            .line_height(relative(style.line_height.max(1.0) as f32))
-            .child(words)
-    };
-    slide = slide.child(text_box(&theme.verse, sample.text.clone()));
+    // The sizes the output draws at (auto-fit included), from the engine's
+    // own layout, so "fit to box" shows here as on the canvas.
+    let (verse_px, reference_px) = fitted_sizes(theme, &sample.reference, &sample.text);
+    let text_box =
+        |style: &kairo_domain::overlay::OverlayTextStyle, words: String, fitted: Option<f32>| {
+            let color = css(&style.color, style.color_opacity).unwrap_or(k.text_primary);
+            let family = style
+                .font_family
+                .split(',')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_matches(['\'', '"'])
+                .to_owned();
+            let size =
+                (fitted.map_or(style.font_size_px, f64::from) * f64::from(scale)).max(2.0) as f32;
+            place(&style.frame)
+                .overflow_hidden()
+                .flex()
+                .flex_col()
+                .when(style.vertical_align == OverlayVerticalAlign::Middle, |d| {
+                    d.justify_center()
+                })
+                .when(style.vertical_align == OverlayVerticalAlign::Bottom, |d| {
+                    d.justify_end()
+                })
+                .when(style.align == OverlayTextAlign::Center, |d| d.text_center())
+                .when(style.align == OverlayTextAlign::Right, |d| d.text_right())
+                .text_color(color)
+                .text_size(px(size))
+                .when(!family.is_empty(), |d| d.font_family(family))
+                .font_weight(FontWeight(style.font_weight as f32))
+                .line_height(relative(style.line_height.max(1.0) as f32))
+                .child(words)
+        };
+    slide = slide.child(text_box(&theme.verse, sample.text.clone(), verse_px));
     if theme.reference.show {
-        slide = slide.child(text_box(&theme.reference.text, sample.reference.clone()));
+        slide = slide.child(text_box(
+            &theme.reference.text,
+            sample.reference.clone(),
+            reference_px,
+        ));
     }
     for el in theme.elements.iter().filter(|e| e.above_text) {
         slide = slide.child(element(el));
@@ -1642,4 +1651,36 @@ impl ThemeEditor {
             }))
             .into_any_element()
     }
+}
+
+/// The verse and reference sizes the output uses at 1920 × 1080 for this
+/// theme and sample, from `kairo_scene`'s layout; cached, since shaping is
+/// too slow to repeat for every thumbnail on every frame.
+fn fitted_sizes(theme: &OverlayTheme, reference: &str, text: &str) -> (Option<f32>, Option<f32>) {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    type Sizes = (Option<f32>, Option<f32>);
+    thread_local! {
+        static SIZES: RefCell<HashMap<u64, Sizes>> = RefCell::new(HashMap::new());
+    }
+    let scene = kairo_scene::SlideScene::build(theme, reference, text, (1920, 1080), &[]);
+    let key = scene.content_hash();
+    if let Some(hit) = SIZES.with(|s| s.borrow().get(&key).copied()) {
+        return hit;
+    }
+    let mut sizes = (None, None);
+    for b in kairo_scene::analyse(&scene) {
+        match b.kind {
+            kairo_scene::BoxKind::Verse => sizes.0 = Some(b.size),
+            kairo_scene::BoxKind::Reference => sizes.1 = Some(b.size),
+        }
+    }
+    SIZES.with(|s| {
+        let mut s = s.borrow_mut();
+        if s.len() > 1024 {
+            s.clear();
+        }
+        s.insert(key, sizes);
+    });
+    sizes
 }
