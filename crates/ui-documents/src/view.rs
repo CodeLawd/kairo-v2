@@ -89,6 +89,12 @@ pub mod ids {
     pub const RENAME: &str = "documents-rename";
     pub const PREVIEW: &str = "documents-preview";
     pub const PREVIEW_ONLY: &str = "documents-preview-only";
+    /// The library chooser before an import.
+    pub const IMPORT_LIBRARY: &str = "documents-import-library";
+    /// Its Choose file.
+    pub const IMPORT_LIBRARY_GO: &str = "documents-import-library-go";
+    /// Its Cancel.
+    pub const IMPORT_LIBRARY_CANCEL: &str = "documents-import-library-cancel";
     pub const PUSH_FOR_VIDEO: &str = "documents-push-for-video";
     pub const IMPORT_DIALOG: &str = "documents-import-dialog";
     pub const IMPORT_LINE: &str = "documents-import-line";
@@ -253,6 +259,10 @@ pub struct DocumentsPage {
     canceling: bool,
     cancel_flag: Option<Arc<AtomicBool>>,
     retry_kind: Option<ImportKind>,
+    /// The library chooser shown before the file picker, with its picker kind.
+    import_choice: Option<(Option<ImportKind>, String)>,
+    /// The library an import in progress lands in.
+    import_library: Option<String>,
     converter_prompt: Option<ConverterPrompt>,
     converter: Option<SlideConverterStatus>,
     live: Option<(String, usize)>,
@@ -360,6 +370,8 @@ impl DocumentsPage {
             loaded: false,
             libraries: snapshot.libraries,
             active_library: DEFAULT_LIBRARY_ID.into(),
+            import_choice: None,
+            import_library: None,
             library,
             library_rows: Vec::new(),
             selected: None,
@@ -532,7 +544,7 @@ impl DocumentsPage {
             DocumentsFeed::Shortcuts(bindings) => self.shortcuts = bindings,
             DocumentsFeed::Import(kind) => {
                 if !self.busy {
-                    self.import(Some(kind), DocumentPrepareOptions::default(), cx);
+                    self.ask_import(Some(kind), cx);
                 }
             }
             DocumentsFeed::Converter(status) => self.set_converter(status, cx),
@@ -1264,6 +1276,42 @@ impl DocumentsPage {
 
     // ─── Import ────────────────────────────────────────────────────────────
 
+    /// Import, first asking which library the slides go into when there are
+    /// libraries to choose from (owner, 2026-11-16).
+    pub fn ask_import(&mut self, kind: Option<ImportKind>, cx: &mut Context<Self>) {
+        if self.busy {
+            return;
+        }
+        if self.libraries.libraries.is_empty() {
+            self.import_library = None;
+            self.import(kind, DocumentPrepareOptions::default(), cx);
+            return;
+        }
+        self.import_choice = Some((kind, self.active_library.clone()));
+        cx.notify();
+    }
+
+    /// Picks the library in the chooser.
+    pub fn choose_import_library(&mut self, id: String, cx: &mut Context<Self>) {
+        if let Some((_, target)) = self.import_choice.as_mut() {
+            *target = id;
+            cx.notify();
+        }
+    }
+
+    /// The chooser's Choose file: open the picker for that library.
+    pub fn confirm_import_library(&mut self, cx: &mut Context<Self>) {
+        if let Some((kind, target)) = self.import_choice.take() {
+            self.import_library = (target != DEFAULT_LIBRARY_ID).then_some(target);
+            self.import(kind, DocumentPrepareOptions::default(), cx);
+        }
+    }
+
+    pub fn cancel_import_library(&mut self, cx: &mut Context<Self>) {
+        self.import_choice = None;
+        cx.notify();
+    }
+
     /// No `kind` opens one picker for PDFs and PowerPoints together.
     pub fn import(
         &mut self,
@@ -1355,6 +1403,16 @@ impl DocumentsPage {
             Ok(ImportOutcome::Imported { id, documents }) => {
                 self.import = None;
                 self.set_documents(documents, cx);
+                if let Some(library_id) = self.import_library.take() {
+                    self.library_event(
+                        LibrarySectionEvent::Assign {
+                            item_id: id.clone().into(),
+                            library_id: library_id.into(),
+                            label: SharedString::default(),
+                        },
+                        cx,
+                    );
+                }
                 self.select(Some(id), cx);
             }
             Err(e) => {
@@ -1594,8 +1652,9 @@ impl Render for DocumentsPage {
         }
         self.sync_seek(window, cx);
         let dialogs: Vec<AnyElement> = self
-            .render_import_dialog(cx)
+            .render_library_choice(cx)
             .into_iter()
+            .chain(self.render_import_dialog(cx))
             .chain(self.render_converter_dialog(cx))
             .collect();
         self.dialog_focus.sync(!dialogs.is_empty(), window, cx);
@@ -1774,9 +1833,7 @@ impl DocumentsPage {
                             d.cursor_pointer()
                                 .hover(|s| s.bg(k.surface_elevated))
                                 .on_click(move |_, _, cx| {
-                                    page.update(cx, |p, cx| {
-                                        p.import(None, DocumentPrepareOptions::default(), cx)
-                                    })
+                                    page.update(cx, |p, cx| p.ask_import(None, cx))
                                 })
                         })
                         .when(self.busy, |d| {
@@ -1984,11 +2041,7 @@ impl DocumentsPage {
                     .icon(Icon::new(KairoIcon::Upload))
                     .label("Import slides")
                     .disabled(self.busy)
-                    .on_click(move |_, _, cx| {
-                        page.update(cx, |p, cx| {
-                            p.import(None, DocumentPrepareOptions::default(), cx)
-                        })
-                    }),
+                    .on_click(move |_, _, cx| page.update(cx, |p, cx| p.ask_import(None, cx))),
             )
             .into_any_element()
     }
@@ -2557,6 +2610,137 @@ impl DocumentsPage {
                 .p(px(model::GRID_PAD)),
             )
             .into_any_element()
+    }
+
+    /// Which library an import goes into, before the file picker opens.
+    fn render_library_choice(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let (_, target) = self.import_choice.as_ref()?;
+        let k = *cx.kairo();
+        let mut choices = vec![(DEFAULT_LIBRARY_ID.to_owned(), "All slides".to_owned())];
+        choices.extend(
+            self.libraries
+                .libraries
+                .iter()
+                .map(|l| (l.id.clone(), l.name.clone())),
+        );
+        let rows = choices.into_iter().enumerate().map(|(i, (id, name))| {
+            let chosen = &id == target;
+            let page = cx.entity();
+            h_flex()
+                .id(SharedString::from(format!("documents-import-library-{i}")))
+                .test_support()
+                .role(Role::RadioButton)
+                .aria_label(SharedString::from(name.clone()))
+                .aria_toggled(if chosen {
+                    gpui_kit::Toggled::True
+                } else {
+                    gpui_kit::Toggled::False
+                })
+                .w_full()
+                .gap_3()
+                .px_3()
+                .py_2()
+                .rounded(radius::md())
+                .cursor_pointer()
+                .when(chosen, |r| r.bg(k.white.opacity(0.08)))
+                .when(!chosen, |r| r.hover(|s| s.bg(k.white.opacity(0.05))))
+                .on_click(move |_, _, cx| {
+                    page.update(cx, |p, cx| p.choose_import_library(id.clone(), cx))
+                })
+                .child(
+                    div()
+                        .size(px(14.))
+                        .flex_none()
+                        .rounded_full()
+                        .border_1()
+                        .border_color(if chosen {
+                            k.accent(kairo_ui_kit::tokens::Step::S500)
+                        } else {
+                            k.surface_border
+                        })
+                        .when(chosen, |d| {
+                            d.border_4()
+                                .border_color(k.accent(kairo_ui_kit::tokens::Step::S500))
+                        }),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .truncate()
+                        .text_size(text::SM.size)
+                        .text_color(if chosen {
+                            k.text_primary
+                        } else {
+                            k.text(TextStep::T200)
+                        })
+                        .child(name),
+                )
+        });
+        let (cancel, go) = (cx.entity(), cx.entity());
+        Some(modal(
+            ids::IMPORT_LIBRARY,
+            "Import slides",
+            k,
+            self.dialog_focus.handle(),
+            v_flex()
+                .child(
+                    div()
+                        .text_size(px(17.))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(k.text_primary)
+                        .child("Import slides"),
+                )
+                .child(
+                    div()
+                        .mt_1()
+                        .text_size(px(12.))
+                        .text_color(k.text(TextStep::T500))
+                        .child("Choose the library they go into."),
+                )
+                .child(
+                    v_flex()
+                        .id("documents-import-libraries")
+                        .mt_4()
+                        .gap_0p5()
+                        .max_h(px(260.))
+                        .overflow_y_scroll()
+                        .role(Role::RadioGroup)
+                        .aria_label("Library")
+                        .children(rows),
+                )
+                .child(
+                    v_flex()
+                        .mt_6()
+                        .gap_2()
+                        .child(
+                            Button::new(ids::IMPORT_LIBRARY_GO)
+                                .cursor_pointer()
+                                .primary()
+                                .w_full()
+                                .with_size(gpui_kit::component::Size::Medium)
+                                .h(px(40.))
+                                .label("Choose file")
+                                .on_click(move |_, _, cx| {
+                                    go.update(cx, |p, cx| p.confirm_import_library(cx))
+                                }),
+                        )
+                        .child(
+                            Button::new(ids::IMPORT_LIBRARY_CANCEL)
+                                .cursor_pointer()
+                                .secondary()
+                                .w_full()
+                                .with_size(gpui_kit::component::Size::Medium)
+                                .h(px(40.))
+                                .label("Cancel")
+                                .on_click(move |_, _, cx| {
+                                    cancel.update(cx, |p, cx| p.cancel_import_library(cx))
+                                }),
+                        ),
+                )
+                .into_any_element(),
+            cx,
+        ))
     }
 
     fn render_import_dialog(&self, cx: &mut Context<Self>) -> Option<AnyElement> {

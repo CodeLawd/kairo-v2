@@ -3713,7 +3713,9 @@ impl AudiencePage {
                             .id("engage-dialog-body")
                             .flex_1()
                             .min_h_0()
-                            .overflow_y_scroll()
+                            // A fixed-height dialog scrolls inside its body
+                            // (its nav stays put); others scroll as a whole.
+                            .when(height.is_none(), |d| d.overflow_y_scroll())
                             .px_6()
                             .pb_5()
                             .pt_2()
@@ -4642,6 +4644,7 @@ impl AudiencePage {
         };
         let n = moderators.len();
         let body = h_flex()
+            .h_full()
             .items_start()
             .gap_4()
             .child(
@@ -4681,7 +4684,15 @@ impl AudiencePage {
                         cx,
                     )),
             )
-            .child(div().flex_1().min_w_0().child(pane))
+            .child(
+                div()
+                    .id("engage-settings-pane")
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .overflow_y_scroll()
+                    .child(pane),
+            )
             .into_any_element();
         self.dialog_frame("Settings", 740.0, Some(640.0), body, footer, cx)
     }

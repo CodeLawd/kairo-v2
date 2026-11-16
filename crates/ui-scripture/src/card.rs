@@ -308,30 +308,53 @@ fn css_color(value: &str, opacity: f64) -> Option<gpui_kit::Hsla> {
     Some(gpui_kit::Hsla::from(gpui_kit::rgb(rgb)).opacity(opacity.clamp(0.0, 1.0) as f32))
 }
 
-/// One text box at its theme frame, scaled from 1920 × 1080.
+/// A slide's verse and reference sizes, when shown.
+type Sizes = (Option<f32>, Option<f32>);
+
+/// The verse and reference font sizes the output uses at 1920 × 1080: the
+/// engine's own layout (`kairo_scene::analyse`, with auto-fit), cached per
+/// slide since shaping is too slow to repeat every frame.
+fn output_sizes(theme: &kairo_domain::overlay::OverlayTheme, reference: &str, text: &str) -> Sizes {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+    thread_local! {
+        static SIZES: RefCell<HashMap<u64, Sizes>> =
+            RefCell::new(HashMap::new());
+    }
+    let scene = kairo_scene::SlideScene::build(theme, reference, text, (1920, 1080), &[]);
+    let key = scene.content_hash();
+    if let Some(hit) = SIZES.with(|s| s.borrow().get(&key).copied()) {
+        return hit;
+    }
+    let mut sizes = (None, None);
+    for b in kairo_scene::analyse(&scene) {
+        match b.kind {
+            kairo_scene::BoxKind::Verse => sizes.0 = Some(b.size),
+            kairo_scene::BoxKind::Reference => sizes.1 = Some(b.size),
+        }
+    }
+    SIZES.with(|s| {
+        let mut s = s.borrow_mut();
+        if s.len() > 4096 {
+            s.clear();
+        }
+        s.insert(key, sizes);
+    });
+    sizes
+}
+
+/// One text box at its theme frame, scaled from 1920 × 1080; `output_px` is
+/// the size the output draws it at.
 fn text_box(
     style: &kairo_domain::overlay::OverlayTextStyle,
     text: SharedString,
     scale: f32,
-    fit: bool,
+    output_px: Option<f32>,
 ) -> gpui_kit::Div {
     use kairo_domain::overlay::{OverlayTextAlign, OverlayVerticalAlign};
     let frame = &style.frame;
-    let mut size = (style.font_size_px as f32 * scale).max(4.0);
+    let size = (output_px.unwrap_or(style.font_size_px as f32) * scale).max(4.0);
     let line = style.line_height.max(0.8) as f32;
-    if fit {
-        // `autoFitText`: shrink until the text fits its frame, by estimate
-        // (an average glyph is about half the font size wide).
-        let (w, h) = (
-            (frame.width_pct / 100.0) as f32 * 1920.0 * scale,
-            (frame.height_pct / 100.0) as f32 * 1080.0 * scale,
-        );
-        let chars = text.chars().count() as f32;
-        let needed = |s: f32| (chars * s * 0.5 / w.max(1.0)).ceil() * s * line;
-        while size > 4.0 && needed(size) > h {
-            size *= 0.92;
-        }
-    }
     let color = css_color(&style.color, style.color_opacity).unwrap_or(gpui_kit::white());
     div()
         .absolute()
@@ -384,17 +407,18 @@ fn themed_text(
     height: Pixels,
 ) -> gpui_kit::AnyElement {
     let scale = (f32::from(width) / 1920.0).min(f32::from(height) / 1080.0);
+    let (verse_px, reference_px) = output_sizes(theme, &reference, &text);
     div()
         .absolute()
         .size_full()
-        .child(text_box(
-            &theme.verse,
-            text,
-            scale,
-            theme.layout.auto_fit_text,
-        ))
+        .child(text_box(&theme.verse, text, scale, verse_px))
         .when(theme.reference.show, |d| {
-            d.child(text_box(&theme.reference.text, reference, scale, false))
+            d.child(text_box(
+                &theme.reference.text,
+                reference,
+                scale,
+                reference_px,
+            ))
         })
         .into_any_element()
 }

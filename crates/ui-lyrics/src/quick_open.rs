@@ -51,8 +51,8 @@ pub mod ids {
     }
 }
 
-const ROW_HEIGHT: f32 = 32.;
-const ROW_TALL: f32 = 46.;
+const ROW_HEIGHT: f32 = 40.;
+const ROW_TALL: f32 = 54.;
 const WEB_HEADER: f32 = 28.;
 
 /// A row of the result list: a song in the library, or a web hit.
@@ -538,12 +538,31 @@ impl QuickOpen {
                     .test_support()
                     .role(Role::Button)
                     .aria_label(SharedString::from(title.clone()))
+                    .relative()
                     .w_full()
                     .flex_1()
-                    .gap_2p5()
-                    .px_2()
+                    .gap_3()
+                    .px_3()
                     .rounded(radius::md())
-                    .map(|d| if active { d.bg(k.row_selected()) } else { d })
+                    .cursor_pointer()
+                    // A clear selection: accent fill and bar, not a faint tint.
+                    .map(|d| {
+                        if active {
+                            d.bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.28))
+                                .child(
+                                    div()
+                                        .absolute()
+                                        .left_0()
+                                        .top(px(6.))
+                                        .bottom(px(6.))
+                                        .w(px(3.))
+                                        .rounded_full()
+                                        .bg(k.accent(kairo_ui_kit::tokens::Step::S400)),
+                                )
+                        } else {
+                            d.hover(|s| s.bg(k.white.opacity(0.05)))
+                        }
+                    })
                     .on_mouse_move(move |_, _, cx| {
                         hover.update(cx, |this, cx| {
                             if this.active != index {
@@ -564,7 +583,11 @@ impl QuickOpen {
                             }
                         })
                     })
-                    .child(Icon::new(icon).size_3().text_color(k.text(TextStep::T500)))
+                    .child(Icon::new(icon).size_3p5().text_color(if active {
+                        k.text_primary
+                    } else {
+                        k.text(TextStep::T400)
+                    }))
                     .child(
                         v_flex()
                             .min_w_0()
@@ -585,7 +608,11 @@ impl QuickOpen {
                                         div()
                                             .truncate()
                                             .text_size(text::LABEL.size)
-                                            .text_color(k.text(TextStep::T500))
+                                            .text_color(if active {
+                                                k.text(TextStep::T200)
+                                            } else {
+                                                k.text(TextStep::T400)
+                                            })
                                             .child(meta),
                                     ),
                             )
@@ -954,9 +981,10 @@ impl Render for QuickOpen {
             .inset_0()
             .flex()
             .justify_center()
-            .items_start()
-            .pt(px(72.))
+            // Centred in the window (owner, 2026-11-16).
+            .items_center()
             .px_4()
+            .py_6()
             .bg(k.scrim())
             .occlude()
             .on_mouse_down(gpui_kit::MouseButton::Left, move |_, _, cx| {
@@ -977,7 +1005,7 @@ impl Render for QuickOpen {
                             .role(Role::Dialog)
                             .aria_label("Search song library")
                             .track_focus(&self.focus)
-                            .w(px(480.))
+                            .w(px(560.))
                             .flex_none()
                             .overflow_hidden()
                             .rounded(radius::xl())
