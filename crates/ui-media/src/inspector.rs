@@ -122,6 +122,8 @@ pub struct Inspector {
     colour_sliders: Vec<Entity<SliderState>>,
     playhead: Entity<SliderState>,
     dimensions: Option<(u32, u32)>,
+    /// Drags the dialog by its header (the shared movable dialog's handle).
+    frame: Entity<kairo_ui_kit::components::modal::MovableDialog>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -257,6 +259,19 @@ impl Inspector {
             colour_sliders,
             playhead,
             dimensions: None,
+            frame: {
+                let frame = cx.new(|cx| {
+                    kairo_ui_kit::components::modal::MovableDialog::new(
+                        "media-inspector-frame",
+                        "Media Inspector",
+                        gpui_kit::size(px(896.), px(800.)),
+                        window,
+                        cx,
+                    )
+                });
+                subs.push(cx.observe(&frame, |_, _, cx| cx.notify()));
+                frame
+            },
             _subscriptions: subs,
         };
         this.looped = this.initial.looped;
@@ -954,137 +969,157 @@ impl Render for Inspector {
             .collect();
         let can_save = self.can_save(cx);
         let (cancel, save, backdrop) = (cx.entity(), cx.entity(), cx.entity());
+        // Window-level, so it centres on the app rather than the media dock
+        // it opens from; the header drags it.
+        let viewport = window.viewport_size();
+        let offset = self.frame.read(cx).offset();
+        let handle = self
+            .frame
+            .update(cx, |f, cx| f.drag_handle("media-inspector-drag", cx));
         deferred(
-            div()
-                .absolute()
-                .inset_0()
-                .flex()
-                .items_center()
-                .justify_center()
-                .bg(k.scrim())
-                .occlude()
-                .on_mouse_down(gpui_kit::MouseButton::Left, move |_, _, cx| {
-                    backdrop.update(cx, |i, cx| i.cancel(cx))
-                })
-                .child(kairo_ui_kit::motion::enter(
-                    v_flex()
-                        .id(ids::DIALOG)
-                        .test_support()
-                        .role(Role::Dialog)
-                        .aria_label("Media Inspector")
-                        .w(px(896.))
-                        .max_h(px(800.))
-                        .overflow_y_scroll()
-                        .rounded(radius::xl())
-                        .border_1()
-                        .border_color(k.surface_border)
-                        .bg(k.surface_elevated)
-                        .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
-                            cx.stop_propagation()
+            gpui_kit::anchored()
+                .position(gpui_kit::point(px(0.), px(0.)))
+                .child(
+                    div()
+                        .w(viewport.width)
+                        .h(viewport.height)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(k.scrim())
+                        .occlude()
+                        .on_mouse_down(gpui_kit::MouseButton::Left, move |_, _, cx| {
+                            backdrop.update(cx, |i, cx| i.cancel(cx))
                         })
-                        .on_key_down(cx.listener(|this, e: &KeyDownEvent, _, cx| {
-                            if e.keystroke.key == "escape" {
-                                this.cancel(cx);
-                                cx.stop_propagation();
-                            }
-                        }))
-                        .child(
+                        .child(kairo_ui_kit::motion::enter(
                             v_flex()
-                                .px_5()
-                                .py_4()
-                                .border_b_1()
-                                .border_color(k.surface_border)
-                                .child(
-                                    div()
-                                        .text_size(text::BASE.size)
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                        .child("Media Inspector"),
-                                )
-                                .child(
-                                    div()
-                                        .truncate()
-                                        .text_size(text::XS.size)
-                                        .text_color(k.text(TextStep::T400))
-                                        .child(self.item.name.clone()),
-                                ),
-                        )
-                        .child(
-                            h_flex()
-                                .items_start()
-                                .gap_5()
-                                .p_5()
-                                .child(div().flex_1().min_w_0().child(self.render_preview(cx)))
-                                .child(
-                                    v_flex()
-                                        .w(px(272.))
-                                        .flex_none()
-                                        .child(
-                                            h_flex()
-                                                .mb_4()
-                                                .gap_1()
-                                                .rounded(radius::md())
-                                                .bg(k.surface_secondary)
-                                                .p_1()
-                                                .children(tabs),
-                                        )
-                                        .child(self.render_panel(cx)),
-                                ),
-                        )
-                        .children(self.error.clone().map(|e| {
-                            div()
-                                .id(ids::ERROR)
+                                .id(ids::DIALOG)
                                 .test_support()
-                                .role(Role::Alert)
-                                .px_5()
-                                .pb_3()
-                                .text_size(text::SM.size)
-                                .text_color(k.danger_text)
-                                .child(e)
-                        }))
-                        .child(
-                            h_flex()
-                                .gap_2()
-                                .px_5()
-                                .py_3()
-                                .border_t_1()
+                                .role(Role::Dialog)
+                                .aria_label("Media Inspector")
+                                .relative()
+                                .left(px(offset.x))
+                                .top(px(offset.y))
+                                .w(px(896.))
+                                .max_w(viewport.width - px(32.))
+                                .max_h((viewport.height - px(40.)).min(px(800.)))
+                                .overflow_y_scroll()
+                                .rounded(radius::xl())
+                                .border_1()
                                 .border_color(k.surface_border)
+                                .bg(k.surface_elevated)
+                                .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
+                                    cx.stop_propagation()
+                                })
+                                .on_key_down(cx.listener(|this, e: &KeyDownEvent, _, cx| {
+                                    if e.keystroke.key == "escape" {
+                                        this.cancel(cx);
+                                        cx.stop_propagation();
+                                    }
+                                }))
                                 .child(
+                                    handle
+                                        .cursor_grab()
+                                        .flex()
+                                        .flex_col()
+                                        .px_5()
+                                        .py_4()
+                                        .border_b_1()
+                                        .border_color(k.surface_border)
+                                        .child(
+                                            div()
+                                                .text_size(text::BASE.size)
+                                                .font_weight(FontWeight::SEMIBOLD)
+                                                .child("Media Inspector"),
+                                        )
+                                        .child(
+                                            div()
+                                                .truncate()
+                                                .text_size(text::XS.size)
+                                                .text_color(k.text(TextStep::T400))
+                                                .child(self.item.name.clone()),
+                                        ),
+                                )
+                                .child(
+                                    h_flex()
+                                        .items_start()
+                                        .gap_5()
+                                        .p_5()
+                                        .child(
+                                            div().flex_1().min_w_0().child(self.render_preview(cx)),
+                                        )
+                                        .child(
+                                            v_flex()
+                                                .w(px(272.))
+                                                .flex_none()
+                                                .child(
+                                                    h_flex()
+                                                        .mb_4()
+                                                        .gap_1()
+                                                        .rounded(radius::md())
+                                                        .bg(k.surface_secondary)
+                                                        .p_1()
+                                                        .children(tabs),
+                                                )
+                                                .child(self.render_panel(cx)),
+                                        ),
+                                )
+                                .children(self.error.clone().map(|e| {
                                     div()
-                                        .mr_auto()
-                                        .text_size(text::XS.size)
-                                        .text_color(k.text(TextStep::T400))
-                                        .child("Applies the next time you cue this item."),
-                                )
+                                        .id(ids::ERROR)
+                                        .test_support()
+                                        .role(Role::Alert)
+                                        .px_5()
+                                        .pb_3()
+                                        .text_size(text::SM.size)
+                                        .text_color(k.danger_text)
+                                        .child(e)
+                                }))
                                 .child(
-                                    Button::new(ids::CANCEL)
-                                        .cursor_pointer()
-                                        .small()
-                                        .label("Cancel")
-                                        .disabled(self.saving)
-                                        .on_click(move |_, _, cx| {
-                                            cancel.update(cx, |i, cx| i.cancel(cx))
-                                        }),
+                                    h_flex()
+                                        .gap_2()
+                                        .px_5()
+                                        .py_3()
+                                        .border_t_1()
+                                        .border_color(k.surface_border)
+                                        .child(
+                                            div()
+                                                .mr_auto()
+                                                .text_size(text::XS.size)
+                                                .text_color(k.text(TextStep::T400))
+                                                .child("Applies the next time you cue this item."),
+                                        )
+                                        .child(
+                                            Button::new(ids::CANCEL)
+                                                .cursor_pointer()
+                                                .small()
+                                                .label("Cancel")
+                                                .disabled(self.saving)
+                                                .on_click(move |_, _, cx| {
+                                                    cancel.update(cx, |i, cx| i.cancel(cx))
+                                                }),
+                                        )
+                                        .child(
+                                            Button::new(ids::SAVE)
+                                                .cursor_pointer()
+                                                .primary()
+                                                .small()
+                                                .label(if self.saving {
+                                                    "Saving…"
+                                                } else {
+                                                    "Save changes"
+                                                })
+                                                .disabled(!can_save || self.saving)
+                                                .on_click(move |_, _, cx| {
+                                                    save.update(cx, |i, cx| i.save(cx))
+                                                }),
+                                        ),
                                 )
-                                .child(
-                                    Button::new(ids::SAVE)
-                                        .cursor_pointer()
-                                        .primary()
-                                        .small()
-                                        .label(if self.saving {
-                                            "Saving…"
-                                        } else {
-                                            "Save changes"
-                                        })
-                                        .disabled(!can_save || self.saving)
-                                        .on_click(move |_, _, cx| {
-                                            save.update(cx, |i, cx| i.save(cx))
-                                        }),
-                                ),
-                        )
-                        .focus_trap(ids::DIALOG, &self.modal_focus),
-                    "media-inspector-enter",
-                    cx,
-                )),
+                                .focus_trap(ids::DIALOG, &self.modal_focus),
+                            "media-inspector-enter",
+                            cx,
+                        )),
+                ),
         )
         .with_priority(2)
     }

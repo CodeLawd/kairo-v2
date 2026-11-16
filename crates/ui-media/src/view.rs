@@ -919,8 +919,8 @@ impl MediaDockView {
                             });
                         }),
                     )
-                    .context_menu(move |menu, _, cx| {
-                        card_menu(menu, &page, &menu_item, &menu_playback, cx)
+                    .context_menu(move |menu, window, cx| {
+                        card_menu(menu, &page, &menu_item, &menu_playback, window, cx)
                     })
                     .child(picture)
                     .when(picked, |d| {
@@ -1365,8 +1365,11 @@ fn card_menu(
     page: &Entity<MediaDockView>,
     item: &MediaItem,
     playback: &MediaPlayback,
+    window: &mut Window,
     cx: &mut Context<PopupMenu>,
 ) -> PopupMenu {
+    // Wider than the Kit default so labels never crowd the icons.
+    let menu = menu.min_w(px(240.));
     let model = page.read(cx).model.clone();
     let m = model.read(cx);
     let playlists = m.library().playlists.clone();
@@ -1436,17 +1439,29 @@ fn card_menu(
         );
     }
     if !playlists.is_empty() {
-        menu = menu.separator().label("Add to playlist");
-        for p in playlists {
-            let (m, item_id, pid) = (model.clone(), id.clone(), p.id.clone());
-            menu = menu.item(
-                PopupMenuItem::new(p.name.clone()).on_click(move |_, _, cx| {
-                    m.update(cx, |m, cx| {
-                        m.add_to_playlist(pid.clone(), item_id.clone(), cx)
-                    })
-                }),
-            );
-        }
+        // One row that opens the playlists beside it, instead of listing
+        // every playlist in this menu.
+        let (m, item_id) = (model.clone(), id.clone());
+        menu = menu.separator().submenu_with_icon(
+            Some(Icon::new(KairoIcon::Plus)),
+            "Add to playlist",
+            window,
+            cx,
+            move |mut sub, _, _| {
+                sub = sub.min_w(px(200.)).max_h(px(320.)).scrollable(true);
+                for p in &playlists {
+                    let (m, item_id, pid) = (m.clone(), item_id.clone(), p.id.clone());
+                    sub = sub.item(
+                        PopupMenuItem::new(p.name.clone()).on_click(move |_, _, cx| {
+                            m.update(cx, |m, cx| {
+                                m.add_to_playlist(pid.clone(), item_id.clone(), cx)
+                            })
+                        }),
+                    );
+                }
+                sub
+            },
+        );
     }
     if in_playlist {
         menu = menu.item(
