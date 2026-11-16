@@ -58,12 +58,20 @@ fn persist(services: &ApplicationServices, op: &Op) -> Result<(), String> {
     let before = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
     apply(&mut settings, op)?;
     let after = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
+    let mut changed = false;
     for key in ["themeLibrary", "themeDefaults", "overlay"] {
         if before[key] != after[key] {
             wiring
                 .set(key, after[key].clone())
                 .map_err(|e| e.to_string())?;
+            changed = true;
         }
+    }
+    // These writes announce nothing (as in Electron, whose pages patch their
+    // own copy), so pages drawing output themes, such as the scripture
+    // cards, hear about the save here.
+    if changed {
+        wiring.broadcast_changed();
     }
     Ok(())
 }

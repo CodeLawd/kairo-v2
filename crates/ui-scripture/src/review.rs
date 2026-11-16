@@ -17,8 +17,7 @@ use gpui_kit::base::TestSupportExt;
 use gpui_kit::base::input::InputEditorStyle;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{
-    EditorState, Input, InputEvent, InputState, RangeDecoration, RangeDecorationCollection,
-    RangeDecorationStyle, TextDecoration, TextDecorationCollection,
+    EditorState, Input, InputEvent, InputState, TextDecoration, TextDecorationCollection,
 };
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::{
@@ -93,6 +92,9 @@ pub fn match_range(text: &str, found: &SermonReferenceMatch) -> Option<Range<usi
     (start < end).then_some(start..end)
 }
 
+/// Where in the notes a reference counts as "the one being read".
+const READING_LINE_RATIO: f32 = 0.28;
+
 /// `normalizedReferenceLabel`: the canonical reference when the notes wrote it
 /// another way (`Mat 18:28` for Matthew 18:28), so the reader can see what
 /// was understood; `None` when the written text already names it.
@@ -152,10 +154,15 @@ pub struct SermonReview {
     notes: Entity<EditorState>,
     search: Entity<InputState>,
     marks: Option<TextDecorationCollection>,
-    /// Frames around references the notes wrote another way.
-    frames: Option<RangeDecorationCollection>,
     /// The reference list, scrolled to the active row.
     list_scroll: ScrollHandle,
+    /// The notes frame in window coordinates, for placing the labels.
+    notes_bounds: std::rc::Rc<std::cell::Cell<gpui_kit::Bounds<gpui_kit::Pixels>>>,
+    /// The caret and scroll last seen, to follow clicks and scrolling.
+    seen_cursor: usize,
+    seen_scroll: gpui_kit::Point<gpui_kit::Pixels>,
+    /// A jump is scrolling the notes: reading-line sync waits until then.
+    jumping_until: Option<std::time::Instant>,
     /// The ranges and active flag last painted (read by tests).
     painted: Vec<(Range<usize>, bool)>,
     analysis: SermonNotesAnalysis,
@@ -210,6 +217,9 @@ impl SermonReview {
         let search =
             cx.new(|cx| InputState::new(window, cx).placeholder("Search detected scripture"));
         let mut subscriptions = Vec::new();
+        // Clicks and scrolling in the notes move no event of their own; the
+        // editor redraws, and the caret and scroll are read from it.
+        subscriptions.push(cx.observe(&notes, |this, _, cx| this.follow_notes(cx)));
         subscriptions.push(cx.subscribe(&notes, |this, _, event: &InputEvent, cx| {
             if matches!(event, InputEvent::Change) {
                 this.edited(cx);
@@ -228,8 +238,11 @@ impl SermonReview {
             notes,
             search,
             marks: None,
-            frames: None,
             list_scroll: ScrollHandle::new(),
+            notes_bounds: Default::default(),
+            seen_cursor: usize::MAX,
+            seen_scroll: Default::default(),
+            jumping_until: None,
             painted: Vec::new(),
             analysis: SermonNotesAnalysis {
                 matches: Vec::new(),
@@ -380,46 +393,58 @@ impl SermonReview {
                 self.marks = Some(marks);
             }
         }
-        // A guessed reference also gets a frame (Electron's `→ Matthew 18:28`
-        // chip; the editor cannot place text inline).
-        let frames: Vec<RangeDecoration> = self
+    }
+
+    /// Keeps the list with the notes: a click on a reference selects it,
+    /// and scrolling selects the reference at the reading line
+    /// (`READING_LINE_RATIO`), as Electron does.
+    fn follow_notes(&mut self, cx: &mut Context<Self>) {
+        let (cursor, scroll) = {
+            let notes = self.notes.read(cx);
+            (notes.cursor(), notes.scroll_offset())
+        };
+        let text = self.text(cx);
+        let ranges: Vec<(usize, Range<usize>)> = self
             .analysis
             .matches
             .iter()
-            .filter(|m| guessed_label(m).is_some())
-            .filter_map(|m| match_range(&text, m))
-            .map(|r| {
-                RangeDecoration::new(r)
-                    .with_style(RangeDecorationStyle::Frame)
-                    .with_color(k.accent(kairo_ui_kit::tokens::Step::S500))
-            })
+            .enumerate()
+            .filter_map(|(i, m)| match_range(&text, m).map(|r| (i, r)))
             .collect();
-        match &self.frames {
-            Some(f) => f.set(frames, cx),
-            None => {
-                let f = self.notes.update(cx, |s, cx| {
-                    s.create_range_decorations_collection(frames, cx)
-                });
-                self.frames = Some(f);
+        let mut next = None;
+        if cursor != self.seen_cursor {
+            self.seen_cursor = cursor;
+            next = ranges
+                .iter()
+                .find(|(_, r)| r.start <= cursor && cursor <= r.end)
+                .map(|(i, _)| *i);
+        }
+        if scroll != self.seen_scroll {
+            self.seen_scroll = scroll;
+            let jumping = self
+                .jumping_until
+                .is_some_and(|until| std::time::Instant::now() < until);
+            if next.is_none() && !jumping {
+                let frame = self.notes_bounds.get();
+                let line = frame.origin.y + frame.size.height * READING_LINE_RATIO;
+                let notes = self.notes.read(cx);
+                // The last reference whose top is above the reading line.
+                next = ranges
+                    .iter()
+                    .filter_map(|(i, r)| notes.range_to_bounds(r).map(|b| (*i, b)))
+                    .filter(|(_, b)| b.origin.y <= line)
+                    .last()
+                    .map(|(i, _)| i);
             }
         }
-    }
-
-    /// A click in the notes: the reference under the cursor becomes active
-    /// and its row scrolls into view.
-    fn clicked_notes(&mut self, cx: &mut Context<Self>) {
-        let cursor = self.notes.read(cx).cursor();
-        let text = self.text(cx);
-        let Some(index) = self.analysis.matches.iter().position(|m| {
-            match_range(&text, m).is_some_and(|r| r.start <= cursor && cursor <= r.end)
-        }) else {
-            return;
-        };
-        if index != self.active {
+        if let Some(index) = next
+            && index != self.active
+        {
             self.active = index;
             self.paint(cx);
+            self.reveal_row(index);
         }
-        self.reveal_row(index);
+        // The labels beside guessed references move with the notes.
         cx.notify();
     }
 
@@ -449,6 +474,8 @@ impl SermonReview {
         self.active = index;
         self.paint(cx);
         self.reveal_row(index);
+        self.jumping_until =
+            Some(std::time::Instant::now() + std::time::Duration::from_millis(400));
         self.notes.update(cx, |s, cx| {
             s.set_selected_range(range, cx);
             s.focus(window, cx);
@@ -553,29 +580,70 @@ impl Render for SermonReview {
             .into()
         };
 
+        // Electron's `→ Matthew 18:28` chip beside a reference the notes
+        // wrote another way, placed where the editor laid it out.
+        let labels: Vec<gpui_kit::AnyElement> = {
+            let frame = self.notes_bounds.get();
+            let text = self.text(cx);
+            let notes = self.notes.read(cx);
+            self.analysis
+                .matches
+                .iter()
+                .filter_map(|m| {
+                    let label = guessed_label(m)?;
+                    let range = match_range(&text, m)?;
+                    let b = notes.range_to_bounds(&range)?;
+                    let left = b.origin.x + b.size.width - frame.origin.x + px(6.);
+                    let top = b.origin.y - frame.origin.y + (b.size.height - px(18.)) / 2.;
+                    (top >= px(0.) && top + px(18.) <= frame.size.height).then(|| {
+                        div()
+                            .absolute()
+                            .left(left)
+                            .top(top)
+                            .h(px(18.))
+                            .px(px(6.))
+                            .flex()
+                            .items_center()
+                            .border_1()
+                            .border_color(
+                                gpui_kit::Hsla::from(gpui_kit::rgb(0x4f6888)).opacity(0.25),
+                            )
+                            .bg(gpui_kit::rgb(0xdce5f0))
+                            .text_color(gpui_kit::rgb(0x313e4c))
+                            .text_size(px(11.))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .whitespace_nowrap()
+                            .child(format!("→ {label}"))
+                            .into_any_element()
+                    })
+                })
+                .collect()
+        };
+
         let header = h_flex()
             .flex_none()
             .items_start()
             .justify_between()
             .gap_5()
             .px_6()
-            .py_5()
+            .py_3()
             .bg(k.surface_elevated)
             .border_b_1()
             .border_color(k.surface_border)
             .child(
-                h_flex()
-                    .gap_3()
-                    .min_w_0()
-                    .child(
-                        v_flex()
-                            .min_w_0()
-                            .child(div().text_size(text::LG.size).font_weight(FontWeight::SEMIBOLD).text_color(k.text_primary).child("Review sermon notes"))
-                            .child(div().mt_1().text_size(text::SM.size).text_color(k.text(TextStep::T500)).child("Check the notes and scripture references, then create your playlist.")),
+                h_flex().gap_3().min_w_0().child(
+                    v_flex().min_w_0().child(
+                        div()
+                            .text_size(text::LG.size)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(k.text_primary)
+                            .child("Review sermon notes"),
                     ),
+                ),
             )
             .child(
-                Button::new(ids::CLOSE).cursor_pointer()
+                Button::new(ids::CLOSE)
+                    .cursor_pointer()
                     .ghost()
                     .small()
                     .icon(Icon::new(KairoIcon::X))
@@ -592,53 +660,55 @@ impl Render for SermonReview {
             .child(
                 v_flex()
                     .flex_none()
-                    .gap_3()
+                    .gap_2()
                     .px_6()
-                    .py_4()
+                    .py_3()
                     .bg(k.surface_elevated)
                     .border_b_1()
                     .border_color(k.surface_border)
+                    // One row: the playlist name, then the file and scan state.
                     .child(
                         h_flex()
-                            .justify_between()
-                            .gap_4()
+                            .items_center()
+                            .gap_3()
                             .child(
                                 div()
+                                    .flex_none()
                                     .text_size(text::XS.size)
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(k.text(TextStep::T300))
                                     .child("Playlist name"),
                             )
                             .child(
+                                div()
+                                    .id(ids::TITLE)
+                                    .test_support()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(
+                                        Input::new(&self.title)
+                                            .kairo_size()
+                                            .aria_label("Playlist name"),
+                                    ),
+                            )
+                            .child(
                                 h_flex()
                                     .id(ids::STATUS)
                                     .test_support()
                                     .role(Role::Status)
+                                    .flex_none()
+                                    .max_w(px(320.))
                                     .gap_1p5()
                                     .text_size(text::XS.size)
                                     .text_color(k.text(TextStep::T500))
                                     .when(self.scanning, |d| {
                                         d.child(Icon::new(KairoIcon::Loader).size_3())
                                     })
-                                    .child(status),
+                                    .child(div().truncate().child(format!(
+                                        "{} · {status}",
+                                        self.draft.source_file_name
+                                    ))),
                             ),
-                    )
-                    .child(
-                        div().id(ids::TITLE).test_support().child(
-                            Input::new(&self.title)
-                                .kairo_size()
-                                .aria_label("Playlist name"),
-                        ),
-                    )
-                    .child(
-                        div()
-                            .truncate()
-                            .text_size(text::XS.size)
-                            .text_color(k.text(TextStep::T500))
-                            .child(format!(
-                                "{} · Click the notes below to edit",
-                                self.draft.source_file_name
-                            )),
                     )
                     .when_some(self.scan_error.clone(), |d, error| {
                         d.child(
@@ -675,12 +745,7 @@ impl Render for SermonReview {
                             .id(ids::NOTES)
                             .test_support()
                             .aria_label("Editable sermon notes")
-                            // A click on a highlighted reference selects it in
-                            // the list (after the editor has placed the cursor).
-                            .on_mouse_up(
-                                gpui_kit::MouseButton::Left,
-                                cx.listener(|this, _, _, cx| this.clicked_notes(cx)),
-                            )
+                            .relative()
                             .mx_auto()
                             .max_w(px(768.))
                             .h_full()
@@ -695,160 +760,151 @@ impl Render for SermonReview {
                             .text_size(px(15.))
                             .line_height(px(28.))
                             .text_color(paper.text_primary)
-                            .child(self.notes.clone()),
+                            .child(self.notes.clone())
+                            .child({
+                                let frame = self.notes_bounds.clone();
+                                gpui_kit::canvas(
+                                    move |bounds, _, _| frame.set(bounds),
+                                    |_, _, _, _| {},
+                                )
+                                .absolute()
+                                .inset_0()
+                            })
+                            .children(labels),
                     ),
             );
 
-        let list: gpui_kit::AnyElement = if count == 0 {
-            v_flex()
-                .id(ids::EMPTY)
-                .test_support()
-                .m_1()
-                .rounded(radius::lg())
-                .bg(k.surface_secondary)
-                .px_4()
-                .py_6()
-                .items_center()
-                .child(
-                    div()
-                        .text_size(text::SM.size)
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(k.text(TextStep::T300))
-                        .child(if self.scanning {
-                            "Scanning for references…"
-                        } else {
-                            "No references found"
-                        }),
-                )
-                .child(
-                    div()
-                        .mt_1()
-                        .text_center()
-                        .text_size(text::XS.size)
-                        .text_color(k.text(TextStep::T500))
-                        .child(if self.scanning {
-                            "Highlights appear once the notes finish scanning."
-                        } else {
-                            "Add one such as “John 3:16” directly in the notes."
-                        }),
-                )
-                .into_any_element()
-        } else if visible.is_empty() {
-            div()
-                .id(ids::NO_MATCH)
-                .test_support()
-                .role(Role::Status)
-                .px_4()
-                .py_6()
-                .text_center()
-                .text_size(text::XS.size)
-                .text_color(k.text(TextStep::T400))
-                .child("No matching references. Try a book, verse or translation.")
-                .into_any_element()
-        } else {
-            v_flex()
-                .gap_0p5()
-                .children(visible.iter().map(|(index, m)| {
-                    let index = *index;
-                    let on = index == self.active;
-                    h_flex()
-                        .id(SharedString::from(ids::reference(index)))
-                        .test_support()
-                        .role(Role::Button)
-                        .aria_label(if m.translations.is_empty() {
-                            m.reference.clone()
-                        } else {
-                            format!("{}, {}", m.reference, m.translations.join(" · "))
-                        })
-                        .aria_selected(on)
-                        .items_start()
-                        .gap_3()
-                        .rounded(radius::lg())
-                        .border_1()
-                        .px_3()
-                        .py_2()
-                        .cursor_pointer()
-                        .map(|d| {
-                            if on {
-                                d.border_color(
-                                    k.accent(kairo_ui_kit::tokens::Step::S400).opacity(0.45),
-                                )
-                                .bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.18))
+        let list: gpui_kit::AnyElement =
+            if count == 0 {
+                v_flex()
+                    .id(ids::EMPTY)
+                    .test_support()
+                    .m_1()
+                    .rounded(radius::lg())
+                    .bg(k.surface_secondary)
+                    .px_4()
+                    .py_6()
+                    .items_center()
+                    .child(
+                        div()
+                            .text_size(text::SM.size)
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(k.text(TextStep::T300))
+                            .child(if self.scanning {
+                                "Scanning for references…"
                             } else {
-                                d.border_color(gpui_kit::transparent_black())
-                                    .hover(|s| s.bg(k.surface_secondary))
-                            }
-                        })
-                        .when(busy, |d| d.opacity(0.6).on_click(|_, _, _| {}))
-                        .when(!busy, |d| {
-                            d.on_click(
-                                cx.listener(move |this, _, window, cx| {
-                                    this.go_to(index, window, cx)
-                                }),
-                            )
-                        })
-                        .child(
-                            div()
-                                .w_4()
-                                .flex_none()
-                                .text_right()
-                                .text_size(text::XS.size)
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(if on {
-                                    k.accent(kairo_ui_kit::tokens::Step::S300)
+                                "No references found"
+                            }),
+                    )
+                    .child(
+                        div()
+                            .mt_1()
+                            .text_center()
+                            .text_size(text::XS.size)
+                            .text_color(k.text(TextStep::T500))
+                            .child(if self.scanning {
+                                "Highlights appear once the notes finish scanning."
+                            } else {
+                                "Add one such as “John 3:16” directly in the notes."
+                            }),
+                    )
+                    .into_any_element()
+            } else if visible.is_empty() {
+                div()
+                    .id(ids::NO_MATCH)
+                    .test_support()
+                    .role(Role::Status)
+                    .px_4()
+                    .py_6()
+                    .text_center()
+                    .text_size(text::XS.size)
+                    .text_color(k.text(TextStep::T400))
+                    .child("No matching references. Try a book, verse or translation.")
+                    .into_any_element()
+            } else {
+                v_flex()
+                    .gap_0p5()
+                    .children(visible.iter().map(|(index, m)| {
+                        let index = *index;
+                        let on = index == self.active;
+                        h_flex()
+                            .id(SharedString::from(ids::reference(index)))
+                            .test_support()
+                            .role(Role::Button)
+                            .aria_label(if m.translations.is_empty() {
+                                m.reference.clone()
+                            } else {
+                                format!("{}, {}", m.reference, m.translations.join(" · "))
+                            })
+                            .aria_selected(on)
+                            .items_start()
+                            .gap_3()
+                            .rounded(radius::lg())
+                            .border_1()
+                            .px_3()
+                            .py_2()
+                            .cursor_pointer()
+                            .map(|d| {
+                                if on {
+                                    d.border_color(
+                                        k.accent(kairo_ui_kit::tokens::Step::S400).opacity(0.45),
+                                    )
+                                    .bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.18))
                                 } else {
-                                    k.text(TextStep::T500)
-                                })
-                                .child((index + 1).to_string()),
-                        )
-                        .child(
-                            v_flex()
-                                .min_w_0()
-                                .flex_1()
-                                .child(
-                                    div()
-                                        .truncate()
-                                        .text_size(text::SM.size)
-                                        .font_weight(FontWeight::MEDIUM)
-                                        .text_color(if on {
-                                            k.text_primary
-                                        } else {
-                                            k.text(TextStep::T300)
-                                        })
-                                        .child(m.reference.clone()),
-                                )
-                                .when(!m.translations.is_empty(), |d| {
-                                    d.child(
+                                    d.border_color(gpui_kit::transparent_black())
+                                        .hover(|s| s.bg(k.surface_secondary))
+                                }
+                            })
+                            .when(busy, |d| d.opacity(0.6).on_click(|_, _, _| {}))
+                            .when(!busy, |d| {
+                                d.on_click(cx.listener(move |this, _, window, cx| {
+                                    this.go_to(index, window, cx)
+                                }))
+                            })
+                            .child(
+                                div()
+                                    .w_4()
+                                    .flex_none()
+                                    .text_right()
+                                    .text_size(text::XS.size)
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(if on {
+                                        k.accent(kairo_ui_kit::tokens::Step::S300)
+                                    } else {
+                                        k.text(TextStep::T500)
+                                    })
+                                    .child((index + 1).to_string()),
+                            )
+                            .child(
+                                v_flex()
+                                    .min_w_0()
+                                    .flex_1()
+                                    .child(
                                         div()
-                                            .mt_0p5()
                                             .truncate()
-                                            .text_size(text::XS.size)
-                                            .text_color(k.text(TextStep::T500))
-                                            .child(m.translations.join(" · ")),
+                                            .text_size(text::SM.size)
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(if on {
+                                                k.text_primary
+                                            } else {
+                                                k.text(TextStep::T300)
+                                            })
+                                            .child(m.reference.clone()),
                                     )
-                                })
-                                // Written another way in the notes: say
-                                // what was understood (Electron's chip).
-                                .when(guessed_label(m).is_some(), |d| {
-                                    d.child(
-                                        h_flex()
-                                            .mt_1()
-                                            .gap_1()
-                                            .min_w_0()
-                                            .text_size(text::XS.size)
-                                            .text_color(k.accent(kairo_ui_kit::tokens::Step::S300))
-                                            .child(Icon::new(KairoIcon::ChevronRight).size_3())
-                                            .child(
-                                                div()
-                                                    .truncate()
-                                                    .child(format!("From “{}”", m.text.trim())),
-                                            ),
-                                    )
-                                }),
-                        )
-                }))
-                .into_any_element()
-        };
+                                    .when(!m.translations.is_empty(), |d| {
+                                        d.child(
+                                            div()
+                                                .mt_0p5()
+                                                .truncate()
+                                                .text_size(text::XS.size)
+                                                .text_color(k.text(TextStep::T500))
+                                                .child(m.translations.join(" · ")),
+                                        )
+                                    }),
+                            )
+                    }))
+                    .into_any_element()
+            };
 
         let aside = v_flex()
             .w(px(320.))
