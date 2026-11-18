@@ -193,7 +193,9 @@ async fn n_to_n_plus_one_with_local_builds() {
         "the app quit to install: {}",
         run.log
     );
-    let swapped = wait_for("the swap", Duration::from_secs(30), || {
+    // The detached installer may wait up to 60 seconds for the old PID to
+    // disappear. Poll long enough to cover that wait and signature checks.
+    let swapped = wait_for("the swap", Duration::from_secs(90), || {
         plist_version(&installed) == "1.0.34"
     });
     let verify = Command::new("codesign")

@@ -351,13 +351,16 @@ async fn embedded_videos_wait_hidden_and_follow_their_commands() {
     };
 
     // Hidden and paused at the clip start, the duration being the clip's.
-    let first = until_status(&engine, "known duration", |v| v.duration > 0.0).await;
+    let first = until_status(&engine, "known duration and paused", |v| {
+        v.duration > 0.0 && v.paused
+    })
+    .await;
     assert!(first.paused && !first.visible && !first.ended, "{first:?}");
     assert!(first.current_time < 0.1, "{first:?}");
     assert!((first.duration - 1.0).abs() < 0.05, "{first:?}");
     tokio::time::sleep(Duration::from_millis(400)).await;
-    let still = playback(&engine).await.unwrap().videos[0].clone();
-    assert!(still.paused && still.current_time < 0.1, "waits: {still:?}");
+    let still = until_status(&engine, "waiting", |v| v.paused && !v.visible).await;
+    assert!(still.current_time < 0.1 && !still.ended, "waits: {still:?}");
 
     // A command for another page or a video the slide lacks is refused.
     let wrong = engine.command(Command::ControlDocumentVideo {

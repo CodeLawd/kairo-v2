@@ -399,39 +399,47 @@ fn moved_workspace_is_checked() {
     native_launch(&p);
 
     let gone = profile();
+    let missing = gone
+        .user_data
+        .parent()
+        .unwrap()
+        .join("Unplugged")
+        .join("Kairo");
+    let missing = missing.to_string_lossy();
     write(
         &gone,
         "kairo-settings.json",
-        &json!({"workspace": {"folder": "/Volumes/Unplugged/Kairo"}}),
+        &json!({"workspace": {"folder": missing}}),
     );
     let report = migrate(&gone, mic);
     let attention = report.attention();
     assert_eq!(attention.len(), 1);
-    assert!(attention[0].contains("/Volumes/Unplugged/Kairo"));
+    assert!(attention[0].contains(missing.as_ref()));
     native_launch(&gone);
-    electron_loads(
-        &gone,
-        &[("/workspace/folder", json!("/Volumes/Unplugged/Kairo"))],
-    );
+    electron_loads(&gone, &[("/workspace/folder", json!(missing))]);
 }
 
 #[test]
 fn missing_external_media_is_flagged_and_kept() {
     let p = profile();
+    let media = p.user_data.parent().unwrap().join("Media Drive");
+    let worship = media.join("Worship");
+    let tracks = media.join("Tracks");
     write(
         &p,
         "kairo-settings.json",
-        &json!({"media": {"folder": "/Volumes/Media Drive/Worship", "playlists": []}, "tracks": {"folder": "/Volumes/Media Drive/Tracks"}}),
+        &json!({"media": {"folder": worship, "playlists": []}, "tracks": {"folder": tracks}}),
     );
     let report = migrate(&p, mic);
     let attention = report.attention();
     assert_eq!(attention.len(), 2, "{attention:?}");
-    assert!(attention.iter().all(|a| a.contains("/Volumes/Media Drive")));
-    native_launch(&p);
-    electron_loads(
-        &p,
-        &[("/media/folder", json!("/Volumes/Media Drive/Worship"))],
+    assert!(
+        attention
+            .iter()
+            .all(|a| a.contains(media.to_string_lossy().as_ref()))
     );
+    native_launch(&p);
+    electron_loads(&p, &[("/media/folder", json!(worship))]);
 }
 
 #[test]
