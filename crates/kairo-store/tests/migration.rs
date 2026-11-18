@@ -10,6 +10,7 @@ use kairo_store::migration::local_storage::{FILE_ORIGIN, write_fixture};
 use kairo_store::migration::{BACKUP_DIR, MARKER_FILE, MigrationInput, MigrationReport, run};
 use kairo_store::secrets::{KeyProtector, SecretError};
 use kairo_store::settings::{LaunchContext, SettingsStore};
+use kairo_store::workspace::resolve;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -399,47 +400,45 @@ fn moved_workspace_is_checked() {
     native_launch(&p);
 
     let gone = profile();
-    let missing = gone
-        .user_data
-        .parent()
-        .unwrap()
-        .join("Unplugged")
-        .join("Kairo");
-    let missing = missing.to_string_lossy();
     write(
         &gone,
         "kairo-settings.json",
-        &json!({"workspace": {"folder": missing}}),
+        &json!({"workspace": {"folder": "/Volumes/Unplugged/Kairo"}}),
     );
     let report = migrate(&gone, mic);
     let attention = report.attention();
     assert_eq!(attention.len(), 1);
-    assert!(attention[0].contains(missing.as_ref()));
+    let expected = resolve(Path::new("/Volumes/Unplugged/Kairo"));
+    assert!(attention[0].contains(expected.to_string_lossy().as_ref()));
     native_launch(&gone);
-    electron_loads(&gone, &[("/workspace/folder", json!(missing))]);
+    electron_loads(
+        &gone,
+        &[("/workspace/folder", json!("/Volumes/Unplugged/Kairo"))],
+    );
 }
 
 #[test]
 fn missing_external_media_is_flagged_and_kept() {
     let p = profile();
-    let media = p.user_data.parent().unwrap().join("Media Drive");
-    let worship = media.join("Worship");
-    let tracks = media.join("Tracks");
     write(
         &p,
         "kairo-settings.json",
-        &json!({"media": {"folder": worship, "playlists": []}, "tracks": {"folder": tracks}}),
+        &json!({"media": {"folder": "/Volumes/Media Drive/Worship", "playlists": []}, "tracks": {"folder": "/Volumes/Media Drive/Tracks"}}),
     );
     let report = migrate(&p, mic);
     let attention = report.attention();
     assert_eq!(attention.len(), 2, "{attention:?}");
+    let expected = resolve(Path::new("/Volumes/Media Drive"));
     assert!(
         attention
             .iter()
-            .all(|a| a.contains(media.to_string_lossy().as_ref()))
+            .all(|a| a.contains(expected.to_string_lossy().as_ref()))
     );
     native_launch(&p);
-    electron_loads(&p, &[("/media/folder", json!(worship))]);
+    electron_loads(
+        &p,
+        &[("/media/folder", json!("/Volumes/Media Drive/Worship"))],
+    );
 }
 
 #[test]

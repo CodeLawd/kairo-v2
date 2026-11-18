@@ -617,6 +617,13 @@ fn an_animated_picture_plays_from_when_it_is_decoded() {
     let dir = temp_dir("gif");
     let file = dir.join("a.gif");
     let mut bytes = Vec::new();
+    // Software readback on a hosted runner can take longer than a normal
+    // frame hold. Give the observer time to sample every color.
+    let hold_ms = if std::env::var("KAIRO_PERF_HOSTED").as_deref() == Ok("1") {
+        1200
+    } else {
+        300
+    };
     {
         use image::{
             Delay, Frame, Rgba, RgbaImage,
@@ -629,7 +636,7 @@ fn an_animated_picture_plays_from_when_it_is_decoded() {
                 RgbaImage::from_pixel(8, 8, Rgba([c[0], c[1], c[2], 255])),
                 0,
                 0,
-                Delay::from_numer_denom_ms(300, 1),
+                Delay::from_numer_denom_ms(hold_ms, 1),
             );
             enc.encode_frame(frame).unwrap();
         }
@@ -638,7 +645,7 @@ fn an_animated_picture_plays_from_when_it_is_decoded() {
     let seq = rig.show(&picture_theme(&file));
     rig.settle(seq);
     let mut seen = std::collections::BTreeSet::new();
-    let end = Instant::now() + Duration::from_secs(4);
+    let end = Instant::now() + Duration::from_millis(u64::from(hold_ms) * 10 + 1000);
     while seen.len() < 3 && Instant::now() < end {
         seen.insert(centre(&rig.frame_over_grey()));
         std::thread::sleep(Duration::from_millis(40));
