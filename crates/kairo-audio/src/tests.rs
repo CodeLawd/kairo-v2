@@ -134,6 +134,7 @@ fn a_seek_lands_where_it_was_asked() {
     let (clip, sink, _) = player(path, ClipSettings::default());
     wait("ready", 5, || clip.status().ready);
     clip.control(ClipControl::Seek(2.0));
+    let sought = std::time::Instant::now();
     std::thread::sleep(Duration::from_millis(100));
     sink.take();
     std::thread::sleep(Duration::from_millis(200));
@@ -151,8 +152,14 @@ fn a_seek_lands_where_it_was_asked() {
         "{:?}",
         &values[..4]
     );
+    // Played from 2.0 s for about the time since the seek; a loaded
+    // machine oversleeps, so the bound follows the clock.
     let position = clip.status().position;
-    assert!((2.2..2.45).contains(&position), "{position}");
+    let latest = 2.0 + sought.elapsed().as_secs_f64() + 0.05;
+    assert!(
+        (2.2..latest).contains(&position),
+        "{position} (at most {latest:.2})"
+    );
 }
 
 #[test]

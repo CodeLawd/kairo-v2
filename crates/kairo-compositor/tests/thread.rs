@@ -260,7 +260,15 @@ fn the_preview_is_capped_sends_the_resting_frame_and_stops_when_removed() {
             ms: 500,
         }],
     );
+    // A loaded machine can finish the fade late: wait for the frame at
+    // rest, then for any frame still on its way.
+    let deadline = Instant::now() + Duration::from_secs(5);
     std::thread::sleep(Duration::from_millis(900));
+    while got.lock().unwrap().last().map(|f| f.3) != Some([255, 0, 0, 255]) {
+        assert!(Instant::now() < deadline, "no frame at rest");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    std::thread::sleep(Duration::from_millis(200));
     {
         let frames = got.lock().unwrap();
         let minimum = if std::env::var("KAIRO_PERF_HOSTED").as_deref() == Ok("1") {

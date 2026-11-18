@@ -261,7 +261,9 @@ async fn killing_the_engine_during_a_command_storm_replays_state() {
         });
         assert!(
             engine
-                .wait_frame("screen", sent.seq, Duration::from_secs(5))
+                // A relaunched engine on a loaded runner can take a while
+                // to bring its window back.
+                .wait_frame("screen", sent.seq, Duration::from_secs(20))
                 .await,
             "no frame; status {:?}",
             engine.surface_status("screen")

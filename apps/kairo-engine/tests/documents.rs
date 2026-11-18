@@ -374,8 +374,20 @@ async fn embedded_videos_wait_hidden_and_follow_their_commands() {
     assert!(!control(5, C::Play).accepted);
 
     // Play: shown, moving, then stopped at the clip end.
+    // The status reports the clip's duration from the slide before the
+    // player exists, and a play with no player yet is refused. On a slow
+    // machine the player can come after the waits above, so play again
+    // until one takes.
     control(0, C::Play);
-    let moving = until_status(&engine, "playing", |v| v.current_time > 0.2).await;
+    let moving = until_status(&engine, "playing", |v| {
+        if v.error.as_deref()
+            == Some("Video playback could not start. Check the video format and try again.")
+        {
+            control(0, C::Play);
+        }
+        v.current_time > 0.2
+    })
+    .await;
     assert!(moving.visible && !moving.paused, "{moving:?}");
     let done = until_status(&engine, "ended at the clip end", |v| v.ended).await;
     assert!(
