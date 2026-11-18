@@ -1224,12 +1224,21 @@ async fn teleprompter_transport_is_independent_and_restarts_its_session_sequence
     assert_eq!(updated.speed, 2.5);
     assert!(updated.mirror);
     assert!(r.manager.teleprompter_layout(96.0, false));
-    let StagePayload::Tagged(StageContent::Teleprompter(relaid)) =
-        r.engine.state("script").unwrap().stage.unwrap().decode().unwrap()
+    let StagePayload::Tagged(StageContent::Teleprompter(relaid)) = r
+        .engine
+        .state("script")
+        .unwrap()
+        .stage
+        .unwrap()
+        .decode()
+        .unwrap()
     else {
         panic!("missing relaid script");
     };
-    assert_eq!((relaid.font_px, relaid.speed, relaid.mirror), (96.0, 2.5, false));
+    assert_eq!(
+        (relaid.font_px, relaid.speed, relaid.mirror),
+        (96.0, 2.5, false)
+    );
     let updated = relaid;
     r.engine.take_commands();
     r.manager.reset_stage_session();

@@ -16,6 +16,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.event_name }}-${{ (github.event_name == 'push' || github.event_name == 'pull_request') && github.ref || github.run_id }}
+  cancel-in-progress: ${{ !inputs.ref && (github.event_name == 'push' || github.event_name == 'pull_request') }}
+
 env:
   # Full debug info for the whole workspace fills the Linux runner's disk
   # (the linker died with SIGBUS). Line tables keep test backtraces useful.
@@ -131,6 +135,16 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      - name: Cache Cargo downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Lint workspace
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
@@ -162,6 +176,16 @@ jobs:
 
       - name: Select workspace Rust toolchain
         run: rustup toolchain install stable --profile minimal
+
+      - name: Restore Cargo downloads
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Slide raster, scripture search and detector budgets
         run: cargo test --release --locked -p kairo-scene -p kairo-scripture --test perf_budgets -- --nocapture

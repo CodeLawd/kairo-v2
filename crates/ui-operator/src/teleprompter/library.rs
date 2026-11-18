@@ -58,7 +58,9 @@ impl Teleprompter {
                     .gap_0p5()
                     .rounded(radius::sm())
                     .when(selected, |row| row.bg(k.row_selected()))
-                    .when(!selected, |row| row.hover(|row| row.bg(k.surface_menu_hover)))
+                    .when(!selected, |row| {
+                        row.hover(|row| row.bg(k.surface_menu_hover))
+                    })
                     .aria_label(script.title.clone())
                     .on_click(cx.listener(move |this, _, window, cx| {
                         this.open_script(Some(open.clone()), window, cx)
@@ -142,10 +144,11 @@ impl Teleprompter {
                     ),
             )
             .child(
-                div()
-                    .px_3()
-                    .pb_2()
-                    .child(Input::new(&self.search).small().aria_label("Search scripts")),
+                div().px_3().pb_2().child(
+                    Input::new(&self.search)
+                        .small()
+                        .aria_label("Search scripts"),
+                ),
             )
             .child(list)
             .into_any_element()
@@ -258,11 +261,7 @@ impl Teleprompter {
                         ),
                 )
             })
-            .child(
-                Textarea::new(&self.body)
-                    .flex_1()
-                    .aria_label("Script text"),
-            )
+            .child(Textarea::new(&self.body).flex_1().aria_label("Script text"))
             .when_some(self.error.clone(), |this, error| {
                 this.child(
                     h_flex()

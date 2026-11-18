@@ -68,9 +68,10 @@ impl Teleprompter {
         let behind = self.live.is_some()
             && self.selected.is_some()
             && self.selected.as_deref() == self.on_display.as_deref()
-            && self.published.as_ref().is_some_and(|published| {
-                published.body != self.body.read(cx).value().as_ref()
-            });
+            && self
+                .published
+                .as_ref()
+                .is_some_and(|published| published.body != self.body.read(cx).value().as_ref());
         let entity = cx.entity();
         let targets = self.targets.clone();
         let current = chosen.map(|target| target.id.clone());
@@ -348,24 +349,30 @@ impl Teleprompter {
 
     fn transport_bar(&self, cx: &mut Context<Self>) -> AnyElement {
         let usable = !self.preview_text(cx).1.trim().is_empty();
-        let control = |id: &'static str, icon: KairoIcon, label: &'static str, tip: &'static str| {
-            Button::new(id)
-                .ghost()
-                .icon(Icon::new(icon))
-                .accessibility_label(label)
-                .tooltip(tip)
-                .disabled(!usable)
-        };
+        let control =
+            |id: &'static str, icon: KairoIcon, label: &'static str, tip: &'static str| {
+                Button::new(id)
+                    .ghost()
+                    .icon(Icon::new(icon))
+                    .accessibility_label(label)
+                    .tooltip(tip)
+                    .disabled(!usable)
+            };
         h_flex()
             .px_4()
             .gap_2()
             .items_center()
             .justify_center()
             .child(
-                control("teleprompter-restart", KairoIcon::SkipBack, "Restart", "Restart (Home)")
-                    .on_click(cx.listener(|this, _, window, cx| {
-                        this.transport(StageOperation::Seek { anchor: 0 }, window, cx)
-                    })),
+                control(
+                    "teleprompter-restart",
+                    KairoIcon::SkipBack,
+                    "Restart",
+                    "Restart (Home)",
+                )
+                .on_click(cx.listener(|this, _, window, cx| {
+                    this.transport(StageOperation::Seek { anchor: 0 }, window, cx)
+                })),
             )
             .child(
                 control(

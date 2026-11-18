@@ -321,11 +321,7 @@ impl SurfaceState {
 
     /// Edit the teleprompter view of `revision` in place. False when the
     /// stage holds something else or `edit` refuses.
-    fn patch_teleprompter(
-        &mut self,
-        revision: u64,
-        edit: impl FnOnce(&mut Value) -> bool,
-    ) -> bool {
+    fn patch_teleprompter(&mut self, revision: u64, edit: impl FnOnce(&mut Value) -> bool) -> bool {
         let teleprompter = |view: &Option<Json>| {
             view.as_ref()
                 .and_then(|view| view.value().ok())

@@ -503,14 +503,17 @@ impl Shell {
     /// again at once.
     fn prompter(&mut self, state: &SurfaceState) -> Vec<Op> {
         let slot = Slot::Prompter;
-        let view = state.prompter.as_ref().and_then(|view| match view.decode() {
-            Ok(StagePayload::Tagged(StageContent::Teleprompter(view))) => Some(view),
-            Ok(_) => None,
-            Err(error) => {
-                tracing::warn!(%error, "invalid prompter view");
-                None
-            }
-        });
+        let view = state
+            .prompter
+            .as_ref()
+            .and_then(|view| match view.decode() {
+                Ok(StagePayload::Tagged(StageContent::Teleprompter(view))) => Some(view),
+                Ok(_) => None,
+                Err(error) => {
+                    tracing::warn!(%error, "invalid prompter view");
+                    None
+                }
+            });
         let Some(view) = view else {
             self.teleprompter = None;
             return vec![Op::Keyed {

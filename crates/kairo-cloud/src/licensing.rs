@@ -992,8 +992,14 @@ mod trusted_key_tests {
 
     #[test]
     fn production_keeps_its_name_and_other_servers_get_their_own() {
-        assert_eq!(trusted_key_name_for("https://api.kairopresenter.com"), TRUSTED_KEY);
-        assert_eq!(trusted_key_name_for("https://api.kairopresenter.com/"), TRUSTED_KEY);
+        assert_eq!(
+            trusted_key_name_for("https://api.kairopresenter.com"),
+            TRUSTED_KEY
+        );
+        assert_eq!(
+            trusted_key_name_for("https://api.kairopresenter.com/"),
+            TRUSTED_KEY
+        );
         assert_eq!(
             trusted_key_name_for("http://localhost:3000"),
             "license-trusted-key-http---localhost-3000"

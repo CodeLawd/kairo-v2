@@ -473,9 +473,9 @@ impl Teleprompter {
                 script_id,
             }) => {
                 if self.target.is_none() {
-                    self.target = live.clone().or_else(|| {
-                        targets.iter().find(|t| t.ready).map(|t| t.id.clone())
-                    });
+                    self.target = live
+                        .clone()
+                        .or_else(|| targets.iter().find(|t| t.ready).map(|t| t.id.clone()));
                 }
                 let was_live = self.live.is_some();
                 self.targets = targets;
@@ -513,8 +513,7 @@ impl Teleprompter {
 
     /// Open `script` (or a new one) after asking to discard unsaved changes.
     fn open_script(&mut self, script: Option<Script>, window: &mut Window, cx: &mut Context<Self>) {
-        if script.as_ref().map(|s| s.id.as_str()) == self.selected.as_deref() && script.is_some()
-        {
+        if script.as_ref().map(|s| s.id.as_str()) == self.selected.as_deref() && script.is_some() {
             return;
         }
         self.after_discard(Pending::Open(script), window, cx);
@@ -666,9 +665,12 @@ impl Teleprompter {
         let view = cx.entity().downgrade();
         let id = script.id.clone();
         confirm(
-            ConfirmRequest::new(format!("Delete \u{201c}{}\u{201d}?", script.title), "Delete")
-                .detail("The saved script is removed from this computer. This can\u{2019}t be undone.")
-                .destructive(),
+            ConfirmRequest::new(
+                format!("Delete \u{201c}{}\u{201d}?", script.title),
+                "Delete",
+            )
+            .detail("The saved script is removed from this computer. This can\u{2019}t be undone.")
+            .destructive(),
             window,
             cx,
             move |delete, window, cx| {
@@ -688,7 +690,12 @@ impl Teleprompter {
 
     /// Play, pause and move. Live, the command goes to the screen and the
     /// preview follows; otherwise only the preview moves, for rehearsal.
-    fn transport(&mut self, operation: StageOperation, window: &mut Window, cx: &mut Context<Self>) {
+    fn transport(
+        &mut self,
+        operation: StageOperation,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         match operation {
             StageOperation::Play => self.set_playing(true, window, cx),
             StageOperation::Pause => self.set_playing(false, window, cx),
@@ -762,9 +769,7 @@ impl Teleprompter {
                 cx.background_executor()
                     .timer(Duration::from_millis(16))
                     .await;
-                let going = entity
-                    .update(cx, |this, cx| this.tick(cx))
-                    .unwrap_or(false);
+                let going = entity.update(cx, |this, cx| this.tick(cx)).unwrap_or(false);
                 if !going {
                     break;
                 }
@@ -943,13 +948,7 @@ impl Render for Teleprompter {
             .min_h_0()
             .bg(k.surface)
             .child(self.library(window, cx))
-            .child(
-                v_flex()
-                    .flex_1()
-                    .min_w_0()
-                    .h_full()
-                    .child(self.editor(cx)),
-            )
+            .child(v_flex().flex_1().min_w_0().h_full().child(self.editor(cx)))
             .child(self.live(cx))
     }
 }

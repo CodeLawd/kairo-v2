@@ -922,18 +922,23 @@ impl SurfaceManager {
 
     /// The output showing the prompter now, when it can take commands.
     pub fn teleprompter_stage(&self) -> Option<&str> {
-        let target = self.prompter_target.as_deref().filter(|_| self.prompter_live)?;
+        let target = self
+            .prompter_target
+            .as_deref()
+            .filter(|_| self.prompter_live)?;
         self.prompter_ready(target).then_some(target)
     }
 
     fn is_teleprompter_stage(&self, id: &str) -> bool {
-        self.presentation_cache.as_ref().is_some_and(|presentation| {
-            presentation.stage_displays.iter().any(|config| {
-                config.id == id
-                    && config.enabled
-                    && config.mode == kairo_domain::program::StageDisplayMode::Teleprompter
+        self.presentation_cache
+            .as_ref()
+            .is_some_and(|presentation| {
+                presentation.stage_displays.iter().any(|config| {
+                    config.id == id
+                        && config.enabled
+                        && config.mode == kairo_domain::program::StageDisplayMode::Teleprompter
+                })
             })
-        })
     }
 
     fn is_screen(&self, id: &str) -> bool {
@@ -1026,10 +1031,7 @@ impl SurfaceManager {
 
     /// Bring every surface in line with the prompter's target and state.
     fn push_prompter(&mut self) {
-        let live = self
-            .prompter_target
-            .clone()
-            .filter(|_| self.prompter_live);
+        let live = self.prompter_target.clone().filter(|_| self.prompter_live);
         let view = self
             .teleprompter
             .as_ref()
@@ -1048,7 +1050,9 @@ impl SurfaceManager {
                     }
                 }
                 Role::Program(OverlayOutputKind::Screen) => {
-                    let wanted = view.clone().filter(|_| live.as_deref() == Some(id.as_str()));
+                    let wanted = view
+                        .clone()
+                        .filter(|_| live.as_deref() == Some(id.as_str()));
                     let entry = self.entries.get_mut(&id).expect("listed");
                     if entry.sent.prompter != wanted {
                         entry.sent.prompter = wanted.clone();

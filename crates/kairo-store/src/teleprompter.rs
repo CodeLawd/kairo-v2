@@ -123,7 +123,11 @@ mod tests {
         let kept = library.save(None, "Kept".into(), "Body".into()).unwrap();
         let gone = library.save(None, "Gone".into(), "Body".into()).unwrap();
         let broken = Uuid::new_v4().to_string();
-        fs::write(library.directory.join(format!("{broken}.json")), b"{not json").unwrap();
+        fs::write(
+            library.directory.join(format!("{broken}.json")),
+            b"{not json",
+        )
+        .unwrap();
         assert_eq!(library.list().unwrap().len(), 2);
         library.delete(&gone.id).unwrap();
         library.delete(&gone.id).unwrap();
