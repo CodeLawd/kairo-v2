@@ -27,10 +27,16 @@ env:
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
   CARGO_INCREMENTAL: "0"
 
+# Apple-silicon macOS jobs run on the project's own Mac (a self-hosted runner
+# labelled `kairo-mac`): GitHub's macos-15 runners were often unavailable
+# ("not acquired"). This repository is public, so pull requests, which can
+# come from forks, never reach that machine; they run on macos-15-intel.
+# See packaging/ci/SELF_HOSTED_MAC.md.
+
 jobs:
   bridge-contract:
     name: Electron bridge validation (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'macos-15' && (github.event_name == 'pull_request' && 'macos-15-intel' || fromJSON('["self-hosted","macOS","ARM64","kairo-mac"]')) || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -67,7 +73,7 @@ jobs:
 
   workspace:
     name: Workspace (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'macos-15' && (github.event_name == 'pull_request' && 'macos-15-intel' || fromJSON('["self-hosted","macOS","ARM64","kairo-mac"]')) || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -78,6 +84,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.ref || github.ref }}
+
+      - name: Self-hosted runner setup
+        # The build output is kept between runs, outside the checkout (which
+        # is cleaned each run), and trimmed so the Mac's disk stays bounded.
+        if: runner.environment == 'self-hosted'
+        run: |
+          dir="$HOME/.kairo-ci/target/${{ github.job }}"
+          packaging/ci/trim-runner-cache.sh "$dir" 40
+          echo "CARGO_TARGET_DIR=$dir" >> "$GITHUB_ENV"
+          echo "HOMEBREW_NO_AUTO_UPDATE=1" >> "$GITHUB_ENV"
 
       - name: Free disk space
         if: runner.os == 'Linux'
@@ -97,7 +113,8 @@ jobs:
       # at run time and the `ffmpeg` command for poster fixtures.
       - name: Install FFmpeg 9 (macOS)
         if: runner.os == 'macOS'
-        run: brew install ffmpeg pkgconf
+        # Already installed on the self-hosted Mac: left as it is.
+        run: brew list --versions ffmpeg pkgconf >/dev/null || brew install ffmpeg pkgconf
 
       - name: Install FFmpeg 9 (Linux)
         if: runner.os == 'Linux'
@@ -136,6 +153,7 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Cache Cargo downloads
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -151,10 +169,11 @@ jobs:
 
       - name: Test workspace
         # Compositor goldens run on lavapipe (Linux) and WARP (Windows) and
-        # must not skip there. macOS runners may have no GPU.
+        # must not skip there. Hosted macOS runners may have no GPU; the
+        # self-hosted Mac has one, and its own timing.
         env:
-          KAIRO_REQUIRE_GPU: ${{ runner.os != 'macOS' && '1' || '' }}
-          KAIRO_PERF_HOSTED: ${{ runner.os != 'Linux' && '1' || '0' }}
+          KAIRO_REQUIRE_GPU: ${{ (runner.os != 'macOS' || runner.environment == 'self-hosted') && '1' || '' }}
+          KAIRO_PERF_HOSTED: ${{ (runner.os != 'Linux' && runner.environment == 'github-hosted') && '1' || '0' }}
         run: cargo test --locked --workspace ${{ runner.os == 'Windows' && '--exclude soak' || '' }} --no-fail-fast
 
   performance:
@@ -163,10 +182,9 @@ jobs:
     # baseline machine class; other runners run the same tests unoptimised
     # with four times the budget inside the workspace job.
     name: Performance budgets (macos-15)
-    runs-on: macos-15
+    runs-on: ${{ github.event_name == 'pull_request' && 'macos-15-intel' || fromJSON('["self-hosted","macOS","ARM64","kairo-mac"]') }}
     env:
       KAIRO_PERF_STRICT: "1"
-      KAIRO_PERF_HOSTED: "1"
       # Release builds refuse to compile without https API URLs; these tests
       # make no requests.
       KAIRO_API_URL: https://api.example.com
@@ -177,10 +195,21 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Self-hosted runner setup
+        # The build output is kept between runs, outside the checkout (which
+        # is cleaned each run), and trimmed so the Mac's disk stays bounded.
+        if: runner.environment == 'self-hosted'
+        run: |
+          dir="$HOME/.kairo-ci/target/${{ github.job }}"
+          packaging/ci/trim-runner-cache.sh "$dir" 20
+          echo "CARGO_TARGET_DIR=$dir" >> "$GITHUB_ENV"
+          echo "HOMEBREW_NO_AUTO_UPDATE=1" >> "$GITHUB_ENV"
+
       - name: Select workspace Rust toolchain
         run: rustup toolchain install stable --profile minimal
 
       - name: Restore Cargo downloads
+        if: runner.environment == 'github-hosted'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -191,4 +220,6 @@ jobs:
           restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Slide raster, scripture search and detector budgets
+        env:
+          KAIRO_PERF_HOSTED: ${{ runner.environment == 'github-hosted' && '1' || '0' }}
         run: cargo test --release --locked -p kairo-scene -p kairo-scripture --test perf_budgets -- --nocapture

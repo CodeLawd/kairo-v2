@@ -50,8 +50,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # The project's own Mac (packaging/ci/SELF_HOSTED_MAC.md). This
+          # workflow runs only from release-native.yml or by hand, never for
+          # a pull request. Its build goes to the job's temp folder, which
+          # the runner removes after the job.
           - arch: arm64
-            runner: macos-15
+            runner: [self-hosted, macOS, ARM64, kairo-mac]
           - arch: x86_64
             runner: macos-15-intel
     env:
@@ -85,7 +89,10 @@ jobs:
       - name: Build tools
         # Build-time tools only; nothing from Homebrew is bundled. nasm
         # assembles FFmpeg's x86 code.
-        run: brew install pkgconf nasm
+        # Already installed on the self-hosted Mac: left as it is.
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: brew list --versions pkgconf nasm >/dev/null || brew install pkgconf nasm
 
       - name: Select Rust toolchain
         run: |
@@ -101,6 +108,7 @@ jobs:
           key: ffmpeg-macos-${{ matrix.arch }}-${{ hashFiles('packaging/common.sh', 'packaging/macos/build-ffmpeg.sh', 'packaging/macos/config.sh') }}
 
       - name: Cache Cargo downloads
+        if: runner.environment == 'github-hosted'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
