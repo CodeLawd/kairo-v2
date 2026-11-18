@@ -703,7 +703,16 @@ mod tests {
         std::thread::sleep(Duration::from_millis(300));
         let heard = status(&sound).position;
         let expected = 2.0 + started.elapsed().as_secs_f64();
-        assert!((heard - expected).abs() < 0.15, "{heard} vs {expected}");
+        let tolerance = if cfg!(windows) && std::env::var("KAIRO_PERF_HOSTED").as_deref() == Ok("1")
+        {
+            0.35
+        } else {
+            0.15
+        };
+        assert!(
+            (heard - expected).abs() < tolerance,
+            "{heard} vs {expected}"
+        );
         // The picture jumps (a seek or a loop): the sound is moved to it.
         picture.position = 4.5;
         sound.follow(|_| Some(picture));

@@ -746,7 +746,13 @@ mod tests {
         );
         // A loose bound that holds on a loaded debug run; the tracked figures
         // are the ones printed above, from a release build.
-        assert!(pct(&mut cold, 95) < 250.0);
+        let budget = if cfg!(windows) && std::env::var("KAIRO_PERF_HOSTED").as_deref() == Ok("1") {
+            // The hosted runner draws through WARP's CPU implementation.
+            1000.0
+        } else {
+            250.0
+        };
+        assert!(pct(&mut cold, 95) < budget);
     }
 
     #[test]

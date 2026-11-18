@@ -356,7 +356,11 @@ mod tests {
         // A map whose length disagrees with its header is refused.
         let q = path("bad-len");
         let _ = std::fs::remove_file(&q);
-        let made = PreviewMap::create(&q, 4, 2).unwrap();
+        // Windows cannot truncate a mapped file. Remove ownership so the
+        // fixture survives dropping its mapping before we truncate it.
+        let mut made = PreviewMap::create(&q, 4, 2).unwrap();
+        made.owned = None;
+        drop(made);
         OpenOptions::new()
             .write(true)
             .open(&q)
@@ -364,7 +368,7 @@ mod tests {
             .set_len(HEADER as u64 + 10)
             .unwrap();
         assert!(PreviewMap::open(&q).is_err());
-        drop(made);
+        std::fs::remove_file(&q).unwrap();
     }
 
     #[cfg(unix)]

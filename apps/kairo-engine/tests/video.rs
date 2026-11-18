@@ -212,14 +212,20 @@ async fn background_video_transport_and_ended() {
     // A new cue is a new video that plays from the start, unpaused.
     show(slide(&short, Some(2.0), false, "two"));
     becomes(&engine, false, Duration::from_secs(2), "new cue").await;
-    // The text changes, same cue: it keeps going and still ends on time.
-    let started = Instant::now();
+    // A text update at the same cue preserves the current transport.
+    transport(VideoTransport::Pause(true));
+    transport(VideoTransport::Seek(0.6));
+    let deadline = Instant::now() + Duration::from_secs(4);
+    while (time(&engine).await.unwrap().current_time - 0.6).abs() >= 0.05 {
+        assert!(Instant::now() < deadline, "the seek never settled");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
     show(slide(&short, Some(2.0), false, "three"));
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let paused = time(&engine).await.unwrap();
+    assert!(!paused.ended && (paused.current_time - 0.6).abs() < 0.05);
+    transport(VideoTransport::Pause(false));
     becomes(&engine, true, Duration::from_secs(4), "the cue's end").await;
-    assert!(
-        started.elapsed() < Duration::from_millis(1300),
-        "not restarted by text"
-    );
 
     // A file that cannot play counts as ended at once, and is reported.
     let mut events = engine.subscribe();

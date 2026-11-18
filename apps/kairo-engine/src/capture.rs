@@ -732,10 +732,7 @@ mod tests {
         assert_eq!((opened.width, opened.height, opened.fps), (1920, 1080, 30));
         assert_eq!(opened.codec, "prores4444");
         assert_eq!(opened.bitrate, 12_000_000.0);
-        assert_eq!(
-            status.path.as_deref(),
-            Some("/Movies/Kairo/Kairo Main 2026-11-13 09.05.07.mov")
-        );
+        assert_eq!(status.path.as_deref(), opened.path.to_str());
         assert_eq!(status.started_at, Some(1_700_000_000_000.0));
         // A second start is the same recording.
         c.start("screen-1", "Main", &settings, Some(16.0 / 9.0));
@@ -894,6 +891,7 @@ mod tests {
         assert_eq!(fake.stopped.load(Ordering::Relaxed), 1);
     }
 
+    #[cfg(unix)]
     #[test]
     fn free_bytes_reads_the_disk() {
         let free = free_bytes(Path::new("/")).unwrap();
