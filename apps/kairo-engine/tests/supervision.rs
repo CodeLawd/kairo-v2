@@ -351,7 +351,9 @@ async fn a_hung_engine_is_killed_and_relaunched() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_missing_binary_fails_within_the_budget() {
-    let engine = EngineHandle::spawn(EngineOptions::new("/nonexistent/kairo-engine"));
+    let mut options = EngineOptions::new("/nonexistent/kairo-engine");
+    options.launch_retry = Duration::from_millis(500);
+    let engine = EngineHandle::spawn(options);
     let reason = running(&engine, Duration::from_secs(5)).await.unwrap_err();
     assert!(
         reason.starts_with("cannot start /nonexistent/kairo-engine"),
@@ -626,4 +628,26 @@ fn message(text: &str) -> Json {
         })
         .to_string(),
     )
+}
+
+/// A build can replace the engine binary while the app runs: a binary
+/// missing for a moment is waited for and never spends the failure budget.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_engine_binary_missing_for_a_moment_still_starts() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir
+        .path()
+        .join(format!("kairo-engine{}", std::env::consts::EXE_SUFFIX));
+    let mut options = EngineOptions::new(&path);
+    options.grace = Duration::from_secs(2);
+    let engine = EngineHandle::spawn(options);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert!(!matches!(engine.status(), EngineStatus::Failed { .. }));
+    std::fs::copy(ENGINE, &path).unwrap();
+    match running(&engine, Duration::from_secs(15)).await {
+        Ok(_) => {}
+        Err(reason) if headless(&reason) => return,
+        Err(reason) => panic!("{reason}"),
+    }
+    engine.shutdown();
 }

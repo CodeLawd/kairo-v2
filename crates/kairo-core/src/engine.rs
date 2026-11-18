@@ -38,6 +38,9 @@ pub struct EngineOptions {
     pub heartbeat_timeout: Duration,
     /// From launch to a completed handshake.
     pub connect_timeout: Duration,
+    /// How long the binary may fail to start (a build replacing it) before
+    /// that counts as a failure.
+    pub launch_retry: Duration,
 }
 
 impl EngineOptions {
@@ -48,6 +51,7 @@ impl EngineOptions {
             heartbeat_every: Duration::from_secs(1),
             heartbeat_timeout: Duration::from_secs(3),
             connect_timeout: Duration::from_secs(5),
+            launch_retry: Duration::from_secs(30),
         }
     }
 }
@@ -558,12 +562,15 @@ enum Exit {
 fn supervise(inner: Arc<Inner>) {
     let mut budget = FailureBudget::default();
     let mut launches = 0u32;
+    // When start failures began, and how many there have been since.
+    let mut launch_retry: Option<(Instant, u32)> = None;
     loop {
         if inner.stopping.load(Ordering::SeqCst) {
             break;
         }
         let exit = match launch(&inner) {
             Ok(mut running) => {
+                launch_retry = None;
                 launches += 1;
                 let pid = running.child.id();
                 inner.status.send_replace(EngineStatus::Running { pid });
@@ -576,7 +583,16 @@ fn supervise(inner: Arc<Inner>) {
                 running.finish(&inner);
                 exit
             }
-            Err(reason) => Exit::Failure(reason),
+            Err(reason) => {
+                // The binary can be missing for a moment while a build
+                // replaces it: try again for a while before it counts as
+                // a crash, so that moment cannot spend the whole budget.
+                if retry_launch(&inner, &mut launch_retry) {
+                    tracing::warn!("output engine did not start, trying again: {reason}");
+                    continue;
+                }
+                Exit::Failure(reason)
+            }
         };
         match exit {
             Exit::Stopped => break,
@@ -610,6 +626,27 @@ fn supervise(inner: Arc<Inner>) {
         }
     }
     inner.status.send_replace(EngineStatus::Stopped);
+}
+
+/// After a start failure: waits, backing off from 250 ms to 4 s, and is
+/// true while still inside `EngineOptions::launch_retry` since the first
+/// one. False when stopping or the window has passed; it stays passed
+/// until a launch succeeds.
+fn retry_launch(inner: &Inner, retry: &mut Option<(Instant, u32)>) -> bool {
+    let (since, tries) = retry.get_or_insert((Instant::now(), 0));
+    if since.elapsed() >= inner.options.launch_retry {
+        return false;
+    }
+    let wait = Duration::from_millis(250 << (*tries).min(4));
+    *tries += 1;
+    let until = Instant::now() + wait;
+    while Instant::now() < until {
+        if inner.stopping.load(Ordering::SeqCst) {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    !inner.stopping.load(Ordering::SeqCst)
 }
 
 struct Running {
