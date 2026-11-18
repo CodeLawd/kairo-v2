@@ -29,7 +29,11 @@ fn slide_raster_p95_is_within_budget() {
     for c in &cases {
         let _ = kairo_scene::rasterize(&c.scene());
     }
-    let budget = if strict() {
+    let budget = if std::env::var("KAIRO_PERF_HOSTED").as_deref() == Ok("1") {
+        // GitHub's shared macOS runner is a different machine class from
+        // the M2 Pro baseline. Keep a separate hosted regression ceiling.
+        BUDGET_P95_MS * 2.0
+    } else if strict() {
         BUDGET_P95_MS
     } else {
         BUDGET_P95_MS * 4.0

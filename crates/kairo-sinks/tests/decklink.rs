@@ -340,7 +340,9 @@ fn a_ring_the_helper_refuses_falls_back_to_cpu_frames() {
 // ─── client.test.ts ─────────────────────────────────────────────────────────
 
 fn spawn(dir: &Path, body: &str, timeout: Duration) -> Result<Playback, String> {
-    Playback::spawn(&mut Command::new(script(dir, body)), timeout)
+    // Pass the fixture as input to the shell so parallel forks cannot
+    // block exec with a briefly inherited writable script descriptor.
+    Playback::spawn(Command::new("/bin/sh").arg(script(dir, body)), timeout)
 }
 
 const STARTED: &str = r#"echo '{"event":"started","port":"decklink:1:0"}'"#;

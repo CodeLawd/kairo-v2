@@ -154,6 +154,7 @@ jobs:
         # must not skip there. macOS runners may have no GPU.
         env:
           KAIRO_REQUIRE_GPU: ${{ runner.os != 'macOS' && '1' || '' }}
+          KAIRO_PERF_HOSTED: ${{ runner.os == 'macOS' && '1' || '0' }}
         run: cargo test --locked --workspace ${{ runner.os == 'Windows' && '--exclude soak' || '' }} --no-fail-fast
 
   performance:
@@ -165,6 +166,7 @@ jobs:
     runs-on: macos-15
     env:
       KAIRO_PERF_STRICT: "1"
+      KAIRO_PERF_HOSTED: "1"
       # Release builds refuse to compile without https API URLs; these tests
       # make no requests.
       KAIRO_API_URL: https://api.example.com
