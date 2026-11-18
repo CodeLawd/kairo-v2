@@ -199,11 +199,18 @@ fn a_burst_beyond_the_slots_is_dropped_and_latency_stays_in_budget() {
     }
     times.sort_by(f64::total_cmp);
     let (p50, p99) = (times[60], times[118]);
-    eprintln!("1080p UYVA convert+readback: p50 {p50:.2} ms, p99 {p99:.2} ms");
+    let adapter = d.adapter_info();
+    eprintln!(
+        "1080p UYVA convert+readback on {} ({:?}): p50 {p50:.2} ms, p99 {p99:.2} ms",
+        adapter.name, adapter.device_type
+    );
     let hosted = std::env::var("KAIRO_PERF_HOSTED").as_deref() == Ok("1");
     let budget = if cfg!(windows) && hosted {
         // WARP exercises conversion and readback on the CPU.
         500.0
+    } else if adapter.device_type == wgpu::DeviceType::Cpu {
+        // Software Vulkan exercises the same conversion without a GPU.
+        66.0
     } else if hosted {
         // Hosted macOS runners share a paravirtual GPU.
         250.0
