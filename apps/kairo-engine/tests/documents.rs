@@ -83,7 +83,7 @@ async fn start() -> Option<EngineHandle> {
                 size: Some((display.bounds.width, display.bounds.height)),
             },
             rehearsal: true,
-            frame_height: 1080,
+            frame_height: 360,
         }),
     }));
     Some(engine)
@@ -290,14 +290,20 @@ fn clip(dir: &Path, seconds: f64) -> String {
 async fn playback(
     engine: &EngineHandle,
 ) -> Option<kairo_domain::documents::DocumentPlaybackStatus> {
-    match engine
-        .query(Query::DocumentPlayback {
-            output: "main".into(),
-        })
-        .await
-    {
-        Some(Reply::DocumentPlayback(status)) => status.map(|s| s.decode().unwrap()),
-        other => panic!("{other:?}"),
+    let deadline = Instant::now() + Duration::from_secs(8);
+    loop {
+        match engine
+            .query(Query::DocumentPlayback {
+                output: "main".into(),
+            })
+            .await
+        {
+            Some(Reply::DocumentPlayback(status)) => return status.map(|s| s.decode().unwrap()),
+            None if Instant::now() < deadline => {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            other => panic!("document playback query: {other:?}"),
+        }
     }
 }
 

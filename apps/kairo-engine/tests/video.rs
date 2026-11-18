@@ -24,11 +24,12 @@ fn clip(dir: &Path, seconds: f64) -> PathBuf {
     path
 }
 
-fn slide(path: &Path, cue: Option<f64>, looped: bool, text: &str) -> SlideContent {
+fn slide(path: &Path, cue: Option<f64>, rate: f64, text: &str) -> SlideContent {
     let mut theme = DEFAULT_OVERLAY_THEME.clone();
     theme.background.kind = OverlayBackgroundType::Video;
     theme.background.media_path = Some(path.to_string_lossy().into_owned());
-    theme.background.media_loop = Some(looped);
+    theme.background.media_loop = Some(false);
+    theme.background.media_rate = Some(rate);
     theme.background.media_cue = cue;
     theme.background.opacity = 1.0;
     SlideContent {
@@ -116,7 +117,7 @@ async fn background_video_transport_and_ended() {
                 size: Some((display.bounds.width, display.bounds.height)),
             },
             rehearsal: true,
-            frame_height: 1080,
+            frame_height: 360,
         }),
     }));
     // Nothing shown: no video counts as ended, and there is no clock.
@@ -139,7 +140,7 @@ async fn background_video_transport_and_ended() {
     };
 
     // A one-second clip without loop plays, then ends (the lobby moves on).
-    show(slide(&short, None, false, "one"));
+    show(slide(&short, None, 1.0, "one"));
     becomes(&engine, false, Duration::from_secs(3), "playing").await;
     becomes(&engine, true, Duration::from_secs(4), "finished").await;
     // The operator's transport reads the same clock: the end of the range.
@@ -210,8 +211,9 @@ async fn background_video_transport_and_ended() {
     assert!(ended(&engine).await);
 
     // A new cue is a new video that plays from the start, unpaused.
-    show(slide(&short, Some(2.0), false, "two"));
-    becomes(&engine, false, Duration::from_secs(2), "new cue").await;
+    // Give the test time to observe the transition on a software renderer.
+    show(slide(&short, Some(2.0), 0.25, "two"));
+    becomes(&engine, false, Duration::from_secs(6), "new cue").await;
     // A text update at the same cue preserves the current transport.
     transport(VideoTransport::Pause(true));
     transport(VideoTransport::Seek(0.6));
@@ -220,7 +222,7 @@ async fn background_video_transport_and_ended() {
         assert!(Instant::now() < deadline, "the seek never settled");
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    show(slide(&short, Some(2.0), false, "three"));
+    show(slide(&short, Some(2.0), 0.25, "three"));
     tokio::time::sleep(Duration::from_millis(500)).await;
     let paused = time(&engine).await.unwrap();
     assert!(!paused.ended && (paused.current_time - 0.6).abs() < 0.05);
@@ -231,7 +233,7 @@ async fn background_video_transport_and_ended() {
     let mut events = engine.subscribe();
     let broken = dir.path().join("broken.mp4");
     std::fs::write(&broken, b"not a video").unwrap();
-    show(slide(&broken, Some(3.0), false, "four"));
+    show(slide(&broken, Some(3.0), 1.0, "four"));
     becomes(&engine, true, Duration::from_secs(2), "broken").await;
     let deadline = Instant::now() + Duration::from_secs(3);
     loop {
