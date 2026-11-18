@@ -15,7 +15,7 @@ use kairo_domain::{
         ScriptureSuggestion, ScriptureTranslationOption, SermonPlan,
     },
     services::{ServiceCommand, ServiceSnapshot},
-    settings::ShortcutBindings,
+    settings::{ScriptureAutomation, ShortcutBindings},
     status::{OrchestratorStatus, ResilienceStatus},
     transcript::TranscriptResult,
 };
@@ -53,6 +53,7 @@ pub struct BoothSnapshot {
     pub legacy_nuggets: Vec<LegacyNugget>,
     pub default_translation: String,
     pub shortcuts: ShortcutBindings,
+    pub automation: ScriptureAutomation,
     pub translations: Vec<ScriptureTranslationOption>,
     pub live_plan: Option<LivePlanState>,
     pub plans: Vec<SermonPlan>,
@@ -98,6 +99,7 @@ pub enum BoothFeed {
     Settings {
         default_translation: String,
         shortcuts: ShortcutBindings,
+        automation: ScriptureAutomation,
     },
     Devices(DeviceLabels),
 }
@@ -134,6 +136,17 @@ pub enum BoothCall {
     Translations,
     /// `scripture.setAutoMode`.
     SetAutoMode(bool),
+    /// Follow-along moved the screen on: a spoken "next verse" right after
+    /// asks for that verse, not the one after.
+    FollowStepped,
+    /// Saves every automation option and applies it to the running service.
+    SetAutomation(ScriptureAutomation),
+    /// Auto-clear: takes scripture off the screens while this verse is live.
+    ClearScriptureIfLive {
+        book: String,
+        chapter: f64,
+        verse: f64,
+    },
     /// `orchestrator.start` with the configuration built from settings.
     StartListening {
         auto_mode: bool,
@@ -199,6 +212,8 @@ pub enum BoothAnswer {
     Picked(Option<String>),
     /// `RequestCameraAccess`: the video inputs, once access was granted.
     VideoInputs(Vec<String>),
+    /// `ClearScriptureIfLive`: whether the verse was still live and cleared.
+    Cleared(bool),
 }
 
 pub type Reply = Box<dyn FnOnce(Result<BoothAnswer, String>) + Send>;

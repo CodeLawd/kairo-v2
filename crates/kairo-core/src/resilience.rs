@@ -120,7 +120,17 @@ impl Resilience {
     }
 
     pub fn update_stt(&mut self, event: SttEvent, now_ms: f64) {
+        let weak_now = kairo_domain::status::stt_connection_weak(&self.health);
         let (status, message) = match event {
+            SttEvent::Network { weak: true } => (
+                HealthStatus::Degraded,
+                Some(kairo_domain::status::WEAK_CONNECTION.to_owned()),
+            ),
+            // Steady again clears only the weak warning, not a reconnect.
+            SttEvent::Network { weak: false } if weak_now => (HealthStatus::Ok, None),
+            SttEvent::Network { weak: false } => return,
+            // A reconnect that lands keeps the warning until steady.
+            SttEvent::Connected if weak_now => return,
             SttEvent::Connected => (HealthStatus::Ok, None),
             SttEvent::Reconnecting { attempt, delay_ms } => (
                 HealthStatus::Degraded,
@@ -167,7 +177,9 @@ impl Resilience {
             self.set_fallback(
                 Some(DetectorFallbackReason {
                     kind: DetectorFallbackKind::Provider,
-                    message: format!("AI detection refused the request: {message}"),
+                    message: format!(
+                        "AI detection is unavailable ({message}). Using local matching."
+                    ),
                 }),
                 now_ms,
             );
@@ -237,9 +249,16 @@ pub struct ProbeTicket(u64);
 
 pub enum SttEvent {
     Connected,
-    Reconnecting { attempt: u32, delay_ms: u64 },
+    Reconnecting {
+        attempt: u32,
+        delay_ms: u64,
+    },
     Disconnected,
     Error(String),
+    /// The upload is struggling (`true`) or steady again.
+    Network {
+        weak: bool,
+    },
 }
 
 /// The runtime actor owns health state and the recovery file's UI status.
@@ -637,6 +656,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_weak_link_warns_until_steady_and_survives_a_reconnect() {
+        use kairo_domain::status::stt_connection_weak;
+        let mut r = Resilience::new(0.0, false);
+        let weak = |r: &Resilience| stt_connection_weak(&r.status().health);
+        r.update_stt(SttEvent::Network { weak: true }, 1.0);
+        assert!(weak(&r));
+        r.update_stt(SttEvent::Connected, 2.0);
+        assert!(weak(&r), "landing a reconnect is not steady yet");
+        r.update_stt(SttEvent::Network { weak: false }, 3.0);
+        assert!(!weak(&r));
+        // Steady never clears a real reconnect in progress.
+        r.update_stt(
+            SttEvent::Reconnecting {
+                attempt: 1,
+                delay_ms: 1000,
+            },
+            4.0,
+        );
+        r.update_stt(SttEvent::Network { weak: false }, 5.0);
+        let stt = r
+            .status()
+            .health
+            .into_iter()
+            .find(|h| h.service == ServiceName::Stt)
+            .unwrap();
+        assert_eq!(stt.status, HealthStatus::Degraded);
+    }
+
+    #[test]
     fn detector_retries_after_two_failures_and_stays_degraded_until_success() {
         let mut resilience = Resilience::new(0.0, false);
         assert_eq!(resilience.detector_error("first", 1.0), None);
@@ -649,7 +697,7 @@ mod tests {
                 .detector_fallback_reason
                 .unwrap()
                 .message,
-            "AI detection refused the request: second"
+            "AI detection is unavailable (second). Using local matching."
         );
         assert!(resilience.begin_detector_probe(ticket, 30_002.0));
         assert!(!resilience.begin_detector_probe(ticket, 30_003.0));

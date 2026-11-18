@@ -319,7 +319,7 @@ fn draw_box(ts: &mut Typesetter, placed: &Placed<'_>, times: &mut Timings) -> Op
     };
     let style = &b.style;
     let started = Instant::now();
-    let glyphs = collect_glyphs(ts, shaped, origin, style.stroke.map(|s| s.width));
+    let glyphs = collect_glyphs(ts, &shaped.lines, origin, style.stroke.map(|s| s.width));
     times.layout_ms += since(started);
     let bars: Vec<Bar> = if style.decoration == Decoration::None {
         Vec::new()
@@ -377,12 +377,12 @@ fn draw_box(ts: &mut Typesetter, placed: &Placed<'_>, times: &mut Timings) -> Op
 /// snaps to a whole pixel and x to a quarter pixel.
 fn collect_glyphs(
     ts: &mut Typesetter,
-    shaped: &Shaped,
+    lines: &[ShapedLine],
     origin: (f32, f32),
     stroke: Option<f32>,
 ) -> Vec<DrawGlyph> {
     let mut out = Vec::new();
-    for (line_index, line) in shaped.lines.iter().enumerate() {
+    for (line_index, line) in lines.iter().enumerate() {
         for g in &line.glyphs {
             let run = &line.runs[g.run as usize];
             let steps = ((origin.0 + g.x) * f32::from(SUBPIXELS) + 0.5).floor() as i64;
@@ -405,6 +405,38 @@ fn collect_glyphs(
         }
     }
     out
+}
+
+/// Draw a slice of already-shaped text into a clipped, premultiplied viewport.
+pub(crate) fn draw_scroll_text(
+    ts: &mut Typesetter,
+    lines: &[ShapedLine],
+    origin: (f32, f32),
+    viewport: (u32, u32),
+    guide_y: f32,
+) -> Option<Pixmap> {
+    let mut image = Pixmap::new(viewport.0, viewport.1)?;
+    image.fill(Color::BLACK);
+    let clip = (0, 0, viewport.0 as i32, viewport.1 as i32);
+    for glyph in collect_glyphs(ts, lines, origin, None) {
+        blit(
+            &mut image,
+            &glyph.fill,
+            glyph.x,
+            glyph.y,
+            Rgba::new(255, 255, 255, 255),
+            clip,
+        );
+    }
+    if let Some(guide) = Rect::from_xywh(0.0, guide_y.floor(), viewport.0 as f32, 2.0) {
+        image.fill_rect(
+            guide,
+            &paint(Rgba::new(106, 134, 156, 255)),
+            Transform::identity(),
+            None,
+        );
+    }
+    Some(image)
 }
 
 /// Source-over of a coverage mask in `color` onto premultiplied pixels.

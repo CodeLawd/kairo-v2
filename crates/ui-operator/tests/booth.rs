@@ -554,10 +554,20 @@ fn the_recovery_prompt_restores_or_discards(cx: &mut TestAppContext) {
     assert!(calls.contains(&BoothCall::DiscardSession));
 }
 
+fn listening(core: &Core) {
+    core.push(BoothFeed::Status(
+        serde_json::from_value(json!({
+            "running": true, "autoMode": false, "health": [], "totalPresentations": 0
+        }))
+        .expect("status"),
+    ));
+}
+
 #[gpui_kit::test]
 fn a_degraded_stt_shows_reconnecting(cx: &mut TestAppContext) {
     let core = Core::new(base());
     let opened = open(cx, core.clone());
+    listening(&core);
     core.push(BoothFeed::Resilience(resilience(false, "degraded")));
     draw(cx, &opened);
     assert!(exists(
@@ -565,6 +575,23 @@ fn a_degraded_stt_shows_reconnecting(cx: &mut TestAppContext) {
         &opened,
         ui_operator::booth::transcript::ids::RECONNECTING
     ));
+    assert!(!cx.read(|cx| opened.booth().read(cx).stt_weak()));
+}
+
+#[gpui_kit::test]
+fn a_weak_connection_warns_while_listening_only(cx: &mut TestAppContext) {
+    let core = Core::new(base());
+    let opened = open(cx, core.clone());
+    let mut weak = resilience(false, "degraded");
+    weak.health[0].last_error = Some(kairo_domain::status::WEAK_CONNECTION.into());
+    core.push(BoothFeed::Resilience(weak));
+    draw(cx, &opened);
+    let id = ui_operator::booth::transcript::ids::RECONNECTING;
+    assert!(!exists(cx, &opened, id), "not while stopped");
+    listening(&core);
+    draw(cx, &opened);
+    assert!(exists(cx, &opened, id));
+    assert!(cx.read(|cx| opened.booth().read(cx).stt_weak()));
 }
 
 #[gpui_kit::test]
@@ -887,4 +914,100 @@ fn suggestion_arrival_paints_within_one_frame(cx: &mut TestAppContext) {
         draw(cx, &opened);
         assert!(exists(cx, &opened, &detected::ids::row(&format!("s{i}"))));
     }
+}
+
+// ─── Automation ─────────────────────────────────────────────────────────────
+
+const VERSE_ONE: &str = "Drink water from your own cistern and running water from your own well";
+const VERSE_TWO: &str = "Should your fountains be dispersed abroad streams of water in the streets";
+
+/// A two-verse passage, Proverbs 5:15–16, as detection sends it.
+fn passage() -> [ScriptureSuggestion; 2] {
+    let card = |id: &str, n: f64, text: &str| {
+        let mut s = detection(id, &format!("Proverbs 5:{n}"), text);
+        s.passage_id = Some("prov-5".into());
+        s.passage_index = Some(n - 15.0);
+        s.passage_length = Some(2.0);
+        s
+    };
+    [card("p15", 15.0, VERSE_ONE), card("p16", 16.0, VERSE_TWO)]
+}
+
+fn automated(follow_along: bool, auto_clear: bool) -> Arc<Core> {
+    let mut snapshot = base();
+    snapshot.automation.follow_along = follow_along;
+    snapshot.automation.auto_clear = auto_clear;
+    snapshot.automation.auto_clear_delay_sec = 4.0;
+    let core = Core::new(snapshot);
+    core.script(|call| match call {
+        BoothCall::ClearScriptureIfLive { .. } => Some(Ok(BoothAnswer::Cleared(true))),
+        _ => Some(Ok(BoothAnswer::Done)),
+    });
+    core
+}
+
+fn read_passage_aloud(cx: &mut TestAppContext, core: &Arc<Core>, opened: &Opened) {
+    for card in passage() {
+        core.push(BoothFeed::Suggestion(card));
+    }
+    draw(cx, opened);
+    cx.update(|cx| opened.booth().update(cx, |b, cx| b.approve("p15", cx)));
+    core.push(BoothFeed::Transcript(transcript("t1", VERSE_ONE)));
+    draw(cx, opened);
+    core.push(BoothFeed::Transcript(transcript("t2", VERSE_TWO)));
+    draw(cx, opened);
+}
+
+fn cleared(core: &Core) -> Vec<(String, f64, f64)> {
+    core.calls()
+        .into_iter()
+        .filter_map(|call| match call {
+            BoothCall::ClearScriptureIfLive {
+                book,
+                chapter,
+                verse,
+            } => Some((book, chapter, verse)),
+            _ => None,
+        })
+        .collect()
+}
+
+#[gpui_kit::test]
+fn a_read_through_passage_clears_after_the_pause(cx: &mut TestAppContext) {
+    let core = automated(true, true);
+    let opened = open(cx, core.clone());
+    read_passage_aloud(cx, &core, &opened);
+    assert!(
+        core.calls().contains(&BoothCall::Approve("p16".into())),
+        "follow-along moved to the second verse"
+    );
+    assert!(cleared(&core).is_empty(), "nothing clears before the pause");
+    cx.executor().advance_clock(Duration::from_secs(5));
+    draw(cx, &opened);
+    assert_eq!(cleared(&core), [("Proverbs".to_owned(), 5.0, 16.0)]);
+    assert_eq!(
+        cx.read(|cx| opened.booth().read(cx).projection().cloned()),
+        None
+    );
+}
+
+#[gpui_kit::test]
+fn follow_along_off_leaves_the_verse_for_the_operator(cx: &mut TestAppContext) {
+    let core = automated(false, false);
+    let opened = open(cx, core.clone());
+    read_passage_aloud(cx, &core, &opened);
+    assert!(!core.calls().contains(&BoothCall::Approve("p16".into())));
+    cx.executor().advance_clock(Duration::from_secs(20));
+    draw(cx, &opened);
+    assert!(cleared(&core).is_empty());
+}
+
+#[gpui_kit::test]
+fn auto_clear_off_keeps_the_last_verse_up(cx: &mut TestAppContext) {
+    let core = automated(true, false);
+    let opened = open(cx, core.clone());
+    read_passage_aloud(cx, &core, &opened);
+    cx.executor().advance_clock(Duration::from_secs(20));
+    draw(cx, &opened);
+    assert!(cleared(&core).is_empty());
 }

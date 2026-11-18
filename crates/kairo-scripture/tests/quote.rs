@@ -22,7 +22,9 @@ use kairo_scripture::quote::matching::{
     GlobalQuoteCandidate, fresh_speech_supports, match_global_quote,
 };
 use kairo_scripture::quote::retrieval::retrieve_global_quote;
-use kairo_scripture::quote::worker::{Command, Event, QuoteWorkerClient, Spawner, run_worker};
+use kairo_scripture::quote::worker::{
+    Command, Event, QuoteSearchOutcome, QuoteWorkerClient, Spawner, run_worker,
+};
 use kairo_store::db::PackVerse;
 use kairo_store::secrets::{ApiCacheCrypto, KeyProtector, SecretError};
 use serde_json::{Value, json};
@@ -406,16 +408,31 @@ fn the_worker_searches_public_and_licensed_text_on_its_own_thread() {
                 false,
             )
             .await
+            .unwrap()
+            .found()
             .unwrap();
         assert_eq!(m[0].candidate.book, "Luke");
-        assert!(client.search(LICENSED, false).await.unwrap().is_empty());
+        assert!(
+            client
+                .search(LICENSED, false)
+                .await
+                .unwrap()
+                .found()
+                .unwrap()
+                .is_empty()
+        );
         client.begin_cache(1).unwrap();
         client
             .append_cache(1, vec![licensed_row(i64::MAX)])
             .await
             .unwrap();
         client.commit_cache(1);
-        let m = client.search(LICENSED, false).await.unwrap();
+        let m = client
+            .search(LICENSED, false)
+            .await
+            .unwrap()
+            .found()
+            .unwrap();
         assert_eq!(
             m[0].candidate.cache_source.as_ref().unwrap().bible_id,
             "licensed"
@@ -427,6 +444,8 @@ fn the_worker_searches_public_and_licensed_text_on_its_own_thread() {
                 true,
             )
             .await
+            .unwrap()
+            .found()
             .unwrap();
         assert!(p.iter().all(|m| m.ambiguous));
         client.close();
@@ -493,16 +512,29 @@ fn only_the_newest_queued_search_runs() {
         tokio::time::sleep(Duration::from_millis(20)).await;
         let third = tokio::spawn(async move { c.search(text, false).await });
         tokio::time::sleep(Duration::from_millis(20)).await;
-        // The replaced search resolves empty without reaching the worker.
-        assert!(second.await.unwrap().unwrap().is_empty());
+        // The replaced search resolves superseded without reaching the worker.
+        assert!(matches!(
+            second.await.unwrap().unwrap(),
+            QuoteSearchOutcome::Superseded
+        ));
         for _ in 0..2 {
             while gate.lock().unwrap().is_empty() {
                 tokio::time::sleep(Duration::from_millis(5)).await;
             }
             gate.lock().unwrap().remove(0).send(()).unwrap();
         }
-        assert_eq!(first.await.unwrap().unwrap()[0].candidate.book, "1 John");
-        assert_eq!(third.await.unwrap().unwrap()[0].candidate.book, "1 John");
+        assert_eq!(
+            first.await.unwrap().unwrap().found().unwrap()[0]
+                .candidate
+                .book,
+            "1 John"
+        );
+        assert_eq!(
+            third.await.unwrap().unwrap().found().unwrap()[0]
+                .candidate
+                .book,
+            "1 John"
+        );
         client.close();
     });
 }
@@ -528,6 +560,8 @@ fn a_missing_database_fails_and_restarts_lazily() {
                 false,
             )
             .await
+            .unwrap()
+            .found()
             .unwrap();
         assert_eq!(m[0].candidate.book, "Luke");
         client.close();
@@ -649,6 +683,8 @@ fn licensed_text_survives_a_crash_and_is_retracted_on_revocation() {
                 .search_general_quote(LICENSED, false)
                 .await
                 .unwrap()
+                .found()
+                .unwrap()
                 .len()
                 == 1
         })
@@ -656,6 +692,8 @@ fn licensed_text_survives_a_crash_and_is_retracted_on_revocation() {
         let found = corpus
             .search_general_quote(LICENSED, false)
             .await
+            .unwrap()
+            .found()
             .unwrap()
             .remove(0);
         assert_eq!(found.candidate.quote_corpus_version, Some(corpus.version()));
@@ -676,7 +714,7 @@ fn licensed_text_survives_a_crash_and_is_retracted_on_revocation() {
             corpus
                 .search_general_quote(LICENSED, false)
                 .await
-                .map(|m| m.len() == 1)
+                .map(|m| m.found().is_some_and(|m| m.len() == 1))
                 .unwrap_or(false)
         })
         .await;
@@ -718,6 +756,8 @@ fn licensed_text_survives_a_crash_and_is_retracted_on_revocation() {
                 .search_general_quote(LICENSED, false)
                 .await
                 .unwrap()
+                .found()
+                .unwrap()
                 .is_empty()
         })
         .await;
@@ -728,6 +768,8 @@ fn licensed_text_survives_a_crash_and_is_retracted_on_revocation() {
                 false,
             )
             .await
+            .unwrap()
+            .found()
             .unwrap();
         assert_eq!(public[0].candidate.book, "1 John");
         corpus.close();
@@ -763,6 +805,8 @@ fn expired_text_is_never_exported_and_a_failed_index_keeps_public_matching() {
                 .search_general_quote(LICENSED, false)
                 .await
                 .unwrap()
+                .found()
+                .unwrap()
                 .is_empty()
         );
         assert_eq!(
@@ -772,6 +816,8 @@ fn expired_text_is_never_exported_and_a_failed_index_keeps_public_matching() {
                     false
                 )
                 .await
+                .unwrap()
+                .found()
                 .unwrap()[0]
                 .candidate
                 .book,
@@ -782,6 +828,8 @@ fn expired_text_is_never_exported_and_a_failed_index_keeps_public_matching() {
             corpus
                 .search_general_quote("Give and it shall be given", false)
                 .await
+                .unwrap()
+                .found()
                 .unwrap()
                 .is_empty()
         );

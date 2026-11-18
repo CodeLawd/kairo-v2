@@ -88,8 +88,81 @@ pub struct ScriptureSettings {
     pub context_window_size: f64,
     /// API.Bible ids whose licence permits whole-translation offline download.
     pub offline_download_bible_ids: Vec<String>,
+    // Native-only options, written only when changed so settings files keep
+    // Electron's shape.
+    /// Detected passages (ranges) auto-present their first verse too.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub auto_present_passages: bool,
+    /// The screen moves to the next verse as a passage is read aloud.
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub follow_along: bool,
+    /// Scripture leaves the screens once its passage has been read through.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub auto_clear: bool,
+    /// Seconds after the last verse is read before scripture clears.
+    #[serde(
+        default = "default_auto_clear_delay",
+        skip_serializing_if = "is_default_auto_clear_delay"
+    )]
+    pub auto_clear_delay_sec: f64,
     #[serde(flatten)]
     pub extra: Extra,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+fn is_default_auto_clear_delay(value: &f64) -> bool {
+    *value == DEFAULT_AUTO_CLEAR_DELAY_SEC
+}
+
+fn default_auto_clear_delay() -> f64 {
+    DEFAULT_AUTO_CLEAR_DELAY_SEC
+}
+
+/// How long a read-through passage stays up before auto-clear removes it.
+pub const DEFAULT_AUTO_CLEAR_DELAY_SEC: f64 = 4.0;
+
+/// Every automatic action on detected scripture, as the Operator edits it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ScriptureAutomation {
+    /// The master switch: detected verses present after the countdown.
+    pub auto_mode: bool,
+    pub auto_present_delay_sec: AutoPresentDelaySec,
+    pub confidence_threshold: f64,
+    pub auto_present_passages: bool,
+    pub follow_along: bool,
+    pub auto_clear: bool,
+    pub auto_clear_delay_sec: f64,
+}
+
+impl ScriptureAutomation {
+    pub fn of(settings: &ScriptureSettings) -> Self {
+        Self {
+            auto_mode: settings.auto_mode,
+            auto_present_delay_sec: settings.auto_present_delay_sec,
+            confidence_threshold: settings.confidence_threshold,
+            auto_present_passages: settings.auto_present_passages,
+            follow_along: settings.follow_along,
+            auto_clear: settings.auto_clear,
+            auto_clear_delay_sec: settings.auto_clear_delay_sec,
+        }
+    }
+}
+
+impl Default for ScriptureAutomation {
+    fn default() -> Self {
+        Self::of(&ScriptureSettings::default())
+    }
 }
 
 impl Default for ScriptureSettings {
@@ -103,6 +176,10 @@ impl Default for ScriptureSettings {
             debounce_interval: 8.0,
             context_window_size: 90.0,
             offline_download_bible_ids: Vec::new(),
+            auto_present_passages: false,
+            follow_along: true,
+            auto_clear: false,
+            auto_clear_delay_sec: DEFAULT_AUTO_CLEAR_DELAY_SEC,
             extra: Extra::new(),
         }
     }

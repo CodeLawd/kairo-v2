@@ -16,6 +16,7 @@ use kairo_compositor::thread::{MediaControl, Op};
 use kairo_compositor::{Content, Fill, Rect, Slot, VideoLayout, clamp_transition, video_layout};
 use kairo_domain::documents::DocumentSlide;
 use kairo_domain::program::{ConfidenceInfo, ProgramLayer};
+use kairo_domain::teleprompter::{StageContent, StagePayload};
 use kairo_engine_proto::*;
 use kairo_scene::program::Pattern;
 use serde_json::{Value, json};
@@ -60,6 +61,7 @@ pub enum Role {
 /// One surface's shell settings (`config`, `webShown`).
 pub struct Shell {
     frame_height: u32,
+    stage_viewport: (u32, u32),
     ms: u32,
     web_shown: Option<String>,
     output: String,
@@ -75,6 +77,7 @@ pub struct Shell {
     next_generation: u64,
     /// Program layers whose countdowns or clocks tick, by slot.
     pub live: std::collections::HashMap<Slot, LiveLayer>,
+    pub teleprompter: Option<crate::teleprompter::StagePlayback>,
     /// Source ids of the cameras that are live, by label.
     cameras: std::collections::HashMap<String, u64>,
     /// The camera source the camera slot shows.
@@ -97,6 +100,7 @@ impl Shell {
     pub fn new(output: &str, frame_height: u32) -> Self {
         Self {
             frame_height: kairo_compositor::frame_height(frame_height),
+            stage_viewport: (1920, 1080),
             ms: 0,
             web_shown: None,
             output: output.to_owned(),
@@ -106,6 +110,7 @@ impl Shell {
             generations: std::collections::HashMap::new(),
             next_generation: 0,
             live: std::collections::HashMap::new(),
+            teleprompter: None,
             cameras: std::collections::HashMap::new(),
             camera_shown: None,
             background_key: None,
@@ -260,6 +265,7 @@ impl Shell {
             };
         }
         match command {
+            Command::SetPrompter { .. } => self.prompter(state),
             Command::SetStage { .. } => self.stage(state, 0),
             Command::Configure { config, .. } => {
                 let mut ops = self.configure(config);
@@ -343,7 +349,8 @@ impl Shell {
             Command::ControlDocumentVideo { .. }
             | Command::WebScroll { .. }
             | Command::WebInput { .. }
-            | Command::SetPreview { .. } => vec![],
+            | Command::SetPreview { .. }
+            | Command::StageTransport { .. } => vec![],
             Command::OpenSurface(_)
             | Command::RetainSurfaces { .. }
             | Command::CloseSurface { .. }
@@ -396,6 +403,9 @@ impl Shell {
             let source = self.info_layer(info);
             let at = ops.len();
             ops.extend(self.layer(Slot::Info, source, 0, at));
+        }
+        if state.prompter.is_some() {
+            ops.extend(self.prompter(state));
         }
         if state.test_pattern.is_some() {
             let at = ops.len();
@@ -470,15 +480,113 @@ impl Shell {
     }
 
     /// The diagnostic pattern over everything, named for the output.
+    pub fn set_stage_viewport(&mut self, width: u32, height: u32) -> bool {
+        if width == 0 || height == 0 {
+            return false;
+        }
+        let scale = (1920.0 / f64::from(width))
+            .min(1080.0 / f64::from(height))
+            .min(1.0);
+        let viewport = (
+            (f64::from(width) * scale).round().max(1.0) as u32,
+            (f64::from(height) * scale).round().max(1.0) as u32,
+        );
+        if viewport == self.stage_viewport {
+            return false;
+        }
+        self.stage_viewport = viewport;
+        true
+    }
+
+    /// A teleprompter over an audience screen's content, or its removal.
+    /// The screen's own layers are untouched, so taking it off shows them
+    /// again at once.
+    fn prompter(&mut self, state: &SurfaceState) -> Vec<Op> {
+        let slot = Slot::Prompter;
+        let view = state.prompter.as_ref().and_then(|view| match view.decode() {
+            Ok(StagePayload::Tagged(StageContent::Teleprompter(view))) => Some(view),
+            Ok(_) => None,
+            Err(error) => {
+                tracing::warn!(%error, "invalid prompter view");
+                None
+            }
+        });
+        let Some(view) = view else {
+            self.teleprompter = None;
+            return vec![Op::Keyed {
+                slot,
+                content: None,
+                ms: 0,
+            }];
+        };
+        let key = format!("{slot:?}#{}", self.generation(slot));
+        let now = std::time::Instant::now();
+        let mut playback = crate::teleprompter::StagePlayback::new(
+            key.clone(),
+            view,
+            (kairo_compositor::FRAME_WIDTH, self.frame_height),
+            now,
+            self.teleprompter.take(),
+        );
+        playback.slot = slot;
+        let content = playback.draw(now).unwrap_or_else(Content::empty);
+        self.teleprompter = Some(playback);
+        vec![Op::Keyed {
+            slot,
+            content: Some((content, key)),
+            ms: 0,
+        }]
+    }
+
     fn stage(&mut self, state: &SurfaceState, at: usize) -> Vec<Op> {
-        let source = state.stage.as_ref().and_then(|view| match view.decode() {
-            Ok(view) => Some(LayerSource::Stage(view)),
+        let payload = state.stage.as_ref().and_then(|view| match view.decode() {
+            Ok(view) => Some(view),
             Err(error) => {
                 tracing::warn!(%error, "invalid stage view");
                 None
             }
         });
-        self.layer(Slot::Background, source, 0, at)
+        if let Some(StagePayload::Tagged(StageContent::Teleprompter(view))) = payload {
+            let slot = Slot::Background;
+            self.live.remove(&slot);
+            let key = format!("{slot:?}#{}", self.generation(slot));
+            let now = std::time::Instant::now();
+            let mut playback = crate::teleprompter::StagePlayback::new(
+                key.clone(),
+                view,
+                self.stage_viewport,
+                now,
+                self.teleprompter.take(),
+            );
+            let content = playback.draw(now).unwrap_or_else(Content::empty);
+            self.teleprompter = Some(playback);
+            return vec![
+                Op::StageCanvas(Some(self.stage_viewport)),
+                Op::Keyed {
+                    slot,
+                    content: Some((content, key)),
+                    ms: 0,
+                },
+            ];
+        }
+        let restore_canvas = self.teleprompter.take().is_some();
+        let source = match payload {
+            Some(
+                StagePayload::Tagged(StageContent::ConfidenceMonitor(view))
+                | StagePayload::LegacyConfidence(view),
+            ) => Some(LayerSource::Stage(view)),
+            _ => None,
+        };
+        let mut ops = self.layer(
+            Slot::Background,
+            source,
+            0,
+            at + usize::from(restore_canvas),
+        );
+        if restore_canvas {
+            ops.insert(0, Op::StageCanvas(None));
+        }
+        ops
     }
 
     fn pattern(&mut self, state: &SurfaceState, at: usize) -> Vec<Op> {

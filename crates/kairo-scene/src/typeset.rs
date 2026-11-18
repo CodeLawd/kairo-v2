@@ -118,6 +118,8 @@ pub struct PlacedGlyph {
 }
 
 pub struct ShapedLine {
+    /// Start of this wrapped line in the original paragraph, in UTF-8 bytes.
+    pub byte_start: usize,
     /// The line's text, trimmed, for tests and diagnostics.
     pub text: String,
     pub color: Option<Rgba>,
@@ -256,6 +258,7 @@ impl Typesetter {
             let line_text = paragraph.text.get(start..end).unwrap_or("").trim();
             let metrics = line.metrics();
             let mut shaped = ShapedLine {
+                byte_start: start,
                 text: line_text.to_owned(),
                 color: paragraph.color,
                 runs: Vec::new(),

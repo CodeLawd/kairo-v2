@@ -27,6 +27,7 @@ use kairo_domain::program::{
     OutputShowFilter, PresentationSettings, ProgramState, StageDisplayStatus, StageView,
     confidence_for, next_time_of_day, program_layers_for, screen_timer_style, transition_ms,
 };
+use kairo_domain::teleprompter::{StageContent, TeleprompterView, remap_anchor};
 use kairo_domain::video_devices::{VideoDeviceSnapshot, VideoOutputState, VideoPort};
 use kairo_engine_proto::surface::Layers;
 use kairo_engine_proto::{
@@ -36,6 +37,15 @@ use kairo_engine_proto::{
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+
+/// An output the prompter can be sent to.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PrompterTarget {
+    pub id: String,
+    pub name: String,
+    pub ready: bool,
+    pub reason: String,
+}
 
 /// Why an output can or cannot take a push right now; the Outputs UI shows `reason`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,6 +92,8 @@ struct Sent {
     config: Option<SurfaceConfig>,
     layers: Layers,
     stage: Option<Json>,
+    /// The teleprompter last put over an audience screen.
+    prompter: Option<Json>,
 }
 
 struct Entry {
@@ -108,6 +120,13 @@ pub struct SurfaceManager {
     /// this copy instead of re-reading settings.
     presentation_cache: Option<PresentationSettings>,
     program: ProgramState,
+    teleprompter: Option<(String, TeleprompterView)>,
+    next_script_revision: u64,
+    stage_sequence: u64,
+    stage_position: Option<proto::StagePosition>,
+    /// The output the prompter goes to, and whether it is on it now.
+    prompter_target: Option<String>,
+    prompter_live: bool,
     /// In opening order.
     entries: BTreeMap<String, Entry>,
     order: Vec<String>,
@@ -139,6 +158,12 @@ impl SurfaceManager {
             outputs: Vec::new(),
             presentation_cache: None,
             program: ProgramState::default(),
+            teleprompter: None,
+            next_script_revision: 0,
+            stage_sequence: 0,
+            stage_position: None,
+            prompter_target: None,
+            prompter_live: false,
             entries: BTreeMap::new(),
             order: Vec::new(),
             screen_states: HashMap::new(),
@@ -233,6 +258,7 @@ impl SurfaceManager {
 
         self.apply_config(&presentation);
         self.apply_program(&presentation);
+        self.push_prompter();
         self.publish_routing();
     }
 
@@ -633,13 +659,9 @@ impl SurfaceManager {
                     },
                 ),
             );
-            if self.open(spec, Role::Stage) {
-                // The engine places a surface as a stage only once it has a
-                // stage view; send it with the open.
-                let view = self.stage_view(presentation, &config.id);
-                if let Some(view) = view {
-                    self.send_stage(&config.id, view);
-                }
+            self.open(spec, Role::Stage);
+            if let Some(view) = self.stage_view(presentation, &config.id) {
+                self.send_stage(&config.id, view);
             }
             self.restore(&config.id);
         }
@@ -827,10 +849,275 @@ impl SurfaceManager {
         }
     }
 
+    /// Load or update the script on the assigned teleprompter stage.
+    pub fn load_teleprompter(
+        &mut self,
+        id: String,
+        text: String,
+        font_px: f32,
+        speed: f64,
+        mirror: bool,
+    ) {
+        let speed = kairo_domain::teleprompter::clamp_speed(speed);
+        let font_px = if font_px.is_finite() {
+            font_px.clamp(12.0, 240.0)
+        } else {
+            64.0
+        };
+        let anchor = self
+            .teleprompter
+            .as_ref()
+            .filter(|(loaded_id, _)| *loaded_id == id)
+            .map_or(0, |(_, view)| remap_anchor(&view.text, &text, view.anchor));
+        self.next_script_revision += 1;
+        self.stage_position = None;
+        self.teleprompter = Some((
+            id.clone(),
+            TeleprompterView {
+                script_id: id,
+                revision: self.next_script_revision,
+                text,
+                font_px,
+                anchor,
+                speed,
+                mirror,
+            },
+        ));
+        self.push_prompter();
+    }
+
+    /// Change the text size or mirroring of the loaded script. The script is
+    /// re-sent; the engine keeps its place and play state.
+    pub fn teleprompter_layout(&mut self, font_px: f32, mirror: bool) -> bool {
+        let Some((id, view)) = &self.teleprompter else {
+            return false;
+        };
+        let (id, text, speed) = (id.clone(), view.text.clone(), view.speed);
+        self.load_teleprompter(id, text, font_px, speed, mirror);
+        true
+    }
+
+    pub fn teleprompter_transport(&mut self, operation: proto::StageOperation) -> bool {
+        let Some(output) = self.teleprompter_stage().map(str::to_owned) else {
+            return false;
+        };
+        let Some((_, view)) = self.teleprompter.as_mut() else {
+            return false;
+        };
+        if let proto::StageOperation::Speed { lines_per_second } = operation {
+            // Kept with the content so a reload or replay restores it.
+            view.speed = kairo_domain::teleprompter::clamp_speed(lines_per_second);
+        }
+        let revision = view.revision;
+        self.stage_sequence += 1;
+        self.engine
+            .command(Command::StageTransport {
+                output,
+                revision,
+                sequence: self.stage_sequence,
+                operation,
+            })
+            .accepted
+    }
+
+    /// The output showing the prompter now, when it can take commands.
+    pub fn teleprompter_stage(&self) -> Option<&str> {
+        let target = self.prompter_target.as_deref().filter(|_| self.prompter_live)?;
+        self.prompter_ready(target).then_some(target)
+    }
+
+    fn is_teleprompter_stage(&self, id: &str) -> bool {
+        self.presentation_cache.as_ref().is_some_and(|presentation| {
+            presentation.stage_displays.iter().any(|config| {
+                config.id == id
+                    && config.enabled
+                    && config.mode == kairo_domain::program::StageDisplayMode::Teleprompter
+            })
+        })
+    }
+
+    fn is_screen(&self, id: &str) -> bool {
+        self.outputs
+            .iter()
+            .any(|o| o.id == id && o.enabled && o.kind == OverlayOutputKind::Screen)
+    }
+
+    fn prompter_ready(&self, id: &str) -> bool {
+        if self.is_teleprompter_stage(id) {
+            self.stage_states.get(id).is_some_and(|state| state.ready)
+        } else {
+            self.is_screen(id) && self.screen_states.get(id).is_some_and(|state| state.ready)
+        }
+    }
+
+    /// Where the prompter can go: every enabled audience screen and every
+    /// stage display in Teleprompter mode, as (id, name, ready, reason).
+    pub fn prompter_targets(&self) -> Vec<PrompterTarget> {
+        let mut targets: Vec<PrompterTarget> = self
+            .outputs
+            .iter()
+            .filter(|o| o.enabled && o.kind == OverlayOutputKind::Screen)
+            .map(|o| {
+                let state = self.screen_states.get(&o.id);
+                PrompterTarget {
+                    id: o.id.clone(),
+                    name: if o.name.is_empty() {
+                        "Screen".into()
+                    } else {
+                        o.name.clone()
+                    },
+                    ready: state.is_some_and(|s| s.ready),
+                    reason: state.map(|s| s.reason.clone()).unwrap_or_default(),
+                }
+            })
+            .collect();
+        if let Some(presentation) = &self.presentation_cache {
+            targets.extend(
+                presentation
+                    .stage_displays
+                    .iter()
+                    .filter(|c| {
+                        c.enabled && c.mode == kairo_domain::program::StageDisplayMode::Teleprompter
+                    })
+                    .map(|c| {
+                        let state = self.stage_states.get(&c.id);
+                        PrompterTarget {
+                            id: c.id.clone(),
+                            name: if c.name.is_empty() {
+                                "Stage display".into()
+                            } else {
+                                c.name.clone()
+                            },
+                            ready: state.is_some_and(|s| s.ready),
+                            reason: state.map(|s| s.reason.clone()).unwrap_or_default(),
+                        }
+                    }),
+            );
+        }
+        targets
+    }
+
+    /// The prompter's target and whether it is on it.
+    pub fn prompter_live(&self) -> (Option<String>, bool) {
+        (self.prompter_target.clone(), self.prompter_live)
+    }
+
+    /// Put the loaded script on `target`, taking it off any other output.
+    pub fn prompter_go_live(&mut self, target: String) -> bool {
+        if self.teleprompter.is_none() || !self.prompter_ready(&target) {
+            return false;
+        }
+        if self.prompter_target.as_deref() != Some(target.as_str()) {
+            self.stage_position = None;
+        }
+        self.prompter_target = Some(target);
+        self.prompter_live = true;
+        self.push_prompter();
+        true
+    }
+
+    /// Take the prompter off its output; the output shows its own content
+    /// again (an audience screen) or goes black (a stage display).
+    pub fn prompter_take_off(&mut self) {
+        self.prompter_live = false;
+        self.stage_position = None;
+        self.push_prompter();
+    }
+
+    /// Bring every surface in line with the prompter's target and state.
+    fn push_prompter(&mut self) {
+        let live = self
+            .prompter_target
+            .clone()
+            .filter(|_| self.prompter_live);
+        let view = self
+            .teleprompter
+            .as_ref()
+            .map(|(_, view)| Json::encode(&StageContent::Teleprompter(view.clone())));
+        let ids: Vec<String> = self.order.clone();
+        for id in ids {
+            let Some(role) = self.entries.get(&id).map(|e| e.role) else {
+                continue;
+            };
+            match role {
+                Role::Stage if self.is_teleprompter_stage(&id) => {
+                    if let Some(presentation) = self.presentation_cache.clone()
+                        && let Some(view) = self.stage_view(&presentation, &id)
+                    {
+                        self.send_stage(&id, view);
+                    }
+                }
+                Role::Program(OverlayOutputKind::Screen) => {
+                    let wanted = view.clone().filter(|_| live.as_deref() == Some(id.as_str()));
+                    let entry = self.entries.get_mut(&id).expect("listed");
+                    if entry.sent.prompter != wanted {
+                        entry.sent.prompter = wanted.clone();
+                        self.engine.command(Command::SetPrompter {
+                            output: id.clone(),
+                            view: wanted,
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    pub fn stage_position(&mut self, position: proto::StagePosition) {
+        if self.teleprompter_stage() != Some(position.output.as_str()) {
+            return;
+        }
+        let Some((_, view)) = self.teleprompter.as_mut() else {
+            return;
+        };
+        if position.revision != view.revision
+            || !view.text.is_char_boundary(position.anchor)
+            || self.stage_position.as_ref().is_some_and(|old| {
+                old.revision == position.revision && old.sequence > position.sequence
+            })
+        {
+            return;
+        }
+        view.anchor = position.anchor;
+        self.stage_position = Some(position);
+    }
+
+    pub fn reset_stage_session(&mut self) {
+        self.stage_sequence = 0;
+        self.stage_position = None;
+    }
+
+    pub fn teleprompter_position(&self) -> Option<proto::StagePosition> {
+        self.stage_position.clone()
+    }
+
+    /// The saved script last loaded on the teleprompter, if any.
+    pub fn teleprompter_script(&self) -> Option<String> {
+        self.teleprompter.as_ref().map(|(id, _)| id.clone())
+    }
+
     fn stage_view(&self, presentation: &PresentationSettings, id: &str) -> Option<Json> {
         let config = presentation.stage_displays.iter().find(|c| c.id == id)?;
+        if config.mode == kairo_domain::program::StageDisplayMode::Teleprompter {
+            let blank = TeleprompterView {
+                script_id: String::new(),
+                revision: 0,
+                text: String::new(),
+                font_px: 64.0,
+                anchor: 0,
+                speed: kairo_domain::teleprompter::DEFAULT_SPEED,
+                mirror: false,
+            };
+            let on_this = self.prompter_live && self.prompter_target.as_deref() == Some(id);
+            let view = self
+                .teleprompter
+                .as_ref()
+                .filter(|_| on_this)
+                .map_or(&blank, |(_, view)| view);
+            return Some(Json::encode(&StageContent::Teleprompter(view.clone())));
+        }
         let state = &self.program;
-        Some(Json::encode(&StageView {
+        Some(Json::encode(&StageContent::ConfidenceMonitor(StageView {
             current: state.current.clone(),
             next: state.next.clone(),
             stage_message: state.stage_message.clone(),
@@ -839,7 +1126,7 @@ impl SurfaceManager {
             show_clock: config.show_clock,
             show_timer: config.show_timer,
             timer_style: screen_timer_style(presentation, state),
-        }))
+        })))
     }
 
     fn send_stage(&mut self, id: &str, view: Json) {
@@ -912,6 +1199,12 @@ impl SurfaceManager {
             .cloned()
             .collect();
         for id in stages {
+            if presentation.stage_displays.iter().any(|config| {
+                config.id == id
+                    && config.mode == kairo_domain::program::StageDisplayMode::Teleprompter
+            }) {
+                continue;
+            }
             if let Some(view) = self.stage_view(presentation, &id) {
                 self.send_stage(&id, view);
             }

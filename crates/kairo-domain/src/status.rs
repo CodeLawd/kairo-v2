@@ -143,6 +143,9 @@ pub struct OrchestratorConfig {
     pub auto_mode: bool,
     pub confidence_threshold: f64,
     pub auto_present_delay_sec: f64,
+    /// Detected passages (ranges) auto-present their first verse too.
+    #[serde(default)]
+    pub auto_present_passages: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -215,6 +218,17 @@ pub struct ResilienceStatus {
     pub detector_fallback_reason: Option<DetectorFallbackReason>,
     pub recovery_session_available: bool,
     pub health: Vec<ServiceHealth>,
+}
+
+/// The speech-recognition health message while the upload is struggling.
+/// AI detection pauses and the transcript warns while it stands.
+pub const WEAK_CONNECTION: &str = "Weak connection — captions may lag";
+
+/// Whether `status` reports a weak connection for speech recognition.
+pub fn stt_connection_weak(health: &[ServiceHealth]) -> bool {
+    health
+        .iter()
+        .any(|h| h.service == ServiceName::Stt && h.last_error.as_deref() == Some(WEAK_CONNECTION))
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

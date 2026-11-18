@@ -20,6 +20,7 @@ pub enum Route {
     Audience,
     /// Web.
     Web,
+    Teleprompter,
     /// Theme Editor.
     Theme,
 }
@@ -58,7 +59,7 @@ impl Workspace {
 }
 
 /// The rail, in order.
-pub const WORKSPACES: [Workspace; 7] = [
+pub const WORKSPACES: [Workspace; 8] = [
     Workspace {
         route: Route::Operator,
         label: "Operator",
@@ -108,6 +109,14 @@ pub const WORKSPACES: [Workspace; 7] = [
         hue: Hue::Indigo,
     },
     Workspace {
+        route: Route::Teleprompter,
+        label: "Prompter",
+        rail: None,
+        hint: None,
+        icon: KairoIcon::PhScroll,
+        hue: Hue::Cyan,
+    },
+    Workspace {
         route: Route::Theme,
         label: "Theme Editor",
         rail: Some("Theme"),
@@ -127,6 +136,7 @@ impl Route {
             Route::Documents => "documents",
             Route::Audience => "audience",
             Route::Web => "web",
+            Route::Teleprompter => "teleprompter",
             Route::Theme => "theme",
         }
     }
@@ -156,6 +166,7 @@ impl Route {
             Route::Documents => "085",
             Route::Audience => "090",
             Route::Web => "089",
+            Route::Teleprompter => "teleprompter",
             Route::Theme => "086",
         }
     }
@@ -165,7 +176,12 @@ impl Route {
     pub fn stays_mounted(self) -> bool {
         matches!(
             self,
-            Route::Operator | Route::Scripture | Route::Theme | Route::Documents | Route::Web
+            Route::Operator
+                | Route::Scripture
+                | Route::Theme
+                | Route::Documents
+                | Route::Web
+                | Route::Teleprompter
         )
     }
 }
@@ -189,6 +205,11 @@ mod tests {
             assert_eq!(Route::from_name(w.route.as_str()), Some(w.route));
         }
         assert_eq!(Route::from_name("settings"), None);
+        assert!(
+            WORKSPACES.windows(2).any(|pair| {
+                pair[0].route == Route::Web && pair[1].route == Route::Teleprompter
+            })
+        );
     }
 
     #[test]

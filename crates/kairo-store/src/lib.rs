@@ -24,6 +24,7 @@ pub mod migration;
 pub mod paths;
 pub mod secrets;
 pub mod settings;
+pub mod teleprompter;
 pub mod workspace;
 
 /// `app.getLocale()`: the system's preferred locale as a BCP 47 tag, such as

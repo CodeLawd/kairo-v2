@@ -3,10 +3,10 @@
 //! and `stt-audio-epoch.test.ts`, plus reconnect, half-open and replay order.
 
 use futures_util::{SinkExt, StreamExt};
-use kairo_domain::cloud::TranscriptionGrant;
+use kairo_domain::cloud::{TranscriptionGrant, TranscriptionRenewal};
 use kairo_net::ApiError;
 use kairo_stt::access::{BoxFuture, TranscriptionAccess};
-use kairo_stt::deepgram::{DeepgramStt, SttEvent, Timings};
+use kairo_stt::deepgram::{AudioFormat, DeepgramStt, SttEvent, Timings};
 use kairo_stt::relay::AudioRelay;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -23,7 +23,7 @@ type Scripted = VecDeque<Result<TranscriptionGrant, ApiError>>;
 #[derive(Default)]
 struct Access {
     grants: Mutex<Scripted>,
-    renewals: Mutex<Scripted>,
+    renewals: Mutex<VecDeque<Result<TranscriptionRenewal, ApiError>>>,
     issued: Mutex<u32>,
     renewed: Mutex<u32>,
     released: Mutex<Vec<String>>,
@@ -68,15 +68,17 @@ impl TranscriptionAccess for Access {
 
     fn renew_transcription(
         &self,
-        id: String,
-    ) -> BoxFuture<'_, Result<TranscriptionGrant, ApiError>> {
+        _id: String,
+    ) -> BoxFuture<'_, Result<TranscriptionRenewal, ApiError>> {
         Box::pin(async move {
             *self.renewed.lock().unwrap() += 1;
             self.renewals
                 .lock()
                 .unwrap()
                 .pop_front()
-                .unwrap_or_else(|| Ok(grant(&id)))
+                .unwrap_or(Ok(TranscriptionRenewal {
+                    renew_after_seconds: 6.0,
+                }))
         })
     }
 
@@ -229,6 +231,7 @@ fn fast() -> Timings {
         session_wait_tries: 8,
         renewal_retries: [20, 20, 20].map(Duration::from_millis),
         renew_unit: Duration::from_millis(10),
+        lease_retry: Duration::from_millis(20),
     }
 }
 
@@ -374,6 +377,46 @@ async fn an_old_connection_cannot_transcribe_into_a_new_session() {
 }
 
 #[tokio::test]
+async fn opus_mode_sends_ogg_pages_and_names_no_encoding() {
+    let mut server = Server::start().await;
+    let stt = DeepgramStt::with_format(
+        Arc::new(Access::default()),
+        server.url.clone(),
+        fast(),
+        AudioFormat::OggOpus,
+    );
+    stt.configure("en", Vec::new());
+    let relay = AudioRelay::default();
+    stt.attach_stream(relay.create_stream());
+    stt.connect().await;
+    let mut conn = server.accept().await;
+    assert!(!conn.uri.contains("encoding="), "{}", conn.uri);
+    assert!(!conn.uri.contains("sample_rate="), "{}", conn.uri);
+    relay.feed(vec![0; 3200]);
+    let first = conn.next_binary().await;
+    assert_eq!(&first[..4], b"OggS", "an Ogg page");
+    assert!(
+        first.windows(8).any(|w| w == b"OpusHead"),
+        "headers lead the stream"
+    );
+    stt.disconnect();
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_dropped_connection_reports_weak_then_steady() {
+    let mut server = Server::start().await;
+    let (stt, mut events) = service(Arc::new(Access::default()), &server);
+    stt.connect().await;
+    let first = server.accept().await;
+    let _ = first.commands.send(ServerCmd::Close);
+    next_event(&mut events, |e| *e == SttEvent::Network { weak: true }).await;
+    let _second = server.accept().await;
+    tokio::time::sleep(kairo_stt::deepgram::WEAK_HOLD + Duration::from_secs(1)).await;
+    next_event(&mut events, |e| *e == SttEvent::Network { weak: false }).await;
+    stt.disconnect();
+}
+
+#[tokio::test]
 async fn audio_buffered_while_down_replays_in_order_before_new_audio() {
     let mut server = Server::start().await;
     let (stt, mut events) = service(Arc::new(Access::default()), &server);
@@ -405,6 +448,38 @@ async fn audio_buffered_while_down_replays_in_order_before_new_audio() {
     assert_eq!(got, [1, 2, 3, 4]);
     assert_eq!(stt.replay_buffer_bytes(), 0);
     assert_eq!(stt.stats().reconnect_count, 1);
+    stt.disconnect();
+}
+
+#[tokio::test]
+async fn a_long_outage_replays_only_the_last_seconds() {
+    let mut server = Server::start().await;
+    let (stt, mut events) = service(Arc::new(Access::default()), &server);
+    let relay = AudioRelay::default();
+    stt.attach_stream(relay.create_stream());
+    stt.connect().await;
+    let first = server.accept().await;
+    let _ = first.commands.send(ServerCmd::Close);
+    next_event(&mut events, |e| matches!(e, SttEvent::Reconnecting { .. })).await;
+    // Ten seconds of speech while the socket is down, one second per chunk.
+    for n in 1..=10u8 {
+        relay.feed(vec![n; 32_000]);
+        while relay.queued_bytes() > 0 {
+            tokio::task::yield_now().await;
+        }
+    }
+    let mut second = server.accept().await;
+    next_event(&mut events, |e| matches!(e, SttEvent::Connected)).await;
+    relay.feed(vec![99; 4]);
+    let mut firsts = Vec::new();
+    loop {
+        let frame = second.next_binary().await;
+        firsts.push(frame[0]);
+        if frame[0] == 99 {
+            break;
+        }
+    }
+    assert_eq!(firsts, [8, 9, 10, 99], "only the last 3 s, then live audio");
     stt.disconnect();
 }
 
@@ -572,24 +647,49 @@ async fn a_failed_renewal_is_retried_before_anything_stops() {
 }
 
 #[tokio::test]
-async fn a_refused_renewal_starts_one_fresh_session() {
+async fn a_renewal_retried_after_a_lost_response_keeps_the_session() {
     let mut server = Server::start().await;
     let access = Arc::new(Access::default());
-    for _ in 0..4 {
-        access
-            .renewals
-            .lock()
-            .unwrap()
-            .push_back(Err(refused(Some(403), "The transcription session expired")));
+    for _ in 0..6 {
+        access.renewals.lock().unwrap().push_back(Err(refused(
+            Some(403),
+            "The transcription session was renewed too early",
+        )));
     }
     let (stt, mut events) = service(access.clone(), &server);
     stt.connect().await;
     server.accept().await;
-    server.accept().await;
-    assert_eq!(*access.issued.lock().unwrap(), 2);
-    assert!(access.released.lock().unwrap().contains(&"1".to_string()));
+    tokio::time::sleep(Duration::from_millis(1400)).await;
+    assert!(*access.renewed.lock().unwrap() >= 2);
+    assert_eq!(*access.issued.lock().unwrap(), 1, "no fresh session");
     while let Ok(event) = events.try_recv() {
-        assert!(!is_error(&event));
+        assert!(!is_error(&event) && !matches!(event, SttEvent::Reconnecting { .. }));
+    }
+    stt.disconnect();
+}
+
+#[tokio::test]
+async fn a_refused_renewal_takes_a_new_lease_on_the_same_connection() {
+    let mut server = Server::start().await;
+    let access = Arc::new(Access::default());
+    access
+        .renewals
+        .lock()
+        .unwrap()
+        .push_back(Err(refused(Some(403), "The transcription session expired")));
+    let (stt, mut events) = service(access.clone(), &server);
+    stt.connect().await;
+    let _socket = server.accept().await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(*access.issued.lock().unwrap(), 2, "a second lease");
+    assert!(access.released.lock().unwrap().contains(&"1".to_string()));
+    assert!(
+        *access.renewed.lock().unwrap() >= 2,
+        "the new lease is renewed"
+    );
+    assert!(stt.is_connected());
+    while let Ok(event) = events.try_recv() {
+        assert!(!is_error(&event) && !matches!(event, SttEvent::Reconnecting { .. }));
     }
     stt.disconnect();
 }
@@ -622,10 +722,10 @@ async fn stops_with_the_reason_when_the_fresh_session_is_refused_too() {
 }
 
 #[tokio::test]
-async fn an_unreachable_renewal_reconnects_with_a_fresh_session() {
+async fn an_unreachable_licence_server_never_interrupts_transcription() {
     let mut server = Server::start().await;
     let access = Arc::new(Access::default());
-    for _ in 0..4 {
+    for _ in 0..8 {
         access.renewals.lock().unwrap().push_back(Err(refused(
             None,
             "Could not reach Kairo. Check your internet connection.",
@@ -633,11 +733,17 @@ async fn an_unreachable_renewal_reconnects_with_a_fresh_session() {
     }
     let (stt, mut events) = service(access.clone(), &server);
     stt.connect().await;
-    server.accept().await;
-    server.accept().await;
-    assert_eq!(*access.issued.lock().unwrap(), 2);
+    let _socket = server.accept().await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(*access.renewed.lock().unwrap() >= 6, "keeps trying");
+    assert_eq!(
+        *access.issued.lock().unwrap(),
+        1,
+        "no reconnect, no new grant"
+    );
+    assert!(stt.is_connected());
     while let Ok(event) = events.try_recv() {
-        assert!(!is_error(&event));
+        assert!(!is_error(&event) && !matches!(event, SttEvent::Reconnecting { .. }));
     }
     stt.disconnect();
 }

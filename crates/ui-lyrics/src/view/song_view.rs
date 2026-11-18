@@ -246,7 +246,7 @@ impl LyricsWorkspace {
         let busy = m.busy();
         let fill = section_color(rows::section_kind(card.kind));
         let slide_h = width * 9. / 16.;
-        let bar_h = (22. * scale).round();
+        let bar_h = (18. * scale).round();
         let id: SharedString = match passive_song {
             Some(song) => ids::other_slide(song, index).into(),
             None => ids::slide(index).into(),
@@ -399,7 +399,7 @@ impl LyricsWorkspace {
                     )
                     .child(
                         h_flex()
-                            .h(px(bar_h.max(34.)))
+                            .h(px(bar_h.max(28.)))
                             .gap_2()
                             .px_3()
                             // The section's colour fills the strip so the

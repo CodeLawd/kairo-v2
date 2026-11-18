@@ -13,7 +13,7 @@
 use crate::access::TranscriptionAccess;
 use crate::relay::PcmStream;
 use futures_util::{SinkExt, StreamExt};
-use kairo_domain::cloud::TranscriptionGrant;
+use kairo_domain::cloud::{TranscriptionGrant, TranscriptionRenewal};
 use kairo_domain::transcript::{InterimResult, TranscriptResult, TranscriptWord};
 use kairo_net::ApiError;
 use serde::Deserialize;
@@ -31,6 +31,11 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 pub const DEEPGRAM_ENDPOINT: &str = "wss://api.deepgram.com/v1/listen";
 /// 30 s of 16 kHz mono PCM16 kept while the socket is down.
 pub const REPLAY_BUFFER_BYTES: usize = 960_000;
+/// At most the last 3 s are replayed on reconnect. Deepgram transcribes about
+/// as fast as speech, so replaying a long outage would hold every later word
+/// that far behind the preacher; live captions matter more than a complete
+/// archive of the gap.
+pub const LIVE_REPLAY_BYTES: usize = 96_000;
 
 type Socket = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -50,6 +55,9 @@ pub struct Timings {
     pub renewal_retries: [Duration; 3],
     /// One second of `renewAfterSeconds`.
     pub renew_unit: Duration,
+    /// How often an unreachable licence server is retried while
+    /// transcription carries on, and a refused lease is replaced.
+    pub lease_retry: Duration,
 }
 
 impl Default for Timings {
@@ -64,6 +72,7 @@ impl Default for Timings {
             session_wait_tries: 8,
             renewal_retries: [5, 15, 30].map(Duration::from_secs),
             renew_unit: Duration::from_secs(1),
+            lease_retry: Duration::from_secs(15),
         }
     }
 }
@@ -84,7 +93,15 @@ pub enum SttEvent {
         attempt: u32,
         delay_ms: u64,
     },
+    /// The upload stalled or the socket dropped (`weak`), or has been steady
+    /// for [`WEAK_HOLD`] since.
+    Network {
+        weak: bool,
+    },
 }
+
+/// How long a stall or reconnect keeps the connection marked weak.
+pub const WEAK_HOLD: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SessionStats {
@@ -129,16 +146,40 @@ pub struct DeepgramStt {
     shared: Arc<Shared>,
 }
 
+/// How audio goes up the socket.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AudioFormat {
+    /// Raw 16 kHz PCM16, 256 kbit/s.
+    Linear16,
+    /// Ogg Opus at about 24 kbit/s: a tenth of the upload, for weak links.
+    OggOpus,
+}
+
 impl DeepgramStt {
-    /// Spawns the actor on the current tokio runtime.
+    /// Spawns the actor on the current tokio runtime. Sends Ogg Opus.
     pub fn new(access: Arc<dyn TranscriptionAccess>) -> Self {
-        Self::with_endpoint(access, DEEPGRAM_ENDPOINT.into(), Timings::default())
+        Self::with_format(
+            access,
+            DEEPGRAM_ENDPOINT.into(),
+            Timings::default(),
+            AudioFormat::OggOpus,
+        )
     }
 
+    /// Raw PCM to `endpoint`, for tests and tools that read the bytes back.
     pub fn with_endpoint(
         access: Arc<dyn TranscriptionAccess>,
         endpoint: String,
         timings: Timings,
+    ) -> Self {
+        Self::with_format(access, endpoint, timings, AudioFormat::Linear16)
+    }
+
+    pub fn with_format(
+        access: Arc<dyn TranscriptionAccess>,
+        endpoint: String,
+        timings: Timings,
+        format: AudioFormat,
     ) -> Self {
         let (commands, command_rx) = mpsc::unbounded_channel();
         let (events, _) = broadcast::channel(512);
@@ -153,6 +194,8 @@ impl DeepgramStt {
             access,
             endpoint,
             timings,
+            format,
+            encoder: None,
             events: events.clone(),
             shared: shared.clone(),
             internal: internal_tx,
@@ -161,6 +204,8 @@ impl DeepgramStt {
             refused_once: false,
             session_waits: 0,
             renewal: None,
+            lease_at: None,
+            weak_until: None,
             language: "en".into(),
             keyterms: Vec::new(),
             socket: None,
@@ -256,10 +301,25 @@ impl DeepgramStt {
 
 /// The listen URL for one connection, as `@deepgram/sdk` 5 builds it.
 pub fn listen_url(endpoint: &str, language: &str, keyterms: &[String]) -> String {
+    listen_url_for(endpoint, language, keyterms, AudioFormat::Linear16)
+}
+
+/// Ogg Opus is containerized: Deepgram reads its format from the stream, so
+/// the URL must not name an encoding.
+pub fn listen_url_for(
+    endpoint: &str,
+    language: &str,
+    keyterms: &[String],
+    format: AudioFormat,
+) -> String {
+    let encoding = match format {
+        AudioFormat::Linear16 => "&encoding=linear16&sample_rate=16000&channels=1",
+        AudioFormat::OggOpus => "",
+    };
     let mut url = format!(
         "{endpoint}?model=nova-3&language={}&punctuate=true&smart_format=true\
-         &interim_results=true&utterance_end_ms=1500&vad_events=true&encoding=linear16\
-         &sample_rate=16000&channels=1&no_delay=true",
+         &interim_results=true&utterance_end_ms=1500&vad_events=true{encoding}\
+         &no_delay=true",
         encode_component(language)
     );
     for term in keyterms {
@@ -282,6 +342,19 @@ fn is_session_limit(reason: &str) -> bool {
     .iter()
     .any(|p| lower.contains(p))
 }
+
+/// The lease was already extended this minute: a retry after a lost
+/// response. Servers before idempotent renewal refuse it; the lease is fine.
+fn is_already_renewed(error: &ApiError) -> bool {
+    error.status == Some(403)
+        && error
+            .message
+            .to_lowercase()
+            .contains("transcription session was renewed too early")
+}
+
+/// The server's renewal interval, used when a retry learns the lease is fine.
+const RENEW_INTERVAL_SECONDS: f64 = 60.0;
 
 fn is_refusal(error: &ApiError) -> bool {
     error.status.is_some_and(|s| (400..500).contains(&s))
@@ -351,8 +424,10 @@ enum Internal {
     Renewed {
         id: String,
         attempt: usize,
-        result: Result<TranscriptionGrant, ApiError>,
+        result: Result<TranscriptionRenewal, ApiError>,
     },
+    /// A replacement lease for a socket that stays open.
+    Lease(u64, Result<TranscriptionGrant, ApiError>),
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -371,6 +446,9 @@ struct Actor {
     access: Arc<dyn TranscriptionAccess>,
     endpoint: String,
     timings: Timings,
+    format: AudioFormat,
+    /// The open socket's Ogg stream, when sending Opus.
+    encoder: Option<crate::opus::OggOpusStream>,
     events: broadcast::Sender<SttEvent>,
     shared: Arc<Shared>,
     internal: mpsc::UnboundedSender<Internal>,
@@ -380,6 +458,10 @@ struct Actor {
     refused_once: bool,
     session_waits: u32,
     renewal: Option<Renewal>,
+    /// When to ask for a replacement lease, keeping the socket open.
+    lease_at: Option<Instant>,
+    /// While set, the link is weak; at that time it is steady again.
+    weak_until: Option<Instant>,
     language: String,
     keyterms: Vec<String>,
     socket: Option<Socket>,
@@ -402,6 +484,8 @@ enum Wake {
     Audio(Option<Vec<u8>>),
     Reconnect,
     Renew,
+    Lease,
+    Steady,
     KeepAlive,
 }
 
@@ -424,6 +508,8 @@ impl Actor {
                 let audio = &self.audio;
                 let reconnect_at = self.reconnect.map(|(t, _)| t);
                 let renew_at = self.renewal.as_ref().map(|r| r.at);
+                let lease_at = self.lease_at;
+                let weak_until = self.weak_until;
                 let keepalive_at = self.keepalive_at;
                 tokio::select! {
                     command = commands.recv() => Wake::Command(command),
@@ -442,6 +528,8 @@ impl Actor {
                     } => Wake::Audio(chunk),
                     () = at(reconnect_at) => Wake::Reconnect,
                     () = at(renew_at) => Wake::Renew,
+                    () = at(lease_at) => Wake::Lease,
+                    () = at(weak_until) => Wake::Steady,
                     () = at(keepalive_at) => Wake::KeepAlive,
                 }
             };
@@ -457,6 +545,12 @@ impl Actor {
                 Wake::Audio(None) => self.audio = None,
                 Wake::Reconnect => self.on_reconnect_timer(),
                 Wake::Renew => self.on_renew_timer(),
+                Wake::Lease => self.request_lease(),
+                Wake::Steady => {
+                    self.weak_until = None;
+                    tracing::info!("connection steady again");
+                    self.emit(SttEvent::Network { weak: false });
+                }
                 Wake::KeepAlive => self.on_keepalive().await,
             }
             self.publish_state();
@@ -525,6 +619,8 @@ impl Actor {
         self.buffer.clear();
         self.buffer_bytes = 0;
         self.reconnect = None;
+        self.lease_at = None;
+        self.weak_until = None;
         self.keepalive_at = None;
         self.close_socket();
         self.audio = None;
@@ -539,6 +635,7 @@ impl Actor {
             return;
         }
         self.generation += 1;
+        self.lease_at = None;
         let generation = self.generation;
         tracing::info!(attempt = self.reconnect_attempt, "opening deepgram socket");
         let previous = self.release_grant_id();
@@ -582,6 +679,78 @@ impl Actor {
                 attempt,
                 result,
             } => self.on_renewed(id, attempt, result),
+            Internal::Lease(generation, result) => self.on_lease(generation, result),
+        }
+    }
+
+    /// A stall or a drop: warn now, and stay weak until [`WEAK_HOLD`] passes
+    /// without another.
+    fn mark_weak(&mut self, why: &str) {
+        if self.weak_until.is_none() {
+            tracing::warn!(why, "connection weak");
+            self.emit(SttEvent::Network { weak: true });
+        }
+        self.weak_until = Some(Instant::now() + WEAK_HOLD);
+    }
+
+    /// A new licence lease for the socket already open. Deepgram needs no new
+    /// token once connected, so the captions never stop for licensing.
+    fn request_lease(&mut self) {
+        self.lease_at = None;
+        if !self.active || self.destroyed || self.socket.is_none() {
+            return;
+        }
+        let access = self.access.clone();
+        let internal = self.internal.clone();
+        let generation = self.generation;
+        tokio::spawn(async move {
+            let result = access.transcription().await;
+            let _ = internal.send(Internal::Lease(generation, result));
+        });
+    }
+
+    fn on_lease(&mut self, generation: u64, result: Result<TranscriptionGrant, ApiError>) {
+        if !self.current(generation) || self.socket.is_none() {
+            if let Ok(grant) = result {
+                let access = self.access.clone();
+                tokio::spawn(async move {
+                    let _ = access.release_transcription(grant.session_id).await;
+                });
+            }
+            return;
+        }
+        match result {
+            Ok(grant) => {
+                tracing::info!("transcription lease replaced; the connection stays open");
+                if let Some(old) = self.grant_id.replace(grant.session_id.clone()) {
+                    let access = self.access.clone();
+                    tokio::spawn(async move {
+                        let _ = access.release_transcription(old).await;
+                    });
+                }
+                self.refused_once = false;
+                let after = self
+                    .timings
+                    .renew_unit
+                    .mul_f64(grant.renew_after_seconds.max(1.0));
+                self.schedule_renewal(grant.session_id, after, 0);
+            }
+            // The licence itself is spent or revoked: stop, saying why.
+            Err(error) if is_refusal(&error) && !is_session_limit(&error.message) => {
+                tracing::error!(reason = error.message, "transcription lease refused");
+                self.disconnect();
+                self.emit(SttEvent::Error {
+                    message: stopped_message(&error.message),
+                    fatal: true,
+                });
+            }
+            Err(error) => {
+                tracing::warn!(
+                    reason = error.message,
+                    "no new lease yet; transcription continues"
+                );
+                self.lease_at = Some(Instant::now() + self.timings.lease_retry);
+            }
         }
     }
 
@@ -646,7 +815,7 @@ impl Actor {
                 .mul_f64(grant.renew_after_seconds.max(1.0)),
             0,
         );
-        let url = listen_url(&self.endpoint, &self.language, &self.keyterms);
+        let url = listen_url_for(&self.endpoint, &self.language, &self.keyterms, self.format);
         let token = grant.access_token;
         let internal = self.internal.clone();
         tokio::spawn(async move {
@@ -674,11 +843,40 @@ impl Actor {
         }
         tracing::info!(attempt = self.reconnect_attempt, "deepgram socket open");
         self.socket = Some(socket);
+        self.encoder = match self.format {
+            AudioFormat::Linear16 => None,
+            AudioFormat::OggOpus => match crate::opus::OggOpusStream::new(generation as u32) {
+                Ok(stream) => Some(stream),
+                Err(error) => {
+                    // Raw PCM still works; it only costs more upload.
+                    tracing::error!(error, "Opus unavailable; sending raw audio from now on");
+                    self.format = AudioFormat::Linear16;
+                    self.close_socket();
+                    self.handle_socket_close();
+                    self.reply_connect();
+                    return;
+                }
+            },
+        };
         self.reconnect = None;
         self.reconnect_attempt = 0;
         self.session_waits = 0;
         self.last_frame_at = Instant::now();
         self.keepalive_at = Some(Instant::now() + self.timings.keepalive);
+        if self.buffer_bytes > LIVE_REPLAY_BYTES {
+            let mut stale = 0;
+            while self.buffer_bytes > LIVE_REPLAY_BYTES {
+                let Some(oldest) = self.buffer.pop_front() else {
+                    break;
+                };
+                self.buffer_bytes -= oldest.len();
+                stale += oldest.len();
+            }
+            tracing::warn!(
+                dropped_seconds = stale as f64 / 32_000.0,
+                "reconnect: skipped stale audio to stay live"
+            );
+        }
         if !self.buffer.is_empty() {
             tracing::info!(
                 chunks = self.buffer.len(),
@@ -687,12 +885,21 @@ impl Actor {
             );
             while let Some(chunk) = self.buffer.pop_front() {
                 let len = chunk.len();
-                let sent = match self.socket.as_mut() {
-                    Some(s) => s.send(Message::Binary(chunk.clone().into())).await,
-                    None => break,
+                // Bounded like live audio: a half-open socket must not stall
+                // the actor for the OS retransmit timeout mid-replay.
+                let Some(wire) = self.wire(&chunk) else {
+                    self.close_socket();
+                    self.handle_socket_close();
+                    self.reply_connect();
+                    return;
                 };
-                if let Err(error) = sent {
-                    tracing::error!(%error, "failed to drain buffered audio");
+                let sent = match (self.socket.as_mut(), wire) {
+                    (Some(_), None) => true,
+                    (Some(s), Some(bytes)) => send_audio(s, Message::Binary(bytes.into())).await,
+                    (None, _) => break,
+                };
+                if !sent {
+                    tracing::error!("failed to drain buffered audio");
                     self.buffer.push_front(chunk);
                     self.close_socket();
                     self.handle_socket_close();
@@ -737,18 +944,28 @@ impl Actor {
         &mut self,
         id: String,
         attempt: usize,
-        result: Result<TranscriptionGrant, ApiError>,
+        result: Result<TranscriptionRenewal, ApiError>,
     ) {
         if self.grant_id.as_deref() != Some(&id) {
             return;
         }
         let error = match result {
             Ok(grant) => {
+                tracing::info!(
+                    renew_after_seconds = grant.renew_after_seconds,
+                    "transcription renewed"
+                );
                 self.refused_once = false;
                 let after = self
                     .timings
                     .renew_unit
                     .mul_f64(grant.renew_after_seconds.max(1.0));
+                self.schedule_renewal(id, after, 0);
+                return;
+            }
+            Err(error) if is_already_renewed(&error) => {
+                self.refused_once = false;
+                let after = self.timings.renew_unit.mul_f64(RENEW_INTERVAL_SECONDS);
                 self.schedule_renewal(id, after, 0);
                 return;
             }
@@ -759,8 +976,23 @@ impl Actor {
             reason = error.message,
             "transcription renewal failed"
         );
+        let open = self.socket.is_some();
+        // The lease is gone (expired, or lost by the server): take a new one
+        // and keep transcribing on the same connection.
+        if open && is_refusal(&error) {
+            self.renewal = None;
+            self.request_lease();
+            return;
+        }
         if let Some(&retry) = self.timings.renewal_retries.get(attempt) {
             self.schedule_renewal(id, retry, attempt + 1);
+            return;
+        }
+        // Unreachable: Deepgram is still connected, so keep going and keep
+        // trying. Reconnecting would need the same unreachable server.
+        if open && !is_refusal(&error) {
+            tracing::warn!("licence server unreachable; transcription continues");
+            self.schedule_renewal(id, self.timings.lease_retry, attempt);
             return;
         }
         if is_refusal(&error) && !self.refused_once {
@@ -789,11 +1021,15 @@ impl Actor {
         if let Some(socket) = self.socket.take() {
             tokio::spawn(close(socket));
         }
+        self.encoder = None;
         self.keepalive_at = None;
     }
 
     fn handle_socket_close(&mut self) {
         self.close_socket();
+        if self.active && !self.destroyed {
+            self.mark_weak("connection dropped");
+        }
         if !self.active || self.destroyed {
             return;
         }
@@ -904,9 +1140,43 @@ impl Actor {
         }
     }
 
+    /// The bytes to send for one PCM chunk: as is, or as Ogg Opus pages.
+    /// `Some(None)` when Opus is still filling a frame. `None` when encoding
+    /// failed: the format falls back to raw PCM and the socket must reopen.
+    fn wire(&mut self, chunk: &[u8]) -> Option<Option<Vec<u8>>> {
+        let Some(encoder) = self.encoder.as_mut() else {
+            return Some(Some(chunk.to_vec()));
+        };
+        match encoder.encode(chunk) {
+            Ok(bytes) if bytes.is_empty() => Some(None),
+            Ok(bytes) => Some(Some(bytes)),
+            Err(error) => {
+                tracing::error!(error, "Opus encoding failed; sending raw audio from now on");
+                self.format = AudioFormat::Linear16;
+                self.encoder = None;
+                None
+            }
+        }
+    }
+
     async fn on_audio(&mut self, chunk: Vec<u8>) {
-        if let Some(socket) = self.socket.as_mut() {
-            if !send_within(socket, Message::Binary(chunk.clone().into())).await {
+        if self.socket.is_some() {
+            let Some(wire) = self.wire(&chunk) else {
+                self.buffer_audio(chunk);
+                self.close_socket();
+                self.handle_socket_close();
+                return;
+            };
+            let Some(bytes) = wire else { return };
+            let Some(socket) = self.socket.as_mut() else {
+                return;
+            };
+            let started = Instant::now();
+            let sent = send_audio(socket, Message::Binary(bytes.into())).await;
+            if started.elapsed() >= STALL_WARNING {
+                self.mark_weak("audio upload stalled");
+            }
+            if !sent {
                 // Kept for the replay after reconnect, never silently lost.
                 self.buffer_audio(chunk);
                 self.close_socket();
@@ -1028,6 +1298,31 @@ async fn connect_socket(url: &str, token: &str) -> Result<Socket, String> {
 }
 
 /// `socket.send` that gives up after [`SEND_TIMEOUT`]. False on error or timeout.
+/// Audio waits longer than control frames: on a weak link an upload often
+/// stalls for several seconds and recovers, and reconnecting over that same
+/// link costs far more than waiting. A dead socket still errors out.
+const AUDIO_STALL_LIMIT: Duration = Duration::from_secs(12);
+
+/// A send that takes this long marks the connection weak.
+const STALL_WARNING: Duration = Duration::from_secs(1);
+
+/// An audio frame, given [`AUDIO_STALL_LIMIT`] to go out.
+async fn send_audio(socket: &mut Socket, message: Message) -> bool {
+    let started = Instant::now();
+    let sent = matches!(
+        tokio::time::timeout(AUDIO_STALL_LIMIT, socket.send(message)).await,
+        Ok(Ok(()))
+    );
+    let waited = started.elapsed();
+    if sent && waited >= STALL_WARNING {
+        tracing::warn!(
+            waited_ms = waited.as_millis() as u64,
+            "audio upload stalled"
+        );
+    }
+    sent
+}
+
 async fn send_within(socket: &mut Socket, message: Message) -> bool {
     matches!(
         tokio::time::timeout(SEND_TIMEOUT, socket.send(message)).await,

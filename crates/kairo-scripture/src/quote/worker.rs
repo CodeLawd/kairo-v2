@@ -22,6 +22,24 @@ pub const QUOTE_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub type QuoteResult<T> = Result<T, String>;
 
+/// What a search resolved to. `Superseded` means a newer search replaced this
+/// one before it ran: it was never searched, so it is not "no match".
+#[derive(Debug, Clone)]
+pub enum QuoteSearchOutcome {
+    Found(Vec<GlobalQuoteMatch>),
+    Superseded,
+}
+
+impl QuoteSearchOutcome {
+    /// The matches, or `None` when the search never ran.
+    pub fn found(self) -> Option<Vec<GlobalQuoteMatch>> {
+        match self {
+            Self::Found(matches) => Some(matches),
+            Self::Superseded => None,
+        }
+    }
+}
+
 /// The worker's command set: versioned begin, append and commit, and search.
 pub enum Command {
     Search {
@@ -174,7 +192,7 @@ struct Job {
     id: u64,
     text: String,
     possible: bool,
-    reply: oneshot::Sender<QuoteResult<Vec<GlobalQuoteMatch>>>,
+    reply: oneshot::Sender<QuoteResult<QuoteSearchOutcome>>,
 }
 
 struct Worker {
@@ -283,8 +301,8 @@ impl QuoteWorkerClient {
     }
 
     /// `possible` also asks for paraphrase candidates: finished speech only.
-    /// A newer search replaces a queued one, which resolves empty.
-    pub async fn search(&self, text: &str, possible: bool) -> QuoteResult<Vec<GlobalQuoteMatch>> {
+    /// A newer search replaces a queued one, which resolves `Superseded`.
+    pub async fn search(&self, text: &str, possible: bool) -> QuoteResult<QuoteSearchOutcome> {
         let rx = {
             let mut state = self.state();
             if state.closed {
@@ -300,7 +318,7 @@ impl QuoteWorkerClient {
             };
             if state.active.is_some() {
                 if let Some(old) = state.queued.replace(job) {
-                    let _ = old.reply.send(Ok(Vec::new()));
+                    let _ = old.reply.send(Ok(QuoteSearchOutcome::Superseded));
                 }
                 drop(state);
             } else {
@@ -407,7 +425,7 @@ impl QuoteWorkerClient {
                         if let Some(timer) = state.timer.take() {
                             timer.abort();
                         }
-                        let _ = job.reply.send(result);
+                        let _ = job.reply.send(result.map(QuoteSearchOutcome::Found));
                         if let Some(next) = state.queued.take() {
                             listeners = self.dispatch(&mut state, next);
                         }

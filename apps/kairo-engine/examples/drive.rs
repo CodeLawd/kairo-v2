@@ -9,6 +9,7 @@
 //!     [--camera-audio LABEL] [--ndi NAME] [--identify] [--shape NAME]
 //!     [--syphon NAME [--rename-after S NAME]]
 //!     [--card PORT MODE]
+//!     [--teleprompter PATH] [--stage-speed LINES_PER_SECOND] [--stage-exercise]
 //!     [--capture CODEC] [--capture-folder DIR] [--capture-fps N]
 //! ```
 //!
@@ -57,10 +58,104 @@ fn value<T: std::str::FromStr>(name: &str) -> Option<T> {
     args.next()?.parse().ok()
 }
 
+async fn stage_position(
+    events: &mut tokio::sync::broadcast::Receiver<EngineEvent>,
+    predicate: impl Fn(&StagePosition) -> bool,
+) -> StagePosition {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if let EngineEvent::Engine(Event::StagePosition(position)) =
+                events.recv().await.unwrap()
+                && predicate(&position)
+            {
+                println!("{position:?}");
+                return position;
+            }
+        }
+    })
+    .await
+    .expect("stage position timed out")
+}
+
+async fn exercise_teleprompter(
+    engine: &EngineHandle,
+    events: &mut tokio::sync::broadcast::Receiver<EngineEvent>,
+) {
+    let transport = |revision, sequence, operation| {
+        assert!(
+            engine
+                .command(Command::StageTransport {
+                    output: "main".into(),
+                    revision,
+                    sequence,
+                    operation,
+                })
+                .accepted
+        );
+    };
+    stage_position(events, |position| {
+        position.revision == 1 && position.playing && position.anchor > 0
+    })
+    .await;
+    transport(1, 100, StageOperation::Pause);
+    let paused = stage_position(events, |position| {
+        position.sequence == 100 && !position.playing
+    })
+    .await;
+    transport(
+        1,
+        101,
+        StageOperation::Speed {
+            lines_per_second: 3.0,
+        },
+    );
+    let held = stage_position(events, |position| {
+        position.sequence == 101 && !position.playing
+    })
+    .await;
+    assert_eq!(paused.anchor, held.anchor);
+
+    let surface = engine.surface_state("main").unwrap();
+    let payload = surface.stage.unwrap();
+    let mut view = payload.value().unwrap();
+    view["view"]["fontPx"] = serde_json::json!(80.0);
+    view["view"]["revision"] = serde_json::json!(2);
+    assert!(
+        engine
+            .command(Command::SetStage {
+                output: "main".into(),
+                view: Json::from_value(&view)
+            })
+            .accepted
+    );
+    let reflowed = stage_position(events, |position| {
+        position.revision == 2 && !position.playing
+    })
+    .await;
+    assert!(reflowed.anchor > 0 && reflowed.anchor <= held.anchor);
+
+    engine.restart();
+    let restored = stage_position(events, |position| {
+        position.revision == 2 && position.sequence == 0
+    })
+    .await;
+    assert_eq!(restored.anchor, reflowed.anchor);
+    assert!(!restored.playing);
+    transport(2, 1, StageOperation::Play);
+    stage_position(events, |position| {
+        position.revision == 2
+            && position.sequence == 1
+            && position.playing
+            && position.anchor > restored.anchor
+    })
+    .await;
+}
+
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
     tracing_subscriber::fmt().with_target(true).init();
     let index: usize = value("--display").unwrap_or(0);
+    let display_name: Option<String> = value("--display-name");
     let secs: u64 = value("--secs").unwrap_or(10);
     // Killing the engine is Unix-only (SIGKILL).
     #[cfg_attr(not(unix), allow(unused_variables))]
@@ -83,15 +178,20 @@ async fn main() {
     let mut events = engine.subscribe();
     let start = Instant::now();
     let display = loop {
-        if let Some(display) = engine.displays().get(index).cloned() {
-            break display;
+        let displays = engine.displays();
+        let selected = match &display_name {
+            Some(name) => displays.iter().find(|display| display.label == *name),
+            None => displays.get(index),
+        };
+        if let Some(display) = selected {
+            break display.clone();
         }
         if let EngineStatus::Failed { reason } = engine.status() {
             panic!("engine failed: {reason}");
         }
         assert!(
             start.elapsed() < Duration::from_secs(10),
-            "no display {index}"
+            "no display {display_name:?} at index {index}"
         );
         tokio::time::sleep(Duration::from_millis(10)).await;
     };
@@ -141,6 +241,68 @@ async fn main() {
         label: "Kairo output".into(),
         sink,
     }));
+    if let Some(path) = value::<std::path::PathBuf>("--teleprompter") {
+        use kairo_domain::teleprompter::{StageContent, TeleprompterView};
+        let view = TeleprompterView {
+            script_id: "drive-stage".into(),
+            revision: 1,
+            text: std::fs::read_to_string(path).expect("read teleprompter script"),
+            font_px: 64.0,
+            anchor: 0,
+            speed: kairo_domain::teleprompter::DEFAULT_SPEED,
+            mirror: false,
+        };
+        let sent = engine.command(Command::SetStage {
+            output: "main".into(),
+            view: Json::encode(&StageContent::Teleprompter(view)),
+        });
+        assert!(
+            sent.accepted
+                && engine
+                    .wait_frame("main", sent.seq, Duration::from_secs(15))
+                    .await
+        );
+        for (sequence, operation) in [
+            (
+                1,
+                StageOperation::Speed {
+                    lines_per_second: value("--stage-speed").unwrap_or(2.0),
+                },
+            ),
+            (2, StageOperation::Play),
+        ] {
+            assert!(
+                engine
+                    .command(Command::StageTransport {
+                        output: "main".into(),
+                        revision: 1,
+                        sequence,
+                        operation,
+                    })
+                    .accepted
+            );
+        }
+        if std::env::args().any(|argument| argument == "--stage-exercise") {
+            exercise_teleprompter(&engine, &mut events).await;
+            engine.shutdown();
+            return;
+        }
+        let stop_at = tokio::time::Instant::now() + Duration::from_secs(secs);
+        let mut confirmed_playing = false;
+        while let Ok(Ok(event)) = tokio::time::timeout_at(stop_at, events.recv()).await {
+            match event {
+                EngineEvent::Engine(Event::StagePosition(position)) => {
+                    confirmed_playing |= position.playing && position.anchor > 0;
+                    println!("{position:?}");
+                }
+                EngineEvent::Engine(Event::Stats(stats)) => println!("Stage frames: {stats:?}"),
+                _ => {}
+            }
+        }
+        engine.shutdown();
+        assert!(confirmed_playing, "the teleprompter did not advance");
+        return;
+    }
     if let (Some(_), Some(after)) = (&syphon, value::<u64>("--rename-after")) {
         let mut args = std::env::args()
             .skip_while(|a| a != "--rename-after")

@@ -490,6 +490,11 @@
   "source": "phosphor:Presentation"
  },
  {
+  "name": "PhScroll",
+  "file": "ph_scroll",
+  "source": "phosphor:Scroll"
+ },
+ {
   "name": "PhWarningCircle",
   "file": "ph_warning_circle",
   "source": "phosphor:WarningCircle"

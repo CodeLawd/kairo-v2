@@ -11,22 +11,26 @@ use kairo_orchestrator::voice::BoxFuture;
 use kairo_scripture::live_detector::{ScriptureResolver, TranscriptKind};
 use kairo_scripture::model_detector::{DetectionType, ModelWork};
 use kairo_scripture::quote::{
-    GlobalQuoteCandidate, GlobalQuoteMatch, QuoteCorpus, fresh_speech_supports,
+    GlobalQuoteCandidate, GlobalQuoteMatch, QuoteCorpus, QuoteSearchOutcome, fresh_speech_supports,
 };
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, Weak};
 use tokio::sync::broadcast;
 
 trait QuoteSearch: Send + Sync {
-    fn search(&self, text: String) -> BoxFuture<'_, Vec<GlobalQuoteMatch>>;
+    /// A failed search reads as no match, so the managed detector still runs.
+    fn search(&self, text: String) -> BoxFuture<'_, QuoteSearchOutcome>;
     fn current(&self, candidate: &GlobalQuoteCandidate) -> bool;
 }
 impl QuoteSearch for QuoteCorpus {
-    fn search(&self, text: String) -> BoxFuture<'_, Vec<GlobalQuoteMatch>> {
+    fn search(&self, text: String) -> BoxFuture<'_, QuoteSearchOutcome> {
         Box::pin(async move {
             self.search_general_quote(&text, false)
                 .await
-                .unwrap_or_default()
+                .unwrap_or_else(|error| {
+                    tracing::warn!(error, "general quote search failed");
+                    QuoteSearchOutcome::Found(Vec::new())
+                })
         })
     }
     fn current(&self, candidate: &GlobalQuoteCandidate) -> bool {
@@ -37,6 +41,45 @@ impl QuoteSearch for QuoteCorpus {
         })
     }
 }
+/// Words for comparing speech with verse text: lower case, letters and
+/// digits only, plurals folded, articles dropped (speakers skip them).
+fn reading_words(text: &str) -> Vec<String> {
+    text.split_whitespace()
+        .map(|w| {
+            let mut w: String = w
+                .chars()
+                .filter(|c| c.is_alphanumeric())
+                .flat_map(char::to_lowercase)
+                .collect();
+            if w.chars().count() > 3 && w.ends_with('s') {
+                w.pop();
+            }
+            w
+        })
+        .filter(|w| !w.is_empty() && !matches!(w.as_str(), "the" | "a" | "an"))
+        .collect()
+}
+
+/// Speech reads the passage aloud when most of its word pairs are the
+/// passage's own: at least three, and at least half of them.
+fn reads_aloud(fresh: &str, passage: &str) -> bool {
+    let spoken = reading_words(fresh);
+    let text = reading_words(passage);
+    if spoken.len() < 4 || text.len() < 2 {
+        return false;
+    }
+    let pairs: std::collections::HashSet<(&str, &str)> = text
+        .windows(2)
+        .map(|p| (p[0].as_str(), p[1].as_str()))
+        .collect();
+    let heard = spoken.len() - 1;
+    let shared = spoken
+        .windows(2)
+        .filter(|p| pairs.contains(&(p[0].as_str(), p[1].as_str())))
+        .count();
+    shared >= 3 && shared * 2 >= heard
+}
+
 #[derive(Default)]
 struct State {
     epoch: Option<f64>,
@@ -65,6 +108,8 @@ struct Search {
     provisional: bool,
     received: f64,
     work: Option<ModelWork>,
+    /// A final displaced from the worker queue is searched once more.
+    retried: bool,
 }
 
 pub struct QuoteDetector {
@@ -188,8 +233,20 @@ impl QuoteDetector {
             let Some(detector) = weak.upgrade() else {
                 return;
             };
-            let matches = detector.source.search(search.text.clone()).await;
-            detector.publish(search, matches);
+            match detector.source.search(search.text.clone()).await {
+                QuoteSearchOutcome::Found(matches) => detector.publish(search, matches),
+                // A newer partial search is already queued and will answer.
+                QuoteSearchOutcome::Superseded if search.provisional => {}
+                // Finals are never skipped for a partial: search once more,
+                // then fall back to the managed detector as "no match".
+                QuoteSearchOutcome::Superseded if !search.retried => {
+                    detector.search(Search {
+                        retried: true,
+                        ..search
+                    });
+                }
+                QuoteSearchOutcome::Superseded => detector.publish(search, Vec::new()),
+            }
         });
     }
     fn publish(&self, search: Search, mut matches: Vec<GlobalQuoteMatch>) {
@@ -204,16 +261,24 @@ impl QuoteDetector {
         if search.fresh != search.text {
             matches.retain(|m| fresh_speech_supports(&search.fresh, &m.candidate.text));
         }
-        if !matches.is_empty()
-            && matches.iter().all(|m| {
-                state.reading.as_ref().is_some_and(|p| {
-                    p.book.eq_ignore_ascii_case(&m.candidate.book)
-                        && p.chapter == m.candidate.chapter
-                        && m.candidate.verse >= p.start
-                        && m.candidate.verse <= p.end
-                })
-            })
+        // Reading the passage on screen is following along, not quoting: the
+        // same words elsewhere (Mark 10:7 while Matthew 19:5 is read) are
+        // echoes, not new references.
+        if state
+            .reading
+            .as_ref()
+            .is_some_and(|p| reads_aloud(&search.fresh, &p.text))
         {
+            return;
+        }
+        if matches.iter().any(|m| {
+            state.reading.as_ref().is_some_and(|p| {
+                p.book.eq_ignore_ascii_case(&m.candidate.book)
+                    && p.chapter == m.candidate.chapter
+                    && m.candidate.verse >= p.start
+                    && m.candidate.verse <= p.end
+            })
+        }) {
             return;
         }
         if matches.is_empty() {
@@ -355,6 +420,7 @@ impl Detector for QuoteDetector {
                 provisional: false,
                 received: now,
                 work,
+                retried: false,
             }
         };
         self.search(search);
@@ -387,6 +453,7 @@ impl Detector for QuoteDetector {
                 provisional: true,
                 received: kairo_store::settings::now_ms(),
                 work: None,
+                retried: false,
             });
             if state.interim_timer {
                 false
@@ -461,15 +528,33 @@ mod tests {
     struct Source {
         allowed: AtomicBool,
         calls: AtomicUsize,
+        /// The first this many searches resolve superseded.
+        superseded: AtomicUsize,
     }
     impl QuoteSearch for Source {
-        fn search(&self, text: String) -> BoxFuture<'_, Vec<GlobalQuoteMatch>> {
-            self.calls.fetch_add(1, Ordering::Relaxed);
+        fn search(&self, text: String) -> BoxFuture<'_, QuoteSearchOutcome> {
+            let call = self.calls.fetch_add(1, Ordering::Relaxed);
+            let superseded = call < self.superseded.load(Ordering::Relaxed);
             Box::pin(async move {
-                if text.contains("give and it shall") {
-                    vec![GlobalQuoteMatch { candidate:GlobalQuoteCandidate { book:"Luke".into(),chapter:6.,verse:38.,text:"give and it shall be given unto you good measure pressed down shaken together".into(),..Default::default() },score:1.,ambiguous:false }]
+                if superseded {
+                    QuoteSearchOutcome::Superseded
+                } else if text.contains("own cistern") {
+                    let at = |book: &str, chapter: f64, verse: f64| GlobalQuoteMatch {
+                        candidate: GlobalQuoteCandidate {
+                            book: book.into(),
+                            chapter,
+                            verse,
+                            text: "drink water from your own cistern".into(),
+                            ..Default::default()
+                        },
+                        score: 1.,
+                        ambiguous: false,
+                    };
+                    QuoteSearchOutcome::Found(vec![at("Proverbs", 5., 15.), at("Isaiah", 36., 16.)])
+                } else if text.contains("give and it shall") {
+                    QuoteSearchOutcome::Found(vec![GlobalQuoteMatch { candidate:GlobalQuoteCandidate { book:"Luke".into(),chapter:6.,verse:38.,text:"give and it shall be given unto you good measure pressed down shaken together".into(),..Default::default() },score:1.,ambiguous:false }])
                 } else {
-                    vec![]
+                    QuoteSearchOutcome::Found(vec![])
                 }
             })
         }
@@ -485,6 +570,7 @@ mod tests {
         let source = Arc::new(Source {
             allowed: AtomicBool::new(true),
             calls: AtomicUsize::new(0),
+            superseded: AtomicUsize::new(0),
         });
         let local = LiveDetector::new(None, Default::default(), None, Arc::new(|| None));
         let detector = QuoteDetector::with_source(local, source.clone());
@@ -528,6 +614,95 @@ mod tests {
         assert!(detector.is_general_quote_current(&refs[0]));
         source.allowed.store(false, Ordering::Relaxed);
         assert!(!detector.is_general_quote_current(&refs[0]));
+        detector.destroy();
+    }
+    #[tokio::test]
+    async fn a_final_displaced_from_the_queue_is_searched_again() {
+        let (detector, source, mut events) = detector();
+        source.superseded.store(1, Ordering::Relaxed);
+        detector.on_final(&final_result(
+            "give and it shall be given unto you good measure pressed down",
+        ));
+        let refs = detection(&mut events).await;
+        assert_eq!(refs[0].book, "Luke");
+        assert_eq!(source.calls.load(Ordering::Relaxed), 2);
+        detector.destroy();
+    }
+    #[tokio::test]
+    async fn reading_the_passage_on_screen_drops_its_echoes_elsewhere() {
+        let (detector, _, mut events) = detector();
+        detector.set_reading_passage(Some(ReadingPassage {
+            book: "Proverbs".into(),
+            chapter: 5.,
+            start: 15.,
+            end: 23.,
+            text: String::new(),
+        }));
+        detector.on_final(&final_result("drink water from your own cistern"));
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        while let Ok(event) = events.try_recv() {
+            assert!(
+                !matches!(event, DetectorEvent::Detection(_)),
+                "no card for Isaiah or Proverbs: {event:?}"
+            );
+        }
+        detector.destroy();
+    }
+    #[tokio::test]
+    async fn reading_aloud_drops_parallels_even_when_search_misses_the_passage() {
+        let (detector, _, mut events) = detector();
+        // Search returns only Luke 6:38 for this speech; the passage on screen
+        // holds the same words, so the reader is reading, not quoting.
+        let words = "give and it shall be given unto you good measure pressed down";
+        detector.set_reading_passage(Some(ReadingPassage {
+            book: "Matthew".into(),
+            chapter: 7.,
+            start: 1.,
+            end: 2.,
+            text: format!("Judge not. {words}, shaken together."),
+        }));
+        detector.on_final(&final_result(words));
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        assert!(!matches!(
+            events.try_recv(),
+            Ok(DetectorEvent::Detection(_))
+        ));
+        // The same quote while something unrelated is on screen still shows.
+        detector.set_reading_passage(Some(ReadingPassage {
+            book: "Psalms".into(),
+            chapter: 23.,
+            start: 1.,
+            end: 6.,
+            text: "The Lord is my shepherd I shall not want".into(),
+        }));
+        let mut again = final_result(words);
+        again.id = "again".into();
+        again.audio_start = Some(5.);
+        detector.on_final(&again);
+        assert_eq!(detection(&mut events).await[0].book, "Luke");
+        detector.destroy();
+    }
+    #[test]
+    fn reading_aloud_needs_most_of_the_speech_to_be_the_passage() {
+        let passage = "For this reason a man shall leave his father and mother and be joined to his wife, and the two shall become one flesh";
+        assert!(reads_aloud(
+            "for this reason a man shall leave his father and mother",
+            passage
+        ));
+        assert!(!reads_aloud(
+            "so today we talk about his father in the faith and his wife",
+            passage
+        ));
+        assert!(!reads_aloud("one flesh", passage));
+    }
+    #[tokio::test]
+    async fn a_partial_displaced_from_the_queue_is_not_retried() {
+        let (detector, source, mut events) = detector();
+        source.superseded.store(usize::MAX, Ordering::Relaxed);
+        detector.on_interim(&interim("give and it shall be given unto you good measure"));
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        assert_eq!(source.calls.load(Ordering::Relaxed), 1);
+        assert!(events.try_recv().is_err());
         detector.destroy();
     }
     #[tokio::test]

@@ -7,6 +7,7 @@ pub mod pptx_builtin;
 pub mod pptx_package;
 pub mod pptx_slides;
 mod process;
+pub mod script_import;
 pub mod service;
 pub mod slide_converter;
 #[cfg(target_os = "macos")]

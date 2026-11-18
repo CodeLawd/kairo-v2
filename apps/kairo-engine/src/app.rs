@@ -233,8 +233,24 @@ impl Engine {
             self.error(Some(output), "Invalid web input".into());
             return;
         }
+        if let Command::SetPrompter {
+            output,
+            view: Some(view),
+        } = &command
+            && !matches!(
+                view.decode::<kairo_domain::teleprompter::StagePayload>(),
+                Ok(kairo_domain::teleprompter::StagePayload::Tagged(
+                    kairo_domain::teleprompter::StageContent::Teleprompter(_)
+                ))
+            )
+        {
+            self.error(Some(output), "Invalid prompter view".into());
+            return;
+        }
         if let Command::SetStage { output, view } = &command
-            && view.decode::<kairo_domain::program::StageView>().is_err()
+            && view
+                .decode::<kairo_domain::teleprompter::StagePayload>()
+                .is_err()
         {
             self.error(Some(output), "Invalid stage view".into());
             return;
@@ -532,6 +548,20 @@ impl Engine {
                 let Some(surface) = self.surfaces.iter_mut().find(|s| s.output() == output) else {
                     return;
                 };
+                if let Command::StageTransport {
+                    revision,
+                    sequence,
+                    operation,
+                    ..
+                } = &command
+                {
+                    if surface.is_open()
+                        && let Some(stage) = surface.shell.teleprompter.as_mut()
+                    {
+                        stage.transport(*revision, *sequence, *operation, Instant::now());
+                    }
+                    return;
+                }
                 surface.seq = seq;
                 let planned = surface.shell.command(&command, &before, &surface.state);
                 // A turn the reducer refused, or one with no page to decode
@@ -1263,6 +1293,16 @@ impl Engine {
 
     fn close_window(&mut self, index: usize) {
         let surface = &mut self.surfaces[index];
+        let checkpoint = surface.shell.teleprompter.as_mut().and_then(|stage| {
+            let now = Instant::now();
+            stage.park(now);
+            stage.checkpoint(surface.state.spec.output.clone(), now)
+        });
+        if let Some(position) = &checkpoint {
+            surface
+                .state
+                .checkpoint_stage(position.revision, position.anchor);
+        }
         surface.queue.clear();
         surface.traces.clear();
         if let Some(window) = &surface.window {
@@ -1281,6 +1321,9 @@ impl Engine {
         }
         if let Some(feed) = feed {
             self.ndi.close(&surface.state.spec.output, feed);
+        }
+        if let Some(position) = checkpoint {
+            self.send_event(Event::StagePosition(position));
         }
     }
 
@@ -1497,7 +1540,13 @@ impl Engine {
     fn show_state(&mut self, index: usize, frame_height: u32) {
         let output = self.surfaces[index].state.spec.output.clone();
         let surface = &mut self.surfaces[index];
+        let previous_stage = surface.shell.teleprompter.take();
         surface.shell = Shell::new(&output, frame_height);
+        surface.shell.teleprompter = previous_stage;
+        if let Some(window) = &surface.window {
+            let size = window.window.inner_size();
+            surface.shell.set_stage_viewport(size.width, size.height);
+        }
         if let (Some(cameras), Some(camera)) = (self.cameras.as_ref(), &surface.state.layers.camera)
             && let Some(id) = cameras.live_id(&camera.label)
         {
@@ -1563,7 +1612,6 @@ impl Engine {
                 size: (size.width, size.height),
             },
         );
-        self.show_state(index, sink.frame_height);
         crate::window_policy::show(&window, sink.rehearsal);
         self.surfaces[index].window = Some(OutputWindow {
             window,
@@ -1571,6 +1619,7 @@ impl Engine {
             sink: sink.clone(),
             target: target.clone(),
         });
+        self.show_state(index, sink.frame_height);
         Ok(())
     }
 
@@ -1831,7 +1880,13 @@ impl ApplicationHandler<Message> for Engine {
                     "client {id} gone; holding the picture for {} ms",
                     self.grace.as_millis()
                 );
-                self.orphaned_at = Some(Instant::now());
+                let now = Instant::now();
+                self.orphaned_at = Some(now);
+                for surface in &mut self.surfaces {
+                    if let Some(stage) = surface.shell.teleprompter.as_mut() {
+                        stage.disconnect(now);
+                    }
+                }
             }
             Message::Ping { nonce } => self.outbox.send(&FromEngine::Pong { nonce }),
             Message::Query { id, query } => self.query(id, query),
@@ -1877,7 +1932,26 @@ impl ApplicationHandler<Message> for Engine {
             // Ignored: as in Electron, only turning the output off closes
             // it, so the window and the settings cannot disagree.
             WindowEvent::CloseRequested => {}
-            WindowEvent::Resized(size) => compositor.resize(&output, (size.width, size.height)),
+            WindowEvent::Resized(size) => {
+                compositor.resize(&output, (size.width, size.height));
+                if let Some(surface) = self.surface_mut(&output)
+                    && surface.shell.set_stage_viewport(size.width, size.height)
+                    && surface.shell.teleprompter.is_some()
+                    && let Some(view) = surface.state.stage.clone()
+                {
+                    let mut before = surface.state.clone();
+                    before.stage = None;
+                    let planned = surface.shell.command(
+                        &Command::SetStage {
+                            output: output.clone(),
+                            view,
+                        },
+                        &before,
+                        &surface.state,
+                    );
+                    self.dispatch(&output, 0, planned);
+                }
+            }
             WindowEvent::RedrawRequested | WindowEvent::Occluded(false) => {
                 compositor.invalidate(&output);
             }
@@ -1932,12 +2006,55 @@ impl ApplicationHandler<Message> for Engine {
                 self.report();
             }
         }
+        let mut stage_deadline = None;
+        let mut stage_positions = Vec::new();
+        if let Some(compositor) = self.compositor.as_ref() {
+            for surface in self.surfaces.iter_mut().filter(|surface| surface.is_open()) {
+                let output = surface.output().to_owned();
+                if let Some(stage) = surface.shell.teleprompter.as_mut() {
+                    if let Some(content) = stage.draw(now) {
+                        compositor.apply(
+                            &output,
+                            0,
+                            vec![kairo_compositor::thread::Op::Update {
+                                slot: stage.slot,
+                                key: stage.key.clone(),
+                                content,
+                            }],
+                        );
+                    }
+                    if let Some(position) = stage.checkpoint(output, now) {
+                        // The replay copy is rewritten only once playback
+                        // rests: patching it re-encodes the whole script, and
+                        // closing a window checkpoints it anyway.
+                        if !position.playing {
+                            surface
+                                .state
+                                .checkpoint_stage(position.revision, position.anchor);
+                        }
+                        stage_positions.push(position);
+                    }
+                    if let Some(deadline) = stage.deadline() {
+                        stage_deadline = Some(
+                            stage_deadline
+                                .map_or(deadline, |current: Instant| current.min(deadline)),
+                        );
+                    }
+                }
+            }
+        }
+        for position in stage_positions {
+            self.send_event(Event::StagePosition(position));
+        }
         let ticking = self.surfaces.iter().any(|s| !s.shell.live.is_empty());
         if ticking && now >= self.next_tick {
             self.next_tick = now + TICK;
             self.tick();
         }
         let mut wake = self.next_scan.min(self.next_report);
+        if let Some(deadline) = stage_deadline {
+            wake = wake.min(deadline);
+        }
         // The recording's once-a-second checks, and a file being finished.
         if self.capture.active() {
             wake = wake.min(self.next_capture);

@@ -300,6 +300,9 @@ pub enum Command {
     },
     /// The independent stage display's complete current view.
     SetStage { output: String, view: Json },
+    /// A teleprompter over everything an audience screen shows, or `None`
+    /// to take it off. The screen's own content keeps updating underneath.
+    SetPrompter { output: String, view: Option<Json> },
     /// Creates a surface, or retargets an existing one to a new sink.
     OpenSurface(SurfaceSpec),
     /// Destroys every surface not named. Sent first when state is replayed.
@@ -413,6 +416,21 @@ pub enum Command {
     },
     /// Close every window and exit now.
     Shutdown,
+    StageTransport {
+        output: String,
+        revision: u64,
+        sequence: u64,
+        operation: StageOperation,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum StageOperation {
+    Play,
+    Pause,
+    Seek { anchor: usize },
+    Scroll { lines: f64 },
+    Speed { lines_per_second: f64 },
 }
 
 impl Command {
@@ -444,7 +462,9 @@ impl Command {
             | WebScroll { output, .. }
             | SetTestPattern { output, .. }
             | SetPreview { output, .. }
-            | SetStage { output, .. } => Some(output),
+            | SetStage { output, .. }
+            | SetPrompter { output, .. }
+            | StageTransport { output, .. } => Some(output),
             RetainSurfaces { .. }
             | Shutdown
             | ControlDisplay { .. }
@@ -641,6 +661,25 @@ pub enum Event {
         output: Option<String>,
         message: String,
     },
+    StagePosition(StagePosition),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct StagePosition {
+    pub output: String,
+    pub revision: u64,
+    pub sequence: u64,
+    pub anchor: usize,
+    pub playing: bool,
+    /// The reading line, in shaped lines from the top of the script.
+    #[serde(default)]
+    pub line: f64,
+    /// Where the script ends, in shaped lines; previews scale to it.
+    #[serde(default)]
+    pub lines: f64,
+    /// Lines per second the screen scrolls at.
+    #[serde(default)]
+    pub speed: f64,
 }
 
 /// Physical windows owned by the engine; no other process/window is inspected.

@@ -465,6 +465,60 @@ fn passage_follow_holds_until_the_sentence_ends() {
 }
 
 #[test]
+fn strict_follow_waits_for_most_of_the_verse() {
+    let matthew: Vec<_> = [
+        "Blessed are the poor in spirit, For theirs is the kingdom of heaven.",
+        "Blessed are those who mourn, For they shall be comforted.",
+    ]
+    .iter()
+    .enumerate()
+    .map(|(i, t)| {
+        suggestion(
+            &format!("matt-5-{}", i + 3),
+            "Matthew",
+            5.0,
+            (i + 3) as f64,
+            t,
+            Some(("matt-5-3-4", i as f64)),
+        )
+    })
+    .collect();
+    let start = state("matt-5-3-4", 0.0);
+    let next = |text: &str, strict: bool, final_text: bool| {
+        let update = if strict {
+            update_passage_follow_strict(&start, text, &matthew, final_text)
+        } else {
+            update_passage_follow(&start, text, &matthew, final_text)
+        };
+        update.next_suggestion_id
+    };
+    // Verse 4's opening heard a third of the way into verse 3: the Electron
+    // rule jumps; the native rule stays on the verse being read.
+    let early = "Blessed are the poor. Blessed are those who";
+    assert_eq!(next(early, false, true).as_deref(), Some("matt-5-4"));
+    assert_eq!(next(early, true, true), None);
+    // Verse 3 read to its closing words, then verse 4 begins (its last word
+    // misheard): live text moves on at once.
+    let most = "Blessed are the poor in spirit for theirs is the kingdom. Blessed are those who";
+    assert_eq!(next(most, true, false).as_deref(), Some("matt-5-4"));
+    // Mid-verse, verse 4's opening on live text never moves on.
+    let mid = "Blessed are the poor in spirit. Blessed are those who";
+    assert_eq!(next(mid, true, false), None);
+    assert_eq!(next(mid, true, true), None);
+    // A verse read to its end moves on, on live text too.
+    let whole = "Blessed are the poor in spirit for theirs is the kingdom of heaven";
+    assert_eq!(next(whole, true, false).as_deref(), Some("matt-5-4"));
+    // At the closing words with the last one misheard ("heaven" as
+    // "seven"), the next verse's first words move on, live text too.
+    let misheard = "Blessed are the poor in spirit for theirs is the kingdom of seven. Blessed are";
+    assert_eq!(next(misheard, true, false).as_deref(), Some("matt-5-4"));
+    // Stopping before the last words to explain is not finishing the verse.
+    let paused = "Blessed are the poor in spirit for theirs is the kingdom";
+    assert_eq!(next(paused, false, true).as_deref(), Some("matt-5-4"));
+    assert_eq!(next(paused, true, true), None);
+}
+
+#[test]
 fn operator_sections_navigation_and_sending() {
     let list = genesis();
     let (kept, sent) =

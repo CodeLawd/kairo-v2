@@ -19,6 +19,7 @@ mod program;
 mod program_corpus;
 mod server;
 mod sound;
+mod teleprompter;
 mod text;
 #[cfg(test)]
 mod visual_corpus;

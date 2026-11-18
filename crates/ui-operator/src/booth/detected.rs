@@ -12,23 +12,29 @@ use std::hash::{Hash, Hasher};
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::popover::Popover;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::{
     AnyElement, Context, Entity, FontWeight, InteractiveElement, IntoElement, MouseButton,
-    ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, Subscription, Window,
-    div, prelude::FluentBuilder, px,
+    ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, StyledText,
+    Subscription, TextRun as GpuiRun, Window, div, prelude::FluentBuilder, px,
 };
 use kairo_domain::scripture::ScriptureSuggestion;
 use kairo_domain::scripture::live_progress::ScriptureSuggestionGroup;
 use kairo_domain::scripture::query::Direction;
 use kairo_domain::scripture::small::spoken_verse_text;
+use kairo_domain::settings::ScriptureAutomation;
+use kairo_domain::status::AutoPresentDelaySec;
 use kairo_ui_kit::coach::coach_anchor;
+use kairo_ui_kit::components::segmented::{SegmentOption, SegmentedControl};
 use kairo_ui_kit::motion::{self, DETECT_CARD_IN, DETECT_STATE_IN};
 use kairo_ui_kit::tokens::{Step, TextStep, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
-use super::text::{DetectionState, detected_chip_label, detection_source, detection_state};
+use super::text::{
+    DetectionState, detected_chip_label, detection_source, detection_state, quote_match,
+};
 use super::widgets::icon_button;
 use super::{Booth, KeyModifiers};
 use crate::scroll::{Edge, PinnedScroll};
@@ -36,6 +42,13 @@ use crate::scroll::{Edge, PinnedScroll};
 /// Element ids, for tests.
 pub mod ids {
     pub const AUTOMATION: &str = "detected-automation";
+    pub const AUTOMATION_OPTIONS: &str = "detected-automation-options";
+    pub const AUTOMATION_POPOVER: &str = "detected-automation-popover";
+    pub const AUTO_DELAY: &str = "automation-delay";
+    pub const AUTO_CONFIDENCE: &str = "automation-confidence";
+    pub const AUTO_PASSAGES: &str = "automation-passages";
+    pub const AUTO_FOLLOW: &str = "automation-follow";
+    pub const AUTO_CLEAR: &str = "automation-clear";
     pub const CLEAR: &str = "detected-clear";
     pub const EMPTY: &str = "detected-empty";
     pub const RESTORE: &str = "recovery-restore";
@@ -293,10 +306,11 @@ impl DetectedPanel {
                             .font_weight(FontWeight::MEDIUM)
                             .text_color(k.text(TextStep::T400))
                             .tooltip(super::widgets::tip(
-                                "Show confident single verses automatically · Ctrl+A".to_owned(),
+                                "Present confident detections after a countdown · Ctrl+A"
+                                    .to_owned(),
                             ))
                             .child(coach_anchor("automation"))
-                            .child("Automation")
+                            .child("Automation mode")
                             .child(
                                 Switch::new(ids::AUTOMATION)
                                     .checked(auto)
@@ -306,6 +320,7 @@ impl DetectedPanel {
                                     })),
                             ),
                     )
+                    .child(self.automation_options(cx))
                     .when(any, |this| {
                         this.child(
                             Button::new(ids::CLEAR)
@@ -320,6 +335,32 @@ impl DetectedPanel {
                         )
                     }),
             )
+            .into_any_element()
+    }
+
+    /// Every automation option, editable mid-service. The switch beside it
+    /// stays the master for auto-present; follow-along and auto-clear act on
+    /// whatever is on screen, however it got there.
+    fn automation_options(&self, cx: &mut Context<Self>) -> AnyElement {
+        let booth = self.booth.downgrade();
+        Popover::new(ids::AUTOMATION_POPOVER)
+            .anchor(gpui_kit::Anchor::TopRight)
+            .trigger(
+                icon_button(
+                    ids::AUTOMATION_OPTIONS,
+                    KairoIcon::SlidersHorizontal,
+                    "Automation options",
+                    cx,
+                )
+                .popover_trigger(),
+            )
+            .content(move |_, _, cx| {
+                let Some(entity) = booth.upgrade() else {
+                    return div().into_any_element();
+                };
+                let a = entity.read(cx).automation;
+                automation_panel(entity, a, cx)
+            })
             .into_any_element()
     }
 
@@ -617,6 +658,44 @@ impl DetectedPanel {
             .first()
             .map(|v| spoken_verse_text(&v.text))
             .unwrap_or_else(|| "Text unavailable in this translation.".into());
+        // A quote card marks the words that were said, so it is clear why
+        // it matched; references explain themselves.
+        let quoted =
+            !group_live && (shown.quote_evidence.is_some() || shown.suggestion_only == Some(true));
+        let verse_body: AnyElement = match quoted
+            .then(|| quote_match(&verse_text, &shown.trigger_text))
+            .flatten()
+        {
+            Some(m) => {
+                let font = |weight: FontWeight| gpui_kit::Font {
+                    weight,
+                    ..gpui_kit::font(text::FAMILY)
+                };
+                let base = k.text(TextStep::T400);
+                let mut runs = Vec::new();
+                let mut at = 0;
+                let mut push = |len: usize, said: bool| {
+                    if len > 0 {
+                        runs.push(GpuiRun {
+                            len,
+                            font: font(FontWeight::NORMAL),
+                            color: if said { k.accent(Step::S200) } else { base },
+                            background_color: said.then_some(k.tints.teal),
+                            underline: None,
+                            strikethrough: None,
+                        });
+                    }
+                };
+                for span in &m.spans {
+                    push(span.start - at, false);
+                    push(span.end - span.start, true);
+                    at = span.end;
+                }
+                push(m.text.len() - at, false);
+                StyledText::new(m.text).with_runs(runs).into_any_element()
+            }
+            None => verse_text.clone().into_any_element(),
+        };
         let card = v_flex()
             .id(SharedString::from(ids::row(&group.id)))
             .test_support()
@@ -625,8 +704,8 @@ impl DetectedPanel {
             .w_full()
             .min_w_0()
             .rounded_lg()
-            .px(px(14.))
-            .py_3()
+            .px_4()
+            .py(px(14.))
             .map(|s| {
                 if group_live {
                     s.bg(k.live.opacity(0.7)).text_color(k.white)
@@ -643,10 +722,18 @@ impl DetectedPanel {
                         div()
                             .min_w_0()
                             .truncate()
-                            .text_size(text::SM.size)
+                            .text_size(text::BASE.size)
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(fg(k.text_primary))
-                            .child(shown.reference.clone()),
+                            // A passage is named whole ("Malachi 2:7-16");
+                            // its chips show the verse.
+                            .child(
+                                shown
+                                    .passage_reference
+                                    .clone()
+                                    .filter(|_| passage)
+                                    .unwrap_or_else(|| shown.reference.clone()),
+                            ),
                     )
                     .child(translation_button)
                     .when_some(shown.requested_translation.clone(), |this, asked| {
@@ -674,11 +761,12 @@ impl DetectedPanel {
                     .role(gpui_kit::Role::Button)
                     .aria_label(format!("Present {}", shown.reference))
                     .tooltip(super::widgets::tip(format!("Present {}", shown.reference)))
-                    .mt_1()
+                    .mt_1p5()
                     .w_full()
                     .cursor_pointer()
-                    .text_size(text::SM.size)
-                    .line_clamp(2)
+                    .text_size(text::BASE.size)
+                    .line_height(text::BASE.line_height)
+                    .line_clamp(3)
                     .text_color(fg(k.text(TextStep::T400)))
                     .hover(|s| s.text_color(fg(k.text(TextStep::T200))))
                     .when(!passage, |s| {
@@ -690,7 +778,7 @@ impl DetectedPanel {
                         let id = text_id.clone();
                         this.booth.update(cx, |b, cx| b.approve(&id, cx))
                     }))
-                    .child(verse_text),
+                    .child(verse_body),
             );
         Some(if fresh {
             motion::animate(
@@ -793,4 +881,248 @@ impl Render for DetectedPanel {
                     }),
             )
     }
+}
+
+/// One option on one line: its name on the left, its control on the right.
+fn option_row(label: &'static str, control: impl IntoElement, cx: &gpui_kit::App) -> gpui_kit::Div {
+    h_flex()
+        .w_full()
+        .h_8()
+        .items_center()
+        .justify_between()
+        .gap_4()
+        .child(
+            div()
+                .text_size(text::SM.size)
+                .text_color(cx.kairo().text_primary)
+                .child(label),
+        )
+        .child(div().flex_shrink_0().child(control))
+}
+
+/// A group of options under a short heading, with an optional state note.
+fn option_group(
+    title: &'static str,
+    note: Option<&'static str>,
+    rows: impl IntoIterator<Item = gpui_kit::Div>,
+    cx: &gpui_kit::App,
+) -> gpui_kit::Div {
+    let k = cx.kairo();
+    v_flex()
+        .gap_1()
+        .child(
+            h_flex()
+                .items_baseline()
+                .justify_between()
+                .child(
+                    div()
+                        .text_size(text::LABEL.size)
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(k.text(TextStep::T400))
+                        .child(title),
+                )
+                .children(note.map(|note| {
+                    div()
+                        .text_size(text::LABEL.size)
+                        .text_color(k.text(TextStep::T500))
+                        .child(note)
+                })),
+        )
+        .children(rows)
+}
+
+/// Confidence as the operator thinks of it: how strict a match must be.
+const MATCHING: [(&str, &str, f64); 3] = [
+    ("loose", "Loose", 0.6),
+    ("normal", "Normal", 0.7),
+    ("strict", "Strict", 0.85),
+];
+/// Off, or the pause after the last verse before scripture clears.
+const CLEARING: [(&str, &str); 4] = [("off", "Off"), ("2", "2s"), ("5", "5s"), ("10", "10s")];
+
+fn matching_key(threshold: f64) -> &'static str {
+    MATCHING
+        .iter()
+        .min_by(|a, b| (a.2 - threshold).abs().total_cmp(&(b.2 - threshold).abs()))
+        .map_or("normal", |m| m.0)
+}
+
+fn clearing_key(a: &ScriptureAutomation) -> &'static str {
+    if !a.auto_clear {
+        return "off";
+    }
+    CLEARING[1..]
+        .iter()
+        .min_by(|x, y| {
+            let d = |key: &str| (key.parse::<f64>().unwrap_or(0.0) - a.auto_clear_delay_sec).abs();
+            d(x.0).total_cmp(&d(y.0))
+        })
+        .map_or("5", |c| c.0)
+}
+
+fn automation_panel(
+    booth: Entity<Booth>,
+    a: ScriptureAutomation,
+    cx: &mut gpui_kit::App,
+) -> AnyElement {
+    let k = *cx.kairo();
+    let save = move |booth: &Entity<Booth>, next: ScriptureAutomation, cx: &mut gpui_kit::App| {
+        booth.update(cx, |b, cx| b.set_automation(next, cx));
+    };
+    let presenting = a.auto_mode;
+    let segmented =
+        |id: &'static str, label: &'static str, options: Vec<SegmentOption>, selected: &str| {
+            SegmentedControl::new(id, label)
+                .fit()
+                .compact(true)
+                .options(options)
+                .selected(SharedString::from(selected.to_owned()))
+        };
+    let countdown = segmented(
+        ids::AUTO_DELAY,
+        "Countdown",
+        vec![
+            SegmentOption::new("0", "None"),
+            SegmentOption::new("1", "1s"),
+            SegmentOption::new("2", "2s"),
+            SegmentOption::new("3", "3s"),
+        ],
+        &(a.auto_present_delay_sec as u8).to_string(),
+    )
+    .on_change({
+        let booth = booth.clone();
+        move |key, _, cx| {
+            if !presenting {
+                return;
+            }
+            let delay = match key.as_ref() {
+                "0" => AutoPresentDelaySec::Zero,
+                "2" => AutoPresentDelaySec::Two,
+                "3" => AutoPresentDelaySec::Three,
+                _ => AutoPresentDelaySec::One,
+            };
+            save(
+                &booth,
+                ScriptureAutomation {
+                    auto_present_delay_sec: delay,
+                    ..a
+                },
+                cx,
+            );
+        }
+    });
+    let matching = segmented(
+        ids::AUTO_CONFIDENCE,
+        "Matching",
+        MATCHING
+            .iter()
+            .map(|m| SegmentOption::new(m.0, m.1))
+            .collect(),
+        matching_key(a.confidence_threshold),
+    )
+    .on_change({
+        let booth = booth.clone();
+        move |key, _, cx| {
+            if !presenting {
+                return;
+            }
+            if let Some(m) = MATCHING.iter().find(|m| m.0 == key.as_ref()) {
+                save(
+                    &booth,
+                    ScriptureAutomation {
+                        confidence_threshold: m.2,
+                        ..a
+                    },
+                    cx,
+                );
+            }
+        }
+    });
+    let passages = Switch::new(ids::AUTO_PASSAGES)
+        .checked(a.auto_present_passages)
+        .disabled(!presenting)
+        .accessibility_label("Include passages")
+        .on_change({
+            let booth = booth.clone();
+            move |on: &bool, _, cx| {
+                save(
+                    &booth,
+                    ScriptureAutomation {
+                        auto_present_passages: *on,
+                        ..a
+                    },
+                    cx,
+                )
+            }
+        });
+    let follow = Switch::new(ids::AUTO_FOLLOW)
+        .checked(a.follow_along)
+        .accessibility_label("Follow the reading")
+        .on_change({
+            let booth = booth.clone();
+            move |on: &bool, _, cx| {
+                save(
+                    &booth,
+                    ScriptureAutomation {
+                        follow_along: *on,
+                        ..a
+                    },
+                    cx,
+                )
+            }
+        });
+    let clearing = segmented(
+        ids::AUTO_CLEAR,
+        "Clear when finished",
+        CLEARING
+            .iter()
+            .map(|c| SegmentOption::new(c.0, c.1))
+            .collect(),
+        clearing_key(&a),
+    )
+    .on_change({
+        let booth = booth.clone();
+        move |key, _, cx| {
+            let next = match key.parse::<f64>() {
+                Ok(delay) => ScriptureAutomation {
+                    auto_clear: true,
+                    auto_clear_delay_sec: delay,
+                    ..a
+                },
+                Err(_) => ScriptureAutomation {
+                    auto_clear: false,
+                    ..a
+                },
+            };
+            save(&booth, next, cx);
+        }
+    });
+    let show = option_group(
+        "Show detected verses",
+        (!presenting).then_some("Automation is off"),
+        [
+            option_row("Countdown", countdown, cx),
+            option_row("Matching", matching, cx),
+            option_row("Include passages", passages, cx),
+        ]
+        .map(|row| row.when(!presenting, |r| r.opacity(0.45))),
+        cx,
+    );
+    let on_screen = option_group(
+        "While a verse is on screen",
+        None,
+        [
+            option_row("Follow the reading", follow, cx),
+            option_row("Clear when finished", clearing, cx),
+        ],
+        cx,
+    );
+    v_flex()
+        .id("automation-options-panel")
+        .w(px(300.))
+        .gap_3()
+        .child(show)
+        .child(div().h_px().w_full().bg(k.surface_menu_line))
+        .child(on_screen)
+        .into_any_element()
 }

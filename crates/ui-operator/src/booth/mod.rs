@@ -28,7 +28,7 @@ use kairo_domain::program::{PresentationSettings, ProgramState};
 use kairo_domain::scripture::live_progress::{
     DEFAULT_VISIBLE_GROUP_COUNT, PassageFollowState, ScriptureSuggestionGroup,
     group_scripture_suggestions, merge_scripture_suggestion, navigate_operator_suggestion_id,
-    partition_operator_suggestion_groups, update_passage_follow,
+    partition_operator_suggestion_groups, passage_read_through, update_passage_follow_strict,
 };
 use kairo_domain::scripture::query::{
     Direction, expand_scripture_result, get_adjacent_verse_queries,
@@ -39,7 +39,7 @@ use kairo_domain::scripture::{
     ScriptureTranslationOption, SermonPlan, SermonScriptureItem, SuggestionSource,
 };
 use kairo_domain::services::{ServiceCommand, ServiceRecord, ServiceSnapshot, ServiceStatus};
-use kairo_domain::settings::{ShortcutBindings, ShortcutCommand};
+use kairo_domain::settings::{ScriptureAutomation, ShortcutBindings, ShortcutCommand};
 use kairo_domain::status::{HealthStatus, OrchestratorStatus, ResilienceStatus, ServiceName};
 use kairo_domain::transcript::TranscriptResult;
 
@@ -187,6 +187,9 @@ pub struct Booth {
     pub(crate) licence: Licence,
     pub(crate) default_translation: String,
     pub(crate) shortcuts: ShortcutBindings,
+    pub(crate) automation: ScriptureAutomation,
+    /// The passage whose auto-clear is counting down, and its timer.
+    auto_clear: Option<(String, Task<()>)>,
     // Program panels.
     pub(crate) program: ProgramState,
     pub(crate) presentation: PresentationSettings,
@@ -247,6 +250,8 @@ impl Booth {
             licence: snapshot.licence,
             default_translation: snapshot.default_translation,
             shortcuts: snapshot.shortcuts,
+            automation: snapshot.automation,
+            auto_clear: None,
             program: ProgramState::default(),
             presentation: snapshot.presentation.unwrap_or_default(),
             devices: snapshot.devices,
@@ -390,6 +395,12 @@ impl Booth {
             && self.interim.is_empty()
             && self.active_service().is_none()
             && !self.transcribing
+    }
+    /// The upload is struggling: captions may lag, AI detection is paused.
+    pub fn stt_weak(&self) -> bool {
+        self.resilience
+            .as_ref()
+            .is_some_and(|r| kairo_domain::status::stt_connection_weak(&r.health))
     }
     pub fn stt_reconnecting(&self) -> bool {
         self.resilience.as_ref().is_some_and(|r| {
@@ -576,9 +587,11 @@ impl Booth {
             BoothFeed::Settings {
                 default_translation,
                 shortcuts,
+                automation,
             } => {
                 self.default_translation = default_translation;
                 self.shortcuts = shortcuts;
+                self.automation = automation;
             }
             BoothFeed::Devices(mut devices) => {
                 // Video inputs come from the camera request, not this feed.
@@ -660,6 +673,7 @@ impl Booth {
         }
         self.transcribing = status.running;
         self.auto_mode = status.auto_mode;
+        self.automation.auto_mode = status.auto_mode;
     }
 
     fn on_suggestion(&mut self, suggestion: ScriptureSuggestion, at: Instant) {
@@ -776,10 +790,11 @@ impl Booth {
         self.pending_auto.retain(|p| p.suggestion_id != id);
     }
 
+    /// Follows the reading of what just went live. A single verse is followed
+    /// too, so auto-clear can tell when it has been read.
     fn start_follow(&mut self, sug: &ScriptureSuggestion) {
-        if let Some(passage) = &sug.passage_id
-            && sug.passage_length.unwrap_or(1.0) > 1.0
-        {
+        self.auto_clear = None;
+        if let Some(passage) = &sug.passage_id {
             self.follow = Some(PassageFollowState {
                 passage_id: passage.clone(),
                 current_index: sug.passage_index.unwrap_or(0.0),
@@ -804,11 +819,28 @@ impl Booth {
         if text.trim().is_empty() {
             return;
         }
-        let update = update_passage_follow(&current, text, &self.suggestions, final_text);
-        self.follow = Some(update.state);
+        let update = update_passage_follow_strict(&current, text, &self.suggestions, final_text);
+        if final_text {
+            tracing::info!(
+                verse = current.current_index,
+                read_to = update.state.read_to,
+                heard = update.state.heard_count,
+                next = update.next_suggestion_id.as_deref(),
+                follow_along = self.automation.follow_along,
+                "follow-along heard a phrase"
+            );
+        }
         let Some(next) = update.next_suggestion_id else {
+            self.follow = Some(update.state);
+            self.arm_auto_clear(cx);
             return;
         };
+        // Follow-along off: the operator moves the screen, so the reading
+        // stays on the verse that is showing.
+        if !self.automation.follow_along {
+            return;
+        }
+        self.follow = Some(update.state);
         if self.sent.contains(&next) {
             return;
         }
@@ -837,7 +869,10 @@ impl Booth {
                 Ok(_) => this.call(
                     BoothCall::Approve(id.clone()),
                     cx,
-                    move |this, result, _| {
+                    move |this, result, cx| {
+                        if result.is_ok() {
+                            this.fire(BoothCall::FollowStepped, cx);
+                        }
                         if let Err(error) = result {
                             tracing::error!(%error, "[Operator] follow-along present failed");
                             this.follow = Some(current);
@@ -852,6 +887,97 @@ impl Booth {
                 }
             },
         );
+    }
+
+    /// Once the passage on screen has been read through, scripture clears
+    /// after the configured pause, unless something else goes live first.
+    fn arm_auto_clear(&mut self, cx: &mut Context<Self>) {
+        if !self.automation.auto_clear {
+            return;
+        }
+        let Some(follow) = self.follow.clone() else {
+            return;
+        };
+        if self
+            .auto_clear
+            .as_ref()
+            .is_some_and(|(passage, _)| *passage == follow.passage_id)
+            || !passage_read_through(&follow, &self.suggestions)
+        {
+            return;
+        }
+        let delay = Duration::from_secs_f64(self.automation.auto_clear_delay_sec.max(0.0));
+        let passage = follow.passage_id.clone();
+        let task = cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(delay).await;
+            let _ = this.update(cx, |this, cx| this.fire_auto_clear(&passage, cx));
+        });
+        self.auto_clear = Some((follow.passage_id, task));
+    }
+
+    fn fire_auto_clear(&mut self, passage: &str, cx: &mut Context<Self>) {
+        let Some((armed, _)) = self.auto_clear.take() else {
+            return;
+        };
+        let Some(follow) = self.follow.clone() else {
+            return;
+        };
+        if armed != passage || follow.passage_id != passage || !self.automation.auto_clear {
+            return;
+        }
+        let Some(verse) = self
+            .suggestions
+            .iter()
+            .find(|s| {
+                s.passage_id.as_deref() == Some(passage)
+                    && s.passage_index.unwrap_or(0.0) == follow.current_index
+            })
+            .and_then(|s| s.verses.first().cloned())
+        else {
+            return;
+        };
+        self.call(
+            BoothCall::ClearScriptureIfLive {
+                book: verse.book,
+                chapter: verse.chapter,
+                verse: verse.verse,
+            },
+            cx,
+            |this, result, cx| match result {
+                Ok(BoothAnswer::Cleared(true)) => {
+                    this.projection = None;
+                    this.follow = None;
+                    cx.notify();
+                }
+                Ok(_) => {}
+                Err(error) => tracing::error!(%error, "[Operator] auto-clear failed"),
+            },
+        );
+    }
+
+    /// Saves the automation options and applies them to the running service.
+    pub fn set_automation(&mut self, automation: ScriptureAutomation, cx: &mut Context<Self>) {
+        let before = self.automation;
+        self.automation = automation;
+        if !automation.auto_clear {
+            self.auto_clear = None;
+        }
+        if before.auto_mode != automation.auto_mode {
+            self.auto_mode = automation.auto_mode;
+        }
+        self.call(
+            BoothCall::SetAutomation(automation),
+            cx,
+            move |this, result, cx| {
+                if let Err(error) = result {
+                    tracing::error!(%error, "[Operator] automation save failed");
+                    this.automation = before;
+                    this.auto_mode = before.auto_mode;
+                    cx.notify();
+                }
+            },
+        );
+        cx.notify();
     }
 
     // ─── Actions ────────────────────────────────────────────────────────────
@@ -1343,6 +1469,7 @@ impl Booth {
 
     /// `handleClearText`.
     pub fn clear_text(&mut self, cx: &mut Context<Self>) {
+        self.auto_clear = None;
         self.call(BoothCall::ClearText, cx, |this, result, _| {
             if let Err(error) = result {
                 tracing::error!(%error, "[Operator] clear failed");
@@ -1358,7 +1485,10 @@ impl Booth {
             BoothCall::SetAutoMode(next),
             cx,
             move |this, result, _| match result {
-                Ok(_) => this.auto_mode = next,
+                Ok(_) => {
+                    this.auto_mode = next;
+                    this.automation.auto_mode = next;
+                }
                 Err(error) => tracing::error!(%error, "[Operator] automation toggle failed"),
             },
         );

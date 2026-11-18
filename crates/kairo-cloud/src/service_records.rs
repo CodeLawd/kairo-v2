@@ -270,6 +270,7 @@ impl<S: RecordServices> ServiceRecords<S> {
                         id,
                         title: String::new(),
                         speaker: String::new(),
+                        sermon_title: String::new(),
                         created_at: now_ms(),
                         ended_at: None,
                         status: ServiceStatus::Live,
@@ -293,6 +294,7 @@ impl<S: RecordServices> ServiceRecords<S> {
             ServiceCommand::End {
                 title,
                 speaker,
+                sermon_title,
                 plan_id,
             } => {
                 let plan = match plan_id.filter(|id| !id.is_empty()) {
@@ -318,6 +320,10 @@ impl<S: RecordServices> ServiceRecords<S> {
                     let speaker = cap(trim(&speaker), 200);
                     if !speaker.is_empty() {
                         record.speaker = speaker;
+                    }
+                    let sermon_title = cap(trim(&sermon_title), 200);
+                    if !sermon_title.is_empty() {
+                        record.sermon_title = sermon_title;
                     }
                     if let Some(note) = plan {
                         attach(record, note);
@@ -889,6 +895,7 @@ mod tests {
                     .command(ServiceCommand::End {
                         title: "  Evening service  ".into(),
                         speaker: " Speaker ".into(),
+                        sermon_title: String::new(),
                         plan_id: None,
                     })
                     .await
@@ -975,6 +982,7 @@ mod tests {
                 payload: SermonUploadInput,
             ) -> Result<SermonUploadResult, crate::ApiError> {
                 assert_eq!(payload.title, "Evening service");
+                assert_eq!(payload.sermon_title, "The Power of Growth");
                 assert_eq!(payload.transcript.len(), 1);
                 if self.0.fetch_add(1, Ordering::Relaxed) == 0 {
                     Err(crate::ApiError {
@@ -1012,6 +1020,7 @@ mod tests {
             .command(ServiceCommand::End {
                 title: "Evening service".into(),
                 speaker: String::new(),
+                sermon_title: "  The Power of Growth ".into(),
                 plan_id: None,
             })
             .await

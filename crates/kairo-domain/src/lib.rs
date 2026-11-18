@@ -53,6 +53,7 @@ pub mod serde_util;
 pub mod services;
 pub mod settings;
 pub mod status;
+pub mod teleprompter;
 pub mod theme_library;
 pub mod time;
 pub mod transcript;

@@ -10,6 +10,8 @@ futures-util = { version = "0.3", default-features = false, features = ["sink", 
 kairo-cloud = { path = "../kairo-cloud" }
 kairo-domain = { path = "../kairo-domain" }
 kairo-net = { path = "../kairo-net" }
+ogg = "0.9"
+opus-rs = "0.1.42"
 rtrb = "0.4"
 rubato = "5"
 serde = { version = "1", features = ["derive"] }

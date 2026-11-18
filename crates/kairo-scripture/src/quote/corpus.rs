@@ -2,8 +2,8 @@
 //! licensed-index rebuilds from the API.Bible cache, expiry, crash recovery
 //! and eligibility at publication.
 
-use super::matching::{GlobalQuoteCandidate, GlobalQuoteMatch};
-use super::worker::{QuoteResult, QuoteWorkerClient, Spawner, thread_spawner};
+use super::matching::GlobalQuoteCandidate;
+use super::worker::{QuoteResult, QuoteSearchOutcome, QuoteWorkerClient, Spawner, thread_spawner};
 use crate::api_bible::cache::{ApiBibleCache, QuoteCorpusChange};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
@@ -115,17 +115,20 @@ impl QuoteCorpus {
         &self,
         text: &str,
         possible: bool,
-    ) -> QuoteResult<Vec<GlobalQuoteMatch>> {
+    ) -> QuoteResult<QuoteSearchOutcome> {
         let (version, worker) = {
             let state = self.state();
             (state.version, state.worker.clone())
         };
         let Some(worker) = worker else {
-            return Ok(Vec::new());
+            return Ok(QuoteSearchOutcome::Found(Vec::new()));
         };
-        let matches = worker.search(text, possible).await?;
+        let Some(matches) = worker.search(text, possible).await?.found() else {
+            return Ok(QuoteSearchOutcome::Superseded);
+        };
+        // The corpus changed under the search: its answer is stale, not empty.
         if version != self.version() {
-            return Ok(Vec::new());
+            return Ok(QuoteSearchOutcome::Superseded);
         }
         let mut out = Vec::new();
         for mut m in matches {
@@ -134,7 +137,7 @@ impl QuoteCorpus {
                 out.push(m);
             }
         }
-        Ok(out)
+        Ok(QuoteSearchOutcome::Found(out))
     }
 
     /// Call again at the final publication boundary, after output lookup.

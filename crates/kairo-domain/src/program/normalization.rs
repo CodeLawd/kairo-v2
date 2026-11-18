@@ -261,6 +261,10 @@ fn normalize_stage_displays(raw: &Value) -> Vec<StageDisplayConfig> {
                 display_id,
                 display_label: text(&raw["displayLabel"]).into(),
                 display_size,
+                mode: match raw["mode"].as_str() {
+                    Some("teleprompter") => StageDisplayMode::Teleprompter,
+                    _ => StageDisplayMode::ConfidenceMonitor,
+                },
                 show_next: safe_bool(raw.get("showNext"), true),
                 show_clock: safe_bool(raw.get("showClock"), true),
                 show_timer: safe_bool(raw.get("showTimer"), true),

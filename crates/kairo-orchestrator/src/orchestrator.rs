@@ -19,6 +19,7 @@ use crate::voice::{
     BoxFuture, LiveScriptureContext, VoiceDeps, VoiceNavigation, follow_up_context, is_on_screen,
     pick_command_context, reading_translation,
 };
+use kairo_core::scripture_traces::ScriptureTraces;
 use kairo_domain::documents::DocumentSlide;
 use kairo_domain::js::number_to_string;
 use kairo_domain::media::theme_for_push;
@@ -32,6 +33,10 @@ use kairo_domain::overlay_outputs::output_theme_for;
 use kairo_domain::program::ProgramSlideInfo;
 use kairo_domain::scripture::plan::{PlanReference, match_plan_reference};
 use kairo_domain::scripture::small::single_verse_suggestion;
+use kairo_domain::scripture::trace::{
+    CompleteInput, ConfirmationLevel, ScriptureResolver, ScriptureTraceStage as Stage,
+    TraceFailureReason, TraceStartInput, TraceStatus, TranscriptSource,
+};
 use kairo_domain::scripture::{PendingAutoPresent, ScriptureSuggestion, ScriptureVerse};
 use kairo_domain::status::{
     HealthStatus, OrchestratorConfig, OrchestratorStatus, ServiceHealth, ServiceName, SessionStats,
@@ -100,6 +105,8 @@ pub struct Services {
     /// The app core whose resilience actor owns health and detector
     /// fallback (`resilienceManager`).
     pub resilience: Option<kairo_core::AppCore>,
+    /// Detection-to-screen latency, read by Settings → Scripture timing.
+    pub traces: Arc<ScriptureTraces>,
 }
 
 struct State {
@@ -176,7 +183,24 @@ struct Inner {
     status: broadcast::Sender<OrchestratorStatus>,
     pending_auto: broadcast::Sender<PendingAutoPresent>,
     voice: std::sync::OnceLock<VoiceNavigation>,
+    /// Bounds concurrent detection lookups so a slow one never stalls the
+    /// detector pump, without letting a burst flood the Bible service.
+    lookups: Arc<tokio::sync::Semaphore>,
+    /// Sequence of the newest detection that could auto-present. A lookup
+    /// that finishes behind it may still show a card but never a countdown.
+    latest_auto: std::sync::atomic::AtomicU64,
+    next_detection: std::sync::atomic::AtomicU64,
+    /// When follow-along last moved the screen, so a spoken "next verse" that
+    /// arrives right after does not step twice.
+    scripture_live_at: Mutex<Option<std::time::Instant>>,
 }
+
+/// A spoken "next verse" this soon after a verse went live asks for the verse
+/// already showing.
+const NEXT_ALREADY_SHOWN: Duration = Duration::from_secs(4);
+
+/// Detection lookups in flight at once.
+const DETECTION_LOOKUPS: usize = 2;
 
 #[derive(Clone)]
 pub struct Orchestrator {
@@ -308,6 +332,7 @@ pub fn reading_passage_of(suggestion: &ScriptureSuggestion) -> Option<ReadingPas
             chapter: first.chapter,
             start: range.1,
             end: range.2,
+            text: String::new(),
         });
     }
     let last = suggestion.verses.last()?;
@@ -320,6 +345,7 @@ pub fn reading_passage_of(suggestion: &ScriptureSuggestion) -> Option<ReadingPas
         } else {
             first.verse
         },
+        text: String::new(),
     })
 }
 
@@ -372,6 +398,10 @@ impl Orchestrator {
             status,
             pending_auto,
             voice: std::sync::OnceLock::new(),
+            lookups: Arc::new(tokio::sync::Semaphore::new(DETECTION_LOOKUPS)),
+            latest_auto: Default::default(),
+            next_detection: Default::default(),
+            scripture_live_at: Mutex::new(None),
         });
         let voice = VoiceNavigation::new(Arc::new(VoiceHost(Arc::downgrade(&inner))));
         let _ = inner.voice.set(voice);
@@ -644,8 +674,12 @@ impl Orchestrator {
             let mut status = core.watch::<kairo_domain::status::ResilienceStatus>();
             state.pumps.push(tokio::spawn(async move {
                 while let Some(status) = status.next().await {
+                    // A weak link also pauses AI calls: they would time out
+                    // and compete with the audio for the same upload.
                     detector.set_fallback_mode(
-                        !status.internet_connected || status.claude_fallback_active,
+                        !status.internet_connected
+                            || status.claude_fallback_active
+                            || kairo_domain::status::stt_connection_weak(&status.health),
                     );
                 }
             }));
@@ -667,6 +701,10 @@ impl Orchestrator {
                 let Some(detector) = detector else { continue };
                 match event {
                     TranscriptEvent::Final(result) => {
+                        if orchestrator.next_already_shown(&result.text) {
+                            tracing::info!("\"next verse\" already on screen; not stepping again");
+                            continue;
+                        }
                         if !orchestrator.voice().claim(&result) {
                             detector.on_final(&result);
                         }
@@ -679,7 +717,7 @@ impl Orchestrator {
 
     async fn on_detector_event(&self, event: DetectorEvent) {
         match event {
-            DetectorEvent::Detection(refs) => self.handle_detection(refs).await,
+            DetectorEvent::Detection(refs) => self.spawn_detection(refs),
             DetectorEvent::QuoteRetracted(evidence) => {
                 let mut state = self.inner.state.lock().await;
                 let retracted: Vec<_> = state
@@ -855,6 +893,31 @@ impl Orchestrator {
         }
     }
 
+    /// Passage auto-present and the countdown, changed mid-service.
+    pub async fn set_automation(&self, auto_present_passages: bool, delay_sec: f64) {
+        if let Some(cfg) = self.inner.state.lock().await.cfg.as_mut() {
+            cfg.auto_present_passages = auto_present_passages;
+            cfg.auto_present_delay_sec = delay_sec.max(0.0);
+        }
+    }
+
+    /// Auto-clear: takes scripture off the screens, but only while this verse
+    /// is still what they show. Lyrics or a newer verse are left alone.
+    pub async fn clear_scripture_if_live(&self, book: &str, chapter: f64, verse: f64) -> bool {
+        let live = self.inner.services.program.scripture().map(|(c, _)| c);
+        let showing = live.is_some_and(|c| {
+            c.book.eq_ignore_ascii_case(book)
+                && c.chapter == chapter
+                && c.verse_start <= verse
+                && verse <= c.verse_end.max(c.verse_start)
+        });
+        if !showing {
+            return false;
+        }
+        tracing::info!(book, chapter, verse, "auto-clear: passage read through");
+        self.clear_text().await
+    }
+
     pub async fn set_scripture_translation(&self, translation: &str) {
         if let Some(cfg) = self.inner.state.lock().await.cfg.as_mut() {
             cfg.scripture_translation = translation.into();
@@ -867,7 +930,25 @@ impl Orchestrator {
         }
     }
 
-    async fn handle_detection(&self, refs: Vec<ScriptureReference>) {
+    /// Hands a detection to a bounded lookup task and returns at once, so a
+    /// slow lookup cannot delay newer detections or retractions behind it.
+    fn spawn_detection(&self, refs: Vec<ScriptureReference>) {
+        use std::sync::atomic::Ordering;
+        let seq = self.inner.next_detection.fetch_add(1, Ordering::SeqCst) + 1;
+        if refs.iter().any(can_auto_present) {
+            self.inner.latest_auto.store(seq, Ordering::SeqCst);
+        }
+        let this = self.clone();
+        let lookups = self.inner.lookups.clone();
+        tokio::spawn(async move {
+            let Ok(_permit) = lookups.acquire_owned().await else {
+                return;
+            };
+            this.handle_detection(refs, seq).await;
+        });
+    }
+
+    async fn handle_detection(&self, refs: Vec<ScriptureReference>, seq: u64) {
         let mut state = self.inner.state.lock().await;
         let Some(cfg) = state.cfg.clone() else { return };
         if !state.running {
@@ -923,11 +1004,14 @@ impl Orchestrator {
                 .or_else(|| reading.clone())
                 .unwrap_or_else(|| cfg.scripture_translation.clone());
             let mut requested_translation = None;
+            let trace = self.start_trace(&reference, &translation, &cfg);
+            let traces = &self.inner.services.traces;
             let mut verses: Vec<ScriptureVerse> =
                 plan_entries.iter().map(|e| e.verse.clone()).collect();
             if verses.is_empty() {
                 // Lookups go to the network: never hold the state across them.
                 drop(state);
+                traces.mark(trace.as_deref(), Stage::BibleLookupStartedAt);
                 let scripture = self.inner.services.scripture.clone();
                 let lookup_ref = reference.clone();
                 let quiet = requested
@@ -965,6 +1049,7 @@ impl Orchestrator {
                         &cfg.scripture_translation,
                     )
                     .await;
+                traces.mark(trace.as_deref(), Stage::BibleLookupCompletedAt);
                 state = self.inner.state.lock().await;
                 if let Ok(found) = found {
                     verses = found.verses;
@@ -975,6 +1060,7 @@ impl Orchestrator {
             // A lookup can finish after stop or after another service started.
             if !state.running || state.session.as_ref().map(|s| s.session_id.clone()) != session_id
             {
+                traces.complete(trace.as_deref(), TraceStatus::Cancelled.into());
                 return;
             }
             let detector = state.detector.clone();
@@ -983,6 +1069,7 @@ impl Orchestrator {
                     .as_ref()
                     .is_some_and(|d| d.is_general_quote_current(&reference))
             {
+                traces.complete(trace.as_deref(), TraceStatus::Superseded.into());
                 continue;
             }
             let live = self.inner.services.program.scripture().map(|(c, _)| c);
@@ -1002,6 +1089,17 @@ impl Orchestrator {
                 if let Some(d) = &detector {
                     d.release(&reference.book, reference.chapter, reference.verse_start);
                 }
+                traces.complete(
+                    trace.as_deref(),
+                    if on_screen {
+                        TraceStatus::Cancelled.into()
+                    } else {
+                        CompleteInput {
+                            failure_reason: Some(TraceFailureReason::VerseNotFound),
+                            ..TraceStatus::Failed.into()
+                        }
+                    },
+                );
                 continue;
             }
             let ranged = reference
@@ -1060,6 +1158,7 @@ impl Orchestrator {
                     "planId": plan_entry.as_ref().map(|e| e.plan_id.clone()),
                     "planItemId": plan_entry.as_ref().map(|e| e.plan_item_id.clone()),
                     "planMatch": plan_entry.as_ref().map(|_| if reference.detection_type == DetectionType::Quote { "quote" } else { "reference" }),
+                    "correlationId": trace,
                 }) else {
                     unreachable!()
                 };
@@ -1076,12 +1175,20 @@ impl Orchestrator {
                     .services
                     .scripture
                     .receive_suggestion(suggestion.clone());
+                if index == 0 {
+                    traces.mark(trace.as_deref(), Stage::SuggestionPublishedAt);
+                }
                 // Each card moves the follow-up on, so "next verse" continues after it.
                 self.note_follow_up(&suggestion);
                 if cfg.auto_mode
                     && index == 0
-                    && count == 1
+                    && (count == 1 || cfg.auto_present_passages)
                     && can_auto_present(&reference)
+                    && self
+                        .inner
+                        .latest_auto
+                        .load(std::sync::atomic::Ordering::SeqCst)
+                        <= seq
                     && reference.confidence >= cfg.confidence_threshold
                     && let Some(content) = self.prepare_projection(&suggestion)
                 {
@@ -1091,6 +1198,44 @@ impl Orchestrator {
             state.update_health(ServiceName::Detector, HealthStatus::Ok, None);
         }
         self.emit_status(&state);
+    }
+
+    /// Starts a latency trace for a recognised reference. References without
+    /// a receipt time (tests, manual entry) are not traced.
+    fn start_trace(
+        &self,
+        reference: &ScriptureReference,
+        translation: &str,
+        cfg: &OrchestratorConfig,
+    ) -> Option<String> {
+        let received = reference.stt_received_at?;
+        let range = reference
+            .verse_end
+            .filter(|end| *end > reference.verse_start)
+            .map(|end| format!("-{}", number_to_string(end)))
+            .unwrap_or_default();
+        Some(
+            self.inner.services.traces.start(TraceStartInput {
+                correlation_id: String::new(),
+                source_text: reference.source_text.clone(),
+                transcript_source: reference
+                    .transcript_source
+                    .unwrap_or(TranscriptSource::Final),
+                resolver: reference.resolver.unwrap_or(ScriptureResolver::Explicit),
+                translation: Some(translation.into()),
+                auto_present_delay_ms: Some(cfg.auto_present_delay_sec * 1000.0),
+                presenter_connection_mode: None,
+                reference: Some(format!(
+                    "{} {}:{}{range}",
+                    reference.book,
+                    number_to_string(reference.chapter),
+                    number_to_string(reference.verse_start)
+                )),
+                stt_received_at: received,
+                detection_started_at: reference.detection_started_at,
+                citation_recognized_at: None,
+            }),
+        )
     }
 
     /// The operator's window to cancel before a verse reaches the room. One
@@ -1119,10 +1264,19 @@ impl Orchestrator {
             }
             state.take_pending(&fired.id);
             drop(state);
+            orchestrator
+                .inner
+                .services
+                .traces
+                .mark(fired.correlation_id.as_deref(), Stage::CountdownCompletedAt);
             orchestrator.inner.services.usage.track("scripture_auto");
             orchestrator.present_scripture(fired, Some(content)).await;
         });
         state.auto_timers.insert(id.clone(), timer);
+        self.inner.services.traces.mark(
+            suggestion.correlation_id.as_deref(),
+            Stage::CountdownStartedAt,
+        );
         let _ = self.inner.pending_auto.send(PendingAutoPresent {
             suggestion_id: id,
             reference: suggestion.reference.clone(),
@@ -1170,6 +1324,29 @@ impl Orchestrator {
         self.present_scripture(suggestion, None).await;
     }
 
+    /// "Next verse" spoken just after follow-along moved on by itself: the
+    /// preacher is asking for what is already showing.
+    fn next_already_shown(&self, text: &str) -> bool {
+        matches!(
+            crate::voice::parse_voice_command(text),
+            Some(crate::voice::VoiceCommand::Step(1))
+        ) && self
+            .inner
+            .scripture_live_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some_and(|at| at.elapsed() < NEXT_ALREADY_SHOWN)
+    }
+
+    /// Follow-along just moved the screen on by itself.
+    pub fn note_follow_step(&self) {
+        *self
+            .inner
+            .scripture_live_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(std::time::Instant::now());
+    }
+
     async fn present_scripture(
         &self,
         suggestion: ScriptureSuggestion,
@@ -1178,6 +1355,9 @@ impl Orchestrator {
         let _present = self.inner.present.lock().await;
         let suggestion = single_verse_suggestion(&suggestion);
         let content = prepared.or_else(|| self.prepare_projection(&suggestion));
+        let traces = &self.inner.services.traces;
+        let trace = suggestion.correlation_id.as_deref();
+        traces.mark(trace, Stage::PresenterRequestStartedAt);
         let results = match &content {
             Some(content) => {
                 self.dispatch_content(content, OverlayContentKind::Scripture)
@@ -1185,6 +1365,23 @@ impl Orchestrator {
             }
             None => Vec::new(),
         };
+        traces.mark(trace, Stage::PresenterRequestCompletedAt);
+        // Accepted by a screen, not yet seen drawn: frame commit is not
+        // correlated back across the engine process.
+        traces.complete(
+            trace,
+            if results.iter().any(|r| r.ok) {
+                CompleteInput {
+                    confirmation: Some(ConfirmationLevel::RequestAccepted),
+                    ..TraceStatus::Presented.into()
+                }
+            } else {
+                CompleteInput {
+                    failure_reason: Some(TraceFailureReason::PresenterRejected),
+                    ..TraceStatus::Failed.into()
+                }
+            },
+        );
         let mut state = self.inner.state.lock().await;
         let state = &mut *state;
         self.record_dispatch_health(state, &results);
@@ -1204,7 +1401,25 @@ impl Orchestrator {
         }
         // Reading this passage aloud from here on is following along.
         if let Some(detector) = &state.detector {
-            detector.set_reading_passage(reading_passage_of(&suggestion));
+            let passage = reading_passage_of(&suggestion).map(|mut passage| {
+                // Every card of this passage, so the whole reading is known.
+                let mut verses: Vec<&ScriptureVerse> = state
+                    .pending
+                    .iter()
+                    .filter(|s| s.passage_id.is_some() && s.passage_id == suggestion.passage_id)
+                    .flat_map(|s| s.verses.iter())
+                    .chain(suggestion.verses.iter())
+                    .collect();
+                verses.sort_by(|a, b| a.verse.total_cmp(&b.verse));
+                verses.dedup_by(|a, b| a.verse == b.verse);
+                passage.text = verses
+                    .iter()
+                    .map(|v| v.text.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                passage
+            });
+            detector.set_reading_passage(passage);
         }
         if let (Some(content), Some(first), Some(last)) = (
             &content,

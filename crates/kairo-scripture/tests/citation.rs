@@ -27,6 +27,14 @@ fn recognizes_spoken_and_digit_citations() {
             28.0,
             Some(30.0),
         ),
+        (
+            "Mark chapter four verse 26 going to 29",
+            "Mark",
+            4.0,
+            26.0,
+            Some(29.0),
+        ),
+        ("Proverbs 5:15 up to 23", "Proverbs", 5.0, 15.0, Some(23.0)),
     ] {
         let refs = match_explicit_scriptures(text, true);
         assert_eq!(refs.len(), 1, "{text}");

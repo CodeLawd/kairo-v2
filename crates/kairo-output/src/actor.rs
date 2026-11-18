@@ -75,6 +75,18 @@ message!(
 message!(GetProgram {} => ProgramState, |m, msg| m.program().clone());
 message!(Followers {} => Vec<String>, |m, msg| m.followers());
 message!(DisplaysSettled {} => (), |m, msg| m.displays_changed().await);
+message!(LoadTeleprompter { id: String, text: String, font_px: f32, speed: f64, mirror: bool } => (), |m, msg| m.load_teleprompter(msg.id, msg.text, msg.font_px, msg.speed, msg.mirror));
+message!(TeleprompterTransport { operation: kairo_engine_proto::StageOperation } => bool, |m, msg| m.teleprompter_transport(msg.operation));
+message!(SetTeleprompterLayout { font_px: f32, mirror: bool } => bool, |m, msg| m.teleprompter_layout(msg.font_px, msg.mirror));
+message!(GetTeleprompterPosition {} => Option<kairo_engine_proto::StagePosition>, |m, msg| m.teleprompter_position());
+message!(GetTeleprompterScript {} => Option<String>, |m, msg| m.teleprompter_script());
+message!(GetPrompterTargets {} => (Vec<crate::manager::PrompterTarget>, Option<String>, bool), |m, msg| {
+    let (target, live) = m.prompter_live();
+    (m.prompter_targets(), target, live)
+});
+message!(PrompterGoLive { target: String } => bool, |m, msg| m.prompter_go_live(msg.target));
+message!(PrompterTakeOff {} => (), |m, msg| m.prompter_take_off());
+message!(ResetStageSession {} => (), |m, _msg| m.reset_stage_session());
 message!(EngineNotice { event: Event } => (), |m, msg| match msg.event {
     Event::VideoDevices(json) => {
         if let Ok(snapshot) = json.decode() {
@@ -85,6 +97,7 @@ message!(EngineNotice { event: Event } => (), |m, msg| match msg.event {
         m.display_rebound(&output, old_id, new_id, stage)
     }
     Event::SurfaceStatus { .. } => m.emit_stage_status(),
+    Event::StagePosition(position) => m.stage_position(position),
     _ => {}
 });
 
@@ -152,9 +165,15 @@ async fn pump(core: AppCore, mut events: tokio::sync::broadcast::Receiver<Engine
             Ok(EngineEvent::Engine(
                 event @ (Event::VideoDevices(_)
                 | Event::DisplayRebound { .. }
-                | Event::SurfaceStatus { .. }),
+                | Event::SurfaceStatus { .. }
+                | Event::StagePosition(_)),
             )) => {
                 if core.call(EngineNotice { event }).await.is_err() {
+                    return;
+                }
+            }
+            Ok(EngineEvent::Lost { .. }) => {
+                if core.call(ResetStageSession {}).await.is_err() {
                     return;
                 }
             }

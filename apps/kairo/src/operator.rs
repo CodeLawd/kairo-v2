@@ -198,3 +198,28 @@ impl OperatorBackend for ServicesBackend {
         self.hub.clone()
     }
 }
+
+struct TeleprompterBackend(Arc<ApplicationServices>);
+
+impl ui_operator::teleprompter::Backend for TeleprompterBackend {
+    fn request(
+        &self,
+        request: ui_operator::teleprompter::Request,
+        done: Box<dyn FnOnce(Result<ui_operator::teleprompter::Reply, String>) + Send>,
+    ) {
+        let services = self.0.clone();
+        self.0
+            .spawn(async move { done(services.teleprompter_request(request).await) });
+    }
+}
+
+pub fn install_teleprompter(
+    services: Arc<ApplicationServices>,
+    ui_state: Arc<dyn UiState>,
+    window: &mut gpui_kit::Window,
+    cx: &mut gpui_kit::App,
+) -> gpui_kit::Entity<ui_operator::teleprompter::Teleprompter> {
+    use gpui_kit::AppContext;
+    let backend = Arc::new(TeleprompterBackend(services));
+    cx.new(|cx| ui_operator::teleprompter::Teleprompter::new(backend, ui_state, window, cx))
+}

@@ -1,9 +1,10 @@
 //! The capture-to-transcription relay. From `src/main/services/audio/index.ts`.
 //!
 //! Capture pushes 100 ms PCM chunks; the Deepgram connection pulls them.
-//! While nothing pulls, at most [`MAX_QUEUED_BYTES`] (5 s) are held and newer
-//! chunks are dropped, so a stalled consumer cannot grow memory. Deepgram
-//! keeps its own 30 s replay buffer for reconnects.
+//! While nothing pulls, at most [`MAX_QUEUED_BYTES`] (5 s) are held and the
+//! oldest chunks give way, so a stalled consumer cannot grow memory and,
+//! once it recovers, hears the preacher now rather than seconds ago. Deepgram
+//! keeps its own replay buffer for reconnects.
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -55,7 +56,8 @@ impl AudioRelay {
         PcmStream { stream }
     }
 
-    /// Queue one chunk. A no-op without a stream; drops the chunk past the cap.
+    /// Queue one chunk. A no-op without a stream; past the cap the oldest
+    /// queued audio is dropped to make room.
     pub fn feed(&self, chunk: Vec<u8>) {
         let Some(stream) = self
             .current
@@ -67,9 +69,18 @@ impl AudioRelay {
         };
         {
             let mut queue = stream.queue.lock().unwrap_or_else(|e| e.into_inner());
+            if chunk.len() > MAX_QUEUED_BYTES {
+                return;
+            }
             if queue.bytes + chunk.len() > MAX_QUEUED_BYTES {
-                queue.dropped_chunks += 1;
-                queue.dropped_bytes += chunk.len() as u64;
+                while queue.bytes + chunk.len() > MAX_QUEUED_BYTES {
+                    let Some(oldest) = queue.chunks.pop_front() else {
+                        break;
+                    };
+                    queue.bytes -= oldest.len();
+                    queue.dropped_chunks += 1;
+                    queue.dropped_bytes += oldest.len() as u64;
+                }
                 let now = Instant::now();
                 if queue
                     .last_overflow_log
@@ -81,10 +92,9 @@ impl AudioRelay {
                         cap = MAX_QUEUED_BYTES,
                         dropped_chunks = queue.dropped_chunks,
                         dropped_bytes = queue.dropped_bytes,
-                        "PCM queue full; dropping newest audio"
+                        "PCM queue full; dropping oldest audio"
                     );
                 }
-                return;
             }
             queue.bytes += chunk.len();
             queue.chunks.push_back(chunk);
@@ -195,25 +205,21 @@ mod tests {
     }
 
     #[test]
-    fn a_stalled_consumer_keeps_the_first_five_seconds() {
+    fn a_stalled_consumer_keeps_the_newest_five_seconds() {
         let relay = AudioRelay::default();
         let stream = relay.create_stream();
-        let mut accepted = Vec::new();
         for i in 0..600u32 {
-            let before = relay.queued_bytes();
             let mut c = chunk();
             c[..4].copy_from_slice(&i.to_le_bytes());
             relay.feed(c);
-            if relay.queued_bytes() > before {
-                accepted.push(i);
-            }
         }
         assert!(relay.queued_bytes() <= MAX_QUEUED_BYTES);
-        assert_eq!(accepted, (0..50).collect::<Vec<_>>());
-        // Drains in order, then accepts again.
-        let first = stream.try_recv().unwrap();
-        assert_eq!(u32::from_le_bytes(first[..4].try_into().unwrap()), 0);
-        while stream.try_recv().is_some() {}
+        // Drains in order from the oldest kept, which is the newest 5 s.
+        let mut kept = Vec::new();
+        while let Some(c) = stream.try_recv() {
+            kept.push(u32::from_le_bytes(c[..4].try_into().unwrap()));
+        }
+        assert_eq!(kept, (550..600).collect::<Vec<_>>());
         relay.feed(chunk());
         assert_eq!(relay.queued_bytes(), CHUNK);
     }

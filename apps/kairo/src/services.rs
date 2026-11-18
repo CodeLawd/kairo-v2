@@ -899,6 +899,7 @@ async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, Strin
     let quote = kairo_scripture::quote::corpus::QuoteCorpus::new();
     quote.open(state.paths.user_data.join("bible.db"));
     quote.attach_api_cache(get(&state.bible, "API.Bible")?.cache().cloned());
+    let traces = Arc::new(kairo_core::scripture_traces::ScriptureTraces::default());
     let orchestrator = Arc::new(Orchestrator::new(Services {
         engine: surfaces.clone(),
         program: program.clone(),
@@ -961,6 +962,7 @@ async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, Strin
             })
         },
         resilience: Some(core.clone()),
+        traces: traces.clone(),
     }));
     *lock(&weak_orchestrator) = Arc::downgrade(&orchestrator);
     let updater = Arc::new(UpdaterService::new(UpdaterConfig::for_this_process(
@@ -1147,7 +1149,7 @@ async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, Strin
         picked: Arc::default(),
         capture_status: Arc::default(),
         quote,
-        traces: Arc::new(kairo_core::scripture_traces::ScriptureTraces::default()),
+        traces,
         runtime: state.runtime.clone(),
         _subscriptions: Mutex::new(subscriptions),
         _pack_subscription: pack_subscription,
@@ -1284,19 +1286,49 @@ fn wire_events(
     let mut stt = services.stt.subscribe();
     let records = services.records.clone();
     let topics = services.core.publisher();
+    let health_core = services.core.clone();
+    // Archiving runs on its own ordered task so a slow store never delays
+    // detection of the final it is saving.
+    let (archive, mut archived) = tokio::sync::mpsc::unbounded_channel();
+    tokio::spawn(async move {
+        while let Some(value) = archived.recv().await {
+            if let Err(error) = records.transcript(value).await {
+                tracing::warn!(%error, "[Records] transcript event failed");
+            }
+        }
+    });
     tokio::spawn(async move {
         loop {
             match stt.recv().await {
                 Ok(kairo_stt::service::ServiceEvent::Stt(kairo_stt::SttEvent::Final(value))) => {
-                    if let Err(error) = records.transcript(value.clone()).await {
-                        tracing::warn!(%error, "[Records] transcript event failed");
-                    }
+                    let _ = transcripts.send(TranscriptEvent::Final(value.clone()));
                     topics.emit(value.clone());
-                    let _ = transcripts.send(TranscriptEvent::Final(value));
+                    let _ = archive.send(value);
                 }
                 Ok(kairo_stt::service::ServiceEvent::Stt(kairo_stt::SttEvent::Interim(value))) => {
                     topics.emit(value.clone());
                     let _ = transcripts.send(TranscriptEvent::Interim(value));
+                }
+                // Connection health drives the transcript's warning and the
+                // pause on AI detection.
+                Ok(kairo_stt::service::ServiceEvent::Stt(event)) => {
+                    use kairo_core::resilience::SttEvent as Health;
+                    let health = match event {
+                        kairo_stt::SttEvent::Connected => Some(Health::Connected),
+                        kairo_stt::SttEvent::Reconnecting { attempt, delay_ms } => {
+                            Some(Health::Reconnecting { attempt, delay_ms })
+                        }
+                        kairo_stt::SttEvent::Disconnected => Some(Health::Disconnected),
+                        kairo_stt::SttEvent::Error { message, .. } => Some(Health::Error(message)),
+                        kairo_stt::SttEvent::Network { weak } => Some(Health::Network { weak }),
+                        _ => None,
+                    };
+                    if let Some(health) = health {
+                        let core = health_core.clone();
+                        tokio::spawn(async move {
+                            let _ = core.call(health).await;
+                        });
+                    }
                 }
                 Ok(_) => {}
                 Err(broadcast::error::RecvError::Lagged(count)) => {

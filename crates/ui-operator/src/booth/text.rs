@@ -111,6 +111,91 @@ pub fn build_runs(text: &str, highlights: &[Highlight]) -> Vec<TextRun> {
     runs
 }
 
+/// A quote card's text with the words the speaker said marked, so an
+/// operator sees why it matched. Long verses start a few words before the
+/// match, behind an ellipsis, so a two-line card still shows it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuoteMatch {
+    pub text: String,
+    /// Byte ranges of `text` the speaker said.
+    pub spans: Vec<std::ops::Range<usize>>,
+}
+
+/// Characters of verse text a card shows before the match must come into view.
+const QUOTE_LEAD_CHARS: usize = 70;
+/// Words kept before the match when the verse is trimmed.
+const QUOTE_LEAD_WORDS: usize = 5;
+
+fn quote_word(word: &str) -> String {
+    let mut w: String = word
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect();
+    // "waters" and "water", "sayings" and "saying".
+    if w.chars().count() > 3 && w.ends_with('s') {
+        w.pop();
+    }
+    w
+}
+
+pub fn quote_match(verse: &str, spoken: &str) -> Option<QuoteMatch> {
+    let words: Vec<(usize, usize, String)> = verse
+        .split_whitespace()
+        .map(|w| {
+            let start = w.as_ptr() as usize - verse.as_ptr() as usize;
+            (start, start + w.len(), quote_word(w))
+        })
+        .collect();
+    let heard: Vec<String> = spoken.split_whitespace().map(quote_word).collect();
+    let pairs: HashSet<(&str, &str)> = heard
+        .windows(2)
+        .filter(|p| !p[0].is_empty() && !p[1].is_empty())
+        .map(|p| (p[0].as_str(), p[1].as_str()))
+        .collect();
+    let paired = |i: usize, j: usize| pairs.contains(&(words[i].2.as_str(), words[j].2.as_str()));
+    let mut hit: Vec<bool> = (0..words.len())
+        .map(|i| (i + 1 < words.len() && paired(i, i + 1)) || (i > 0 && paired(i - 1, i)))
+        .collect();
+    // Speakers drop articles: "drink waters" still says "drink the waters".
+    for i in 0..words.len().saturating_sub(2) {
+        if matches!(words[i + 1].2.as_str(), "the" | "a" | "an") && paired(i, i + 2) {
+            hit[i..=i + 2].iter_mut().for_each(|h| *h = true);
+        }
+    }
+    // Runs of two or more said words, with at least one that carries meaning.
+    let mut runs: Vec<(usize, usize)> = Vec::new();
+    let mut i = 0;
+    while i < words.len() {
+        if !hit[i] {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < words.len() && hit[i] {
+            i += 1;
+        }
+        let meaningful = words[start..i].iter().any(|w| w.2.chars().count() >= 4);
+        if i - start >= 2 && meaningful {
+            runs.push((start, i - 1));
+        }
+    }
+    let first = runs.first()?.0;
+    let (offset, prefix) = if words[first].0 > QUOTE_LEAD_CHARS && first > QUOTE_LEAD_WORDS {
+        (words[first - QUOTE_LEAD_WORDS].0, "\u{2026} ")
+    } else {
+        (0, "")
+    };
+    let shift = |at: usize| at - offset + prefix.len();
+    Some(QuoteMatch {
+        text: format!("{prefix}{}", &verse[offset..]),
+        spans: runs
+            .iter()
+            .map(|&(a, b)| shift(words[a].0)..shift(words[b].1))
+            .collect(),
+    })
+}
+
 /// `DetectionState`: the one state a detected verse shows, strongest first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum DetectionState {
@@ -434,6 +519,31 @@ pub fn strip_ipc_prefix(message: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_quote_marks_what_was_said_and_brings_it_into_view() {
+        let verse = "Do not listen to Hezekiah; for thus says the king of Assyria: Make peace with me by a present and come out to me; and every one of you eat from his own vine and every one from his own fig tree, and every one of you drink the waters of his own cistern;";
+        let m = quote_match(
+            verse,
+            "and drink waters from your own cistern and running water",
+        )
+        .unwrap();
+        assert!(m.text.starts_with('\u{2026}'), "{}", m.text);
+        let said: Vec<&str> = m.spans.iter().map(|r| &m.text[r.clone()]).collect();
+        assert_eq!(said, ["drink the waters", "own cistern;"]);
+    }
+
+    #[test]
+    fn a_short_verse_is_not_trimmed_and_noise_is_not_marked() {
+        let verse = "Drink water from your own cistern, And running water from your own well.";
+        let m = quote_match(verse, "drink water from your own cistern").unwrap();
+        assert_eq!(m.text, verse);
+        assert_eq!(
+            &m.text[m.spans[0].clone()],
+            "Drink water from your own cistern,"
+        );
+        assert_eq!(quote_match(verse, "of the and to"), None);
+    }
+
     use super::*;
 
     fn verse(chapter: f64, n: f64) -> ScriptureVerse {

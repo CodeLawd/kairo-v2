@@ -486,9 +486,13 @@ impl Renderer {
 
     /// A frame for an output `requested` pixels tall (clamped to 360..=4320).
     pub fn target(&self, requested: u32) -> FrameTarget {
-        let height = frame_height(requested);
+        self.target_size((FRAME_WIDTH, frame_height(requested)))
+    }
+
+    pub(crate) fn target_size(&self, size: (u32, u32)) -> FrameTarget {
+        let (width, height) = size;
         let texture = self.texture_for(
-            (FRAME_WIDTH, height),
+            size,
             TextureUsages::RENDER_ATTACHMENT
                 | TextureUsages::TEXTURE_BINDING
                 | TextureUsages::COPY_SRC,
@@ -496,9 +500,9 @@ impl Renderer {
         let view = texture.create_view(&Default::default());
         let sampled = bind_view(&self.device, &self.fill_layout, &self.sampler, &view);
         FrameTarget {
-            width: FRAME_WIDTH,
+            width,
             height,
-            globals: self.globals((FRAME_WIDTH, height)),
+            globals: self.globals(size),
             texture,
             view,
             sampled,
@@ -864,6 +868,7 @@ impl Renderer {
         if placement.mode == Mode::Pip {
             self.slot(&mut draws, scene, Slot::Camera, frame, size, camera, now);
         }
+        self.slot(&mut draws, scene, Slot::Prompter, frame, size, camera, now);
         self.slot(&mut draws, scene, Slot::Pattern, frame, size, camera, now);
         draws
     }

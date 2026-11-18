@@ -291,6 +291,8 @@ fn open_operator_window(
     let theme_backend: Arc<dyn ui_theme::ThemeBackend> =
         Arc::new(theme::ServicesTheme::new(services.clone()));
     let transfer_services = services.clone();
+    let teleprompter_services = services.clone();
+    let teleprompter_ui_state = ui_state.clone();
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
         {
             use kairo_ui_kit::components::page_sidebar::{PageSidebar, STORAGE_KEY, saved_width};
@@ -415,6 +417,22 @@ fn open_operator_window(
         let web_page = web::install(web_backend, &workspace, &shell, window, cx);
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Web, web_page.into(), cx)
+        });
+        let teleprompter = operator::install_teleprompter(
+            teleprompter_services,
+            teleprompter_ui_state,
+            window,
+            cx,
+        );
+        let teleprompter_view = teleprompter.downgrade();
+        cx.observe(&shell, move |shell, cx| {
+            let shell = shell.read(cx);
+            let active = shell.route() == ui_shell::Route::Teleprompter && !shell.covered();
+            let _ = teleprompter_view.update(cx, |view, _| view.set_active(active));
+        })
+        .detach();
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Teleprompter, teleprompter.into(), cx)
         });
         let theme_picker = cx.new(|cx| ui_theme::ThemePicker::new(theme_backend.clone(), cx));
         let theme_page = theme::install(theme_backend, window, cx);

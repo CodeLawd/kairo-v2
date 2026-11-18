@@ -1157,3 +1157,143 @@ async fn ndi_audio_is_supported_only_when_the_engine_says_so() {
     r.engine.set_ndi_audio(true);
     assert!(kairo_output::manager::ndi_audio_supported(r.engine.as_ref()).await);
 }
+
+#[tokio::test]
+async fn teleprompter_transport_is_independent_and_restarts_its_session_sequence() {
+    use kairo_domain::{
+        program::StageDisplayMode,
+        teleprompter::{StageContent, StagePayload},
+    };
+    let mut r = rig();
+    r.engine.set_displays(vec![
+        display(2, "Stage", 0, false),
+        display(3, "Other", 1920, false),
+    ]);
+    let mut first = stage("script", Some(2), "Stage");
+    first.mode = StageDisplayMode::Teleprompter;
+    let mut second = stage("other", Some(3), "Other");
+    second.mode = StageDisplayMode::Teleprompter;
+    r.settings.presentation.lock().unwrap().stage_displays = vec![first, second];
+    r.manager.reconcile(Some(Vec::new())).await;
+    // Nothing goes to a display until the operator puts it live.
+    assert_eq!(r.manager.teleprompter_stage(), None);
+    assert!(r.manager.stage_status().iter().all(|s| s.ready));
+
+    r.manager
+        .load_teleprompter("talk".into(), "Olá mundo".into(), 64.0, 1.0, false);
+    assert!(!r.manager.teleprompter_transport(StageOperation::Play));
+    assert!(r.manager.prompter_go_live("script".into()));
+    assert_eq!(r.manager.teleprompter_stage(), Some("script"));
+    let state = r.engine.state("script").unwrap();
+    let StagePayload::Tagged(StageContent::Teleprompter(view)) =
+        state.stage.unwrap().decode().unwrap()
+    else {
+        panic!("missing script");
+    };
+    r.engine.take_commands();
+    for _ in 0..5 {
+        assert!(r.manager.teleprompter_transport(StageOperation::Play));
+    }
+    assert!(
+        r.engine
+            .take_commands()
+            .iter()
+            .all(|command| matches!(command, Command::StageTransport { .. }))
+    );
+
+    r.manager.stage_position(StagePosition {
+        output: "script".into(),
+        revision: view.revision,
+        sequence: 5,
+        anchor: 5,
+        playing: true,
+        ..Default::default()
+    });
+    assert!(r.manager.teleprompter_transport(StageOperation::Speed {
+        lines_per_second: 2.5
+    }));
+    r.manager
+        .load_teleprompter("talk".into(), "Olá belo mundo".into(), 80.0, 2.5, true);
+    let state = r.engine.state("script").unwrap();
+    let StagePayload::Tagged(StageContent::Teleprompter(updated)) =
+        state.stage.unwrap().decode().unwrap()
+    else {
+        panic!("missing updated script");
+    };
+    assert_eq!(updated.anchor, 10);
+    assert_eq!(updated.speed, 2.5);
+    assert!(updated.mirror);
+    assert!(r.manager.teleprompter_layout(96.0, false));
+    let StagePayload::Tagged(StageContent::Teleprompter(relaid)) =
+        r.engine.state("script").unwrap().stage.unwrap().decode().unwrap()
+    else {
+        panic!("missing relaid script");
+    };
+    assert_eq!((relaid.font_px, relaid.speed, relaid.mirror), (96.0, 2.5, false));
+    let updated = relaid;
+    r.engine.take_commands();
+    r.manager.reset_stage_session();
+    assert!(r.manager.teleprompter_transport(StageOperation::Pause));
+    assert!(matches!(
+        &r.engine.take_commands()[..],
+        [Command::StageTransport { sequence: 1, .. }]
+    ));
+    r.manager.stage_position(StagePosition {
+        output: "script".into(),
+        revision: view.revision,
+        sequence: 5,
+        anchor: 5,
+        playing: true,
+        ..Default::default()
+    });
+    assert!(r.manager.teleprompter_position().is_none());
+    r.manager.stage_position(StagePosition {
+        output: "script".into(),
+        revision: updated.revision,
+        sequence: 1,
+        anchor: 10,
+        playing: false,
+        ..Default::default()
+    });
+    assert!(!r.manager.teleprompter_position().unwrap().playing);
+}
+
+#[tokio::test]
+async fn prompter_goes_over_one_audience_screen_and_comes_off() {
+    use kairo_domain::teleprompter::{StageContent, StagePayload};
+    let mut r = rig();
+    r.engine.set_displays(vec![
+        display(2, "Main", 0, false),
+        display(3, "Pastor", 1920, false),
+    ]);
+    let outputs = vec![screen("main", 2, "Main"), screen("pastor", 3, "Pastor")];
+    r.manager.reconcile(Some(outputs)).await;
+    let targets = r.manager.prompter_targets();
+    assert_eq!(targets.len(), 2);
+    assert!(targets.iter().all(|t| t.ready));
+
+    r.manager
+        .load_teleprompter("talk".into(), "Olá mundo".into(), 64.0, 0.4, false);
+    assert!(r.engine.state("pastor").unwrap().prompter.is_none());
+    assert!(r.manager.prompter_go_live("pastor".into()));
+    let StagePayload::Tagged(StageContent::Teleprompter(view)) = r
+        .engine
+        .state("pastor")
+        .unwrap()
+        .prompter
+        .unwrap()
+        .decode()
+        .unwrap()
+    else {
+        panic!("missing prompter");
+    };
+    assert_eq!(view.text, "Olá mundo");
+    assert!(r.engine.state("main").unwrap().prompter.is_none());
+    assert_eq!(r.manager.teleprompter_stage(), Some("pastor"));
+    assert!(r.manager.teleprompter_transport(StageOperation::Play));
+
+    r.manager.prompter_take_off();
+    assert!(r.engine.state("pastor").unwrap().prompter.is_none());
+    assert_eq!(r.manager.teleprompter_stage(), None);
+    assert!(!r.manager.teleprompter_transport(StageOperation::Play));
+}

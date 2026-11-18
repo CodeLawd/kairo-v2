@@ -224,6 +224,20 @@ pub struct ProgramLogo {
     pub extra: Extra,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum StageDisplayMode {
+    #[default]
+    ConfidenceMonitor,
+    Teleprompter,
+}
+
+impl StageDisplayMode {
+    fn is_confidence_monitor(&self) -> bool {
+        *self == Self::ConfidenceMonitor
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StageDisplayConfig {
@@ -235,6 +249,11 @@ pub struct StageDisplayConfig {
     pub display_label: String,
     #[serde(deserialize_with = "required")]
     pub display_size: Option<crate::overlay::Size>,
+    #[serde(
+        default,
+        skip_serializing_if = "StageDisplayMode::is_confidence_monitor"
+    )]
+    pub mode: StageDisplayMode,
     pub show_next: bool,
     pub show_clock: bool,
     pub show_timer: bool,

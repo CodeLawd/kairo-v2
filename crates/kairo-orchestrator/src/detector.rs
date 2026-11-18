@@ -112,6 +112,9 @@ pub struct ReadingPassage {
     pub chapter: f64,
     pub start: f64,
     pub end: f64,
+    /// The passage's words, where known, so speech that reads it aloud is
+    /// recognised even when quote search ranks only its parallels.
+    pub text: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -130,6 +130,10 @@ impl BoothBackend for ServicesBooth {
                 .as_ref()
                 .and_then(|s| s.display.shortcuts.clone())
                 .unwrap_or_default(),
+            automation: settings
+                .as_ref()
+                .map(|s| kairo_domain::settings::ScriptureAutomation::of(&s.scripture))
+                .unwrap_or_default(),
             translations: Vec::new(),
             live_plan: Some(self.services.plans.state()),
             plans: self.services.plans.list_plans(),
@@ -221,6 +225,9 @@ impl BoothBackend for ServicesBooth {
                 Some(BoothFeed::Settings {
                     default_translation: settings.scripture.default_translation.clone(),
                     shortcuts: settings.display.shortcuts.clone().unwrap_or_default(),
+                    automation: kairo_domain::settings::ScriptureAutomation::of(
+                        &settings.scripture,
+                    ),
                 })
             }
         );
@@ -364,6 +371,7 @@ async fn run(
                 auto_present_delay_sec: f64::from(
                     settings.scripture.auto_present_delay_sec.value(),
                 ),
+                auto_present_passages: settings.scripture.auto_present_passages,
             };
             services
                 .orchestrator
@@ -407,6 +415,24 @@ async fn run(
                 .map_err(|e| e.to_string())?;
             done
         }
+        BoothCall::FollowStepped => {
+            services.orchestrator.note_follow_step();
+            done
+        }
+        BoothCall::SetAutomation(automation) => {
+            services.actions().set_automation(automation).await;
+            done
+        }
+        BoothCall::ClearScriptureIfLive {
+            book,
+            chapter,
+            verse,
+        } => Ok(BoothAnswer::Cleared(
+            services
+                .orchestrator
+                .clear_scripture_if_live(&book, chapter, verse)
+                .await,
+        )),
         BoothCall::ClearText => {
             services.orchestrator.clear_text().await;
             done

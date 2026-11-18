@@ -13,13 +13,13 @@ use kairo_domain::{
     cloud::{
         CloudResult, CloudSessionState, LicenseSnapshot, LicenseStatus, LicensedFeature,
         ManagedProvider, ManagedPurpose, ManagedRequest, SecretsConfigured, SessionSnapshot,
-        SignedLicenseLease, TranscriptionGrant,
+        SignedLicenseLease, TranscriptionGrant, TranscriptionRenewal,
     },
     json::to_js_string,
 };
 use kairo_net::{ApiError, Method};
 use kairo_store::{
-    build_config::LICENSE_PUBLIC_KEY,
+    build_config::{API_URL, LICENSE_PUBLIC_KEY, PRODUCTION_API_URL},
     secrets::{KeyProtector, SecureStore},
     settings::now_ms,
 };
@@ -35,7 +35,29 @@ use tokio::{
 use crate::CloudSession;
 
 const SNAPSHOT: &str = "license-snapshot";
+/// The production server's pinned key keeps its original name.
 const TRUSTED_KEY: &str = "license-trusted-key";
+
+/// Where the pinned licence key is kept for the API this build talks to.
+/// Each server signs with its own key, so a development profile that has
+/// used both production and a local server keeps one key per server
+/// instead of rejecting every lease from the second.
+fn trusted_key_name() -> &'static str {
+    static NAME: std::sync::OnceLock<&'static str> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| trusted_key_name_for(API_URL))
+}
+
+fn trusted_key_name_for(api_url: &str) -> &'static str {
+    let api_url = api_url.trim_end_matches('/');
+    if api_url == PRODUCTION_API_URL {
+        return TRUSTED_KEY;
+    }
+    let server: String = api_url
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect();
+    Box::leak(format!("{TRUSTED_KEY}-{server}").into_boxed_str())
+}
 const OBSERVED_TIME: &str = "license-observed-time";
 const CLOCK_TOLERANCE: f64 = 60.0;
 const MAX_GRACE: f64 = 14.0 * 86_400.0;
@@ -351,7 +373,7 @@ impl Vault {
                 .read(SNAPSHOT)
                 .and_then(|value| serde_json::from_str(&value).ok())
                 .unwrap_or_else(empty);
-            let key = store.read(TRUSTED_KEY).filter(|key| !key.is_empty());
+            let key = store.read(trusted_key_name()).filter(|key| !key.is_empty());
             let time = store
                 .read(OBSERVED_TIME)
                 .and_then(|value| value.trim().parse::<f64>().ok())
@@ -768,7 +790,7 @@ impl LicensingService {
             if state.trusted_key.is_none()
                 && let Some(key) = key
             {
-                writes.push((TRUSTED_KEY, key.to_owned()));
+                writes.push((trusted_key_name(), key.to_owned()));
                 state.trusted_key = Some(key.to_owned());
             }
         }
@@ -821,7 +843,7 @@ impl LicensingService {
             .await
     }
 
-    pub async fn renew_transcription(&self, id: &str) -> Result<TranscriptionGrant, ApiError> {
+    pub async fn renew_transcription(&self, id: &str) -> Result<TranscriptionRenewal, ApiError> {
         let id = encode_grant_id(id)?;
         self.0
             .session
@@ -961,5 +983,24 @@ mod js_number_tests {
         ] {
             assert_eq!(js_number(value), text, "{value}");
         }
+    }
+}
+
+#[cfg(test)]
+mod trusted_key_tests {
+    use super::{TRUSTED_KEY, trusted_key_name_for};
+
+    #[test]
+    fn production_keeps_its_name_and_other_servers_get_their_own() {
+        assert_eq!(trusted_key_name_for("https://api.kairopresenter.com"), TRUSTED_KEY);
+        assert_eq!(trusted_key_name_for("https://api.kairopresenter.com/"), TRUSTED_KEY);
+        assert_eq!(
+            trusted_key_name_for("http://localhost:3000"),
+            "license-trusted-key-http---localhost-3000"
+        );
+        assert_ne!(
+            trusted_key_name_for("http://localhost:3000"),
+            trusted_key_name_for("http://localhost:4000")
+        );
     }
 }

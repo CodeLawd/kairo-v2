@@ -77,6 +77,9 @@ pub struct SurfaceState {
     pub document_slide: Option<Json>,
     /// The operator preview this surface feeds (prompt 066).
     pub preview: Option<crate::messages::PreviewTarget>,
+    /// A teleprompter shown over the surface's own content.
+    #[serde(default)]
+    pub prompter: Option<Json>,
 }
 
 /// Whether a surface takes pushes (`ProgramSurface.available`), as the side
@@ -97,6 +100,7 @@ impl SurfaceState {
             document_mode: false,
             document_slide: None,
             preview: None,
+            prompter: None,
         }
     }
 
@@ -135,6 +139,10 @@ impl SurfaceState {
             }
             Command::SetStage { view, .. } => {
                 self.stage = Some(view.clone());
+                true
+            }
+            Command::SetPrompter { view, .. } => {
+                self.prompter = view.clone();
                 true
             }
             Command::Configure { config, .. } => {
@@ -271,6 +279,20 @@ impl SurfaceState {
                 self.test_pattern = *pattern;
                 true
             }
+            Command::StageTransport {
+                revision,
+                operation: StageOperation::Speed { lines_per_second },
+                ..
+            } => {
+                // Kept in the replay copy so a reopened stage scrolls at the
+                // operator's speed.
+                self.patch_teleprompter(*revision, |view| {
+                    view["speed"] = serde_json::json!(lines_per_second);
+                    true
+                });
+                self.stage.is_some() || self.prompter.is_some()
+            }
+            Command::StageTransport { .. } => self.stage.is_some() || self.prompter.is_some(),
             Command::RetainSurfaces { .. }
             | Command::Shutdown
             | Command::ControlDisplay { .. }
@@ -280,6 +302,54 @@ impl SurfaceState {
             | Command::StopCapture
             | Command::DisplayTestPattern { .. } => true,
         }
+    }
+
+    /// Refresh the replay checkpoint without enqueuing a stage content command.
+    pub fn checkpoint_stage(&mut self, revision: u64, anchor: usize) -> bool {
+        self.patch_teleprompter(revision, |view| {
+            if view["text"]
+                .as_str()
+                .is_some_and(|text| text.is_char_boundary(anchor))
+            {
+                view["anchor"] = serde_json::json!(anchor);
+                true
+            } else {
+                false
+            }
+        })
+    }
+
+    /// Edit the teleprompter view of `revision` in place. False when the
+    /// stage holds something else or `edit` refuses.
+    fn patch_teleprompter(
+        &mut self,
+        revision: u64,
+        edit: impl FnOnce(&mut Value) -> bool,
+    ) -> bool {
+        let teleprompter = |view: &Option<Json>| {
+            view.as_ref()
+                .and_then(|view| view.value().ok())
+                .is_some_and(|payload| payload["mode"] == "teleprompter")
+        };
+        let slot = if teleprompter(&self.prompter) {
+            &mut self.prompter
+        } else {
+            &mut self.stage
+        };
+        let Some(view) = slot.as_mut() else {
+            return false;
+        };
+        let Ok(mut payload) = view.value() else {
+            return false;
+        };
+        if payload["mode"] != "teleprompter"
+            || payload["view"]["revision"].as_u64() != Some(revision)
+            || !edit(&mut payload["view"])
+        {
+            return false;
+        }
+        *view = Json::from_value(&payload);
+        true
     }
 
     fn show_slide(&mut self, source: &str, slide: &SlideContent, available: bool) -> bool {
@@ -389,6 +459,12 @@ impl SurfaceState {
                 }
             });
         }
+        if let Some(view) = &self.prompter {
+            commands.push(Command::SetPrompter {
+                output: output.clone(),
+                view: Some(view.clone()),
+            });
+        }
         if self.parked {
             commands.push(Command::CloseSurface {
                 output,
@@ -424,4 +500,66 @@ fn with_background(theme: &Json, edit: impl FnOnce(&mut Map<String, Value>)) -> 
     edit(&mut background);
     theme_map.insert("background".into(), Value::Object(background));
     Json::from_value(&Value::Object(theme_map))
+}
+
+#[cfg(test)]
+mod stage_replay_tests {
+    use super::*;
+
+    #[test]
+    fn stage_replays_the_latest_valid_checkpoint_without_play() {
+        let mut state = SurfaceState::new(SurfaceSpec {
+            output: "stage".into(),
+            label: "Stage".into(),
+            sink: SinkSpec::Ndi {
+                name: "stage".into(),
+            },
+        });
+        assert!(state.apply(
+            &Command::SetStage {
+                output: "stage".into(),
+                view: Json::from_value(&serde_json::json!({
+                    "mode": "teleprompter",
+                    "view": {"revision": 8, "text": "Olá mundo", "fontPx": 64.0, "anchor": 0}
+                })),
+            },
+            true
+        ));
+        assert!(!state.checkpoint_stage(7, 5));
+        assert!(!state.checkpoint_stage(8, 3));
+        assert!(state.checkpoint_stage(8, 5));
+        assert!(state.apply(
+            &Command::StageTransport {
+                output: "stage".into(),
+                revision: 8,
+                sequence: 10,
+                operation: StageOperation::Play,
+            },
+            true
+        ));
+        assert!(state.apply(
+            &Command::StageTransport {
+                output: "stage".into(),
+                revision: 8,
+                sequence: 11,
+                operation: StageOperation::Speed {
+                    lines_per_second: 3.0
+                },
+            },
+            true
+        ));
+        let replay = state.replay();
+        assert!(
+            !replay
+                .iter()
+                .any(|command| matches!(command, Command::StageTransport { .. }))
+        );
+        assert!(
+            replay
+                .iter()
+                .any(|command| matches!(command, Command::SetStage { view, .. }
+            if view.value().unwrap()["view"]["anchor"] == 5
+                && view.value().unwrap()["view"]["speed"] == 3.0))
+        );
+    }
 }

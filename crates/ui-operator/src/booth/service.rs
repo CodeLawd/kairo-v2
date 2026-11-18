@@ -94,6 +94,7 @@ pub struct ServicePanel {
     booth: Entity<Booth>,
     title: Entity<InputState>,
     speaker: Entity<InputState>,
+    sermon_title: Entity<InputState>,
     plan_id: Option<String>,
     view_id: Option<String>,
     tab: ReviewTab,
@@ -109,6 +110,8 @@ impl ServicePanel {
     pub fn new(booth: Entity<Booth>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let title = cx.new(|cx| InputState::new(window, cx).placeholder("Sunday morning service"));
         let speaker = cx.new(|cx| InputState::new(window, cx));
+        let sermon_title =
+            cx.new(|cx| InputState::new(window, cx).placeholder("The Power of Growth"));
         // One clock for the talk time; it repaints only while a service runs.
         let tick = cx.spawn(async move |this, cx| {
             loop {
@@ -132,6 +135,7 @@ impl ServicePanel {
             booth,
             title,
             speaker,
+            sermon_title,
             plan_id: None,
             view_id: None,
             tab: ReviewTab::default(),
@@ -197,9 +201,12 @@ impl ServicePanel {
         self.speaker.update(cx, |input, cx| {
             input.set_value(active.speaker.clone(), window, cx)
         });
+        self.sermon_title.update(cx, |input, cx| {
+            input.set_value(active.sermon_title.clone(), window, cx)
+        });
         self.plan_id = active.notes.first().map(|n| n.id.clone());
         self.open = Some(Open::End);
-        self.frame("Save service", 448., 392., window, cx);
+        self.frame("Save service", 448., 456., window, cx);
         cx.notify();
     }
 
@@ -253,6 +260,7 @@ impl ServicePanel {
         let command = ServiceCommand::End {
             title: self.title.read(cx).value().to_string(),
             speaker: self.speaker.read(cx).value().to_string(),
+            sermon_title: self.sermon_title.read(cx).value().to_string(),
             plan_id: self.plan_id.clone(),
         };
         self.run(command, cx, |this, cx| {
@@ -459,6 +467,14 @@ impl ServicePanel {
                             .small()
                             .disabled(busy)
                             .aria_label("Service name")
+                            .into_any_element(),
+                    ))
+                    .child(field(
+                        "Sermon title (optional)",
+                        Input::new(&self.sermon_title).kairo_size()
+                            .small()
+                            .disabled(busy)
+                            .aria_label("Sermon title (optional)")
                             .into_any_element(),
                     ))
                     .child(field(

@@ -102,6 +102,30 @@ async fn switches_provider_once_and_retries_malformed_json() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn an_empty_answer_means_no_references_not_a_failure() {
+    for (provider, reply) in [
+        (ModelProvider::Deepseek, deepseek("")),
+        (ModelProvider::Deepseek, deepseek("  \n")),
+        (ModelProvider::Anthropic, anthropic("")),
+    ] {
+        let transport = Transport::default();
+        transport.replies.lock().unwrap().push_back(Ok(reply));
+        let config = ModelConfig {
+            provider,
+            ..ModelConfig::default()
+        };
+        let mut detector = ManagedModelDetector::new(&transport, config);
+        let (_sender, cancel) = watch::channel(false);
+        assert_eq!(
+            detector.run(&work("Scripture says"), cancel).await,
+            ModelOutcome::Parsed(vec![])
+        );
+        assert_eq!(detector.stats().errors, 0);
+        assert_eq!(transport.requests.lock().unwrap().len(), 1, "no retry");
+    }
+}
+
+#[tokio::test(start_paused = true)]
 async fn timeouts_cancel_network_and_local_fast_path_keeps_running() {
     let mut model = ManagedModelDetector::new(Pending, ModelConfig::default());
     let (sender, cancel) = watch::channel(false);

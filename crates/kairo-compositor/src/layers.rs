@@ -33,13 +33,15 @@ pub enum Slot {
     Question,
     Info,
     Logo,
+    /// A teleprompter over everything the screen shows, under the pattern.
+    Prompter,
     /// `#kairo-diagnostic-pattern`: on the body, over everything, never
     /// moved by a camera layout.
     Pattern,
 }
 
 impl Slot {
-    pub const ALL: [Slot; 16] = [
+    pub const ALL: [Slot; 17] = [
         Slot::Background,
         Slot::DocumentVideos,
         Slot::Camera,
@@ -55,6 +57,7 @@ impl Slot {
         Slot::Question,
         Slot::Info,
         Slot::Logo,
+        Slot::Prompter,
         Slot::Pattern,
     ];
 

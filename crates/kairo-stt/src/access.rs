@@ -1,6 +1,6 @@
 //! Short-lived transcription grants from the licence server.
 
-use kairo_domain::cloud::{LicensedFeature, TranscriptionGrant};
+use kairo_domain::cloud::{LicensedFeature, TranscriptionGrant, TranscriptionRenewal};
 use kairo_net::ApiError;
 use std::future::Future;
 use std::pin::Pin;
@@ -13,7 +13,7 @@ pub trait TranscriptionAccess: Send + Sync + 'static {
     fn renew_transcription(
         &self,
         id: String,
-    ) -> BoxFuture<'_, Result<TranscriptionGrant, ApiError>>;
+    ) -> BoxFuture<'_, Result<TranscriptionRenewal, ApiError>>;
     fn release_transcription(&self, id: String) -> BoxFuture<'_, Result<(), ApiError>>;
     fn assert_transcription(&self) -> BoxFuture<'_, Result<(), ApiError>>;
 }
@@ -28,7 +28,7 @@ impl TranscriptionAccess for kairo_cloud::licensing::LicensingService {
     fn renew_transcription(
         &self,
         id: String,
-    ) -> BoxFuture<'_, Result<TranscriptionGrant, ApiError>> {
+    ) -> BoxFuture<'_, Result<TranscriptionRenewal, ApiError>> {
         Box::pin(async move {
             kairo_cloud::licensing::LicensingService::renew_transcription(self, &id).await
         })

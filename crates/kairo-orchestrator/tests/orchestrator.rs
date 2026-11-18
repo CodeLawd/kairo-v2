@@ -186,6 +186,8 @@ struct Scripture {
     dismissed: Mutex<Vec<String>>,
     /// When set, searches wait for it, like a slow network.
     gate: Mutex<Option<Arc<tokio::sync::Notify>>>,
+    /// Searches for this book wait for its gate; others answer at once.
+    slow: Mutex<Option<(String, Arc<tokio::sync::Notify>)>>,
 }
 
 impl ScriptureClient for Scripture {
@@ -221,7 +223,14 @@ impl ScriptureClient for Scripture {
             r.verses = verses;
             r
         });
-        let gate = self.gate.lock().unwrap().clone();
+        let gate = self.gate.lock().unwrap().clone().or_else(|| {
+            self.slow
+                .lock()
+                .unwrap()
+                .as_ref()
+                .filter(|(slow, _)| *slow == book)
+                .map(|(_, gate)| gate.clone())
+        });
         Box::pin(async move {
             if let Some(gate) = gate {
                 gate.notified().await;
@@ -347,6 +356,7 @@ struct Harness {
     usage: Arc<Usage>,
     transcripts: broadcast::Sender<TranscriptEvent>,
     shown_at: Arc<Mutex<Vec<tokio::time::Instant>>>,
+    traces: Arc<kairo_core::scripture_traces::ScriptureTraces>,
 }
 
 fn harness(service: bool) -> Harness {
@@ -371,6 +381,7 @@ fn harness(service: bool) -> Harness {
     let tx = transcripts.clone();
     let live_plan = LivePlanService::new(Box::new(NoPlans));
     let plan_for_detector = live_plan.clone();
+    let traces = Arc::new(kairo_core::scripture_traces::ScriptureTraces::default());
     let services = Services {
         engine: Arc::new(Engine {
             calls: calls.clone(),
@@ -402,9 +413,11 @@ fn harness(service: bool) -> Harness {
             d
         }),
         resilience: None,
+        traces: traces.clone(),
     };
     Harness {
         calls,
+        traces,
         orchestrator: Orchestrator::new(services),
         engine_log,
         program_log,
@@ -585,6 +598,85 @@ async fn an_auto_detection_presents_after_the_operator_delay() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn an_auto_detection_is_traced_from_receipt_to_presenter_request() {
+    use kairo_domain::scripture_trace::{ConfirmationLevel, TraceStatus};
+    let h = harness(true);
+    h.orchestrator.start_from_ui(config(true)).await.unwrap();
+    h.say("Turn with me to John 3:16").await;
+    let card = h.scripture.cards.lock().unwrap()[0].clone();
+    let id = card
+        .correlation_id
+        .clone()
+        .expect("the card carries its trace");
+    tokio::time::sleep(Duration::from_millis(1001)).await;
+    settle().await;
+    let records = h.traces.recent_with_metrics(None);
+    assert_eq!(records.len(), 1);
+    let trace = &records[0].trace;
+    assert_eq!(trace.correlation_id, id);
+    assert_eq!(trace.reference.as_deref(), Some("John 3:16"));
+    assert_eq!(trace.status, TraceStatus::Presented);
+    assert_eq!(trace.confirmation, Some(ConfirmationLevel::RequestAccepted));
+    for (stage, at) in [
+        ("lookup", trace.bible_lookup_completed_at),
+        ("published", trace.suggestion_published_at),
+        ("countdown", trace.countdown_started_at),
+        ("countdown done", trace.countdown_completed_at),
+        ("presenter", trace.presenter_request_completed_at),
+    ] {
+        assert!(at.is_some(), "{stage} is stamped");
+    }
+    assert!(records[0].metrics.total_to_presenter_request_ms.is_some());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_slow_lookup_neither_blocks_a_newer_citation_nor_overrides_it() {
+    let h = harness(true);
+    let gate = Arc::new(tokio::sync::Notify::new());
+    *h.scripture.slow.lock().unwrap() = Some(("John".into(), gate.clone()));
+    h.orchestrator.start_from_ui(config(true)).await.unwrap();
+    h.say("John 3:16").await;
+    assert!(h.cards().is_empty(), "John's lookup is still out");
+    h.say("Romans 8:28").await;
+    assert_eq!(
+        h.cards(),
+        ["Romans 8:28"],
+        "the newer citation is not held up"
+    );
+    gate.notify_one();
+    settle().await;
+    assert_eq!(h.cards(), ["Romans 8:28", "John 3:16"]);
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        ["ShowSlide screen Romans 8:28 (KJV) | Romans 8:28 text"],
+        "the late, older lookup shows a card but never takes the countdown"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_range_auto_presents_its_first_verse_only_when_passages_are_on() {
+    for (passages, shown) in [
+        (false, Vec::<&str>::new()),
+        (
+            true,
+            vec!["ShowSlide screen Romans 8:28 (KJV) | Romans 8:28 text"],
+        ),
+    ] {
+        let h = harness(true);
+        let mut cfg = config(true);
+        cfg.auto_present_passages = passages;
+        h.orchestrator.start_from_ui(cfg).await.unwrap();
+        h.say("Romans 8:28-30").await;
+        assert_eq!(h.cards(), ["Romans 8:28", "Romans 8:29", "Romans 8:30"]);
+        tokio::time::sleep(Duration::from_millis(1001)).await;
+        settle().await;
+        assert_eq!(h.engine_log.take(), shown, "passages {passages}");
+    }
+}
+
+#[tokio::test(start_paused = true)]
 async fn a_newer_citation_supersedes_the_running_countdown() {
     let h = harness(true);
     h.orchestrator.start_from_ui(config(true)).await.unwrap();
@@ -614,6 +706,29 @@ async fn dismissing_a_card_lets_the_same_verse_come_back() {
     assert!(
         h.engine_log.take().is_empty(),
         "manual mode never presents by itself"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn next_verse_right_after_follow_along_moved_does_not_step_twice() {
+    let h = harness(true);
+    h.orchestrator.start_from_ui(config(true)).await.unwrap();
+    h.say("John 3:16").await;
+    let id = h.scripture.cards.lock().unwrap()[0].id.clone();
+    h.orchestrator.approve_suggestion(&id).await;
+    h.engine_log.take();
+    // Follow-along has just moved on; the preacher then says "next verse".
+    h.orchestrator.note_follow_step();
+    h.say("Next verse.").await;
+    settle().await;
+    assert!(h.engine_log.take().is_empty(), "already showing");
+    // Later, the same words step on.
+    std::thread::sleep(Duration::from_millis(4100));
+    h.say("Okay, next verse.").await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        ["ShowSlide screen John 3:17 (KJV) | John 3:17 text"]
     );
 }
 

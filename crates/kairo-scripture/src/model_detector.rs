@@ -58,7 +58,9 @@ impl Default for ModelConfig {
         Self {
             provider: ModelProvider::default(),
             model: None,
-            max_tokens: 1536,
+            // Room for a reasoning model's thinking before its JSON answer:
+            // 1536 ran out first ("finish_reason": "length", no text).
+            max_tokens: 4096,
             timeout: Duration::from_secs(15),
         }
     }
@@ -198,17 +200,30 @@ fn response_text(provider: ModelProvider, value: &Value) -> Result<String, Model
             let content = choices.first().map(|choice| &choice["message"]["content"]);
             match content {
                 None | Some(Value::Null) => Ok("[]".to_owned()),
+                Some(Value::String(content)) if content.trim().is_empty() => {
+                    // Nothing said is "no references", not a broken answer.
+                    let finish = choices.first().and_then(|c| c["finish_reason"].as_str());
+                    if finish != Some("stop") {
+                        tracing::warn!(?finish, "AI detection answered with no text");
+                    }
+                    Ok("[]".to_owned())
+                }
                 Some(Value::String(content)) => Ok(content.clone()),
                 _ => Err(invalid()),
             }
         }
         ModelProvider::Anthropic => {
             let blocks = value["content"].as_array().ok_or_else(invalid)?;
-            Ok(blocks
+            let text: String = blocks
                 .iter()
                 .filter(|block| block["type"] == "text")
                 .filter_map(|block| block["text"].as_str())
-                .collect())
+                .collect();
+            Ok(if text.trim().is_empty() {
+                "[]".to_owned()
+            } else {
+                text
+            })
         }
     }
 }
@@ -356,6 +371,11 @@ impl<T: ManagedDetectorTransport> ManagedModelDetector<T> {
                     if let Some(detections) = parse_response(&response) {
                         return ModelOutcome::Parsed(detections);
                     }
+                    tracing::warn!(
+                        attempt,
+                        answer = crate::live_detector::utf16_prefix(&response, 300),
+                        "AI detection answer is not a JSON array"
+                    );
                     if attempt == MAX_RETRIES {
                         self.stats.errors += 1;
                         return ModelOutcome::InvalidResponse;

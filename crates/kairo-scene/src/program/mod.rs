@@ -15,6 +15,7 @@ mod info;
 mod layers;
 mod pattern;
 mod stage;
+pub mod teleprompter;
 
 pub use info::plan_info;
 pub use layers::plan_layer;

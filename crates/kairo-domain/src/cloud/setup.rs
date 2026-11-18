@@ -142,6 +142,7 @@ fn serde_default_stage() -> StageDisplayConfig {
         display_id: None,
         display_label: String::new(),
         display_size: None,
+        mode: Default::default(),
         show_next: true,
         show_clock: true,
         show_timer: true,

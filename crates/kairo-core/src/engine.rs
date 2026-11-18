@@ -254,6 +254,14 @@ impl EngineHandle {
         let seq = mirror.next_seq;
         let accepted = match &command {
             Command::Shutdown => true,
+            Command::StageTransport { output, .. } => {
+                mirror.link.is_some()
+                    && mirror.surface(output).is_some_and(|surface| {
+                        !surface.state.parked
+                            && surface_composes(surface)
+                            && surface.state.stage.is_some()
+                    })
+            }
             Command::ControlDisplay { native_id } => {
                 mirror.control_display = Some(*native_id);
                 true
@@ -829,6 +837,25 @@ fn dispatch(inner: &Inner, message: FromEngine) {
                         .find(|s| &s.state.spec.output == output)
                     {
                         surface.status = Some(status.clone());
+                    }
+                }
+                Event::StagePosition(position) => {
+                    // Closing a session clears its link and joins its reader
+                    // before a new session can install a link. The actor
+                    // receives these notices and Lost in broadcast order.
+                    let mut mirror = lock(&inner.mirror);
+                    if mirror.link.is_none()
+                        || !mirror
+                            .surfaces
+                            .iter_mut()
+                            .find(|surface| surface.state.spec.output == position.output)
+                            .is_some_and(|surface| {
+                                surface
+                                    .state
+                                    .checkpoint_stage(position.revision, position.anchor)
+                            })
+                    {
+                        return;
                     }
                 }
                 Event::Displays(displays) => lock(&inner.mirror).displays = displays.clone(),

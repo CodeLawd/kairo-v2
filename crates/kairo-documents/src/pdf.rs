@@ -46,6 +46,10 @@ fn candidate_dirs() -> Vec<PathBuf> {
         dirs.push(exe_dir.join("../Frameworks"));
         dirs.push(exe_dir);
     }
+    // A development build has no bundle: use the workspace's fetched copy,
+    // so `cargo run` opens PDFs without setting the environment variable.
+    #[cfg(debug_assertions)]
+    dirs.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.cache/pdfium/lib"));
     dirs
 }
 
@@ -95,6 +99,143 @@ fn open<'a>(pdfium: &'a Pdfium, data: &'a [u8]) -> Result<PdfDocument<'a>, Docum
                 other => format!("Could not read the PDF: {other}"),
             })
         })
+}
+
+pub(crate) fn extract_script(
+    data: &[u8],
+) -> Result<crate::script_import::ScriptImport, DocumentError> {
+    use crate::script_import::ScriptImport;
+    use kairo_domain::teleprompter::MAX_SCRIPT_BYTES;
+
+    let document = open(pdfium()?, data)?;
+    if document.pages().len() as usize > MAX_PAGES {
+        return Err(DocumentError::Message(TOO_MANY_PAGES.into()));
+    }
+    let mut text = String::new();
+    let mut empty = Vec::new();
+    for (index, page) in document.pages().iter().enumerate() {
+        let page_text = page.text().map_err(|error| {
+            DocumentError::Message(format!(
+                "Could not extract text from PDF page {}: {error}",
+                index + 1
+            ))
+        })?;
+        if (page_text.len().max(0) as usize) > MAX_SCRIPT_BYTES {
+            return Err(DocumentError::Message(
+                "The extracted script exceeds 1 MiB.".into(),
+            ));
+        }
+        let page_text = reflow_page(&page_text.all());
+        let page_text = page_text.trim();
+        if page_text.is_empty() {
+            empty.push((index + 1).to_string());
+            continue;
+        }
+        if !text.is_empty() {
+            text.push_str("\n\n");
+        }
+        if text.len() + page_text.len() > MAX_SCRIPT_BYTES {
+            return Err(DocumentError::Message(
+                "The extracted script exceeds 1 MiB.".into(),
+            ));
+        }
+        text.push_str(page_text);
+    }
+    if text.is_empty() {
+        return Err(DocumentError::Message(
+            "This PDF contains no extractable text. If it is scanned, choose a text-enabled copy."
+                .into(),
+        ));
+    }
+    let mut warnings =
+        vec!["Review the reading order in the preview, especially for pages with columns.".into()];
+    if !empty.is_empty() {
+        warnings.push(format!(
+            "No text was found on PDF pages {}.",
+            empty.join(", ")
+        ));
+    }
+    Ok(ScriptImport { text, warnings })
+}
+
+/// Join the visual lines of one PDF page into paragraphs. PDF text keeps a
+/// hard break at the end of every printed line; a teleprompter rewraps text
+/// at its own width, so those breaks are removed. A blank line, or a short
+/// line ending a sentence, ends a paragraph. A word hyphenated across a line
+/// break is joined.
+pub(crate) fn reflow_page(text: &str) -> String {
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+    let lines: Vec<&str> = text.lines().map(str::trim_end).collect();
+    let widest = lines
+        .iter()
+        .map(|line| line.trim().chars().count())
+        .max()
+        .unwrap_or(0);
+    let mut output = String::new();
+    let mut open = false;
+    for line in &lines {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            if open {
+                output.push('\n');
+                open = false;
+            }
+            continue;
+        }
+        if open {
+            let hyphenated = output.ends_with('-')
+                && output[..output.len() - 1]
+                    .chars()
+                    .next_back()
+                    .is_some_and(char::is_alphabetic)
+                && trimmed.chars().next().is_some_and(char::is_lowercase);
+            if hyphenated {
+                output.pop();
+            } else {
+                output.push(' ');
+            }
+        }
+        output.push_str(trimmed);
+        open = true;
+        let short = (trimmed.chars().count() as f32) < widest as f32 * 0.75;
+        let ends_sentence = trimmed.ends_with(['.', '!', '?', ':', '"', '\u{201d}']);
+        if short && ends_sentence {
+            output.push('\n');
+            open = false;
+        }
+    }
+    while output.ends_with('\n') {
+        output.pop();
+    }
+    output
+}
+
+#[cfg(test)]
+mod reflow_tests {
+    use super::reflow_page;
+
+    #[test]
+    fn joins_printed_lines_and_keeps_paragraphs() {
+        let page = "Grace and peace to you from God our\r\nFather, and the Lord Jesus Christ. We al-\nways thank God for all of you.\n\nSecond paragraph starts here and\ncontinues on this line.";
+        assert_eq!(
+            reflow_page(page),
+            "Grace and peace to you from God our Father, and the Lord Jesus Christ. We always thank God for all of you.\nSecond paragraph starts here and continues on this line."
+        );
+    }
+
+    #[test]
+    fn short_sentence_line_ends_a_paragraph_without_blank_lines() {
+        let page = "This first paragraph is long enough to set the width.\nIt ends here.\nThe next paragraph begins on this line and runs on.";
+        assert_eq!(
+            reflow_page(page),
+            "This first paragraph is long enough to set the width. It ends here.\nThe next paragraph begins on this line and runs on."
+        );
+    }
+
+    #[test]
+    fn keeps_real_hyphens_before_capitals() {
+        assert_eq!(reflow_page("Old-\nTestament"), "Old- Testament");
+    }
 }
 
 /// How many pages `data` has, refusing more than 500.

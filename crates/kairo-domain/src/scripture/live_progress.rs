@@ -421,6 +421,66 @@ pub fn update_passage_follow(
     suggestions: &[ScriptureSuggestion],
     final_text: bool,
 ) -> PassageFollowUpdate {
+    follow(
+        state,
+        transcript,
+        suggestions,
+        final_text,
+        FollowRule::Electron,
+    )
+}
+
+/// [`update_passage_follow`] with the native operator's stricter rule, so the
+/// screen never moves on while the current verse is still being read. A
+/// preacher often stops short of a verse's last words to explain, then comes
+/// back to finish it: the verse is done only once its last word was heard
+/// (and most of it was), plurals aside. Should the last word be misheard, the
+/// next verse counts as begun once three quarters of this one was read, on
+/// finished speech.
+pub fn update_passage_follow_strict(
+    state: &PassageFollowState,
+    transcript: &str,
+    suggestions: &[ScriptureSuggestion],
+    final_text: bool,
+) -> PassageFollowUpdate {
+    follow(
+        state,
+        transcript,
+        suggestions,
+        final_text,
+        FollowRule::Strict,
+    )
+}
+
+/// Share of a verse that must be read before follow-along may leave it.
+const STRICT_READ_SHARE: f64 = 0.6;
+/// Share of a verse read before the next verse's opening words may move on,
+/// for when recognition never catches the last word.
+const STRICT_NEXT_SHARE: f64 = 0.75;
+
+/// "sins" and "sin": recognition often changes a verse's closing plural.
+fn fold_plural(token: String) -> String {
+    if token.len() > 3 && token.ends_with('s') && !token.ends_with("ss") {
+        token[..token.len() - 1].to_owned()
+    } else {
+        token
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum FollowRule {
+    /// `updatePassageFollow` exactly, as the Electron oracle pins it.
+    Electron,
+    Strict,
+}
+
+fn follow(
+    state: &PassageFollowState,
+    transcript: &str,
+    suggestions: &[ScriptureSuggestion],
+    final_text: bool,
+    rule: FollowRule,
+) -> PassageFollowUpdate {
     let mut passage: Vec<&ScriptureSuggestion> = suggestions
         .iter()
         .filter(|item| item.passage_id.as_deref() == Some(state.passage_id.as_str()))
@@ -431,7 +491,14 @@ pub fn update_passage_follow(
     let current = passage
         .iter()
         .find(|item| item.passage_index == Some(state.current_index));
-    let verse_tokens = tokenize(verse_text(current.copied()));
+    let fold = |tokens: Vec<String>| -> Vec<String> {
+        if rule == FollowRule::Strict {
+            tokens.into_iter().map(fold_plural).collect()
+        } else {
+            tokens
+        }
+    };
+    let verse_tokens = fold(tokenize(verse_text(current.copied())));
     let unchanged = || PassageFollowUpdate {
         state: state.clone(),
         next_suggestion_id: None,
@@ -440,7 +507,7 @@ pub fn update_passage_follow(
         return unchanged();
     }
 
-    let heard = tokenize(transcript);
+    let heard = fold(tokenize(transcript));
     let reading = read_through(
         &verse_tokens,
         &heard,
@@ -449,17 +516,43 @@ pub fn update_passage_follow(
     );
     let length = verse_tokens.len() as f64;
     let closing_slack = if verse_tokens.len() <= 8 { 1.0 } else { 2.0 };
+    let heard_share = if rule == FollowRule::Strict {
+        STRICT_READ_SHARE
+    } else {
+        0.5
+    };
+    let closing = if rule == FollowRule::Strict {
+        0.0
+    } else {
+        closing_slack
+    };
     let finished =
-        reading.read_to >= length - closing_slack && reading.heard_count >= (length * 0.5).ceil();
+        reading.read_to >= length - closing && reading.heard_count >= (length * heard_share).ceil();
 
     let next = passage
         .iter()
         .find(|item| item.passage_index == Some(state.current_index + 1.0));
-    let mut next_lead = tokenize(verse_text(next.copied()));
+    let mut next_lead = fold(tokenize(verse_text(next.copied())));
     next_lead.truncate(4);
     let after_current = &heard[(reading.last_heard + 1) as usize..];
-    let next_started = next_lead.len() >= 3
-        && read_through(&next_lead, after_current, 0.0, 0.0).heard_count >= 3.0;
+    // At the closing words only a misheard last word stands between the
+    // reader and the next verse, so its opening counts sooner: on live text,
+    // from two of its first three words. Earlier, mid-verse, it needs
+    // finished speech and three of four, so a pause to explain never jumps.
+    let at_close = reading.read_to >= length - closing_slack;
+    let (may_begin_next, lead_len, lead_needed) = match rule {
+        FollowRule::Electron => (true, 4, 3.0),
+        FollowRule::Strict if at_close => (true, 3, 2.0),
+        FollowRule::Strict => (
+            final_text && reading.read_to >= length * STRICT_NEXT_SHARE,
+            4,
+            3.0,
+        ),
+    };
+    next_lead.truncate(lead_len);
+    let next_started = may_begin_next
+        && next_lead.len() as f64 >= lead_needed
+        && read_through(&next_lead, after_current, 0.0, 0.0).heard_count >= lead_needed;
 
     if let Some(next) = next.filter(|_| finished || next_started) {
         return PassageFollowUpdate {
@@ -485,6 +578,37 @@ pub fn update_passage_follow(
         },
         next_suggestion_id: None,
     }
+}
+
+/// The reader has finished the passage being followed: its last verse was
+/// read to its last word, by the strict rule that moves on from any other verse.
+/// A one-verse passage counts; its only verse is its last.
+pub fn passage_read_through(
+    state: &PassageFollowState,
+    suggestions: &[ScriptureSuggestion],
+) -> bool {
+    let passage: Vec<&ScriptureSuggestion> = suggestions
+        .iter()
+        .filter(|item| item.passage_id.as_deref() == Some(state.passage_id.as_str()))
+        .collect();
+    let last = passage
+        .iter()
+        .map(|item| item.passage_index.unwrap_or(0.0))
+        .fold(f64::NEG_INFINITY, f64::max);
+    if passage.is_empty() || state.current_index != last {
+        return false;
+    }
+    let current = passage
+        .iter()
+        .find(|item| item.passage_index.unwrap_or(0.0) == state.current_index);
+    let length = tokenize(verse_text(current.copied())).len() as f64;
+    if length < 2.0 {
+        return false;
+    }
+    // Its last word heard, as the strict follow rule requires: a pause to
+    // explain before the closing words must not start the clear.
+    state.read_to.unwrap_or(0.0) >= length
+        && state.heard_count.unwrap_or(0.0) >= (length * STRICT_READ_SHARE).ceil()
 }
 
 const STOP_WORDS: &[&str] = &[

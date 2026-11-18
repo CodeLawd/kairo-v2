@@ -185,6 +185,8 @@ pub enum KairoIcon {
     PhPalette,
     /// `phosphor Presentation`
     PhPresentation,
+    /// `phosphor Scroll`: added for the Prompter workspace.
+    PhScroll,
     /// `phosphor WarningCircle`
     PhWarningCircle,
     /// `phosphor Play`
@@ -350,6 +352,7 @@ impl KairoIcon {
         KairoIcon::PhMusicNotes,
         KairoIcon::PhPalette,
         KairoIcon::PhPresentation,
+        KairoIcon::PhScroll,
         KairoIcon::PhWarningCircle,
         KairoIcon::Play,
         KairoIcon::Plus,
@@ -480,6 +483,7 @@ impl KairoIcon {
             KairoIcon::PhMusicNotes => "ph_music_notes",
             KairoIcon::PhPalette => "ph_palette",
             KairoIcon::PhPresentation => "ph_presentation",
+            KairoIcon::PhScroll => "ph_scroll",
             KairoIcon::PhWarningCircle => "ph_warning_circle",
             KairoIcon::Play => "play",
             KairoIcon::Plus => "plus",
@@ -871,6 +875,8 @@ impl KairoIcon {
             (KairoIcon::PhPresentation, true) => {
                 include_bytes!("../../assets/icons/ph_presentation-fill.svg")
             }
+            (KairoIcon::PhScroll, false) => include_bytes!("../../assets/icons/ph_scroll.svg"),
+            (KairoIcon::PhScroll, true) => include_bytes!("../../assets/icons/ph_scroll-fill.svg"),
             (KairoIcon::PhWarningCircle, false) => {
                 include_bytes!("../../assets/icons/ph_warning_circle.svg")
             }

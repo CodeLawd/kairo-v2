@@ -209,6 +209,7 @@ pub fn apply(s: &mut AppSettings, edit: &Edit) -> Result<&'static str, String> {
                 display_id: None,
                 display_label: String::new(),
                 display_size: None,
+                mode: Default::default(),
                 show_next: true,
                 show_clock: true,
                 show_timer: true,

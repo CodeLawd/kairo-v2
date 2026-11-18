@@ -10,6 +10,7 @@ pub mod capture;
 pub mod deepgram;
 pub mod devices;
 pub mod keyterms;
+pub mod opus;
 pub mod pcm;
 pub mod permission;
 pub mod recording;

@@ -9,6 +9,7 @@ pub mod layout;
 pub mod props;
 pub mod rail;
 pub mod scroll;
+pub mod teleprompter;
 pub mod transport;
 pub mod workspace;
 

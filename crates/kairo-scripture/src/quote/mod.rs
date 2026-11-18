@@ -11,4 +11,4 @@ pub use corpus::QuoteCorpus;
 pub use matching::{
     GlobalQuoteCandidate, GlobalQuoteMatch, fresh_speech_supports, match_global_quote,
 };
-pub use worker::QuoteWorkerClient;
+pub use worker::{QuoteSearchOutcome, QuoteWorkerClient};

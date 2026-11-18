@@ -4,7 +4,7 @@
 //! (Electron) timings.
 
 use futures_util::{SinkExt, StreamExt};
-use kairo_domain::cloud::TranscriptionGrant;
+use kairo_domain::cloud::{TranscriptionGrant, TranscriptionRenewal};
 use kairo_net::ApiError;
 use kairo_stt::access::{BoxFuture, TranscriptionAccess};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -194,15 +194,13 @@ impl TranscriptionAccess for Access {
     fn renew_transcription(
         &self,
         id: String,
-    ) -> BoxFuture<'_, Result<TranscriptionGrant, ApiError>> {
+    ) -> BoxFuture<'_, Result<TranscriptionRenewal, ApiError>> {
         Box::pin(async move {
             if let Some(error) = self.unreachable() {
                 return Err(error);
             }
-            Ok(TranscriptionGrant {
-                access_token: format!("soak-renewed-{id}"),
-                expires_in: 600.0,
-                session_id: id,
+            let _ = id;
+            Ok(TranscriptionRenewal {
                 renew_after_seconds: 300.0,
             })
         })
@@ -292,8 +290,8 @@ mod tests {
                 .renew_transcription("a".into())
                 .await
                 .unwrap()
-                .session_id,
-            "a"
+                .renew_after_seconds,
+            300.0
         );
         assert!(access.release_transcription("a".into()).await.is_ok());
     }

@@ -383,6 +383,12 @@ impl ScreensWindow {
                             .child(half(self.source(o, window, cx)))
                             .child(half(div().into_any_element())),
                     );
+                if o.kind == OverlayOutputKind::Screen {
+                    body = body.child(muted(
+                        "To show the Prompter here, open Prompter and choose this screen. Its usual content returns when you take the Prompter off.",
+                        cx,
+                    ));
+                }
             }
             "hardware" => body = body.child(self.hardware(o, window, cx)),
             "look" => {
@@ -725,7 +731,30 @@ impl ScreensWindow {
                 "Output",
                 self.display_picker(s.display_id, &s.display_label, &s.display_size, cx),
             ));
-        } else {
+            let id = s.id.clone();
+            body = body.child(field(
+                "Mode",
+                self.choice(
+                    "stage-display-mode",
+                    "Stage display mode",
+                    match s.mode {
+                        kairo_domain::program::StageDisplayMode::ConfidenceMonitor => {
+                            "confidenceMonitor"
+                        }
+                        kairo_domain::program::StageDisplayMode::Teleprompter => "teleprompter",
+                    },
+                    vec![
+                        Choice::new("confidenceMonitor", "Confidence Monitor"),
+                        Choice::new("teleprompter", "Teleprompter"),
+                    ],
+                    move |mode| Edit::Stage {
+                        id: id.clone(),
+                        patch: json!({"mode": mode}),
+                    },
+                    cx,
+                ),
+            ));
+        } else if s.mode == kairo_domain::program::StageDisplayMode::ConfidenceMonitor {
             for (key, label, on) in [
                 ("showNext", "Next slide", s.show_next),
                 ("showClock", "Clock", s.show_clock),

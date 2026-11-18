@@ -50,6 +50,8 @@ pub enum Op {
     /// current background when the operation is applied, in order with the
     /// slides around it. Nothing happens when there is none.
     Media(MediaControl),
+    /// Use an aspect-matched canvas for a stage script, or restore the program canvas.
+    StageCanvas(Option<(u32, u32)>),
 }
 
 /// The operator's transport on a background video.
@@ -172,6 +174,7 @@ struct Window {
 struct Output {
     scene: Scene,
     target: FrameTarget,
+    frame_height: u32,
     window: Option<Window>,
     seq: u64,
     committed: u64,
@@ -713,6 +716,7 @@ fn handle(
                 Output {
                     scene,
                     target: renderer.target(frame_height),
+                    frame_height,
                     window,
                     seq,
                     committed: 0,
@@ -764,8 +768,20 @@ fn handle(
                 });
                 return true;
             };
-            let height = o.target.height;
             for op in ops {
+                if let Op::StageCanvas(size) = op {
+                    if let Some(size) = size {
+                        let size = (size.0.clamp(1, 1920), size.1.clamp(1, 1080));
+                        if (o.target.width, o.target.height) != size {
+                            o.target = renderer.target_size(size);
+                        }
+                    } else if (o.target.width, o.target.height)
+                        != (crate::FRAME_WIDTH, crate::frame_height(o.frame_height))
+                    {
+                        o.target = renderer.target(o.frame_height);
+                    }
+                    continue;
+                }
                 if let Op::Media(control) = op {
                     // The video it addresses may have been made by an
                     // earlier operation in this batch: report that first.
@@ -780,7 +796,7 @@ fn handle(
                     }
                     continue;
                 }
-                apply(&mut o.scene, op, height, now);
+                apply(&mut o.scene, op, o.target.height, now);
             }
             o.seq = o.seq.max(seq);
             o.due = Some(now);
@@ -919,7 +935,7 @@ pub(crate) fn apply(scene: &mut Scene, op: Op, frame_height: u32, now: Instant) 
             scene.restyle_camera(frame_height);
         }
         // Routed to the playback layer by the thread before it gets here.
-        Op::Media(_) => {}
+        Op::Media(_) | Op::StageCanvas(_) => {}
     }
 }
 

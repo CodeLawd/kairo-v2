@@ -433,6 +433,8 @@ pub struct SermonUploadInput {
     pub local_id: String,
     pub title: String,
     pub speaker: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub sermon_title: String,
     pub started_at: f64,
     pub ended_at: f64,
     pub transcript: Vec<SermonUploadSegment>,
@@ -820,6 +822,14 @@ pub struct TranscriptionGrant {
     pub access_token: String,
     pub expires_in: f64,
     pub session_id: String,
+    pub renew_after_seconds: f64,
+}
+
+/// A renewal extends the lease of the grant already held: the server answers
+/// with when to renew next, not a new token.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TranscriptionRenewal {
     pub renew_after_seconds: f64,
 }
 

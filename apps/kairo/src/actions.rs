@@ -380,6 +380,41 @@ impl Actions {
             .merge_fields("scripture", [("autoMode", serde_json::json!(enabled))]);
     }
 
+    /// Every automation option from the Operator's popover: applied to the
+    /// running service and saved in one write.
+    pub async fn set_automation(&self, automation: kairo_domain::settings::ScriptureAutomation) {
+        let threshold = automation.confidence_threshold.clamp(0.0, 1.0);
+        let delay = automation.auto_present_delay_sec;
+        self.scripture.set_auto_mode(automation.auto_mode);
+        self.scripture.set_confidence_threshold(threshold);
+        self.orchestrator.set_auto_mode(automation.auto_mode).await;
+        self.orchestrator.set_confidence_threshold(threshold).await;
+        self.orchestrator
+            .set_automation(automation.auto_present_passages, f64::from(delay.value()))
+            .await;
+        self.settings
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .merge_fields(
+                "scripture",
+                [
+                    ("autoMode", serde_json::json!(automation.auto_mode)),
+                    ("confidenceThreshold", serde_json::json!(threshold)),
+                    ("autoPresentDelaySec", serde_json::json!(delay)),
+                    (
+                        "autoPresentPassages",
+                        serde_json::json!(automation.auto_present_passages),
+                    ),
+                    ("followAlong", serde_json::json!(automation.follow_along)),
+                    ("autoClear", serde_json::json!(automation.auto_clear)),
+                    (
+                        "autoClearDelaySec",
+                        serde_json::json!(automation.auto_clear_delay_sec.max(0.0)),
+                    ),
+                ],
+            );
+    }
+
     pub async fn set_confidence(&self, threshold: f64) {
         self.scripture.set_confidence_threshold(threshold);
         self.orchestrator.set_confidence_threshold(threshold).await;
@@ -492,6 +527,7 @@ pub trait Presenter: Send + Sync {
     fn present_live_background(&self) -> BoxFuture<'_, bool>;
     fn set_auto_mode(&self, enabled: bool) -> BoxFuture<'_, ()>;
     fn set_confidence_threshold(&self, threshold: f64) -> BoxFuture<'_, ()>;
+    fn set_automation(&self, auto_present_passages: bool, delay_sec: f64) -> BoxFuture<'_, ()>;
 }
 impl Presenter for Orchestrator {
     fn present_lyric_slide(
@@ -520,6 +556,13 @@ impl Presenter for Orchestrator {
     }
     fn set_confidence_threshold(&self, threshold: f64) -> BoxFuture<'_, ()> {
         Box::pin(Orchestrator::set_confidence_threshold(self, threshold))
+    }
+    fn set_automation(&self, auto_present_passages: bool, delay_sec: f64) -> BoxFuture<'_, ()> {
+        Box::pin(Orchestrator::set_automation(
+            self,
+            auto_present_passages,
+            delay_sec,
+        ))
     }
 }
 
@@ -629,6 +672,9 @@ mod effects {
                 self.settings.lock().unwrap().data()["scripture"]["confidenceThreshold"],
                 json!(threshold)
             );
+            Box::pin(async {})
+        }
+        fn set_automation(&self, _: bool, _: f64) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
     }
@@ -1332,5 +1378,187 @@ impl Actions {
             .map_err(|e| e.to_string())?
             .map_err(|e| e.to_string())?;
         Ok(Some(path))
+    }
+}
+
+impl crate::services::ApplicationServices {
+    pub async fn teleprompter_request(
+        &self,
+        request: ui_operator::teleprompter::Request,
+    ) -> Result<ui_operator::teleprompter::Reply, String> {
+        use kairo_core::dialogs::{DialogRequest, FileFilter};
+        use kairo_output::actor::{
+            GetPrompterTargets, GetTeleprompterPosition, GetTeleprompterScript, LoadTeleprompter,
+            PrompterGoLive, PrompterTakeOff, SetTeleprompterLayout, TeleprompterTransport,
+        };
+        use kairo_store::teleprompter::ScriptLibrary;
+        use ui_operator::teleprompter::{Reply, Request, Target};
+
+        let library = ScriptLibrary::new(&self.paths().user_data);
+        match request {
+            Request::List => tokio::task::spawn_blocking(move || library.list())
+                .await
+                .map_err(|error| error.to_string())?
+                .map(Reply::Scripts)
+                .map_err(|error| error.to_string()),
+            Request::Save { id, title, body } => {
+                tokio::task::spawn_blocking(move || library.save(id.as_deref(), title, body))
+                    .await
+                    .map_err(|error| error.to_string())?
+                    .map(Reply::Saved)
+                    .map_err(|error| error.to_string())
+            }
+            Request::Publish {
+                id,
+                title,
+                body,
+                layout,
+                target,
+            } => {
+                let script =
+                    tokio::task::spawn_blocking(move || library.save(id.as_deref(), title, body))
+                        .await
+                        .map_err(|error| error.to_string())?
+                        .map_err(|error| error.to_string())?;
+                self.core
+                    .call(LoadTeleprompter {
+                        id: script.id.clone(),
+                        text: script.body.clone(),
+                        font_px: layout.font_px,
+                        speed: layout.speed,
+                        mirror: layout.mirror,
+                    })
+                    .await
+                    .map_err(|error| error.to_string())?;
+                if let Some(target) = target
+                    && !self
+                        .core
+                        .call(PrompterGoLive { target })
+                        .await
+                        .map_err(|error| error.to_string())?
+                {
+                    return Err("That screen isn\u{2019}t ready. Check it in Screens.".into());
+                }
+                Ok(Reply::Published(script))
+            }
+            Request::Delete { id } => {
+                let deleted = id.clone();
+                tokio::task::spawn_blocking(move || library.delete(&id))
+                    .await
+                    .map_err(|error| error.to_string())?
+                    .map_err(|error| error.to_string())?;
+                Ok(Reply::Deleted(deleted))
+            }
+            Request::Import => {
+                let Some(path) = self
+                    .ui
+                    .dialog(DialogRequest {
+                        title: Some("Import Word or PDF"),
+                        button_label: Some("Import"),
+                        directory: false,
+                        create_directory: false,
+                        multiple: false,
+                        save: false,
+                        filters: vec![FileFilter {
+                            name: "Word or PDF",
+                            extensions: &["docx", "pdf"],
+                        }],
+                        default_path: None,
+                    })
+                    .await?
+                    .into_iter()
+                    .next()
+                else {
+                    return Ok(Reply::Import(None));
+                };
+                let title = path
+                    .file_stem()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("Imported script")
+                    .to_owned();
+                let imported = kairo_documents::script_import::import_script(path)
+                    .await
+                    .map_err(|error| error.to_string())?;
+                Ok(Reply::Import(Some((
+                    title,
+                    imported.text,
+                    imported.warnings,
+                ))))
+            }
+            Request::Transport(operation) => {
+                if self
+                    .core
+                    .call(TeleprompterTransport { operation })
+                    .await
+                    .map_err(|error| error.to_string())?
+                {
+                    Ok(Reply::Transport)
+                } else {
+                    Err("Load a script on a connected teleprompter display first.".into())
+                }
+            }
+            Request::Layout(layout) => {
+                self.core
+                    .call(SetTeleprompterLayout {
+                        font_px: layout.font_px,
+                        mirror: layout.mirror,
+                    })
+                    .await
+                    .map_err(|error| error.to_string())?;
+                Ok(Reply::Transport)
+            }
+            Request::GoLive { target } => {
+                if self
+                    .core
+                    .call(PrompterGoLive { target })
+                    .await
+                    .map_err(|error| error.to_string())?
+                {
+                    Ok(Reply::Transport)
+                } else {
+                    Err("That screen isn\u{2019}t ready. Check it in Screens.".into())
+                }
+            }
+            Request::TakeOff => {
+                self.core
+                    .call(PrompterTakeOff {})
+                    .await
+                    .map_err(|error| error.to_string())?;
+                Ok(Reply::Transport)
+            }
+            Request::Status => {
+                let (targets, target, live) = self
+                    .core
+                    .call(GetPrompterTargets {})
+                    .await
+                    .map_err(|error| error.to_string())?;
+                let targets = targets
+                    .into_iter()
+                    .map(|t| Target {
+                        id: t.id,
+                        name: t.name,
+                        ready: t.ready,
+                        reason: t.reason,
+                    })
+                    .collect();
+                let position = self
+                    .core
+                    .call(GetTeleprompterPosition {})
+                    .await
+                    .map_err(|error| error.to_string())?
+                    .filter(|position| position.revision > 0 && live);
+                let script_id = self
+                    .core
+                    .call(GetTeleprompterScript {})
+                    .await
+                    .map_err(|error| error.to_string())?;
+                Ok(Reply::Status {
+                    targets,
+                    live: target.filter(|_| live),
+                    position,
+                    script_id,
+                })
+            }
+        }
     }
 }

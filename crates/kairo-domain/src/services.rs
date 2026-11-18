@@ -78,6 +78,9 @@ pub struct ServiceRecord {
     pub id: String,
     pub title: String,
     pub speaker: String,
+    /// Named when the service was saved; written only when given.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub sermon_title: String,
     pub created_at: f64,
     #[serde(deserialize_with = "required")]
     pub ended_at: Option<f64>,
@@ -128,6 +131,9 @@ pub enum ServiceCommand {
     End {
         title: String,
         speaker: String,
+        /// The sermon's own title; the recap uses it as its headline.
+        #[serde(default, skip_serializing_if = "String::is_empty")]
+        sermon_title: String,
         #[serde(deserialize_with = "required")]
         plan_id: Option<String>,
     },
@@ -217,6 +223,7 @@ pub fn to_sermon_upload(
         local_id: record.id.clone(),
         title: record.title.clone(),
         speaker: record.speaker.clone(),
+        sermon_title: record.sermon_title.clone(),
         started_at: record.created_at,
         ended_at: record.ended_at.unwrap_or(now_ms),
         transcript,

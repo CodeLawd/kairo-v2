@@ -34,9 +34,9 @@ pub mod ids {
     pub const METER: &str = "transcript-meter";
 }
 
-const METER_BARS: usize = 5;
+const METER_BARS: usize = 12;
 
-/// Which of the five meter bars light (`InputLevelMeter`).
+/// Which meter segments light, as the audio panel's level strip draws them.
 pub fn meter_lit(active: bool, rms: f64) -> [bool; METER_BARS] {
     let value = rms.clamp(0.0, 1.0);
     std::array::from_fn(|i| active && value >= (i as f64 + 0.5) / METER_BARS as f64)
@@ -86,24 +86,25 @@ impl TranscriptPanel {
             } else {
                 format!("Input level {percent}%")
             }))
-            .h_3()
+            .w(px(78.))
+            .h(px(6.))
             .flex_shrink_0()
-            .items_end()
             .gap(px(2.))
             .children((0..METER_BARS).map(|i| {
+                // Green, amber near the top, red when the input clips.
+                let on = if level.clipping {
+                    k.destructive
+                } else if i >= METER_BARS - 2 {
+                    k.hue(kairo_ui_kit::Hue::Amber)
+                } else {
+                    k.hue(kairo_ui_kit::Hue::Green)
+                };
                 div()
-                    .w(px(3.))
-                    .h(relative(0.4 + i as f32 * 0.15))
-                    .rounded_full()
-                    .bg(if lit[i] {
-                        if level.clipping {
-                            k.destructive
-                        } else {
-                            k.success_text
-                        }
-                    } else {
-                        k.surface_elevated
-                    })
+                    .min_w_0()
+                    .flex_1()
+                    .h_full()
+                    .rounded(px(1.))
+                    .bg(if lit[i] { on } else { k.surface_elevated })
             }));
         h_flex()
             .relative()
@@ -614,7 +615,14 @@ impl Render for TranscriptPanel {
         let nuggets: Vec<String> = booth.nuggets().into_iter().map(|n| n.1).collect();
         let can_save = booth.active_service().is_some();
         let idle = booth.transcript_idle();
-        let reconnecting = booth.resilience.is_some() && booth.stt_reconnecting();
+        // Only while listening: stopping also reports "disconnected".
+        let reconnecting =
+            booth.resilience.is_some() && booth.transcribing && booth.stt_reconnecting();
+        let (notice, detail) = if booth.stt_weak() {
+            ("Weak connection", "Captions may lag")
+        } else {
+            ("Reconnecting…", "Audio is buffered")
+        };
         let nuggets_open = booth.nuggets_open;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         for s in &segments {
@@ -660,7 +668,7 @@ impl Render for TranscriptPanel {
                         .bg(k.tints.amber)
                         .text_size(text::LABEL.size)
                         .text_color(k.warning_text)
-                        .child("Reconnecting…")
+                        .child(notice)
                         .child(
                             div()
                                 .rounded_sm()
@@ -668,7 +676,7 @@ impl Render for TranscriptPanel {
                                 .py_0p5()
                                 .bg(k.tints.amber)
                                 .text_size(px(9.))
-                                .child("Audio is buffered"),
+                                .child(detail),
                         ),
                 )
             })

@@ -93,7 +93,7 @@ pub fn now() -> Now {
     }
 }
 
-fn image(tile: Tile) -> Content {
+pub(crate) fn image(tile: Tile) -> Content {
     Content {
         rect: Some(Rect::new(
             tile.x as f32,
