@@ -761,35 +761,53 @@ fn gaussian_boxes(data: &mut [f32], width: usize, height: usize, sigma: f32) {
         .round()
         .clamp(0.0, 3.0) as usize;
     let mut scratch = vec![0.0; data.len()];
+    let mut column_sums = vec![0.0; width];
     for pass in 0..3 {
         let radius = if pass < small { lower / 2 } else { upper / 2 };
-        blur_axis(data, &mut scratch, height, width, width, 1, radius);
-        blur_axis(&scratch, data, width, height, 1, width, radius);
+        blur_rows(data, &mut scratch, width, radius);
+        // Keep the vertical running sums per column, but read and write
+        // whole rows so each pass walks contiguous pixels.
+        let divisor = (radius * 2 + 1) as f32;
+        column_sums.fill(0.0);
+        for row in scratch.chunks_exact(width).take(radius + 1) {
+            for (sum, pixel) in column_sums.iter_mut().zip(row) {
+                *sum += pixel;
+            }
+        }
+        for (y, row) in data.chunks_exact_mut(width).enumerate() {
+            for (pixel, sum) in row.iter_mut().zip(&column_sums) {
+                *pixel = sum / divisor;
+            }
+            if y >= radius {
+                let start = (y - radius) * width;
+                for (sum, pixel) in column_sums.iter_mut().zip(&scratch[start..][..width]) {
+                    *sum -= pixel;
+                }
+            }
+            if y + radius + 1 < height {
+                let start = (y + radius + 1) * width;
+                for (sum, pixel) in column_sums.iter_mut().zip(&scratch[start..][..width]) {
+                    *sum += pixel;
+                }
+            }
+        }
     }
 }
 
-fn blur_axis(
-    input: &[f32],
-    output: &mut [f32],
-    lines: usize,
-    length: usize,
-    line_stride: usize,
-    step: usize,
-    radius: usize,
-) {
+fn blur_rows(input: &[f32], output: &mut [f32], width: usize, radius: usize) {
     let divisor = (radius * 2 + 1) as f32;
-    for line in 0..lines {
-        let start = line * line_stride;
-        let mut sum: f32 = (0..=radius.min(length - 1))
-            .map(|i| input[start + i * step])
-            .sum();
-        for i in 0..length {
-            output[start + i * step] = sum / divisor;
+    for (input, output) in input
+        .chunks_exact(width)
+        .zip(output.chunks_exact_mut(width))
+    {
+        let mut sum: f32 = input[..width.min(radius + 1)].iter().copied().sum();
+        for (i, pixel) in output.iter_mut().enumerate() {
+            *pixel = sum / divisor;
             if i >= radius {
-                sum -= input[start + (i - radius) * step];
+                sum -= input[i - radius];
             }
-            if i + radius + 1 < length {
-                sum += input[start + (i + radius + 1) * step];
+            if let Some(entering) = input.get(i + radius + 1) {
+                sum += entering;
             }
         }
     }
