@@ -587,7 +587,11 @@ fn supervise(inner: Arc<Inner>) {
                 // The binary can be missing for a moment while a build
                 // replaces it: try again for a while before it counts as
                 // a crash, so that moment cannot spend the whole budget.
-                if retry_launch(&inner, &mut launch_retry) {
+                // Only a binary that could not be spawned: an engine that
+                // ran and exited (no window system, a bad handshake) fails
+                // at once, as before.
+                let spawn = format!("cannot start {}:", inner.options.binary.display());
+                if reason.starts_with(&spawn) && retry_launch(&inner, &mut launch_retry) {
                     tracing::warn!("output engine did not start, trying again: {reason}");
                     continue;
                 }
