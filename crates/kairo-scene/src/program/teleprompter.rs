@@ -124,6 +124,6 @@ mod tests {
         assert!(reflow.anchor_at(position + 1.0) > anchor);
         let tile = reflow.draw(&mut ts, position).unwrap();
         assert_eq!((tile.width, tile.height), frame);
-        assert!(tile.pixels.chunks_exact(4).any(|pixel| pixel == [255; 4]));
+        assert!(tile.pixels.as_chunks::<4>().0.contains(&[255; 4]));
     }
 }

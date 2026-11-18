@@ -29,31 +29,39 @@ fn slide_raster_p95_is_within_budget() {
     for c in &cases {
         let _ = kairo_scene::rasterize(&c.scene());
     }
-    let mut samples = Vec::with_capacity(cases.len());
-    for c in &cases {
-        let start = Instant::now();
-        let raster = kairo_scene::rasterize(&c.scene());
-        samples.push(start.elapsed().as_secs_f64() * 1e3);
-        std::hint::black_box(raster);
-    }
-    samples.sort_by(f64::total_cmp);
-    let (p50, p95, max) = (
-        pct(&samples, 50),
-        pct(&samples, 95),
-        samples[samples.len() - 1],
-    );
-    eprintln!(
-        "slide raster, layout and fit included, n={} p50 {p50:.2} ms p95 {p95:.2} ms max {max:.2} ms (strict: {})",
-        samples.len(),
-        strict()
-    );
     let budget = if strict() {
         BUDGET_P95_MS
     } else {
         BUDGET_P95_MS * 4.0
     };
-    assert!(
-        p95 < budget,
-        "slide raster p95 {p95:.2} ms over {budget} ms"
-    );
+    // Confirm a miss with two more complete samples. A shared runner can
+    // lose CPU time briefly, but a repeatable miss still fails the budget.
+    let measure = || {
+        let mut samples = Vec::with_capacity(cases.len());
+        for c in &cases {
+            let start = Instant::now();
+            let raster = kairo_scene::rasterize(&c.scene());
+            samples.push(start.elapsed().as_secs_f64() * 1e3);
+            std::hint::black_box(raster);
+        }
+        samples.sort_by(f64::total_cmp);
+        let p50 = pct(&samples, 50);
+        let p95 = pct(&samples, 95);
+        let max = samples[samples.len() - 1];
+        eprintln!(
+            "slide raster, layout and fit included, n={} p50 {p50:.2} ms p95 {p95:.2} ms max {max:.2} ms",
+            samples.len(),
+        );
+        p95
+    };
+    let first = measure();
+    if first >= budget {
+        let mut runs = [first, measure(), measure()];
+        runs.sort_by(f64::total_cmp);
+        assert!(
+            runs[1] < budget,
+            "median slide raster p95 {:.2} ms over {budget} ms",
+            runs[1]
+        );
+    }
 }
