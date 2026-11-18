@@ -583,7 +583,7 @@ fn general_saves_display_and_lyrics_and_live_controls_save_at_once(cx: &mut Test
     reveal(cx, &opened, &pane_ids::general::GLOSS.into());
     cx.update_window(opened.handle, |_, window, cx| {
         window.click(pane_ids::general::GLOSS, cx);
-        window.press("cmd-a", cx);
+        window.press("secondary-a", cx);
         window.input("#12", cx);
     })
     .unwrap();
@@ -624,7 +624,7 @@ fn overlay_saves_only_its_fields_and_reports_a_test_nobody_took(cx: &mut TestApp
     reveal(cx, &opened, &pane_ids::overlay::MAX_VERSES.into());
     cx.update_window(opened.handle, |_, window, cx| {
         window.click(pane_ids::overlay::MAX_VERSES, cx);
-        window.press("cmd-a", cx);
+        window.press("secondary-a", cx);
         window.input("abc", cx);
     })
     .unwrap();

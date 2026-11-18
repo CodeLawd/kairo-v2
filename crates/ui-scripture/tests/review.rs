@@ -299,7 +299,7 @@ fn undo_restores_the_text_and_rescans(cx: &mut TestAppContext) {
     type_text(cx, &o, " Rom 8:28");
     settle(cx, &o);
     assert_eq!(with(cx, &o, |r, _| r.analysis().matches.len()), 4);
-    press(cx, &o, "cmd-z");
+    press(cx, &o, "secondary-z");
     settle(cx, &o);
     assert_eq!(with(cx, &o, |r, cx| r.text(cx)), NOTES);
     assert_eq!(with(cx, &o, |r, _| r.analysis().matches.len()), 3);
@@ -310,7 +310,7 @@ fn paste_adds_references(cx: &mut TestAppContext) {
     let o = open(cx, NOTES);
     caret(cx, &o, NOTES.len());
     cx.write_to_clipboard(ClipboardItem::new_string(" Also John 3:16.".into()));
-    press(cx, &o, "cmd-v");
+    press(cx, &o, "secondary-v");
     settle(cx, &o);
     assert!(with(cx, &o, |r, cx| r.text(cx)).ends_with("again. Also John 3:16."));
     assert_eq!(with(cx, &o, |r, _| r.analysis().matches.len()), 4);

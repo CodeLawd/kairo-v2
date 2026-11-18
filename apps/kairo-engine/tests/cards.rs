@@ -3,7 +3,7 @@
 //! stands in for `decklink-helper` (no card is needed); with Blackmagic
 //! Desktop Video installed, the real helper is also asked for a port that
 //! does not exist.
-#![cfg(unix)]
+#![cfg(target_os = "macos")]
 
 use kairo_core::engine::*;
 use kairo_engine_proto::*;

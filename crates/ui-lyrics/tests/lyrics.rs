@@ -943,7 +943,7 @@ fn picks_select_all_and_remove_from_the_setlist(cx: &mut TestAppContext) {
     focus_list(cx, &opened);
     press(cx, &opened, "escape");
     assert!(read(cx, &opened, |m| m.picks().is_empty()));
-    press(cx, &opened, "cmd-a");
+    press(cx, &opened, "secondary-a");
     assert_eq!(read(cx, &opened, |m| m.picked_ids()), ["c", "a"]);
     act(cx, &opened, |m, cx| m.remove_picked(cx));
     assert!(titles(cx, &opened).is_empty());

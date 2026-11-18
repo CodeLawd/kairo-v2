@@ -384,7 +384,7 @@ fn a_topic_update_preserves_a_focused_name_draft(cx: &mut TestAppContext) {
     cx.update_window(o.handle, |_, w, cx| {
         let id = w.find_by_label("Name").path().last().unwrap().clone();
         w.click(id, cx);
-        w.press("cmd-a", cx);
+        w.press("secondary-a", cx);
         w.input("Renaming", cx);
     })
     .unwrap();
@@ -426,7 +426,7 @@ fn numeric_fields_follow_external_settings_and_restore_failed_writes(cx: &mut Te
     *o.fake.error.lock().unwrap() = Some("Disk full".into());
     cx.update_window(o.handle, |_, w, cx| {
         w.within("screens-ratio-width").click("input-state", cx);
-        w.press("cmd-a", cx);
+        w.press("secondary-a", cx);
         w.input("77", cx);
     })
     .unwrap();

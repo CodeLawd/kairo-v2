@@ -5,6 +5,7 @@
 #![cfg(unix)]
 
 use kairo_sinks::decklink::*;
+#[cfg(target_os = "macos")]
 use kairo_sinks::video_devices::Provider;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -15,6 +16,7 @@ fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+#[cfg(target_os = "macos")]
 fn prebuilt() -> PathBuf {
     repo().join("native/decklink/prebuilt/decklink-helper")
 }
@@ -27,6 +29,7 @@ fn script(dir: &Path, body: &str) -> PathBuf {
     path
 }
 
+#[cfg(target_os = "macos")]
 fn provider(dir: &Path, body: &str) -> DeckLinkProvider {
     // The temp folder stands in for the installed runtime.
     DeckLinkProvider::new(script(dir, body), dir.to_path_buf())
@@ -60,6 +63,7 @@ fn uses_the_bundled_helper_when_packaged_and_the_local_build_in_development() {
 
 // ─── inventory ──────────────────────────────────────────────────────────────
 
+#[cfg(target_os = "macos")]
 #[test]
 fn compares_desktop_video_versions_against_the_15_3_1_floor() {
     for old in ["12.9", "14.4.1", "15.3", "15.2.9"] {
@@ -71,6 +75,7 @@ fn compares_desktop_video_versions_against_the_15_3_1_floor() {
     assert!(!driver_too_old(None));
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn keeps_all_four_reported_channels_and_preserves_inactive_profile_explanations() {
     let dir = tempfile::tempdir().unwrap();
@@ -106,6 +111,7 @@ fn keeps_all_four_reported_channels_and_preserves_inactive_profile_explanations(
     assert_eq!(provider.status().version.as_deref(), Some("15.3.1"));
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn names_the_driver_version_when_desktop_video_is_too_old() {
     let dir = tempfile::tempdir().unwrap();
@@ -117,6 +123,7 @@ fn names_the_driver_version_when_desktop_video_is_too_old() {
     );
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn reports_the_helper_message_rather_than_the_command_line_when_listing_fails() {
     let dir = tempfile::tempdir().unwrap();
@@ -130,6 +137,7 @@ fn reports_the_helper_message_rather_than_the_command_line_when_listing_fails() 
     );
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn reports_compatibility_mode_for_a_supported_older_runtime() {
     let dir = tempfile::tempdir().unwrap();
@@ -146,6 +154,7 @@ fn reports_compatibility_mode_for_a_supported_older_runtime() {
     assert!(driver.message.contains("15.3.1") && driver.message.contains("compatibility mode"));
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn retains_the_unsupported_version_and_update_advice_when_enumeration_fails() {
     let dir = tempfile::tempdir().unwrap();
@@ -166,6 +175,7 @@ fn retains_the_unsupported_version_and_update_advice_when_enumeration_fails() {
     );
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn does_not_recommend_updating_a_current_driver_because_no_cards_were_found() {
     let dir = tempfile::tempdir().unwrap();
@@ -182,6 +192,7 @@ fn does_not_recommend_updating_a_current_driver_because_no_cards_were_found() {
     assert!(!driver.message.to_lowercase().contains("update"));
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn preserves_a_supported_driver_scan_failure_without_recommending_an_update() {
     for version in ["15.3.1", "16.4"] {
@@ -209,6 +220,7 @@ fn preserves_a_supported_driver_scan_failure_without_recommending_an_update() {
     }
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn invalid_inventory_and_missing_pieces_are_reasons_not_panics() {
     let dir = tempfile::tempdir().unwrap();
@@ -236,6 +248,7 @@ fn invalid_inventory_and_missing_pieces_are_reasons_not_panics() {
     );
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn ports_without_modes_explain_why_and_key_fill_and_unknown_ports_are_refused() {
     let dir = tempfile::tempdir().unwrap();
@@ -266,6 +279,7 @@ fn ports_without_modes_explain_why_and_key_fill_and_unknown_ports_are_refused() 
 
 /// A helper that lists one 1080p port and plays it, attaching the ring
 /// (`ring_ok`) or not, and copying stdin to `out`.
+#[cfg(target_os = "macos")]
 fn playing(dir: &Path, ring_ok: bool) -> DeckLinkProvider {
     let ring = if ring_ok {
         r#"{"event":"ring","ok":true}"#
@@ -287,6 +301,7 @@ esac"#,
     )
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn an_open_card_gets_a_frame_ring_at_the_mode_raster_when_the_helper_attaches_it() {
     let dir = tempfile::tempdir().unwrap();
@@ -306,6 +321,7 @@ fn an_open_card_gets_a_frame_ring_at_the_mode_raster_when_the_helper_attaches_it
     card.close();
 }
 
+#[cfg(target_os = "macos")]
 #[test]
 fn a_ring_the_helper_refuses_falls_back_to_cpu_frames() {
     let dir = tempfile::tempdir().unwrap();

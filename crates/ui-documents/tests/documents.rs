@@ -662,7 +662,7 @@ fn rename_saves_cancels_and_rejects_bad_names(cx: &mut TestAppContext) {
     act(cx, &o, |p, w, cx| p.start_rename("a", w, cx));
     assert!(exists(cx, &o, ids::RENAME));
     cx.update_window(o.handle, |_, w, cx| {
-        w.press("cmd-a", cx);
+        w.press("secondary-a", cx);
         w.input("New name", cx);
         w.press("enter", cx);
     })
@@ -677,7 +677,7 @@ fn rename_saves_cancels_and_rejects_bad_names(cx: &mut TestAppContext) {
     // Escape keeps the old name.
     act(cx, &o, |p, w, cx| p.start_rename("b", w, cx));
     cx.update_window(o.handle, |_, w, cx| {
-        w.press("cmd-a", cx);
+        w.press("secondary-a", cx);
         w.input("Nope", cx);
         w.press("escape", cx);
     })
@@ -693,7 +693,7 @@ fn rename_saves_cancels_and_rejects_bad_names(cx: &mut TestAppContext) {
     // A slash is refused before the round trip.
     act(cx, &o, |p, w, cx| p.start_rename("b", w, cx));
     cx.update_window(o.handle, |_, w, cx| {
-        w.press("cmd-a", cx);
+        w.press("secondary-a", cx);
         w.input("a/b", cx);
         w.press("enter", cx);
     })
