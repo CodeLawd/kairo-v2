@@ -79,15 +79,18 @@ impl Drop for PrimaryInstance {
         // accepting again (on Windows there is then no pipe to connect to),
         // so the wake-up is retried for a moment.
         let deadline = Instant::now() + Duration::from_secs(2);
-        let woken = loop {
+        let wake = loop {
             match to_name(&listening.name).and_then(LocalSocketStream::connect) {
-                Ok(_) => break true,
-                Err(_) if Instant::now() >= deadline => break false,
+                Ok(stream) => break Some(stream),
+                Err(_) if Instant::now() >= deadline => break None,
                 Err(_) => std::thread::sleep(Duration::from_millis(10)),
             }
         };
+        // A Windows listener discards a client that disconnected before
+        // accept and goes back to waiting. Keep this client alive until
+        // the listener sees the stop flag.
         if let Some(thread) = listening.thread.take()
-            && woken
+            && wake.is_some()
         {
             let _ = thread.join();
         }
