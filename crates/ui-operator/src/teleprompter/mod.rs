@@ -788,10 +788,7 @@ impl Teleprompter {
             .map_or(0.0, |last| now.duration_since(last).as_secs_f32());
         self.last_tick = Some(now);
         let max = f32::from(self.preview_scroll.max_offset().y).max(0.0);
-        let rate = self
-            .lines_scale()
-            .map_or(self.line_px(), |per_line| per_line)
-            * self.layout.speed as f32;
+        let rate = self.lines_scale().unwrap_or(self.line_px()) * self.layout.speed as f32;
         self.scroll_preview(self.offset + rate * elapsed);
         cx.notify();
         if max > 0.0 && self.offset >= max {

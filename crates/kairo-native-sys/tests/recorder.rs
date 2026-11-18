@@ -4,6 +4,10 @@
 //! IOSurface path this port does not carry.
 #![cfg(target_os = "macos")]
 
+// These cases exercise real-time media on the same host. Run them
+// in series so fixture encoding and playback do not contend.
+static MEDIA_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 use kairo_native_sys::recorder::{self, Open, Pushed, Recorder, probe};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -73,6 +77,7 @@ fn ffprobe(path: &Path) -> Option<(String, String)> {
 
 #[test]
 fn available_on_this_mac_with_its_audio_inputs() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     assert_eq!(recorder::available(), Ok(()));
     // Listing never fails; it may be empty.
     let _ = recorder::audio_inputs();
@@ -80,6 +85,7 @@ fn available_on_this_mac_with_its_audio_inputs() {
 
 #[test]
 fn a_frame_is_recorded_to_h264_at_its_colour_and_a_still_slide_keeps_the_frame_rate() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let dir = tempfile::tempdir().unwrap();
     let (path, rec) = open(dir.path(), "h264.mov", "h264");
     assert_eq!(
@@ -120,6 +126,7 @@ fn a_frame_is_recorded_to_h264_at_its_colour_and_a_still_slide_keeps_the_frame_r
 
 #[test]
 fn frames_of_another_size_are_scaled_with_padded_rows() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let dir = tempfile::tempdir().unwrap();
     let (path, rec) = open(dir.path(), "scaled.mov", "h264");
     // 640 × 360 with 64 bytes of padding per row, as a GPU read-back has.
@@ -142,6 +149,7 @@ fn frames_of_another_size_are_scaled_with_padded_rows() {
 
 #[test]
 fn prores_4444_keeps_transparency_for_keying() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let dir = tempfile::tempdir().unwrap();
     let (path, rec) = open(dir.path(), "alpha.mov", "prores4444");
     // Half-transparent red, premultiplied.
@@ -167,6 +175,7 @@ fn prores_4444_keeps_transparency_for_keying() {
 
 #[test]
 fn hevc_and_prores_422_encode() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let dir = tempfile::tempdir().unwrap();
     for (codec, fourcc, ff) in [("hevc", "hvc1", "hevc"), ("prores422", "apcn", "prores")] {
         let (path, rec) = open(dir.path(), &format!("{codec}.mov"), codec);
@@ -183,6 +192,7 @@ fn hevc_and_prores_422_encode() {
 
 #[test]
 fn an_instant_stop_still_writes_the_first_frame_and_stats_count() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let dir = tempfile::tempdir().unwrap();
     let (_, rec) = open(dir.path(), "instant.mov", "h264");
     let (stats, error) = rec.stats();
@@ -197,6 +207,7 @@ fn an_instant_stop_still_writes_the_first_frame_and_stats_count() {
 
 #[test]
 fn bad_input_is_refused_before_a_file_is_made() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("x.mov");
     let p = path.to_str().unwrap();
@@ -255,6 +266,7 @@ fn bad_input_is_refused_before_a_file_is_made() {
 
 #[test]
 fn a_recorder_dropped_without_stop_abandons_the_file() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let dir = tempfile::tempdir().unwrap();
     let (path, rec) = open(dir.path(), "dropped.mov", "h264");
     rec.push(&solid(W, H, [0, 0, 255, 255]), W, H, (W * 4) as usize);

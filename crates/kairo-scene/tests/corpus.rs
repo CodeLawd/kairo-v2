@@ -68,6 +68,12 @@ fn compare() -> (Vec<Outcome>, usize) {
 #[test]
 fn line_breaks_and_fitted_sizes_match_chromium() {
     let (outcomes, _) = compare();
+    // The committed Chromium capture used macOS system fonts. Layer
+    // structure is checked above on every platform, but line breaks and
+    // fitted sizes depend on the platform's available fonts.
+    if !cfg!(target_os = "macos") {
+        return;
+    }
     let fitted: Vec<&Outcome> = outcomes
         .iter()
         .filter(|o| {

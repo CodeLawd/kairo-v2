@@ -12,6 +12,10 @@ use std::time::{Duration, Instant};
 
 const BITS: u32 = 10;
 
+// These cases exercise real-time media on the same host. Run them
+// in series so fixture encoding and playback do not contend.
+static MEDIA_TEST: Mutex<()> = Mutex::new(());
+
 /// Fixtures are made once per test run.
 fn dir() -> &'static Path {
     static DIR: OnceLock<tempfile::TempDir> = OnceLock::new();
@@ -30,10 +34,6 @@ fn has_encoder(name: &str) -> bool {
 /// A `seconds` clip at `fps`, 640 × 360, keyframe every second. H.264 when
 /// this FFmpeg has libx264, else MPEG-4 part 2.
 fn clip(name: &str, fps: u32, seconds: f64, extra: &[&str]) -> PathBuf {
-    // Parallel tests share names. Existence alone does not mean FFmpeg has
-    // finished writing the MP4 header; never decode or overwrite a partial file.
-    static GENERATING: Mutex<()> = Mutex::new(());
-    let _generation = GENERATING.lock().unwrap();
     let path = dir().join(name);
     if path.exists() {
         return path;
@@ -173,6 +173,7 @@ fn wait_until(what: &str, within: Duration, mut done: impl FnMut() -> bool) {
 
 #[test]
 fn frames_arrive_in_order_on_the_clock() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("clock.mp4", 30, 3.0, &[]);
     let mut r = rig(false);
     r.videos.sync("a", vec![background(1, 10, params(&path))]);
@@ -200,6 +201,7 @@ fn frames_arrive_in_order_on_the_clock() {
 
 #[test]
 fn a_trimmed_loop_wraps_at_its_bounds_without_a_gap() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("trim.mp4", 30, 3.0, &[]);
     let mut r = rig(false);
     let mut p = params(&path);
@@ -232,6 +234,7 @@ fn a_trimmed_loop_wraps_at_its_bounds_without_a_gap() {
 
 #[test]
 fn a_trimmed_range_without_loop_ends_paused_at_its_end_and_resume_rewinds() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("trim.mp4", 30, 3.0, &[]);
     let mut r = rig(false);
     let mut p = params(&path);
@@ -257,6 +260,7 @@ fn a_trimmed_range_without_loop_ends_paused_at_its_end_and_resume_rewinds() {
 
 #[test]
 fn seek_lands_on_the_target_frame_and_pause_holds_it() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("clock.mp4", 30, 3.0, &[]);
     let mut r = rig(false);
     r.videos.sync("a", vec![background(1, 13, params(&path))]);
@@ -288,6 +292,7 @@ fn seek_lands_on_the_target_frame_and_pause_holds_it() {
 
 #[test]
 fn rate_changes_the_clock() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("clock.mp4", 30, 3.0, &[]);
     let mut r = rig(false);
     let mut p = params(&path);
@@ -307,6 +312,7 @@ fn rate_changes_the_clock() {
 
 #[test]
 fn outputs_at_the_same_cue_share_one_decoder_and_a_new_cue_restarts() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("clock.mp4", 30, 3.0, &[]);
     let mut r = rig(false);
     r.videos.sync("a", vec![background(1, 20, params(&path))]);
@@ -373,6 +379,7 @@ fn outputs_at_the_same_cue_share_one_decoder_and_a_new_cue_restarts() {
 
 #[test]
 fn loop_turned_on_after_the_end_restarts_and_a_patch_does_not() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("short.mp4", 30, 0.5, &[]);
     let mut r = rig(false);
     r.videos.sync("a", vec![background(1, 30, params(&path))]);
@@ -396,6 +403,7 @@ fn loop_turned_on_after_the_end_restarts_and_a_patch_does_not() {
 
 #[test]
 fn a_corrupt_or_missing_file_shows_nothing_and_counts_as_ended() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let corrupt = dir().join("corrupt.mp4");
     std::fs::write(&corrupt, b"this is not a video file at all, just text").unwrap();
     let truncated = dir().join("truncated.mp4");
@@ -447,6 +455,7 @@ fn a_corrupt_or_missing_file_shows_nothing_and_counts_as_ended() {
 
 #[test]
 fn hardware_decode_is_used_when_it_can_and_matches_software() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let path = clip("clock.mp4", 30, 3.0, &[]);
     let mut r = rig(true);
     r.videos.sync("a", vec![background(1, 50, params(&path))]);
@@ -462,6 +471,7 @@ fn hardware_decode_is_used_when_it_can_and_matches_software() {
 
 #[test]
 fn ten_bit_and_alpha_streams_decode() {
+    let _media = MEDIA_TEST.lock().unwrap_or_else(|error| error.into_inner());
     let mut r = rig(true);
     if has_encoder("libx265") {
         let path = clip(

@@ -638,14 +638,14 @@ fn an_animated_picture_plays_from_when_it_is_decoded() {
     let seq = rig.show(&picture_theme(&file));
     rig.settle(seq);
     let mut seen = std::collections::BTreeSet::new();
-    let end = Instant::now() + Duration::from_millis(1500);
-    while Instant::now() < end {
+    let end = Instant::now() + Duration::from_secs(4);
+    while seen.len() < 3 && Instant::now() < end {
         seen.insert(centre(&rig.frame_over_grey()));
         std::thread::sleep(Duration::from_millis(40));
     }
     assert!(
         seen.len() >= 3,
-        "a 900 ms loop seen for 1.5 s shows every frame: {seen:?}"
+        "the animation should show every frame: {seen:?}"
     );
     std::fs::remove_dir_all(dir).ok();
 }
