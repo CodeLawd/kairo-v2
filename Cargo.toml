@@ -67,6 +67,15 @@ gpui-kit = { version = "=0.9.1", features = ["gpui-fast"] }
 gpui-pre = { path = "compat/gpui-pre" }
 gpui-pre-platform = { path = "compat/gpui-pre-platform" }
 
+# Keep target/ small: line tables for our crates (backtraces keep file:line),
+# no debug info for dependencies. Set `debug = true` locally to inspect
+# variables in a debugger.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
 # Slide text is shaped and rasterised on the CPU. Unoptimised, the 480-case
 # corpus (prompt 052) takes minutes in `cargo test`, so the crates that do
 # that work are optimised in dev and test builds. Nothing else changes.
