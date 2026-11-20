@@ -709,21 +709,23 @@ impl LiveRail {
                                     format!("Skip back {} seconds", transport::SKIP_SECONDS),
                                     KairoIcon::SkipBack,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.skip(-transport::SKIP_SECONDS, cx)
-                                })),
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| this.skip(-transport::SKIP_SECONDS, cx),
+                                )),
                             )
                             .child(
                                 Button::new("video-play")
                                     .cursor_pointer()
                                     .secondary()
                                     .small()
-                                    .icon(Icon::new(if playing {
-                                        KairoIcon::Pause
-                                    } else {
-                                        KairoIcon::Play
-                                    })
-                                    .size_3p5())
+                                    .icon(
+                                        Icon::new(if playing {
+                                            KairoIcon::Pause
+                                        } else {
+                                            KairoIcon::Play
+                                        })
+                                        .size_3p5(),
+                                    )
                                     .accessibility_label(play_label)
                                     .tooltip(play_label)
                                     .on_click(cx.listener(|this, _, _, cx| this.toggle_pause(cx))),
@@ -734,9 +736,9 @@ impl LiveRail {
                                     format!("Skip forward {} seconds", transport::SKIP_SECONDS),
                                     KairoIcon::SkipForward,
                                 )
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.skip(transport::SKIP_SECONDS, cx)
-                                })),
+                                .on_click(cx.listener(
+                                    |this, _, _, cx| this.skip(transport::SKIP_SECONDS, cx),
+                                )),
                             ),
                     )
                     .child(loop_btn),

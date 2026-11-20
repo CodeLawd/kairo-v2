@@ -499,61 +499,61 @@ impl QuickOpen {
         let active = index == self.active;
         let lyrics = self.lyrics.read(cx);
         let setlist = lyrics.active_setlist();
-        let (icon, title, meta, snippet, queued, importing, is_local, open_label, badge) = match &row
-        {
-            Row::Local(hit) => {
-                let song = &lyrics.songs()[hit.song];
-                let sections = song.sections.len();
-                let meta = match (song.artist.trim().is_empty(), sections) {
-                    (false, 0) => format!("{} · No lyrics yet", song.artist.trim()),
-                    (false, 1) => format!("{} · 1 section", song.artist.trim()),
-                    (false, n) => format!("{} · {n} sections", song.artist.trim()),
-                    (true, 0) => "No lyrics yet".into(),
-                    (true, 1) => "1 section".into(),
-                    (true, n) => format!("{n} sections"),
-                };
-                (
-                    KairoIcon::Music2,
-                    song.title.clone(),
-                    meta,
-                    hit.matched_lyric.as_ref().map(|l| l.trim().to_owned()),
-                    setlist.is_some_and(|l| l.song_ids.contains(&song.id))
-                        || self.added.as_deref() == Some(song.id.as_str()),
+        let (icon, title, meta, snippet, queued, importing, is_local, open_label, badge) =
+            match &row {
+                Row::Local(hit) => {
+                    let song = &lyrics.songs()[hit.song];
+                    let sections = song.sections.len();
+                    let meta = match (song.artist.trim().is_empty(), sections) {
+                        (false, 0) => format!("{} · No lyrics yet", song.artist.trim()),
+                        (false, 1) => format!("{} · 1 section", song.artist.trim()),
+                        (false, n) => format!("{} · {n} sections", song.artist.trim()),
+                        (true, 0) => "No lyrics yet".into(),
+                        (true, 1) => "1 section".into(),
+                        (true, n) => format!("{n} sections"),
+                    };
+                    (
+                        KairoIcon::Music2,
+                        song.title.clone(),
+                        meta,
+                        hit.matched_lyric.as_ref().map(|l| l.trim().to_owned()),
+                        setlist.is_some_and(|l| l.song_ids.contains(&song.id))
+                            || self.added.as_deref() == Some(song.id.as_str()),
+                        false,
+                        true,
+                        "Open",
+                        None,
+                    )
+                }
+                Row::Online(r) => (
+                    KairoIcon::Globe,
+                    r.title.clone(),
+                    if rows::lyrics_unavailable(r) {
+                        "Web match · Open source".into()
+                    } else if r.artist.trim().is_empty() {
+                        "Unknown artist".into()
+                    } else {
+                        r.artist.clone()
+                    },
+                    r.snippet
+                        .as_ref()
+                        .map(|s| s.trim().to_owned())
+                        .filter(|s| !s.is_empty()),
                     false,
-                    true,
-                    "Open",
-                    None,
-                )
-            }
-            Row::Online(r) => (
-                KairoIcon::Globe,
-                r.title.clone(),
-                if rows::lyrics_unavailable(r) {
-                    "Web match · Open source".into()
-                } else if r.artist.trim().is_empty() {
-                    "Unknown artist".into()
-                } else {
-                    r.artist.clone()
-                },
-                r.snippet
-                    .as_ref()
-                    .map(|s| s.trim().to_owned())
-                    .filter(|s| !s.is_empty()),
-                false,
-                self.importing.as_deref() == Some(r.id.as_str()),
-                false,
-                if rows::lyrics_unavailable(r) {
-                    "Source"
-                } else {
-                    "Import"
-                },
-                Some(if r.existing_song_id.is_some() {
-                    "In library".to_owned()
-                } else {
-                    r.provider.as_str().to_owned()
-                }),
-            ),
-        };
+                    self.importing.as_deref() == Some(r.id.as_str()),
+                    false,
+                    if rows::lyrics_unavailable(r) {
+                        "Source"
+                    } else {
+                        "Import"
+                    },
+                    Some(if r.existing_song_id.is_some() {
+                        "In library".to_owned()
+                    } else {
+                        r.provider.as_str().to_owned()
+                    }),
+                ),
+            };
         let first_web = index == self.hits.len() && matches!(row, Row::Online(_));
         let web_count = self.online.len();
         let row_h = if snippet.is_some() {
@@ -646,16 +646,17 @@ impl QuickOpen {
                                 .rounded(radius::sm())
                                 .map(|d| {
                                     if active {
-                                        d.bg(k.accent(kairo_ui_kit::tokens::Step::S500)
+                                        d.bg(k
+                                            .accent(kairo_ui_kit::tokens::Step::S500)
                                             .opacity(0.22))
                                             .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
                                     } else if !is_local {
-                                        d.bg(k.accent(kairo_ui_kit::tokens::Step::S500)
+                                        d.bg(k
+                                            .accent(kairo_ui_kit::tokens::Step::S500)
                                             .opacity(0.10))
                                             .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
                                     } else {
-                                        d.bg(k.surface_tertiary)
-                                            .text_color(k.text(TextStep::T400))
+                                        d.bg(k.surface_tertiary).text_color(k.text(TextStep::T400))
                                     }
                                 })
                                 .child(Icon::new(icon).size_3p5()),
@@ -762,10 +763,9 @@ impl QuickOpen {
                                     .flex_none()
                                     .items_center()
                                     .gap_1()
-                                    .on_mouse_down(
-                                        gpui_kit::MouseButton::Left,
-                                        |_, _, cx| cx.stop_propagation(),
-                                    )
+                                    .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
+                                        cx.stop_propagation()
+                                    })
                                     .when(is_local, |d| {
                                         d.child(
                                             Button::new(SharedString::from(format!(
@@ -805,11 +805,12 @@ impl QuickOpen {
                                         .primary()
                                         .xsmall()
                                         .label(open_label)
-                                        .on_click(move |_, _, cx| {
-                                            open_click.update(cx, |this, cx| {
-                                                this.open_row(index, cx)
-                                            })
-                                        }),
+                                        .on_click(
+                                            move |_, _, cx| {
+                                                open_click
+                                                    .update(cx, |this, cx| this.open_row(index, cx))
+                                            },
+                                        ),
                                     ),
                                 ("quick-open-row-actions", index),
                                 motion::ACTION_IN,
@@ -1340,44 +1341,48 @@ impl Render for QuickOpen {
                 )
                 .child(search_skeleton_rows(k, 2, cx))
         });
-        let online_err = self.online_error.as_ref().filter(|_| rows_n > 0).map(|err| {
-            let retry = entity.clone();
-            motion::animate(
-                h_flex()
-                    .mx_2p5()
-                    .mb_2()
-                    .items_center()
-                    .justify_between()
-                    .gap_2()
-                    .px_3()
-                    .py_2()
-                    .rounded(radius::md())
-                    .bg(k.tints.red)
-                    .child(
-                        div()
-                            .min_w_0()
-                            .flex_1()
-                            .text_size(text::LABEL.size)
-                            .text_color(k.danger_text_soft)
-                            .child(err.clone()),
-                    )
-                    .when(self.can_search_web(), |d| {
-                        d.child(
-                            Button::new("lyrics-quick-open-retry-web")
-                                .cursor_pointer()
-                                .ghost()
-                                .xsmall()
-                                .label("Try again")
-                                .on_click(move |_, _, cx| {
-                                    retry.update(cx, |this, cx| this.search_web(cx))
-                                }),
+        let online_err = self
+            .online_error
+            .as_ref()
+            .filter(|_| rows_n > 0)
+            .map(|err| {
+                let retry = entity.clone();
+                motion::animate(
+                    h_flex()
+                        .mx_2p5()
+                        .mb_2()
+                        .items_center()
+                        .justify_between()
+                        .gap_2()
+                        .px_3()
+                        .py_2()
+                        .rounded(radius::md())
+                        .bg(k.tints.red)
+                        .child(
+                            div()
+                                .min_w_0()
+                                .flex_1()
+                                .text_size(text::LABEL.size)
+                                .text_color(k.danger_text_soft)
+                                .child(err.clone()),
                         )
-                    }),
-                "quick-open-error-shake",
-                motion::OB_SHAKE,
-                cx,
-            )
-        });
+                        .when(self.can_search_web(), |d| {
+                            d.child(
+                                Button::new("lyrics-quick-open-retry-web")
+                                    .cursor_pointer()
+                                    .ghost()
+                                    .xsmall()
+                                    .label("Try again")
+                                    .on_click(move |_, _, cx| {
+                                        retry.update(cx, |this, cx| this.search_web(cx))
+                                    }),
+                            )
+                        }),
+                    "quick-open-error-shake",
+                    motion::OB_SHAKE,
+                    cx,
+                )
+            });
         let searching_pill = self.online_searching.then(|| {
             motion::animate(
                 h_flex()
@@ -1562,10 +1567,7 @@ impl Render for QuickOpen {
     }
 }
 
-fn preview_section_card(
-    k: kairo_ui_kit::KairoColors,
-    section: &LyricsSongSection,
-) -> AnyElement {
+fn preview_section_card(k: kairo_ui_kit::KairoColors, section: &LyricsSongSection) -> AnyElement {
     div()
         .rounded(radius::md())
         .bg(k.surface.opacity(0.6))
@@ -1587,7 +1589,13 @@ fn preview_skeleton(k: kairo_ui_kit::KairoColors, cx: &gpui_kit::App) -> AnyElem
             .border_color(k.panel_border)
             .px_3()
             .py_2p5()
-            .child(div().h(px(10.)).w(px(64.)).rounded(radius::sm()).bg(k.surface_tertiary))
+            .child(
+                div()
+                    .h(px(10.))
+                    .w(px(64.))
+                    .rounded(radius::sm())
+                    .bg(k.surface_tertiary),
+            )
             .children(widths.iter().map(|w| {
                 div()
                     .h(px(12.))
@@ -1636,7 +1644,13 @@ fn search_skeleton_rows(
                 .bg(k.surface.opacity(0.5))
                 .border_1()
                 .border_color(k.panel_border.opacity(0.6))
-                .child(div().size_7().flex_none().rounded(radius::sm()).bg(k.surface_tertiary))
+                .child(
+                    div()
+                        .size_7()
+                        .flex_none()
+                        .rounded(radius::sm())
+                        .bg(k.surface_tertiary),
+                )
                 .child(
                     v_flex()
                         .min_w_0()

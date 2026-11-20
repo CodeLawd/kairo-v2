@@ -1651,7 +1651,9 @@ impl Render for MessagesPanel {
                     .children(rows.into_iter().enumerate().map(|(i, row)| {
                         div()
                             .py_1()
-                            .when(i > 0, |s| s.mt_1().pt_2().border_t_1().border_color(k.panel_border))
+                            .when(i > 0, |s| {
+                                s.mt_1().pt_2().border_t_1().border_color(k.panel_border)
+                            })
                             .child(row)
                     }))
                     .when(empty, |this| {
@@ -2009,21 +2011,14 @@ impl Render for PropsPanel {
                             )
                         })
                         .when_some(renaming, |this, input| {
-                            this.child(
-                                Input::new(&input).kairo_size().xsmall().aria_label("Name"),
-                            )
+                            this.child(Input::new(&input).kairo_size().xsmall().aria_label("Name"))
                         })
                         .when(on, |this| {
                             this.child(
                                 h_flex()
                                     .items_center()
                                     .gap_1()
-                                    .child(
-                                        div()
-                                            .size(px(6.))
-                                            .rounded_full()
-                                            .bg(k.live),
-                                    )
+                                    .child(div().size(px(6.)).rounded_full().bg(k.live))
                                     .child(
                                         div()
                                             .text_size(text::MICRO.size)
