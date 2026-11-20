@@ -131,8 +131,14 @@ impl Diagnostics {
             let transparent = kind == WindowKind::Identify;
             // Diagnostic windows are always borderless/nonactivating, including
             // a half-sized shape card on the control display.
-            let window =
-                crate::window_policy::open(el, "Kairo display check", &bounds, false, transparent)?;
+            let window = crate::window_policy::open(
+                el,
+                "Kairo display check",
+                &bounds,
+                display.scale_factor,
+                false,
+                transparent,
+            )?;
             let alive = Arc::new(AtomicBool::new(true));
             let ready = alive.clone();
             let shown = window.clone();

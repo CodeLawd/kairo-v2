@@ -1149,7 +1149,11 @@ impl Engine {
                                         } else {
                                             target.bounds.clone()
                                         };
-                                        crate::window_policy::set_bounds(&w.window, &bounds);
+                                        crate::window_policy::set_bounds(
+                                            &w.window,
+                                            &bounds,
+                                            target.scale_factor,
+                                        );
                                         crate::window_policy::show(&w.window, sink.rehearsal);
                                     }
                                     w.target = target;
@@ -1584,9 +1588,15 @@ impl Engine {
         } else {
             label
         };
-        let window =
-            crate::window_policy::open(event_loop, &title, &bounds, sink.rehearsal, false)?;
-        crate::window_policy::set_bounds(&window, &bounds);
+        let window = crate::window_policy::open(
+            event_loop,
+            &title,
+            &bounds,
+            target.scale_factor,
+            sink.rehearsal,
+            false,
+        )?;
+        crate::window_policy::set_bounds(&window, &bounds, target.scale_factor);
         #[cfg(not(target_os = "macos"))]
         if !sink.rehearsal {
             // Use true borderless fullscreen on Windows so the taskbar cannot
