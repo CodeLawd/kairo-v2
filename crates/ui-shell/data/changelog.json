@@ -1,5 +1,33 @@
 [
   {
+    "date": "2026-11-20",
+    "highlights": [
+      {
+        "body": "Kairo 2.0 runs natively on your computer, so it opens quickly and stays smooth during a live service.",
+        "icon": "speed",
+        "title": "Rebuilt as a native app"
+      },
+      {
+        "body": "Moderators using Google with 2-Step Verification can now sign in to Slido from Kairo.",
+        "icon": "cloud",
+        "title": "Slido sign-in that works"
+      },
+      {
+        "body": "Backgrounds and playlists sit in a cleaner, more compact sidebar.",
+        "icon": "media",
+        "title": "A tidier media panel"
+      }
+    ],
+    "notes": [
+      "Kairo has been rebuilt as a native app for Mac, Windows and Linux, so it starts faster and stays responsive through a full service.",
+      "Slido moderators can now sign in with Google accounts that use 2-Step Verification.",
+      "Song quick open has a new look with smoother motion, and lyric section labels take up less space.",
+      "The media panel has a cleaner sidebar for your backgrounds and playlists."
+    ],
+    "title": "Kairo 2.0, rebuilt from the ground up",
+    "version": "2.0.0"
+  },
+  {
     "date": "2026-11-08",
     "notes": [
       "Scripture detection and presentation have been improved, and song search finds the right song more easily.",
