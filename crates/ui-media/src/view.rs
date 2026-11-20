@@ -31,7 +31,7 @@ use kairo_ui_kit::components::{
     ConfirmRequest, Marquee, MarqueeBand, MarqueeStep, PressTarget, SelectionAction, SelectionBar,
     ZoomChanged, ZoomControl, ZoomRange, confirm,
 };
-use kairo_ui_kit::tokens::{Hue, Step, TextStep, text};
+use kairo_ui_kit::tokens::{Step, TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 use serde_json::{Map, json};
 
@@ -500,52 +500,56 @@ impl MediaDockView {
                 .test_support()
                 .role(Role::Button)
                 .aria_label(SharedString::from(label.clone()))
-                .mx_1p5()
+                .items_center()
                 .gap_2()
+                .h_7()
                 .px_2()
-                .py_1p5()
+                .rounded(radius::md())
+                .cursor_pointer()
+                .text_size(text::XS.size)
                 .map(|d| {
                     if active {
-                        d.bg(k.row_selected()).text_color(k.text_primary)
+                        d.bg(k.accent(Step::S500).opacity(0.16))
+                            .text_color(k.text_primary)
+                            .font_weight(FontWeight::MEDIUM)
                     } else {
-                        d.text_color(k.text(TextStep::T400))
-                            .hover(|s| s.bg(k.surface_tertiary))
+                        d.text_color(k.text(TextStep::T300)).hover(|s| {
+                            s.bg(k.surface_tertiary.opacity(0.6))
+                                .text_color(k.text_primary)
+                        })
                     }
                 })
                 .child(
-                    Icon::new(icon.fill())
-                        .size_3()
-                        .text_color(k.hue(Hue::Orange)),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .truncate()
-                        .text_size(text::XS.size)
-                        .child(label),
-                )
-                .child(
-                    div()
-                        .text_size(text::MICRO.size)
-                        .text_color(k.text(if active {
-                            TextStep::T400
+                    Icon::new(icon)
+                        .size_3p5()
+                        .flex_none()
+                        .text_color(if active {
+                            k.accent(Step::S400)
                         } else {
-                            TextStep::T600
-                        }))
-                        .child(count.to_string()),
+                            k.text(TextStep::T500)
+                        }),
+                )
+                .child(div().flex_1().min_w_0().truncate().child(label))
+                .child(
+                    div()
+                        .flex_none()
+                        .text_size(text::MICRO.size)
+                        .text_color(if active {
+                            k.accent(Step::S300)
+                        } else {
+                            k.text(TextStep::T600)
+                        })
+                        .when(count > 0, |d| d.child(count.to_string())),
                 )
         };
         let heading = |label: &'static str| {
             div()
-                .px_3()
-                .pt_2()
-                .h_7()
-                .flex()
-                .items_center()
+                .px_2()
+                .flex_1()
                 .text_size(text::MICRO.size)
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(k.text(TextStep::T500))
-                .child(label.to_uppercase())
+                .child(label)
         };
         let all = {
             let m = model.clone();
@@ -583,7 +587,7 @@ impl MediaDockView {
                 let menu_model = model.clone();
                 row(
                     ids::playlist(&p.id).into(),
-                    KairoIcon::Queue,
+                    KairoIcon::Layers,
                     p.name.clone(),
                     p.item_ids.len(),
                     active,
@@ -622,13 +626,17 @@ impl MediaDockView {
             let m = model.clone();
             h_flex()
                 .id("media-dock-new-playlist-row")
-                .mx_1p5()
+                .items_center()
                 .gap_2()
-                .px_2()
+                .px_2p5()
                 .py_1p5()
+                .rounded(radius::md())
                 .text_size(text::XS.size)
                 .text_color(k.text(TextStep::T500))
-                .hover(|s| s.bg(k.surface_tertiary))
+                .hover(|s| {
+                    s.bg(k.surface_tertiary.opacity(0.65))
+                        .text_color(k.text_primary)
+                })
                 .cursor_pointer()
                 .on_click(move |_, _, cx| m.update(cx, |m, cx| m.new_playlist(cx)))
                 .child(Icon::new(KairoIcon::Plus).size_3())
@@ -642,17 +650,31 @@ impl MediaDockView {
             .w(px(width))
             .flex_none()
             .h_full()
-            .py_2()
+            .px_1p5()
+            .pt_1p5()
+            .pb_2()
+            .gap_px()
             .bg(k.surface_secondary)
             .border_r_1()
-            .border_color(k.surface_border)
+            .border_color(k.panel_border)
             .overflow_y_scroll()
-            .child(heading("Library"))
+            .child(
+                div()
+                    .px_2()
+                    .pt_1()
+                    .pb_1p5()
+                    .text_size(text::LABEL.size)
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(k.text(TextStep::T400))
+                    .child("MEDIA"),
+            )
             .child(all)
             .child(
                 h_flex()
-                    .justify_between()
-                    .pr_2()
+                    .mt_3()
+                    .mb_0p5()
+                    .h_6()
+                    .items_center()
                     .child(heading("Playlists"))
                     .child(
                         Button::new(ids::NEW_PLAYLIST)
@@ -1206,7 +1228,7 @@ impl MediaDockView {
                     .flex_wrap()
                     .gap_2()
                     .px_4()
-                    .pt_2()
+                    .pt_1p5()
                     .child(
                         Button::new(ids::SIDEBAR_TOGGLE)
                             .cursor_pointer()
@@ -1295,9 +1317,11 @@ impl MediaDockView {
             .test_support()
             .aria_label("Resize media panel")
             .tab_index(0)
-            .flex_none()
+            .absolute()
+            .top_0()
+            .left_0()
+            .right_0()
             .h_1p5()
-            .w_full()
             .flex()
             .items_center()
             .justify_center()
@@ -1547,12 +1571,13 @@ impl Render for MediaDockView {
             .flex_none()
             .h(px(height))
             .w_full()
+            .relative()
             .overflow_hidden()
             .bg(k.surface)
             .border_t_1()
             .border_color(k.surface_border)
-            .child(self.render_handle(cx))
             .child(body)
+            .child(self.render_handle(cx))
             .children(self.inspector.as_ref().map(|(_, i, _)| i.clone()))
             .into_any_element()
     }
