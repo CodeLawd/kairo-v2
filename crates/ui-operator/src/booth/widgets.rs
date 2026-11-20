@@ -10,7 +10,7 @@ use gpui_kit::{
     SharedString, Styled, Window, anchored, deferred, div, point, prelude::FluentBuilder, px,
 };
 use kairo_ui_kit::ControlSize;
-use kairo_ui_kit::tokens::{Step, TextStep, text};
+use kairo_ui_kit::tokens::{TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
 /// `text-[10px] font-semibold uppercase tracking-[0.08em]`.
@@ -50,20 +50,11 @@ pub fn icon_button(
 pub fn primary_button(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,
-    cx: &App,
+    _cx: &App,
 ) -> Button {
-    let k = cx.kairo();
     Button::new(id)
         .cursor_pointer()
-        .custom(
-            ButtonCustomVariant::new(cx)
-                .color(k.accent(Step::S500))
-                .foreground(k.on_accent)
-                .hover(k.accent(Step::S600))
-                .active(k.accent(Step::S600)),
-        )
-        // Solid fill: the custom variant paints its colour at 20%.
-        .bg(k.accent(Step::S500))
+        .primary()
         .kairo_size()
         .label(label.into())
 }
@@ -72,20 +63,11 @@ pub fn primary_button(
 pub fn secondary_button(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,
-    cx: &App,
+    _cx: &App,
 ) -> Button {
-    let k = cx.kairo();
     Button::new(id)
         .cursor_pointer()
-        .custom(
-            ButtonCustomVariant::new(cx)
-                .color(k.surface_tertiary)
-                .foreground(k.text(TextStep::T200))
-                .hover(k.surface_elevated)
-                .active(k.surface_elevated),
-        )
-        // Solid fill: the custom variant paints its colour at 20%.
-        .bg(k.surface_tertiary)
+        .secondary()
         .kairo_size()
         .label(label.into())
 }
@@ -102,12 +84,12 @@ pub fn section(
     let k = cx.kairo();
     v_flex()
         .gap_1p5()
-        .px(if flat { px(16.) } else { px(12.) })
-        .pt(if flat { px(16.) } else { px(12.) })
+        .px_3()
+        .pt_3()
         .child(
             h_flex()
-                .min_h(px(28.))
-                .px_1()
+                .min_h(px(26.))
+                .px_0p5()
                 .items_center()
                 .justify_between()
                 .gap_2()
@@ -123,13 +105,15 @@ pub fn section(
         .child(
             div()
                 .when(!flat, |this| {
-                    this.rounded_lg()
-                        .bg(k.surface)
+                    this.rounded(radius::md())
+                        .bg(k.surface_secondary)
+                        .border_1()
+                        .border_color(k.panel_border)
                         .overflow_hidden()
-                        .px(px(14.))
-                        .py_3()
+                        .px_3()
+                        .py_2p5()
                 })
-                .when(flat, |this| this.px_1().pb_2())
+                .when(flat, |this| this.px_0p5().pb_2())
                 .child(body),
         )
 }

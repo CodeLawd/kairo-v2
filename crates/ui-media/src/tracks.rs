@@ -24,7 +24,7 @@ use gpui_kit::{
 };
 use kairo_domain::media::{TrackItem, TracksLibrary, format_media_clock};
 use kairo_ui_kit::components::{ConfirmRequest, confirm};
-use kairo_ui_kit::tokens::{Step, TextStep, radius, text};
+use kairo_ui_kit::tokens::{TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
 /// How often the position is read while a track plays (one display frame).
@@ -510,151 +510,145 @@ impl TracksPanel {
                 .into_any_element()
         };
         v_flex()
-            .p_1()
+            .px_2p5()
+            .py_2()
+            .map(|d| {
+                if active {
+                    d.bg(k.surface_tertiary.opacity(0.55))
+                } else {
+                    d.hover(|s| s.bg(k.surface_tertiary.opacity(0.35)))
+                }
+            })
             .child(
-                v_flex()
-                    .rounded(radius::md())
-                    .px_2p5()
-                    .py_2()
-                    .map(|d| {
-                        if active {
-                            d.bg(k.surface_rail)
-                        } else {
-                            d.hover(|s| s.bg(k.surface_rail.opacity(0.6)))
-                        }
-                    })
+                h_flex()
+                    .items_center()
+                    .gap_2()
                     .child(
-                        h_flex()
-                            .gap_2()
-                            .child(
-                                Button::new(SharedString::from(ids::play(&item.id)))
-                                    .cursor_pointer()
-                                    .xsmall()
-                                    .map(|b| if active { b.primary() } else { b.ghost() })
-                                    .icon(Icon::new(if playing {
-                                        KairoIcon::Pause
-                                    } else {
-                                        KairoIcon::Play
-                                    }))
-                                    .accessibility_label(SharedString::from(format!(
-                                        "{} {}",
-                                        if playing { "Pause" } else { "Play" },
-                                        item.name
-                                    )))
-                                    .tooltip(if playing { "Pause" } else { "Play" })
-                                    .disabled(busy)
-                                    .on_click(move |_, _, cx| {
-                                        play.update(cx, |p, cx| p.press_play(id1.clone(), cx))
-                                    }),
-                            )
-                            .child(name)
-                            .when(active, |d| {
-                                d.child(
-                                    Button::new(SharedString::from(ids::stop(&item.id)))
-                                        .cursor_pointer()
-                                        .ghost()
-                                        .xsmall()
-                                        .icon(Icon::new(KairoIcon::X))
-                                        .accessibility_label(SharedString::from(format!(
-                                            "Stop {}",
-                                            item.name
-                                        )))
-                                        .tooltip("Stop and clear")
-                                        .disabled(busy)
-                                        .on_click(move |_, _, cx| {
-                                            stop.update(cx, |p, cx| p.stop(cx))
-                                        }),
-                                )
-                            })
-                            .child(
-                                Button::new(SharedString::from(ids::more(&item.id)))
-                                    .cursor_pointer()
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(KairoIcon::MoreHorizontal))
-                                    .accessibility_label(SharedString::from(format!(
-                                        "Options for {}",
-                                        item.name
-                                    )))
-                                    .disabled(busy)
-                                    .popover_trigger()
-                                    .dropdown_menu(move |menu, _, _| {
-                                        let (r, s, t) = (more.clone(), more.clone(), more.clone());
-                                        let (i1, i2, it) = (
-                                            menu_item.id.clone(),
-                                            menu_item.id.clone(),
-                                            menu_item.clone(),
-                                        );
-                                        menu.item(
-                                            PopupMenuItem::new("Rename…")
-                                                .icon(Icon::new(KairoIcon::Edit2))
-                                                .on_click(move |_, w, cx| {
-                                                    r.update(cx, |p, cx| {
-                                                        p.begin_rename(i1.clone(), w, cx)
-                                                    })
-                                                }),
-                                        )
-                                        .item(
-                                            PopupMenuItem::new("Show in folder")
-                                                .icon(Icon::new(KairoIcon::FolderOpen))
-                                                .on_click(move |_, _, cx| {
-                                                    s.update(cx, |p, cx| p.reveal(i2.clone(), cx))
-                                                }),
-                                        )
-                                        .separator()
-                                        .item(
-                                            PopupMenuItem::new("Move to Trash…")
-                                                .icon(Icon::new(KairoIcon::Trash2))
-                                                .on_click(move |_, w, cx| {
-                                                    t.update(cx, |p, cx| {
-                                                        p.confirm_remove(it.clone(), w, cx)
-                                                    })
-                                                }),
-                                        )
-                                    }),
-                            ),
+                        Button::new(SharedString::from(ids::play(&item.id)))
+                            .cursor_pointer()
+                            .xsmall()
+                            .map(|b| if active { b.primary() } else { b.ghost() })
+                            .icon(Icon::new(if playing {
+                                KairoIcon::Pause
+                            } else {
+                                KairoIcon::Play
+                            }))
+                            .accessibility_label(SharedString::from(format!(
+                                "{} {}",
+                                if playing { "Pause" } else { "Play" },
+                                item.name
+                            )))
+                            .tooltip(if playing { "Pause" } else { "Play" })
+                            .disabled(busy)
+                            .on_click(move |_, _, cx| {
+                                play.update(cx, |p, cx| p.press_play(id1.clone(), cx))
+                            }),
                     )
+                    .child(name)
                     .when(active, |d| {
                         d.child(
-                            h_flex()
-                                .mt_2()
-                                .pl_8()
-                                .gap_2()
-                                .child(
-                                    div()
-                                        .id(ids::ELAPSED)
-                                        .test_support()
-                                        .w_8()
-                                        .flex_none()
-                                        .text_right()
-                                        .text_size(text::MICRO.size)
-                                        .text_color(k.text(TextStep::T400))
-                                        .child(format_media_clock(shown)),
-                                )
-                                .child(
-                                    div().flex_1().min_w_0().child(
-                                        Slider::new(&self.seek)
-                                            .disabled(!ready)
-                                            .accessibility_label("Seek"),
-                                    ),
-                                )
-                                .child(
-                                    div()
-                                        .id(ids::TOTAL)
-                                        .test_support()
-                                        .w_8()
-                                        .flex_none()
-                                        .text_size(text::MICRO.size)
-                                        .text_color(k.text(TextStep::T500))
-                                        .child(if ready {
-                                            format_media_clock(self.time.duration)
-                                        } else {
-                                            "–:––".into()
-                                        }),
-                                ),
+                            Button::new(SharedString::from(ids::stop(&item.id)))
+                                .cursor_pointer()
+                                .ghost()
+                                .xsmall()
+                                .icon(Icon::new(KairoIcon::X))
+                                .accessibility_label(SharedString::from(format!(
+                                    "Stop {}",
+                                    item.name
+                                )))
+                                .tooltip("Stop and clear")
+                                .disabled(busy)
+                                .on_click(move |_, _, cx| stop.update(cx, |p, cx| p.stop(cx))),
                         )
-                    }),
+                    })
+                    .child(
+                        Button::new(SharedString::from(ids::more(&item.id)))
+                            .cursor_pointer()
+                            .ghost()
+                            .xsmall()
+                            .icon(Icon::new(KairoIcon::MoreHorizontal))
+                            .accessibility_label(SharedString::from(format!(
+                                "Options for {}",
+                                item.name
+                            )))
+                            .disabled(busy)
+                            .popover_trigger()
+                            .dropdown_menu(move |menu, _, _| {
+                                let (r, s, t) = (more.clone(), more.clone(), more.clone());
+                                let (i1, i2, it) = (
+                                    menu_item.id.clone(),
+                                    menu_item.id.clone(),
+                                    menu_item.clone(),
+                                );
+                                menu.item(
+                                    PopupMenuItem::new("Rename…")
+                                        .icon(Icon::new(KairoIcon::Edit2))
+                                        .on_click(move |_, w, cx| {
+                                            r.update(cx, |p, cx| p.begin_rename(i1.clone(), w, cx))
+                                        }),
+                                )
+                                .item(
+                                    PopupMenuItem::new("Show in folder")
+                                        .icon(Icon::new(KairoIcon::FolderOpen))
+                                        .on_click(move |_, _, cx| {
+                                            s.update(cx, |p, cx| p.reveal(i2.clone(), cx))
+                                        }),
+                                )
+                                .separator()
+                                .item(
+                                    PopupMenuItem::new("Move to Trash…")
+                                        .icon(Icon::new(KairoIcon::Trash2))
+                                        .on_click(move |_, w, cx| {
+                                            t.update(cx, |p, cx| {
+                                                p.confirm_remove(it.clone(), w, cx)
+                                            })
+                                        }),
+                                )
+                            }),
+                    ),
             )
+            .when(active, |d| {
+                d.child(
+                    h_flex()
+                        .mt_2()
+                        .items_center()
+                        .gap_2()
+                        .child(
+                            div()
+                                .id(ids::ELAPSED)
+                                .test_support()
+                                .min_w(px(32.))
+                                .flex_none()
+                                .text_size(text::MICRO.size)
+                                .font_family(text::MONO_FAMILY)
+                                .text_color(k.text(TextStep::T300))
+                                .child(format_media_clock(shown)),
+                        )
+                        .child(
+                            div().flex_1().min_w_0().px_1().child(
+                                Slider::new(&self.seek)
+                                    .disabled(!ready)
+                                    .accessibility_label("Seek"),
+                            ),
+                        )
+                        .child(
+                            div()
+                                .id(ids::TOTAL)
+                                .test_support()
+                                .min_w(px(32.))
+                                .flex_none()
+                                .text_right()
+                                .text_size(text::MICRO.size)
+                                .font_family(text::MONO_FAMILY)
+                                .text_color(k.text(TextStep::T500))
+                                .child(if ready {
+                                    format_media_clock(self.time.duration)
+                                } else {
+                                    "–:––".into()
+                                }),
+                        ),
+                )
+            })
             .into_any_element()
     }
 }
@@ -682,29 +676,34 @@ impl Render for TracksPanel {
                 .into_any_element()
         } else {
             v_flex()
-                .children(items.iter().map(|i| self.render_item(i, window, cx)))
+                .children(items.iter().enumerate().map(|(i, item)| {
+                    div()
+                        .when(i > 0, |d| d.border_t_1().border_color(k.panel_border))
+                        .child(self.render_item(item, window, cx))
+                }))
                 .into_any_element()
         };
         v_flex()
             .id(ids::PANEL)
             .test_support()
+            .gap_1p5()
             .px_3()
             .pt_3()
             .child(
                 h_flex()
-                    .min_h_7()
-                    .gap_1p5()
-                    .px_1()
-                    .pb_1p5()
+                    .min_h(px(26.))
+                    .items_center()
+                    .gap_1()
+                    .px_0p5()
                     .child(
                         div()
                             .flex_1()
                             .min_w_0()
                             .truncate()
-                            .text_size(text::XS.size)
+                            .text_size(text::LABEL.size)
                             .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(k.text(TextStep::T200))
-                            .child("House audio"),
+                            .text_color(k.text(TextStep::T400))
+                            .child("HOUSE AUDIO"),
                     )
                     .child(
                         Button::new(ids::RESCAN)
@@ -734,6 +733,7 @@ impl Render for TracksPanel {
                         d.child(
                             Button::new(ids::ADD)
                                 .cursor_pointer()
+                                .outline()
                                 .xsmall()
                                 .icon(Icon::new(KairoIcon::Plus))
                                 .label("Add")
@@ -747,7 +747,7 @@ impl Render for TracksPanel {
                     .id(ids::ERROR)
                     .test_support()
                     .px_1()
-                    .pb_2()
+                    .pb_1()
                     .text_size(text::LABEL.size)
                     .text_color(k.danger_text)
                     .child(e.to_owned())
@@ -755,10 +755,10 @@ impl Render for TracksPanel {
             .child(
                 div()
                     .overflow_hidden()
-                    .rounded(radius::lg())
-                    .bg(k.surface)
+                    .rounded(radius::md())
+                    .bg(k.surface_secondary)
                     .border_1()
-                    .border_color(k.neutral(Step::S800).opacity(0.5))
+                    .border_color(k.panel_border)
                     .child(list),
             )
     }

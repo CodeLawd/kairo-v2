@@ -589,16 +589,41 @@ impl LiveRail {
         let (now, total) = transport::clock_text(shown, &self.time);
         let playing = transport::playing(media.paused, &self.time);
         let looped = media.playback.looped;
-        let button = |id: &'static str, label: String, icon: KairoIcon| {
+        let transport_btn = |id: &'static str, label: String, icon: KairoIcon| {
             Button::new(id)
                 .cursor_pointer()
                 .ghost()
-                .xsmall()
-                .icon(Icon::new(icon).size_3())
+                .small()
+                .icon(Icon::new(icon).size_3p5())
                 .accessibility_label(label.clone())
                 .tooltip(label)
                 .text_color(k.text(TextStep::T300))
         };
+        let loop_btn = Button::new("video-loop")
+            .cursor_pointer()
+            .xsmall()
+            .icon(Icon::new(KairoIcon::Repeat).size_3p5())
+            .toggled(looped)
+            .accessibility_label(if looped {
+                "Turn loop off"
+            } else {
+                "Turn loop on"
+            })
+            .tooltip(if looped { "Loop on" } else { "Loop off" })
+            .when(looped, |b| {
+                let tint = k.accent(Step::S500).opacity(0.18);
+                b.custom(
+                    ButtonCustomVariant::new(cx)
+                        .color(tint)
+                        .foreground(k.accent(Step::S400))
+                        .hover(k.accent(Step::S500).opacity(0.26))
+                        .active(k.accent(Step::S500).opacity(0.32)),
+                )
+                .bg(tint)
+            })
+            .when(!looped, |b| b.ghost().text_color(k.text(TextStep::T400)))
+            .on_click(cx.listener(|this, _, _, cx| this.toggle_loop(cx)));
+        let play_label = if playing { "Pause" } else { "Play" };
         v_flex()
             .id("live-video-controls")
             .test_support()
@@ -610,10 +635,15 @@ impl LiveRail {
                     this.transport_focus.focus(window, cx)
                 }),
             )
+            .mx_3()
+            .mt_2()
+            .rounded(radius::md())
             .bg(k.surface_secondary)
-            .px_3()
-            .pb_2()
-            .pt_2()
+            .border_1()
+            .border_color(k.panel_border)
+            .px_2p5()
+            .py_2()
+            .gap_1p5()
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
                 match transport::key_action(event.keystroke.key.as_str()) {
                     Some(TransportKey::TogglePause) => this.toggle_pause(cx),
@@ -624,79 +654,92 @@ impl LiveRail {
                 cx.stop_propagation();
             }))
             .child(
-                Slider::new(&self.seek)
-                    .disabled(!ready)
-                    .accessibility_label("Seek"),
+                h_flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .flex_shrink_0()
+                            .min_w(px(32.))
+                            .text_size(text::MICRO.size)
+                            .font_family(text::MONO_FAMILY)
+                            .text_color(k.text(TextStep::T300))
+                            .child(now),
+                    )
+                    .child(
+                        div().flex_1().min_w_0().px_1().child(
+                            Slider::new(&self.seek)
+                                .disabled(!ready)
+                                .accessibility_label("Seek"),
+                        ),
+                    )
+                    .child(
+                        div()
+                            .flex_shrink_0()
+                            .min_w(px(32.))
+                            .text_right()
+                            .text_size(text::MICRO.size)
+                            .font_family(text::MONO_FAMILY)
+                            .text_color(k.text(TextStep::T500))
+                            .child(total),
+                    ),
             )
             .child(
                 h_flex()
-                    .mt_2()
-                    .gap_1()
                     .items_center()
+                    .justify_between()
                     .child(
-                        button("video-restart", "Restart".into(), KairoIcon::RotateCcw)
-                            .on_click(cx.listener(|this, _, _, cx| this.restart(cx))),
-                    )
-                    .child(
-                        button(
-                            "video-back",
-                            format!("Skip back {} seconds", transport::SKIP_SECONDS),
-                            KairoIcon::SkipBack,
-                        )
-                        .on_click(
-                            cx.listener(|this, _, _, cx| this.skip(-transport::SKIP_SECONDS, cx)),
-                        ),
-                    )
-                    .child(
-                        button(
-                            "video-play",
-                            if playing { "Pause" } else { "Play" }.into(),
-                            if playing {
-                                KairoIcon::Pause
-                            } else {
-                                KairoIcon::Play
-                            },
-                        )
-                        .text_color(k.white)
-                        .on_click(cx.listener(|this, _, _, cx| this.toggle_pause(cx))),
-                    )
-                    .child(
-                        button(
-                            "video-forward",
-                            format!("Skip forward {} seconds", transport::SKIP_SECONDS),
-                            KairoIcon::SkipForward,
-                        )
-                        .on_click(
-                            cx.listener(|this, _, _, cx| this.skip(transport::SKIP_SECONDS, cx)),
-                        ),
-                    )
-                    .child(
-                        h_flex()
-                            .ml_2()
-                            .min_w_0()
-                            .flex_1()
-                            .text_size(text::LABEL.size)
-                            .font_family("Menlo")
-                            .text_color(k.text(TextStep::T400))
-                            .child(now)
-                            .child(div().text_color(k.text(TextStep::T600)).child(" / "))
-                            .child(total),
-                    )
-                    .child(
-                        Button::new("video-loop")
+                        Button::new("video-restart")
                             .cursor_pointer()
                             .ghost()
                             .xsmall()
-                            .icon(Icon::new(KairoIcon::Repeat).size_3())
-                            .toggled(looped)
-                            .accessibility_label(if looped {
-                                "Turn loop off"
-                            } else {
-                                "Turn loop on"
-                            })
-                            .tooltip(if looped { "Loop on" } else { "Loop off" })
-                            .on_click(cx.listener(|this, _, _, cx| this.toggle_loop(cx))),
-                    ),
+                            .icon(Icon::new(KairoIcon::RotateCcw).size_3p5())
+                            .accessibility_label("Restart")
+                            .tooltip("Restart")
+                            .text_color(k.text(TextStep::T400))
+                            .on_click(cx.listener(|this, _, _, cx| this.restart(cx))),
+                    )
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .gap_1()
+                            .child(
+                                transport_btn(
+                                    "video-back",
+                                    format!("Skip back {} seconds", transport::SKIP_SECONDS),
+                                    KairoIcon::SkipBack,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.skip(-transport::SKIP_SECONDS, cx)
+                                })),
+                            )
+                            .child(
+                                Button::new("video-play")
+                                    .cursor_pointer()
+                                    .secondary()
+                                    .small()
+                                    .icon(Icon::new(if playing {
+                                        KairoIcon::Pause
+                                    } else {
+                                        KairoIcon::Play
+                                    })
+                                    .size_3p5())
+                                    .accessibility_label(play_label)
+                                    .tooltip(play_label)
+                                    .on_click(cx.listener(|this, _, _, cx| this.toggle_pause(cx))),
+                            )
+                            .child(
+                                transport_btn(
+                                    "video-forward",
+                                    format!("Skip forward {} seconds", transport::SKIP_SECONDS),
+                                    KairoIcon::SkipForward,
+                                )
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.skip(transport::SKIP_SECONDS, cx)
+                                })),
+                            ),
+                    )
+                    .child(loop_btn),
             )
             .into_any_element()
     }

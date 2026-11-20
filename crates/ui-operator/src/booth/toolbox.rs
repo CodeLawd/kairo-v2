@@ -877,10 +877,12 @@ impl TimersPanel {
             let tid = def.id.clone();
             let (_, _, pm) = read_time_of_day(&def.target_time);
             v_flex()
-                .gap_3()
-                .px_4()
-                .pb_4()
-                .pt_1()
+                .gap_2p5()
+                .border_t_1()
+                .border_color(k.panel_border)
+                .px_3()
+                .pb_3()
+                .pt_2p5()
                 .child(
                     Input::new(&e.name)
                         .kairo_size()
@@ -889,45 +891,51 @@ impl TimersPanel {
                 )
                 .child(
                     v_flex()
-                        .gap_2p5()
+                        .gap_2()
                         .text_size(text::XS.size)
                         .child(
                             h_flex().items_center().gap_3().child(label("Type")).child(
-                                Button::new("timer-kind")
-                                    .cursor_pointer()
-                                    .outline()
-                                    .small()
-                                    .flex_1()
-                                    .label(kind_label)
-                                    .dropdown_caret(true)
-                                    .disabled(running)
-                                    .accessibility_label("Timer type")
-                                    .popover_trigger()
-                                    .dropdown_menu({
-                                        let panel = panel.clone();
-                                        let tid = tid.clone();
-                                        move |mut menu, _, _| {
-                                            for (kind, name) in [
-                                                (TimerKind::Countdown, "Countdown"),
-                                                (TimerKind::CountdownTo, "Countdown to Time"),
-                                            ] {
-                                                let panel = panel.clone();
-                                                let tid = tid.clone();
-                                                menu =
-                                                    menu.item(PopupMenuItem::new(name).on_click(
-                                                        move |_, _, cx| {
-                                                            let _ = panel.update(cx, |this, cx| {
-                                                                this.patch_timer(&tid, cx, |d| {
-                                                                    d.kind = kind
-                                                                });
-                                                                this.reset_soon(&tid, cx);
-                                                            });
-                                                        },
-                                                    ));
+                                div().flex_1().min_w_0().child(
+                                    Button::new("timer-kind")
+                                        .cursor_pointer()
+                                        .outline()
+                                        .small()
+                                        .w_full()
+                                        .label(kind_label)
+                                        .dropdown_caret(true)
+                                        .disabled(running)
+                                        .accessibility_label("Timer type")
+                                        .popover_trigger()
+                                        .dropdown_menu({
+                                            let panel = panel.clone();
+                                            let tid = tid.clone();
+                                            move |mut menu, _, _| {
+                                                for (kind, name) in [
+                                                    (TimerKind::Countdown, "Countdown"),
+                                                    (TimerKind::CountdownTo, "Countdown to Time"),
+                                                ] {
+                                                    let panel = panel.clone();
+                                                    let tid = tid.clone();
+                                                    menu = menu.item(
+                                                        PopupMenuItem::new(name).on_click(
+                                                            move |_, _, cx| {
+                                                                let _ =
+                                                                    panel.update(cx, |this, cx| {
+                                                                        this.patch_timer(
+                                                                            &tid,
+                                                                            cx,
+                                                                            |d| d.kind = kind,
+                                                                        );
+                                                                        this.reset_soon(&tid, cx);
+                                                                    });
+                                                            },
+                                                        ),
+                                                    );
+                                                }
+                                                menu
                                             }
-                                            menu
-                                        }
-                                    }),
+                                        }),
+                                ),
                             ),
                         )
                         .child(match def.kind {
@@ -1223,14 +1231,15 @@ impl Render for TimersPanel {
             .overflow_y_scroll()
             .child(
                 v_flex()
+                    .gap_1p5()
                     .px_3()
                     .pt_3()
                     .child(
                         h_flex()
-                            .h_9()
+                            .min_h(px(26.))
                             .items_center()
                             .justify_between()
-                            .px_1()
+                            .px_0p5()
                             .child(
                                 div()
                                     .text_size(text::LABEL.size)
@@ -1249,29 +1258,30 @@ impl Render for TimersPanel {
                     .child(
                         v_flex()
                             .overflow_hidden()
-                            .rounded_xl()
-                            .bg(k.surface)
+                            .rounded(kairo_ui_kit::tokens::radius::md())
+                            .bg(k.surface_secondary)
                             .border_1()
-                            .border_color(k.surface_border)
+                            .border_color(k.panel_border)
                             .children(rows.into_iter().enumerate().map(|(i, row)| {
                                 div()
-                                    .when(i > 0, |s| s.border_t_1().border_color(k.surface_border))
+                                    .when(i > 0, |s| s.border_t_1().border_color(k.panel_border))
                                     .child(row)
                             })),
                     )
                     .child(
-                        Button::new("timers-design")
-                            .cursor_pointer()
-                            .ghost()
-                            .xsmall()
-                            .mt_1p5()
-                            .icon(Icon::new(KairoIcon::Layers).size(px(11.)))
-                            .label("Edit the timer design")
-                            .text_color(k.text(TextStep::T500))
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                let select = Some(format!("timer:{screen_id}"));
-                                this.booth.update(cx, |b, cx| b.open_props(select, cx))
-                            })),
+                        h_flex().child(
+                            Button::new("timers-design")
+                                .cursor_pointer()
+                                .ghost()
+                                .xsmall()
+                                .icon(Icon::new(KairoIcon::Layers).size(px(11.)))
+                                .label("Edit the timer design")
+                                .text_color(k.text(TextStep::T500))
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    let select = Some(format!("timer:{screen_id}"));
+                                    this.booth.update(cx, |b, cx| b.open_props(select, cx))
+                                })),
+                        ),
                     ),
             )
             .child(clock)
@@ -1453,7 +1463,7 @@ impl MessagesPanel {
                     .line_clamp(2)
                     .text_size(text::XS.size)
                     .text_color(if live {
-                        k.white
+                        k.text_primary
                     } else {
                         k.text(TextStep::T300)
                     })
@@ -1640,8 +1650,8 @@ impl Render for MessagesPanel {
                 v_flex()
                     .children(rows.into_iter().enumerate().map(|(i, row)| {
                         div()
-                            .py_2p5()
-                            .when(i > 0, |s| s.border_t_1().border_color(k.pref_line(true)))
+                            .py_1()
+                            .when(i > 0, |s| s.mt_1().pt_2().border_t_1().border_color(k.panel_border))
                             .child(row)
                     }))
                     .when(empty, |this| {
@@ -1903,7 +1913,7 @@ impl Render for PropsPanel {
                     div()
                         .text_size(text::SM.size)
                         .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(k.white)
+                        .text_color(k.text_primary)
                         .child("No props yet"),
                 )
                 .child(
@@ -1941,7 +1951,7 @@ impl Render for PropsPanel {
             let id = prop.id.clone();
             let menu_entity = cx.entity().downgrade();
             let pid = prop.id.clone();
-            let tile = v_flex()
+            h_flex()
                 .id(SharedString::from(ids::prop(&prop.id)))
                 .test_support()
                 .role(gpui_kit::Role::Button)
@@ -1954,47 +1964,102 @@ impl Render for PropsPanel {
                     "Show".to_owned()
                 }))
                 .w_full()
+                .items_center()
+                .gap_3()
+                .p_2()
+                .rounded(kairo_ui_kit::tokens::radius::md())
+                .bg(k.surface_secondary)
+                .border_1()
+                .border_color(if on { k.live } else { k.panel_border })
+                .hover(|s| s.bg(k.surface_tertiary.opacity(0.65)))
                 .cursor_pointer()
-                .when(empty && !on, |s| s.opacity(0.6))
+                .when(empty && !on, |s| s.opacity(0.65))
                 .on_click(cx.listener(move |this, _, _, cx| this.toggle(&id, cx)))
                 .child(
-                    // The thumbnail: the prop as the props editor draws it.
+                    // 16:9 thumbnail preview of the prop.
                     div()
-                        .w(px(116.))
-                        .h(px(67.))
-                        .mx_auto()
-                        .rounded_md()
+                        .w(px(120.))
+                        .h(px(68.))
+                        .flex_shrink_0()
+                        .rounded(kairo_ui_kit::tokens::radius::sm())
                         .overflow_hidden()
-                        .border_2()
-                        .border_color(if on {
-                            k.live
-                        } else {
-                            gpui_kit::transparent_black()
-                        })
+                        .border_1()
+                        .border_color(if on { k.live } else { k.surface_border })
                         .child(crate::props::prop_picture(
                             prop,
                             &timer_view,
-                            112.0,
+                            118.0,
                             4.0,
                             cx,
                         )),
                 )
-                .when(renaming.is_none(), |this| {
-                    this.child(
-                        div()
-                            .mt_1p5()
-                            .truncate()
-                            .text_center()
-                            .text_size(text::LABEL.size)
-                            .font_weight(if on {
-                                FontWeight::SEMIBOLD
+                .child(
+                    v_flex()
+                        .min_w_0()
+                        .flex_1()
+                        .gap_0p5()
+                        .when(renaming.is_none(), |this| {
+                            this.child(
+                                div()
+                                    .truncate()
+                                    .text_size(text::SM.size)
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(k.text_primary)
+                                    .child(prop.name.clone()),
+                            )
+                        })
+                        .when_some(renaming, |this, input| {
+                            this.child(
+                                Input::new(&input).kairo_size().xsmall().aria_label("Name"),
+                            )
+                        })
+                        .when(on, |this| {
+                            this.child(
+                                h_flex()
+                                    .items_center()
+                                    .gap_1()
+                                    .child(
+                                        div()
+                                            .size(px(6.))
+                                            .rounded_full()
+                                            .bg(k.live),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(text::MICRO.size)
+                                            .font_weight(FontWeight::MEDIUM)
+                                            .text_color(k.live)
+                                            .child("On screens"),
+                                    ),
+                            )
+                        })
+                        .when(empty && !on, |this| {
+                            this.child(
+                                div()
+                                    .text_size(text::MICRO.size)
+                                    .text_color(k.text(TextStep::T500))
+                                    .child("Empty — click to edit"),
+                            )
+                        }),
+                )
+                .child(
+                    div()
+                        .flex_shrink_0()
+                        .px_2()
+                        .py_1()
+                        .rounded(kairo_ui_kit::tokens::radius::sm())
+                        .text_size(text::LABEL.size)
+                        .font_weight(FontWeight::MEDIUM)
+                        .map(|s| {
+                            if on {
+                                s.bg(k.live).text_color(k.on_accent).child("Hide")
                             } else {
-                                FontWeight::NORMAL
-                            })
-                            .text_color(if on { k.white } else { k.text(TextStep::T300) })
-                            .child(prop.name.clone()),
-                    )
-                })
+                                s.bg(k.surface_tertiary)
+                                    .text_color(k.text(TextStep::T200))
+                                    .child("Show")
+                            }
+                        }),
+                )
                 .context_menu(move |menu, _, _| {
                     let item = |label: &str, f: PropAction| {
                         let entity = menu_entity.clone();
@@ -2033,42 +2098,30 @@ impl Render for PropsPanel {
                         "Delete",
                         Box::new(move |this, _, cx| this.delete(&e, cx)),
                     ))
-                });
-            v_flex()
-                .min_w_0()
-                .w(px(112.))
-                .flex_1()
-                .child(tile)
-                .when_some(renaming, |this, input| {
-                    this.child(
-                        div()
-                            .mt_1()
-                            .child(Input::new(&input).kairo_size().xsmall().aria_label("Name")),
-                    )
                 })
         });
         v_flex()
             .id("props-panel")
             .size_full()
             .overflow_y_scroll()
+            .gap_1p5()
             .px_3()
             .pb_3()
             .pt_3()
             .child(
                 h_flex()
-                    .min_h_7()
+                    .min_h(px(26.))
                     .items_center()
                     .gap_1()
-                    .px_1()
-                    .pb_2()
+                    .px_0p5()
                     .child(
                         div()
                             .min_w_0()
                             .flex_1()
-                            .text_size(text::XS.size)
+                            .text_size(text::LABEL.size)
                             .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(k.text(TextStep::T200))
-                            .child("Props"),
+                            .text_color(k.text(TextStep::T400))
+                            .child("PROPS"),
                     )
                     .when(active.len() > 1, |this| {
                         this.child(
@@ -2091,7 +2144,7 @@ impl Render for PropsPanel {
                             .on_click(cx.listener(|this, _, _, cx| this.open_editor(None, cx))),
                     ),
             )
-            .child(h_flex().flex_wrap().gap_3().children(tiles))
+            .child(v_flex().gap_2().children(tiles))
             .into_any_element()
     }
 }
@@ -2518,7 +2571,7 @@ impl VideoPanel {
                                         FontWeight::NORMAL
                                     })
                                     .text_color(if selected {
-                                        k.white
+                                        k.text_primary
                                     } else {
                                         k.text(TextStep::T400)
                                     })
@@ -2754,15 +2807,8 @@ impl Render for VideoPanel {
             .size_full()
             .overflow_y_scroll()
             .bg(k.surface_rail)
-            .child(section("Video input", None, true, body, cx))
-            .child(
-                div()
-                    .mx_4()
-                    .mt_2()
-                    .border_t_1()
-                    .border_color(k.white.opacity(0.08)),
-            )
-            .child(section("Video layout", None, true, canvas, cx))
+            .child(section("Video input", None, false, body, cx))
+            .child(section("Video layout", None, false, canvas, cx).pb_3())
     }
 }
 
@@ -2813,6 +2859,8 @@ impl Render for SoundPanel {
         } else {
             audio.output_label.clone()
         };
+        let k = *cx.kairo();
+        let volume_pct = format!("{}%", (audio.volume.clamp(0.0, 1.0) * 100.0).round() as u32);
         let body = v_flex()
             .gap_2p5()
             .child(
@@ -2827,8 +2875,34 @@ impl Render for SoundPanel {
             .when(audio.enabled || live_camera_audio, |this| {
                 this.child(
                     v_flex()
-                        .gap_1p5()
-                        .child(Slider::new(&self.volume).accessibility_label("Volume"))
+                        .gap_2()
+                        .child(
+                            h_flex()
+                                .items_center()
+                                .gap_2()
+                                .child(
+                                    Icon::new(KairoIcon::Volume2)
+                                        .size_3p5()
+                                        .text_color(k.text(TextStep::T400)),
+                                )
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_w_0()
+                                        .px_1()
+                                        .child(Slider::new(&self.volume).accessibility_label("Volume")),
+                                )
+                                .child(
+                                    div()
+                                        .min_w(px(32.))
+                                        .flex_shrink_0()
+                                        .text_right()
+                                        .text_size(text::MICRO.size)
+                                        .font_family(text::MONO_FAMILY)
+                                        .text_color(k.text(TextStep::T400))
+                                        .child(volume_pct),
+                                ),
+                        )
                         .child(
                             Button::new("sound-output").cursor_pointer()
                                 .outline()
