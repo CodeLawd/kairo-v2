@@ -399,14 +399,14 @@ impl LyricsWorkspace {
                     )
                     .child(
                         h_flex()
-                            .h(px(bar_h.max(28.)))
+                            .h(px(bar_h.max(22.)))
                             .gap_2()
-                            .px_3()
+                            .px_2p5()
                             // The section's colour fills the strip so the
                             // sections read apart at a glance (owner).
                             .bg(fill)
                             .text_color(section_text())
-                            .text_size(px((13. * scale).round()))
+                            .text_size(px((11.5 * scale).round()))
                             .child(
                                 div()
                                     .flex_1()

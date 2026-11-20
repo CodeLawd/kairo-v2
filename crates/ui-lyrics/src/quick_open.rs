@@ -7,6 +7,7 @@
 use kairo_ui_kit::ControlSize;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::time::Duration;
 
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
@@ -24,6 +25,7 @@ use kairo_domain::lyrics::online_error::format_online_lyrics_error;
 use kairo_domain::lyrics::{
     LyricsOnlinePreview, LyricsOnlineResult, LyricsSong, LyricsSongSection,
 };
+use kairo_ui_kit::motion;
 use kairo_ui_kit::tokens::{TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
@@ -51,9 +53,11 @@ pub mod ids {
     }
 }
 
-const ROW_HEIGHT: f32 = 40.;
-const ROW_TALL: f32 = 54.;
-const WEB_HEADER: f32 = 28.;
+const ROW_HEIGHT: f32 = 52.;
+const ROW_TALL: f32 = 68.;
+const WEB_HEADER: f32 = 30.;
+const HEADER_HEIGHT: f32 = 54.;
+const BODY_HEIGHT: f32 = 524.;
 
 /// A row of the result list: a song in the library, or a web hit.
 #[derive(Clone, Debug, PartialEq)]
@@ -87,6 +91,7 @@ pub struct QuickOpen {
     preview_seq: u64,
     importing: Option<String>,
     added: Option<String>,
+    closing: bool,
     scroll: VirtualListScrollHandle,
     focus: FocusHandle,
     _subscriptions: Vec<Subscription>,
@@ -103,8 +108,9 @@ impl Focusable for QuickOpen {
 impl QuickOpen {
     pub fn new(lyrics: Entity<Lyrics>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let backend = lyrics.read(cx).backend().clone();
-        let input = cx
-            .new(|cx| InputState::new(window, cx).placeholder("Search titles, artists or lyrics"));
+        let input = cx.new(|cx| {
+            InputState::new(window, cx).placeholder("Search library or find any song online…")
+        });
         input.update(cx, |s, cx| s.focus(window, cx));
         let mut subs = Vec::new();
         subs.push(cx.observe(&lyrics, |this, _, cx| {
@@ -152,6 +158,7 @@ impl QuickOpen {
             preview_seq: 0,
             importing: None,
             added: None,
+            closing: false,
             scroll: VirtualListScrollHandle::new(),
             focus: cx.focus_handle(),
             _subscriptions: subs,
@@ -374,7 +381,7 @@ impl QuickOpen {
 
     fn open(&mut self, song: LyricsSong, cx: &mut Context<Self>) {
         self.lyrics.update(cx, |m, cx| m.open_song(song, cx));
-        cx.emit(QuickOpenEvent::Close);
+        self.close(cx);
     }
 
     fn import(&mut self, result: LyricsOnlineResult, cx: &mut Context<Self>) {
@@ -429,7 +436,24 @@ impl QuickOpen {
     }
 
     pub fn close(&mut self, cx: &mut Context<Self>) {
-        cx.emit(QuickOpenEvent::Close);
+        if self.closing {
+            return;
+        }
+        if cx.reduced_motion() {
+            cx.emit(QuickOpenEvent::Close);
+            return;
+        }
+        self.closing = true;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            cx.background_executor()
+                .timer(Duration::from_millis(motion::MODAL_EXIT.duration_ms))
+                .await;
+            let _ = this.update(cx, |_, cx| {
+                cx.emit(QuickOpenEvent::Close);
+            });
+        })
+        .detach();
     }
 
     /// ↑/↓, ↵, ⌘↵ and Esc while the field has focus.
@@ -464,7 +488,7 @@ impl QuickOpen {
         };
         let first_web = index == self.hits.len() && !self.online.is_empty();
         let h = if tall { ROW_TALL } else { ROW_HEIGHT } + if first_web { WEB_HEADER } else { 0. };
-        size(px(440.), px(h))
+        size(px(544.), px(h))
     }
 
     fn render_row(&self, index: usize, cx: &mut Context<Self>) -> AnyElement {
@@ -475,16 +499,30 @@ impl QuickOpen {
         let active = index == self.active;
         let lyrics = self.lyrics.read(cx);
         let setlist = lyrics.active_setlist();
-        let (icon, title, meta, snippet, queued, importing) = match &row {
+        let (icon, title, meta, snippet, queued, importing, is_local, open_label, badge) = match &row
+        {
             Row::Local(hit) => {
                 let song = &lyrics.songs()[hit.song];
+                let sections = song.sections.len();
+                let meta = match (song.artist.trim().is_empty(), sections) {
+                    (false, 0) => format!("{} · No lyrics yet", song.artist.trim()),
+                    (false, 1) => format!("{} · 1 section", song.artist.trim()),
+                    (false, n) => format!("{} · {n} sections", song.artist.trim()),
+                    (true, 0) => "No lyrics yet".into(),
+                    (true, 1) => "1 section".into(),
+                    (true, n) => format!("{n} sections"),
+                };
                 (
                     KairoIcon::Music2,
                     song.title.clone(),
-                    song.artist.clone(),
+                    meta,
                     hit.matched_lyric.as_ref().map(|l| l.trim().to_owned()),
-                    setlist.is_some_and(|l| l.song_ids.contains(&song.id)),
+                    setlist.is_some_and(|l| l.song_ids.contains(&song.id))
+                        || self.added.as_deref() == Some(song.id.as_str()),
                     false,
+                    true,
+                    "Open",
+                    None,
                 )
             }
             Row::Online(r) => (
@@ -492,16 +530,10 @@ impl QuickOpen {
                 r.title.clone(),
                 if rows::lyrics_unavailable(r) {
                     "Web match · Open source".into()
+                } else if r.artist.trim().is_empty() {
+                    "Unknown artist".into()
                 } else {
-                    format!(
-                        "{} · {}",
-                        if r.artist.is_empty() {
-                            "Unknown artist"
-                        } else {
-                            &r.artist
-                        },
-                        r.provider.as_str()
-                    )
+                    r.artist.clone()
                 },
                 r.snippet
                     .as_ref()
@@ -509,12 +541,31 @@ impl QuickOpen {
                     .filter(|s| !s.is_empty()),
                 false,
                 self.importing.as_deref() == Some(r.id.as_str()),
+                false,
+                if rows::lyrics_unavailable(r) {
+                    "Source"
+                } else {
+                    "Import"
+                },
+                Some(if r.existing_song_id.is_some() {
+                    "In library".to_owned()
+                } else {
+                    r.provider.as_str().to_owned()
+                }),
             ),
         };
         let first_web = index == self.hits.len() && matches!(row, Row::Online(_));
+        let web_count = self.online.len();
+        let row_h = if snippet.is_some() {
+            ROW_TALL
+        } else {
+            ROW_HEIGHT
+        };
         let entity = cx.entity();
         let click = entity.clone();
-        let hover = entity.clone();
+        let add_click = entity.clone();
+        let open_click = entity;
+        let has_meta = !meta.trim().is_empty();
         v_flex()
             .w_full()
             .when(first_web, |d| {
@@ -522,122 +573,250 @@ impl QuickOpen {
                     h_flex()
                         .h(px(WEB_HEADER))
                         .items_end()
-                        .gap_1p5()
+                        .justify_between()
                         .px_2()
                         .pb_1()
-                        .text_size(text::MICRO.size)
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(k.text(TextStep::T600))
-                        .child(Icon::new(KairoIcon::Globe).size_2p5())
-                        .child("FROM THE WEB"),
+                        .child(
+                            h_flex()
+                                .items_center()
+                                .gap_1p5()
+                                .text_size(text::MICRO.size)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                                .child(Icon::new(KairoIcon::Globe).size_2p5())
+                                .child("FROM THE WEB"),
+                        )
+                        .child(
+                            div()
+                                .text_size(text::MICRO.size)
+                                .text_color(k.text(TextStep::T500))
+                                .child(if web_count == 1 {
+                                    "1 online match".to_owned()
+                                } else {
+                                    format!("{web_count} online matches")
+                                }),
+                        ),
                 )
             })
             .child(
-                h_flex()
-                    .id(SharedString::from(ids::row(index)))
-                    .test_support()
-                    .role(Role::Button)
-                    .aria_label(SharedString::from(title.clone()))
-                    .relative()
-                    .w_full()
-                    .flex_1()
-                    .gap_3()
-                    .px_3()
-                    .rounded(radius::md())
-                    .cursor_pointer()
-                    // A clear selection: accent fill and bar, not a faint tint.
-                    .map(|d| {
-                        if active {
-                            d.bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.28))
-                                .child(
-                                    div()
-                                        .absolute()
-                                        .left_0()
-                                        .top(px(6.))
-                                        .bottom(px(6.))
-                                        .w(px(3.))
-                                        .rounded_full()
-                                        .bg(k.accent(kairo_ui_kit::tokens::Step::S400)),
-                                )
-                        } else {
-                            d.hover(|s| s.bg(k.white.opacity(0.05)))
-                        }
-                    })
-                    .on_mouse_move(move |_, _, cx| {
-                        hover.update(cx, |this, cx| {
-                            if this.active != index {
-                                this.active = index;
-                                if this.preview_open {
-                                    this.load_preview(cx);
-                                }
-                                cx.notify();
-                            }
-                        })
-                    })
-                    .on_click(move |event, _, cx| {
-                        click.update(cx, |this, cx| {
-                            if event.click_count() >= 2 {
-                                this.open_row(index, cx)
-                            } else {
-                                this.choose(index, cx)
-                            }
-                        })
-                    })
-                    .child(Icon::new(icon).size_3p5().text_color(if active {
-                        k.text_primary
-                    } else {
-                        k.text(TextStep::T400)
-                    }))
-                    .child(
-                        v_flex()
-                            .min_w_0()
-                            .flex_1()
-                            .child(
-                                h_flex()
-                                    .min_w_0()
-                                    .gap_1p5()
-                                    .items_baseline()
-                                    .child(
-                                        div()
-                                            .truncate()
-                                            .text_size(text::SM.size)
-                                            .text_color(k.text_primary)
-                                            .child(title),
+                div().w_full().h(px(row_h)).py_0p5().child(
+                    h_flex()
+                        .id(SharedString::from(ids::row(index)))
+                        .test_support()
+                        .role(Role::Button)
+                        .aria_label(SharedString::from(title.clone()))
+                        .relative()
+                        .w_full()
+                        .h_full()
+                        .items_center()
+                        .gap_2p5()
+                        .px_2p5()
+                        .rounded(radius::md())
+                        .cursor_pointer()
+                        .active(|s| s.opacity(0.84))
+                        .map(|d| {
+                            if active {
+                                d.bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.18))
+                                    .border_1()
+                                    .border_color(
+                                        k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.45),
                                     )
-                                    .child(
+                            } else {
+                                d.border_1()
+                                    .border_color(gpui_kit::transparent_black())
+                                    .hover(|s| s.bg(k.surface_tertiary.opacity(0.65)))
+                            }
+                        })
+                        .on_click(move |event, _, cx| {
+                            click.update(cx, |this, cx| {
+                                if event.click_count() >= 2 {
+                                    this.open_row(index, cx)
+                                } else {
+                                    this.choose(index, cx)
+                                }
+                            })
+                        })
+                        .child(
+                            div()
+                                .size_7()
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(radius::sm())
+                                .map(|d| {
+                                    if active {
+                                        d.bg(k.accent(kairo_ui_kit::tokens::Step::S500)
+                                            .opacity(0.22))
+                                            .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                                    } else if !is_local {
+                                        d.bg(k.accent(kairo_ui_kit::tokens::Step::S500)
+                                            .opacity(0.10))
+                                            .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                                    } else {
+                                        d.bg(k.surface_tertiary)
+                                            .text_color(k.text(TextStep::T400))
+                                    }
+                                })
+                                .child(Icon::new(icon).size_3p5()),
+                        )
+                        .child(
+                            v_flex()
+                                .min_w_0()
+                                .flex_1()
+                                .justify_center()
+                                .gap_0p5()
+                                .child(
+                                    h_flex()
+                                        .min_w_0()
+                                        .items_center()
+                                        .gap_1p5()
+                                        .child(
+                                            div()
+                                                .truncate()
+                                                .text_size(text::SM.size)
+                                                .font_weight(if active {
+                                                    FontWeight::SEMIBOLD
+                                                } else {
+                                                    FontWeight::MEDIUM
+                                                })
+                                                .text_color(k.text_primary)
+                                                .child(title),
+                                        )
+                                        .children(badge.map(|b| {
+                                            div()
+                                                .flex_none()
+                                                .px_1p5()
+                                                .py_0p5()
+                                                .rounded(radius::sm())
+                                                .bg(k.surface_tertiary)
+                                                .text_size(text::MICRO.size)
+                                                .text_color(k.text(TextStep::T400))
+                                                .child(b)
+                                        })),
+                                )
+                                .when(has_meta, |d| {
+                                    d.child(
                                         div()
                                             .truncate()
                                             .text_size(text::LABEL.size)
                                             .text_color(if active {
-                                                k.text(TextStep::T200)
+                                                k.text(TextStep::T300)
                                             } else {
-                                                k.text(TextStep::T400)
+                                                k.text(TextStep::T500)
                                             })
                                             .child(meta),
-                                    ),
+                                    )
+                                })
+                                .children(snippet.map(|s| {
+                                    div()
+                                        .truncate()
+                                        .text_size(text::MICRO.size)
+                                        .text_color(if active {
+                                            k.accent(kairo_ui_kit::tokens::Step::S300)
+                                        } else {
+                                            k.text(TextStep::T400)
+                                        })
+                                        .child(format!("“{s}”"))
+                                })),
+                        )
+                        .when(!active && queued, |d| {
+                            d.child(
+                                h_flex()
+                                    .flex_none()
+                                    .items_center()
+                                    .gap_1()
+                                    .px_1p5()
+                                    .py_0p5()
+                                    .rounded(radius::sm())
+                                    .bg(k.surface_tertiary)
+                                    .text_size(text::MICRO.size)
+                                    .text_color(k.notice_text)
+                                    .child(Icon::new(KairoIcon::ListMusic).size_3())
+                                    .child("Queued"),
                             )
-                            .children(snippet.map(|s| {
-                                div()
-                                    .truncate()
-                                    .text_size(text::LABEL.size)
-                                    .text_color(k.text(TextStep::T400))
-                                    .child(format!("“{s}”"))
-                            })),
-                    )
-                    .when(queued, |d| {
-                        d.child(
-                            Icon::new(KairoIcon::ListMusic)
-                                .size_3()
-                                .text_color(k.notice_text),
-                        )
-                    })
-                    .when(importing, |d| {
-                        d.child(
-                            Icon::new(KairoIcon::Loader)
-                                .size_3()
-                                .text_color(k.notice_text),
-                        )
-                    }),
+                        })
+                        .when(importing, |d| {
+                            d.child(motion::animate(
+                                h_flex()
+                                    .flex_none()
+                                    .items_center()
+                                    .gap_1()
+                                    .px_2()
+                                    .py_0p5()
+                                    .rounded(radius::sm())
+                                    .bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.16))
+                                    .text_size(text::MICRO.size)
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                                    .child(Icon::new(KairoIcon::Loader).size_3())
+                                    .child("Importing…"),
+                                ("quick-open-importing", index),
+                                motion::PULSE,
+                                cx,
+                            ))
+                        })
+                        .when(active && !importing, |d| {
+                            d.child(motion::animate(
+                                h_flex()
+                                    .flex_none()
+                                    .items_center()
+                                    .gap_1()
+                                    .on_mouse_down(
+                                        gpui_kit::MouseButton::Left,
+                                        |_, _, cx| cx.stop_propagation(),
+                                    )
+                                    .when(is_local, |d| {
+                                        d.child(
+                                            Button::new(SharedString::from(format!(
+                                                "lyrics-quick-open-row-add-{index}"
+                                            )))
+                                            .cursor_pointer()
+                                            .ghost()
+                                            .xsmall()
+                                            .icon(Icon::new(if queued {
+                                                KairoIcon::Check
+                                            } else {
+                                                KairoIcon::Plus
+                                            }))
+                                            .accessibility_label(if queued {
+                                                "In playlist"
+                                            } else {
+                                                "Add to playlist"
+                                            })
+                                            .tooltip(if queued {
+                                                "In playlist"
+                                            } else {
+                                                "Add to playlist (⌘↵)"
+                                            })
+                                            .on_click(move |_, _, cx| {
+                                                add_click.update(cx, |this, cx| {
+                                                    this.active = index;
+                                                    this.add_active(cx);
+                                                })
+                                            }),
+                                        )
+                                    })
+                                    .child(
+                                        Button::new(SharedString::from(format!(
+                                            "lyrics-quick-open-row-open-{index}"
+                                        )))
+                                        .cursor_pointer()
+                                        .primary()
+                                        .xsmall()
+                                        .label(open_label)
+                                        .on_click(move |_, _, cx| {
+                                            open_click.update(cx, |this, cx| {
+                                                this.open_row(index, cx)
+                                            })
+                                        }),
+                                    ),
+                                ("quick-open-row-actions", index),
+                                motion::ACTION_IN,
+                                cx,
+                            ))
+                        }),
+                ),
             )
             .into_any_element()
     }
@@ -663,13 +842,13 @@ impl QuickOpen {
                     r.provider.as_str()
                 );
                 let content: AnyElement = if self.preview_loading {
-                    muted_line(k, "Loading and reviewing lyrics…")
+                    preview_skeleton(k, cx)
                 } else if let Some(p) = &self.preview {
                     v_flex()
-                        .mt_4()
-                        .gap_4()
+                        .mt_3()
+                        .gap_2p5()
                         .children(review_notice_element(p.review.as_ref(), cx))
-                        .children(p.sections.iter().map(|s| section_block(k, s)))
+                        .children(p.sections.iter().map(|s| preview_section_card(k, s)))
                         .into_any_element()
                 } else {
                     muted_line(
@@ -683,6 +862,8 @@ impl QuickOpen {
                     .child(heading(k, &r.title))
                     .child(
                         h_flex()
+                            .mt_1()
+                            .items_center()
                             .gap_1p5()
                             .text_size(text::LABEL.size)
                             .text_color(k.text(TextStep::T500))
@@ -711,6 +892,7 @@ impl QuickOpen {
                     .child(heading(k, &song.title))
                     .child(
                         div()
+                            .mt_1()
                             .text_size(text::LABEL.size)
                             .text_color(k.text(TextStep::T500))
                             .child(if sections > 0 {
@@ -721,9 +903,9 @@ impl QuickOpen {
                     )
                     .child(if sections > 0 {
                         v_flex()
-                            .mt_4()
-                            .gap_4()
-                            .children(song.sections.iter().map(|s| section_block(k, s)))
+                            .mt_3()
+                            .gap_2p5()
+                            .children(song.sections.iter().map(|s| preview_section_card(k, s)))
                             .into_any_element()
                     } else {
                         muted_line(k, "This song has no lyrics saved yet.")
@@ -752,62 +934,121 @@ impl QuickOpen {
             Row::Online(_) => "Import & open",
             Row::Local(_) => "Open",
         };
-        let (add, open) = (entity.clone(), entity);
+        let (add, open, close_preview) = (entity.clone(), entity.clone(), entity);
         let active = self.active;
-        Some(
-            v_flex()
-                .id(ids::PREVIEW)
-                .test_support()
-                .aria_label("Song preview")
-                .w(px(448.))
-                .h(px(520.))
-                .flex_none()
-                .overflow_hidden()
-                .rounded(radius::xl())
-                .bg(k.surface_secondary)
-                .child(
-                    div()
-                        .id("lyrics-quick-open-preview-body")
-                        .flex_1()
-                        .min_h_0()
-                        .overflow_y_scroll()
-                        .px_5()
-                        .py_4()
-                        .child(body),
-                )
-                .child(
-                    h_flex()
-                        .flex_none()
-                        .justify_end()
-                        .gap_2()
-                        .px_4()
-                        .py_2p5()
-                        .child(
-                            Button::new(ids::ADD)
-                                .cursor_pointer()
-                                .ghost()
-                                .xsmall()
-                                .label(add_label)
-                                .disabled(!local)
-                                .when(!local, |b| b.tooltip("Import the song first"))
-                                .on_click(move |_, _, cx| {
-                                    add.update(cx, |this, cx| this.add_active(cx))
-                                }),
-                        )
-                        .child(
-                            Button::new(ids::OPEN)
-                                .cursor_pointer()
-                                .primary()
-                                .xsmall()
-                                .label(open_label)
-                                .disabled(self.importing.is_some())
-                                .on_click(move |_, _, cx| {
-                                    open.update(cx, |this, cx| this.open_row(active, cx))
-                                }),
-                        ),
-                )
-                .into_any_element(),
-        )
+        let preview_panel = v_flex()
+            .id(ids::PREVIEW)
+            .test_support()
+            .aria_label("Song preview")
+            .w(px(440.))
+            .h(px(HEADER_HEIGHT + BODY_HEIGHT))
+            .flex_none()
+            .overflow_hidden()
+            .rounded(radius::xl())
+            .bg(k.surface_secondary)
+            .border_1()
+            .border_color(k.surface_border)
+            .child(
+                h_flex()
+                    .h(px(HEADER_HEIGHT))
+                    .flex_none()
+                    .items_center()
+                    .justify_between()
+                    .px_4()
+                    .border_b_1()
+                    .border_color(k.panel_border)
+                    .child(
+                        div()
+                            .text_size(text::LABEL.size)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(k.text(TextStep::T400))
+                            .child("LYRICS PREVIEW"),
+                    )
+                    .child(
+                        Button::new("lyrics-quick-open-preview-close")
+                            .cursor_pointer()
+                            .ghost()
+                            .xsmall()
+                            .icon(Icon::new(KairoIcon::X))
+                            .accessibility_label("Close preview")
+                            .tooltip("Close preview")
+                            .on_click(move |_, _, cx| {
+                                close_preview.update(cx, |this, cx| {
+                                    this.preview_open = false;
+                                    cx.notify();
+                                })
+                            }),
+                    ),
+            )
+            .child(
+                div()
+                    .id("lyrics-quick-open-preview-body")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .px_5()
+                    .py_4()
+                    .child(motion::animate(
+                        div().child(body),
+                        ("quick-open-preview-song", active),
+                        motion::DETECT_STATE_IN,
+                        cx,
+                    )),
+            )
+            .child(
+                h_flex()
+                    .flex_none()
+                    .items_center()
+                    .justify_end()
+                    .gap_2()
+                    .px_4()
+                    .py_2p5()
+                    .border_t_1()
+                    .border_color(k.panel_border)
+                    .child(
+                        Button::new(ids::ADD)
+                            .cursor_pointer()
+                            .secondary()
+                            .small()
+                            .icon(Icon::new(if added {
+                                KairoIcon::Check
+                            } else {
+                                KairoIcon::Plus
+                            }))
+                            .label(add_label)
+                            .disabled(!local)
+                            .when(!local, |b| b.tooltip("Import the song first"))
+                            .on_click(move |_, _, cx| {
+                                add.update(cx, |this, cx| this.add_active(cx))
+                            }),
+                    )
+                    .child(
+                        Button::new(ids::OPEN)
+                            .cursor_pointer()
+                            .primary()
+                            .small()
+                            .label(open_label)
+                            .disabled(self.importing.is_some())
+                            .on_click(move |_, _, cx| {
+                                open.update(cx, |this, cx| this.open_row(active, cx))
+                            }),
+                    ),
+            );
+        Some(if self.closing {
+            motion::animate(
+                preview_panel,
+                "quick-open-preview-out",
+                motion::MODAL_EXIT,
+                cx,
+            )
+        } else {
+            motion::animate(
+                preview_panel,
+                "quick-open-preview-in",
+                motion::FLYOUT_IN,
+                cx,
+            )
+        })
     }
 }
 
@@ -876,21 +1117,73 @@ impl Render for QuickOpen {
             .track_scroll(&self.scroll)
             .flex_1()
             .min_h_0()
-            .px_1p5()
+            .px_2()
             .into_any_element()
-        } else {
-            let (title, detail) = if self.online_searching {
-                ("Searching the web…", None)
-            } else {
-                (
-                    "Not in your library",
-                    Some(
-                        self.online_error
-                            .clone()
-                            .unwrap_or_else(|| "Try another title, artist, or lyric.".into()),
-                    ),
+        } else if self.online_searching {
+            v_flex()
+                .id(ids::EMPTY)
+                .test_support()
+                .flex_1()
+                .min_h_32()
+                .px_3p5()
+                .py_4()
+                .gap_3()
+                .child(
+                    h_flex()
+                        .items_center()
+                        .gap_2p5()
+                        .px_3()
+                        .py_2p5()
+                        .rounded(radius::md())
+                        .bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.10))
+                        .border_1()
+                        .border_color(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.28))
+                        .child(
+                            div()
+                                .size_7()
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded_full()
+                                .bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.18))
+                                .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                                .child(Icon::new(KairoIcon::Loader).size_3p5()),
+                        )
+                        .child(
+                            v_flex()
+                                .min_w_0()
+                                .flex_1()
+                                .gap_0p5()
+                                .child(
+                                    div()
+                                        .truncate()
+                                        .text_size(text::SM.size)
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(k.text_primary)
+                                        .child(format!(
+                                            "Searching online for “{}”…",
+                                            self.query.trim()
+                                        )),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(text::LABEL.size)
+                                        .text_color(k.text(TextStep::T400))
+                                        .child("Finding lyrics and formatting sections"),
+                                ),
+                        ),
                 )
-            };
+                .child(search_skeleton_rows(k, 3, cx))
+                .into_any_element()
+        } else {
+            let detail = self.online_error.clone().unwrap_or_else(|| {
+                if self.can_search_web() {
+                    "Search the web below to find and import lyrics into your library.".into()
+                } else {
+                    "Type at least 3 characters to search lyrics online.".into()
+                }
+            });
             v_flex()
                 .id(ids::EMPTY)
                 .test_support()
@@ -898,31 +1191,39 @@ impl Render for QuickOpen {
                 .min_h_32()
                 .items_center()
                 .justify_center()
-                .px_5()
+                .px_6()
+                .text_center()
                 .child(
-                    Icon::new(if self.online_searching {
-                        KairoIcon::Loader
-                    } else {
-                        KairoIcon::Music2
-                    })
-                    .size_5()
-                    .text_color(k.text(TextStep::T600)),
+                    div()
+                        .size_10()
+                        .rounded_full()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .bg(k.surface_tertiary)
+                        .text_color(k.text(TextStep::T400))
+                        .child(Icon::new(KairoIcon::Music2).size_5()),
                 )
                 .child(
                     div()
                         .mt_3()
-                        .text_size(text::XS.size)
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(k.text(TextStep::T400))
-                        .child(title),
+                        .text_size(text::SM.size)
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(k.text_primary)
+                        .child("Not in your library"),
                 )
-                .children(detail.map(|d| {
+                .child(
                     div()
                         .mt_1()
+                        .max_w(px(340.))
                         .text_size(text::LABEL.size)
-                        .text_color(k.text(TextStep::T600))
-                        .child(d)
-                }))
+                        .text_color(if self.online_error.is_some() {
+                            k.danger_text
+                        } else {
+                            k.text(TextStep::T500)
+                        })
+                        .child(detail),
+                )
                 .into_any_element()
         };
         let search_web = (self.can_search_web()
@@ -930,39 +1231,172 @@ impl Render for QuickOpen {
             && self.online.is_empty())
         .then(|| {
             let e = entity.clone();
+            let accent = k.accent(kairo_ui_kit::tokens::Step::S500);
             h_flex()
                 .id(ids::SEARCH_WEB)
                 .test_support()
                 .role(Role::Button)
                 .aria_label(format!("Search the web for “{}”", self.query.trim()))
                 .aria_keyshortcuts("Meta+Enter")
-                .mx_1p5()
-                .mb_1p5()
+                .mx_2p5()
+                .my_2()
                 .gap_2p5()
-                .px_2()
-                .py_1p5()
+                .items_center()
+                .px_3()
+                .py_2()
                 .rounded(radius::md())
-                .text_color(k.text(TextStep::T300))
-                .hover(|s| s.bg(k.surface_tertiary))
+                .bg(accent.opacity(0.10))
+                .border_1()
+                .border_color(accent.opacity(0.32))
+                .hover(|s| s.bg(accent.opacity(0.18)))
+                .active(|s| s.opacity(0.84))
                 .cursor_pointer()
                 .on_click(move |_, _, cx| e.update(cx, |this, cx| this.search_web(cx)))
-                .child(Icon::new(KairoIcon::Globe).size_3())
+                .child(
+                    div()
+                        .size_7()
+                        .flex_none()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(radius::sm())
+                        .bg(accent.opacity(0.18))
+                        .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                        .child(Icon::new(KairoIcon::Globe).size_3p5()),
+                )
+                .child(
+                    v_flex()
+                        .min_w_0()
+                        .flex_1()
+                        .gap_0p5()
+                        .child(
+                            div()
+                                .truncate()
+                                .text_size(text::SM.size)
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(k.text_primary)
+                                .child(format!("Search online for “{}”", self.query.trim())),
+                        )
+                        .child(
+                            div()
+                                .truncate()
+                                .text_size(text::MICRO.size)
+                                .text_color(k.text(TextStep::T400))
+                                .child(if rows_n == 0 {
+                                    "Press Enter to search lyrics on the web"
+                                } else {
+                                    "Not seeing it? Find & import lyrics from the web"
+                                }),
+                        ),
+                )
+                .child(kbd(k, if rows_n == 0 { "↵" } else { "⌘↵" }))
+        });
+        let web_discovery = (!self.can_search_web() && !self.online_searching).then(|| {
+            h_flex()
+                .mx_2p5()
+                .my_1p5()
+                .items_center()
+                .gap_2()
+                .px_2p5()
+                .py_1p5()
+                .rounded(radius::md())
+                .bg(k.surface.opacity(0.55))
+                .border_1()
+                .border_color(k.panel_border)
+                .child(
+                    Icon::new(KairoIcon::Globe)
+                        .size_3()
+                        .text_color(k.accent(kairo_ui_kit::tokens::Step::S400)),
+                )
                 .child(
                     div()
                         .flex_1()
                         .truncate()
-                        .text_size(text::SM.size)
-                        .child(format!("Search the web for “{}”", self.query.trim())),
+                        .text_size(text::MICRO.size)
+                        .text_color(k.text(TextStep::T400))
+                        .child("Song not in your library? Type 3+ letters to search & import from the web."),
                 )
-                .child(kbd(k, "⌘↵"))
         });
         let searching_more = (self.online_searching && rows_n > 0).then(|| {
-            div()
-                .px_3()
-                .py_2()
-                .text_size(text::LABEL.size)
-                .text_color(k.text(TextStep::T600))
-                .child("Searching the web…")
+            let accent = k.accent(kairo_ui_kit::tokens::Step::S500);
+            v_flex()
+                .mx_2p5()
+                .my_2()
+                .gap_2()
+                .p_2p5()
+                .rounded(radius::md())
+                .bg(accent.opacity(0.08))
+                .border_1()
+                .border_color(accent.opacity(0.25))
+                .child(
+                    h_flex()
+                        .items_center()
+                        .gap_2()
+                        .text_size(text::LABEL.size)
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                        .child(Icon::new(KairoIcon::Loader).size_3())
+                        .child(format!("Searching online for “{}”…", self.query.trim())),
+                )
+                .child(search_skeleton_rows(k, 2, cx))
+        });
+        let online_err = self.online_error.as_ref().filter(|_| rows_n > 0).map(|err| {
+            let retry = entity.clone();
+            motion::animate(
+                h_flex()
+                    .mx_2p5()
+                    .mb_2()
+                    .items_center()
+                    .justify_between()
+                    .gap_2()
+                    .px_3()
+                    .py_2()
+                    .rounded(radius::md())
+                    .bg(k.tints.red)
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .text_size(text::LABEL.size)
+                            .text_color(k.danger_text_soft)
+                            .child(err.clone()),
+                    )
+                    .when(self.can_search_web(), |d| {
+                        d.child(
+                            Button::new("lyrics-quick-open-retry-web")
+                                .cursor_pointer()
+                                .ghost()
+                                .xsmall()
+                                .label("Try again")
+                                .on_click(move |_, _, cx| {
+                                    retry.update(cx, |this, cx| this.search_web(cx))
+                                }),
+                        )
+                    }),
+                "quick-open-error-shake",
+                motion::OB_SHAKE,
+                cx,
+            )
+        });
+        let searching_pill = self.online_searching.then(|| {
+            motion::animate(
+                h_flex()
+                    .flex_none()
+                    .items_center()
+                    .gap_1()
+                    .px_2()
+                    .py_0p5()
+                    .rounded_full()
+                    .bg(k.accent(kairo_ui_kit::tokens::Step::S500).opacity(0.14))
+                    .text_size(text::MICRO.size)
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                    .child(Icon::new(KairoIcon::Loader).size_3())
+                    .child("Searching web…"),
+                "quick-open-searching-pill",
+                motion::PULSE,
+                cx,
+            )
         });
         let clear = (!self.query.is_empty()).then(|| {
             let e = entity.clone();
@@ -974,8 +1408,122 @@ impl Render for QuickOpen {
                 .accessibility_label("Clear search")
                 .on_click(move |_, window, cx| e.update(cx, |this, cx| this.clear(window, cx)))
         });
+        let close_btn = {
+            let e = entity.clone();
+            Button::new("lyrics-quick-open-close")
+                .cursor_pointer()
+                .ghost()
+                .xsmall()
+                .icon(Icon::new(KairoIcon::X))
+                .accessibility_label("Close search")
+                .tooltip("Close (Esc)")
+                .on_click(move |_, _, cx| e.update(cx, |this, cx| this.close(cx)))
+        };
         let backdrop = entity.clone();
-        div()
+        let dialog = v_flex()
+            .id(ids::DIALOG)
+            .test_support()
+            .role(Role::Dialog)
+            .aria_label("Search song library")
+            .track_focus(&self.focus)
+            .w(px(560.))
+            .flex_none()
+            .overflow_hidden()
+            .rounded(radius::xl())
+            .bg(k.surface_secondary)
+            .border_1()
+            .border_color(k.surface_border)
+            .child(
+                h_flex()
+                    .h(px(HEADER_HEIGHT))
+                    .flex_none()
+                    .items_center()
+                    .gap_2()
+                    .px_3p5()
+                    .border_b_1()
+                    .border_color(k.panel_border)
+                    .child(
+                        div().flex_1().min_w_0().child(
+                            Input::new(&self.input)
+                                .kairo_size()
+                                .appearance(false)
+                                .prefix(Icon::new(KairoIcon::ScanSearch).size_4()),
+                        ),
+                    )
+                    .children(searching_pill)
+                    .children(clear)
+                    .child(close_btn),
+            )
+            .child(
+                v_flex()
+                    .h(px(BODY_HEIGHT))
+                    .min_h_0()
+                    .child(
+                        h_flex()
+                            .flex_none()
+                            .items_center()
+                            .justify_between()
+                            .gap_2()
+                            .px_3p5()
+                            .pt_2p5()
+                            .pb_1p5()
+                            .child(
+                                div()
+                                    .id(ids::COUNT)
+                                    .test_support()
+                                    .text_size(text::LABEL.size)
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(count),
+                            )
+                            .when(!self.preview_open && rows_n > 0, |d| {
+                                d.child(
+                                    div()
+                                        .text_size(text::MICRO.size)
+                                        .text_color(k.text(TextStep::T600))
+                                        .child("Click to preview · Double-click to open"),
+                                )
+                            }),
+                    )
+                    .child(list)
+                    .children(web_discovery)
+                    .children(search_web)
+                    .children(searching_more)
+                    .children(online_err)
+                    .child(
+                        h_flex()
+                            .flex_none()
+                            .flex_wrap()
+                            .items_center()
+                            .gap_3p5()
+                            .px_3p5()
+                            .py_2p5()
+                            .border_t_1()
+                            .border_color(k.panel_border)
+                            .text_size(text::LABEL.size)
+                            .text_color(k.text(TextStep::T500))
+                            .child(hint(k, "↑↓", "move"))
+                            .child(hint(k, "↵", "open"))
+                            .child(hint(k, "⌘↵", "add to playlist"))
+                            .child(hint(k, "Esc", "close")),
+                    ),
+            );
+        let animated_dialog = if self.closing {
+            motion::animate(dialog, "quick-open-dialog-out", motion::MODAL_EXIT, cx)
+        } else {
+            motion::animate(dialog, "quick-open-dialog-in", motion::MODAL_ENTER, cx)
+        };
+        let scrim_curve = if self.closing {
+            motion::SCRIM_OUT
+        } else {
+            motion::SCRIM_IN
+        };
+        let scrim_id = if self.closing {
+            "quick-open-scrim-out"
+        } else {
+            "quick-open-scrim-in"
+        };
+        let backdrop_el = div()
             .id(ids::BACKDROP)
             .absolute()
             .inset_0()
@@ -998,73 +1546,122 @@ impl Render for QuickOpen {
                     .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
                         cx.stop_propagation()
                     })
-                    .child(kairo_ui_kit::motion::enter(
-                        v_flex()
-                            .id(ids::DIALOG)
-                            .test_support()
-                            .role(Role::Dialog)
-                            .aria_label("Search song library")
-                            .track_focus(&self.focus)
-                            .w(px(560.))
-                            .flex_none()
-                            .overflow_hidden()
-                            .rounded(radius::xl())
-                            .bg(k.surface_elevated)
-                            .child(
-                                h_flex()
-                                    .h_12()
-                                    .flex_none()
-                                    .gap_2p5()
-                                    .px_3p5()
-                                    .child(
-                                        div().flex_1().child(
-                                            Input::new(&self.input)
-                                                .kairo_size()
-                                                .appearance(false)
-                                                .prefix(Icon::new(KairoIcon::ScanSearch).size_4()),
-                                        ),
-                                    )
-                                    .children(clear),
-                            )
-                            .child(
-                                v_flex()
-                                    .h(px(520.))
-                                    .min_h_0()
-                                    .child(
-                                        div()
-                                            .id(ids::COUNT)
-                                            .test_support()
-                                            .flex_none()
-                                            .px_3p5()
-                                            .pt_2()
-                                            .pb_1()
-                                            .text_size(text::LABEL.size)
-                                            .text_color(k.text(TextStep::T500))
-                                            .child(count),
-                                    )
-                                    .child(list)
-                                    .children(search_web)
-                                    .children(searching_more)
-                                    .child(
-                                        h_flex()
-                                            .flex_none()
-                                            .flex_wrap()
-                                            .gap_3()
-                                            .px_3p5()
-                                            .py_2()
-                                            .text_size(text::LABEL.size)
-                                            .text_color(k.text(TextStep::T500))
-                                            .child(hint(k, "↑↓", "move"))
-                                            .child(hint(k, "↵", "open"))
-                                            .child(hint(k, "⌘↵", "add to playlist")),
-                                    ),
-                            ),
-                        "quick-open-enter",
-                        cx,
-                    ))
+                    .child(animated_dialog)
                     .children(self.render_preview(cx)),
-            )
+            );
+        if cx.reduced_motion() {
+            backdrop_el.into_any_element()
+        } else {
+            use gpui_kit::AnimationExt;
+            backdrop_el
+                .with_animation(scrim_id, scrim_curve.animation(), move |el, delta| {
+                    el.opacity(scrim_curve.sample(delta).opacity.clamp(0.0, 1.0))
+                })
+                .into_any_element()
+        }
     }
+}
+
+fn preview_section_card(
+    k: kairo_ui_kit::KairoColors,
+    section: &LyricsSongSection,
+) -> AnyElement {
+    div()
+        .rounded(radius::md())
+        .bg(k.surface.opacity(0.6))
+        .border_1()
+        .border_color(k.panel_border)
+        .px_3()
+        .py_2p5()
+        .child(section_block(k, section))
+        .into_any_element()
+}
+
+fn preview_skeleton(k: kairo_ui_kit::KairoColors, cx: &gpui_kit::App) -> AnyElement {
+    let block = |widths: &[f32]| {
+        v_flex()
+            .gap_1p5()
+            .rounded(radius::md())
+            .bg(k.surface.opacity(0.6))
+            .border_1()
+            .border_color(k.panel_border)
+            .px_3()
+            .py_2p5()
+            .child(div().h(px(10.)).w(px(64.)).rounded(radius::sm()).bg(k.surface_tertiary))
+            .children(widths.iter().map(|w| {
+                div()
+                    .h(px(12.))
+                    .w(gpui_kit::relative(*w))
+                    .rounded(radius::sm())
+                    .bg(k.surface_tertiary.opacity(0.7))
+            }))
+    };
+    motion::animate(
+        v_flex()
+            .mt_3()
+            .gap_2p5()
+            .child(
+                h_flex()
+                    .items_center()
+                    .gap_1p5()
+                    .text_size(text::LABEL.size)
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
+                    .child(Icon::new(KairoIcon::Loader).size_3())
+                    .child("Loading and reviewing lyrics…"),
+            )
+            .child(block(&[0.85, 0.72, 0.90, 0.60]))
+            .child(block(&[0.78, 0.88, 0.65])),
+        "quick-open-preview-skeleton",
+        motion::PULSE,
+        cx,
+    )
+}
+
+fn search_skeleton_rows(
+    k: kairo_ui_kit::KairoColors,
+    count: usize,
+    cx: &gpui_kit::App,
+) -> AnyElement {
+    let widths: [(f32, f32); 3] = [(0.58, 0.36), (0.46, 0.30), (0.64, 0.40)];
+    motion::animate(
+        v_flex().gap_1p5().children((0..count).map(|i| {
+            let (tw, aw) = widths[i % widths.len()];
+            h_flex()
+                .items_center()
+                .gap_2p5()
+                .px_2p5()
+                .py_2()
+                .rounded(radius::md())
+                .bg(k.surface.opacity(0.5))
+                .border_1()
+                .border_color(k.panel_border.opacity(0.6))
+                .child(div().size_7().flex_none().rounded(radius::sm()).bg(k.surface_tertiary))
+                .child(
+                    v_flex()
+                        .min_w_0()
+                        .flex_1()
+                        .gap_1p5()
+                        .child(
+                            div()
+                                .h(px(12.))
+                                .w(gpui_kit::relative(tw))
+                                .rounded(radius::sm())
+                                .bg(k.surface_tertiary),
+                        )
+                        .child(
+                            div()
+                                .h(px(10.))
+                                .w(gpui_kit::relative(aw))
+                                .rounded(radius::sm())
+                                .bg(k.surface_tertiary.opacity(0.65)),
+                        ),
+                )
+        })),
+        ("quick-open-search-skeleton", count),
+        motion::PULSE,
+        cx,
+    )
 }
 
 fn kbd(k: kairo_ui_kit::KairoColors, keys: &str) -> AnyElement {
@@ -1072,21 +1669,22 @@ fn kbd(k: kairo_ui_kit::KairoColors, keys: &str) -> AnyElement {
         .flex_none()
         .rounded(radius::sm())
         .bg(k.surface_tertiary)
+        .border_1()
+        .border_color(k.panel_border)
         .px_1p5()
+        .py_0p5()
         .text_size(text::MICRO.size)
-        .text_color(k.text(TextStep::T500))
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(k.text(TextStep::T300))
         .child(keys.to_owned())
         .into_any_element()
 }
 
 fn hint(k: kairo_ui_kit::KairoColors, keys: &str, what: &str) -> AnyElement {
     h_flex()
-        .gap_1()
-        .child(
-            div()
-                .text_color(k.text(TextStep::T400))
-                .child(keys.to_owned()),
-        )
+        .items_center()
+        .gap_1p5()
+        .child(kbd(k, keys))
         .child(what.to_owned())
         .into_any_element()
 }

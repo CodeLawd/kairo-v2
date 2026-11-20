@@ -491,6 +491,74 @@ pub const OB_LETTER_WAVE: Keyframes = Keyframes {
     ],
 };
 
+/// A modal or palette entering: fades in while rising 12 px on `OUT_EXPO`.
+pub const MODAL_ENTER: Keyframes = Keyframes {
+    name: "modal-enter",
+    duration_ms: 240,
+    timing: OUT_EXPO,
+    repeat: false,
+    alternate: false,
+    stops: &[(0.0, f!(opacity: 0.0, y: 12.0)), (1.0, REST)],
+};
+/// A modal or palette leaving: fades out while settling 8 px down.
+pub const MODAL_EXIT: Keyframes = Keyframes {
+    name: "modal-exit",
+    duration_ms: 140,
+    timing: Timing::EaseOut,
+    repeat: false,
+    alternate: false,
+    stops: &[(0.0, REST), (1.0, f!(opacity: 0.0, y: 8.0))],
+};
+/// A side flyout (such as a preview pane) sliding out from the main panel.
+pub const FLYOUT_IN: Keyframes = Keyframes {
+    name: "flyout-in",
+    duration_ms: 220,
+    timing: OUT_EXPO,
+    repeat: false,
+    alternate: false,
+    stops: &[(0.0, f!(opacity: 0.0, x: -14.0)), (1.0, REST)],
+};
+/// A gentle breathing pulse for loading skeletons and pending indicators.
+pub const PULSE: Keyframes = Keyframes {
+    name: "pulse",
+    duration_ms: 1100,
+    timing: Timing::EaseInOut,
+    repeat: true,
+    alternate: false,
+    stops: &[
+        (0.0, f!(opacity: 0.45)),
+        (0.5, REST),
+        (1.0, f!(opacity: 0.45)),
+    ],
+};
+/// Inline controls sliding gently into place on the active row.
+pub const ACTION_IN: Keyframes = Keyframes {
+    name: "action-in",
+    duration_ms: 160,
+    timing: OUT_EXPO,
+    repeat: false,
+    alternate: false,
+    stops: &[(0.0, f!(opacity: 0.0, x: 6.0)), (1.0, REST)],
+};
+/// Backdrop scrim fade in.
+pub const SCRIM_IN: Keyframes = Keyframes {
+    name: "scrim-in",
+    duration_ms: 180,
+    timing: Timing::EaseOut,
+    repeat: false,
+    alternate: false,
+    stops: &[(0.0, f!(opacity: 0.0)), (1.0, REST)],
+};
+/// Backdrop scrim fade out.
+pub const SCRIM_OUT: Keyframes = Keyframes {
+    name: "scrim-out",
+    duration_ms: 140,
+    timing: Timing::EaseOut,
+    repeat: false,
+    alternate: false,
+    stops: &[(0.0, REST), (1.0, f!(opacity: 0.0))],
+};
+
 /// Every keyframe rule, for the gallery and tests.
 pub const ALL: &[Keyframes] = &[
     DETECT_CARD_IN,
@@ -521,6 +589,13 @@ pub const ALL: &[Keyframes] = &[
     OB_GLINT,
     OB_LETTER_IN,
     OB_LETTER_WAVE,
+    MODAL_ENTER,
+    MODAL_EXIT,
+    FLYOUT_IN,
+    PULSE,
+    ACTION_IN,
+    SCRIM_IN,
+    SCRIM_OUT,
 ];
 
 /// The ticker's cycle for a message (`program.ts`: at least 8 s, else

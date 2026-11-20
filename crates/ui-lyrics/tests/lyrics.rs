@@ -1147,6 +1147,9 @@ fn quick_open_lists_everything_then_ranks_and_opens_with_enter(cx: &mut TestAppC
     finder_do(cx, &opened, &q, |q, cx| {
         q.key("enter", false, cx);
     });
+    cx.background_executor
+        .advance_clock(std::time::Duration::from_millis(200));
+    draw(cx, &opened);
     assert_eq!(
         read(cx, &opened, |m| m.selected_id().map(str::to_owned)),
         Some("b".into())
@@ -1192,6 +1195,9 @@ fn quick_open_arrows_click_preview_and_escape(cx: &mut TestAppContext) {
     finder_do(cx, &opened, &q, |q, cx| {
         q.key("escape", false, cx);
     });
+    cx.background_executor
+        .advance_clock(std::time::Duration::from_millis(200));
+    draw(cx, &opened);
     assert!(cx.read(|cx| opened.page.read(cx).quick_open().is_none()));
 }
 
