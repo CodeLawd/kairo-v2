@@ -196,6 +196,32 @@ fn frames_may_be_blank() {
 }
 
 #[test]
+fn google_sign_in_steps_are_allowed_by_path() {
+    for ok in [
+        "https://www.recaptcha.net/recaptcha/api2/anchor?ar=1&size=invisible",
+        "https://www.google.com/recaptcha/api2/bframe",
+        "https://accounts.google.com.ng/accounts/SetSID?ssdc=1&sidt=x",
+        "https://accounts.google.co.uk/accounts/SetSID",
+        "https://accounts.google.de/accounts/SetSID",
+    ] {
+        assert!(allowed_slido_frame_navigation(ok), "{ok}");
+    }
+    for bad in [
+        "https://www.recaptcha.net/",
+        "https://www.google.com/search?q=x",
+        "https://accounts.google.com.ng/",
+        "https://accounts.google.com.ng/ServiceLogin",
+        "https://accounts.google.com.evil.example/accounts/SetSID",
+        "https://accounts.google.evil/accounts/SetSID",
+        "https://accounts.google.co.evil.uk/accounts/SetSID",
+        "http://accounts.google.com.ng/accounts/SetSID",
+        "https://sites.google.com/recaptcha/",
+    ] {
+        assert!(!allowed_slido_frame_navigation(bad), "{bad}");
+    }
+}
+
+#[test]
 fn only_moderators_open_windows_to_allowed_hosts() {
     assert!(allowed_slido_window("https://accounts.google.com/x", true));
     assert!(!allowed_slido_window(

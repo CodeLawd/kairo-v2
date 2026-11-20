@@ -366,7 +366,16 @@ fn main() {
             .map(PathBuf::from);
         let profile = explicit.unwrap_or_else(|| dir.join("profile"));
         let host = SlidoWebHost::install(cx, fixture_options(profile.clone(), port));
-        let live_host = SlidoWebHost::install(cx, HostOptions::new(profile));
+        let mut live_options = HostOptions::new(profile);
+        // Print every refused navigation, so a stuck sign-in shows which host it needed.
+        live_options.navigation = Some(Arc::new(|url| {
+            let allowed = allowed_slido_frame_navigation(url);
+            if !allowed {
+                eprintln!("navigation refused: {url}");
+            }
+            allowed
+        }));
+        let live_host = SlidoWebHost::install(cx, live_options);
         let args = args.clone();
         let mode = mode.clone();
         handle.spawn(async move {

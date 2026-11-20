@@ -63,12 +63,42 @@ pub fn allowed_slido_navigation(address: &str) -> bool {
         return false;
     };
     url.scheme() == "https"
-        && ALLOWED_HOSTS.iter().any(|allowed| {
+        && (ALLOWED_HOSTS.iter().any(|allowed| {
             host == *allowed
                 || host
                     .strip_suffix(allowed)
                     .is_some_and(|prefix| prefix.ends_with('.'))
-        })
+        }) || google_sign_in_step(host, url.path()))
+}
+
+/// Steps of Google and Slido sign-in outside [`ALLOWED_HOSTS`], each limited
+/// to one path. Wry's navigation handler cannot tell a frame from the page,
+/// so these are allowed narrowly rather than by host.
+///
+/// - Slido's sign-in page loads an invisible reCAPTCHA frame from
+///   `www.recaptcha.net` (or `www.google.com`) under `/recaptcha/`.
+/// - After 2-Step Verification, Google sets the session cookie on its
+///   country domain (`accounts.google.com.ng`, `accounts.google.co.uk`,
+///   `accounts.google.de`, …) through `/accounts/SetSID`, then continues.
+///   Without it the sign-in stops at the code page.
+fn google_sign_in_step(host: &str, path: &str) -> bool {
+    if matches!(host, "www.recaptcha.net" | "www.google.com") {
+        return path.starts_with("/recaptcha/");
+    }
+    path == "/accounts/SetSID"
+        && host
+            .strip_prefix("accounts.google.")
+            .is_some_and(google_country_suffix)
+}
+
+/// `com.ng`, `co.uk` or `de`: Google's country domains, and nothing longer,
+/// so `accounts.google.com.evil.example` stays refused.
+fn google_country_suffix(suffix: &str) -> bool {
+    let country = |label: &str| label.len() == 2 && label.bytes().all(|b| b.is_ascii_lowercase());
+    match suffix.split_once('.') {
+        None => country(suffix),
+        Some((second, cc)) => matches!(second, "com" | "co") && country(cc),
+    }
 }
 
 /// Wry's navigation handler is asked about frames as well as the page, where

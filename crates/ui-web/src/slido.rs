@@ -354,7 +354,13 @@ fn build(
         .with_initialization_script(config.script.clone())
         .with_url(config.start_url.clone())
         .with_devtools(false)
-        .with_navigation_handler(move |url| allow(&url))
+        .with_navigation_handler(move |url| {
+            let allowed = allow(&url);
+            if !allowed {
+                tracing::warn!(%url, "Slido window refused a navigation");
+            }
+            allowed
+        })
         .with_new_window_req_handler(move |url, _| {
             if allowed_slido_window(&url, moderator) {
                 NewWindowResponse::Allow
