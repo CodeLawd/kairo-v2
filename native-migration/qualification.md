@@ -48,3 +48,88 @@ Forward is the migration plus the native settings launch. Back is Electron's rea
 Real profile (a copy of this Mac's Electron userData, 88 MB, 2026-11-15): 226 ms; 10 localStorage keys imported; the saved microphone matched by its Chromium hash. The two key rewraps failed in that harness because the unsigned test binary cannot read the Electron Safe Storage keychain item; the signed app reads it (with macOS's prompt, 022).
 
 Not verified: reinstalling the latest Electron release on a migrated profile and opening it (the rollback above runs Electron's own settings launch, not the installed app); key rewrap end to end in the signed app; Windows and Linux (microphone matching assumes the raw id is the part of the cpal id after `host:`, checked only for CoreAudio).
+
+## 110 — Hardware qualification
+
+Covers the outstanding physical items from Electron decisions 001, 007 and 008
+and `native/decklink/README.md` (no drift since `af978c5`). A person must watch
+each output and report. Record only what they report. Each 10-minute run must
+show zero late or dropped frames.
+
+Machine: MacBook Pro (M2 Pro), built-in Liquid Retina XDR only (3024 × 1964,
+scale 2), 2026-11-20.
+
+### Agent probes (no person watching)
+
+| Check | Result | Evidence |
+|---|---|---|
+| DeckLink driver | Pass | `native/decklink/prebuilt/decklink-helper --version` → `16.4` |
+| DeckLink ports | **None** | `--list` → `"ports":[]`. Echo Express SE-III TB3 shows in Thunderbolt, but no Blackmagic device on PCI: check chassis power, card seating and Desktop Video Setup |
+| Helper signature | Ad-hoc only | `codesign -dv`: `Signature=adhoc`; signed-package check still open |
+| NDI runtime loads | Pass | SDK 6.3.2.0 from `/Library/NDI SDK for Apple/lib/macOS/libndi.dylib` via `KAIRO_NDI_RUNTIME`; without it the probe fails: `no libndi.dylib in the app folder` (expected outside the bundle) |
+| NDI discovery | Pass | `receive` found `JOSHUAS-MACBOOK-PRO.LOCAL (Kairo Scripture)` |
+| NDI frame format | Pass | One frame 1920 × 1080, FourCC `0x41565955` (UYVA), stride 3840; fully transparent (nothing on air). Kit receiver only, not a third-party receiver |
+
+### Checklist for the person watching
+
+Use **Pass**, **Fail: what was seen**, or **Not run: why**.
+
+**NDI receivers (UYVA keying).** Put a reference slide with text over a
+transparent background on air. On each receiver, check the source shows, text
+is crisp, transparent areas key over the receiver's other video, and colour
+matches the operator preview.
+
+| Receiver | Version | Shows | Keys | Colour | Notes |
+|---|---|---|---|---|---|
+| NDI Studio Monitor | | | | | |
+| OBS (NDI plugin) | | | | | |
+| vMix | | | | | |
+| ProPresenter | | | | | |
+
+**DeckLink Duo 2.** Record driver, firmware, profile, connector mapping and mode.
+
+| Check | Result | Notes |
+|---|---|---|
+| `--list` shows every expected port with the right labels | | |
+| Each port plays 1080p29.97 picture on a monitor | | |
+| Two outputs on the same port: second is refused with a clear error | | |
+| Port busy in ProPresenter: Kairo reports busy, does not take it | | |
+| Mode change while playing (1080p → 1080i): picture recovers | | |
+| Interlaced motion (1080i59.94, moving lyrics/scroll): no combing or field-order judder | | |
+| SD mode: not offered (HD only until Rec.601 lands) | | |
+| Profile change in Desktop Video Setup while open: outputs reconcile, no crash | | |
+| Key/fill: stays disabled | | |
+| Helper crash (kill `decklink-helper`): engine keeps running, output shows error, reopen works | | |
+
+**Load and pacing.** GPU path unless stated. Note operator CPU at each step.
+
+| Setup | 10-min run | Late/dropped | CPU | Notes |
+|---|---|---|---|---|
+| 1 card | | | | |
+| 1 card + 1 NDI | | | | |
+| 2 cards + 1 NDI | | | | |
+| 4 cards + 1 NDI | | | | |
+| Colour on card and NDI equals CPU path on reference slide | | | | |
+| Forced capture error mid-run: picture holds, fallback logged once | | | | |
+
+**Displays and power.**
+
+| Check | Result | Notes |
+|---|---|---|
+| Retina primary | | |
+| Non-Retina primary | | |
+| Unplug output display while live | | |
+| Replug: output returns to the right display | | |
+| Sleep/wake while outputs live | | |
+| Unplug and replug Echo Express while live: error shown, ports return, output resumes | | |
+
+**Signed package.**
+
+| Check | Result | Notes |
+|---|---|---|
+| `decklink-helper` and `libndi.dylib` in the signed, notarized app, signed with the app's Developer ID | | |
+| Card and NDI outputs work from the installed DMG on a clean machine | | |
+| Build without the capture path renders through the CPU path | | |
+
+Not verified: everything in the checklist above. The Intel, Windows and Linux
+NDI targets from decision 001 are not run.
