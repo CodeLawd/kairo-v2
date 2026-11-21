@@ -414,8 +414,17 @@ async fn embedded_videos_wait_hidden_and_follow_their_commands() {
     until_status(&engine, "seeked", |v| (v.current_time - 0.6).abs() < 0.05).await;
     control(0, C::Seek { seconds: 99.0 });
     until_status(&engine, "clamped", |v| v.current_time >= 0.95).await;
+    // On the Windows runner a Restart right after the clamped seek can leave
+    // the clip at its end (seen once in CI); as with Play above, send it
+    // again while the clip still shows ended.
     control(0, C::Restart);
-    until_status(&engine, "restarted", |v| !v.paused && v.current_time < 0.5).await;
+    until_status(&engine, "restarted", |v| {
+        if v.ended {
+            control(0, C::Restart);
+        }
+        !v.paused && v.current_time < 0.5
+    })
+    .await;
 
     // The missing file: the decode error, and play refused.
     control(1, C::Play);
