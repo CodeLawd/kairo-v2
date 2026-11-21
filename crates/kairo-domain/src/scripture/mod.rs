@@ -23,6 +23,7 @@ pub mod spoken_translations;
 pub mod trace;
 pub mod translations;
 pub mod versification;
+mod versification_data;
 
 use crate::serde_util::{Extra, True, nullable, present, required, string_enum};
 use serde::{Deserialize, Serialize};

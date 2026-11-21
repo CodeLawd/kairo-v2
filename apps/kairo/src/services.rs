@@ -605,7 +605,18 @@ struct SttAdapter {
     capture: Mutex<Option<CaptureHandle>>,
     settings: Settings,
     topics: Publisher,
+    core: AppCore,
 }
+
+/// The microphone's state for the booth's banner.
+fn audio_health(core: &AppCore, status: kairo_domain::status::HealthStatus, error: Option<String>) {
+    let _ = core.send(kairo_core::resilience::HealthChanged {
+        service: kairo_domain::status::ServiceName::Audio,
+        status,
+        error,
+    });
+}
+
 impl clients::SttClient for SttAdapter {
     fn configure(&self, provider: SttProvider, language: &str, keyterms: Vec<String>) {
         self.stt.configure(provider, language, keyterms);
@@ -640,11 +651,20 @@ impl clients::SttClient for SttAdapter {
             .to_owned();
         let relay = self.relay.clone();
         let topics = self.topics.clone();
+        let core = self.core.clone();
+        use kairo_domain::status::HealthStatus;
         match kairo_stt::capture::start_capture(&id, move |event| match event {
             CaptureEvent::Pcm(pcm) => relay.feed(pcm),
             CaptureEvent::Level(level) => topics.publish(level),
+            CaptureEvent::Interrupted => audio_health(
+                &core,
+                HealthStatus::Degraded,
+                Some("Microphone interrupted".into()),
+            ),
+            CaptureEvent::Restored => audio_health(&core, HealthStatus::Ok, None),
             CaptureEvent::Error(error) => {
-                topics.emit(error);
+                tracing::error!(%error, "[Audio] input unavailable");
+                audio_health(&core, HealthStatus::Error, Some(error.message));
             }
             CaptureEvent::FellBackToDefault { requested } => {
                 tracing::warn!(%requested, "[Audio] using the default input")
@@ -652,6 +672,7 @@ impl clients::SttClient for SttAdapter {
         }) {
             Ok(handle) => {
                 *lock(&self.capture) = Some(handle);
+                audio_health(&self.core, HealthStatus::Ok, None);
                 Ok(())
             }
             Err(error) => {
@@ -663,6 +684,7 @@ impl clients::SttClient for SttAdapter {
     }
     fn detach_audio(&self) {
         lock(&self.capture).take();
+        audio_health(&self.core, kairo_domain::status::HealthStatus::Ok, None);
         self.stt.deepgram().detach_stream();
         self.relay.destroy_stream();
     }
@@ -911,6 +933,7 @@ async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, Strin
             capture: Mutex::new(None),
             settings: settings.clone(),
             topics: core.publisher(),
+            core: core.clone(),
         }),
         transcripts: {
             let tx = transcripts.clone();
@@ -1319,7 +1342,12 @@ fn wire_events(
                             Some(Health::Reconnecting { attempt, delay_ms })
                         }
                         kairo_stt::SttEvent::Disconnected => Some(Health::Disconnected),
-                        kairo_stt::SttEvent::Error { message, .. } => Some(Health::Error(message)),
+                        // A recoverable error is followed by `Reconnecting`;
+                        // only a fatal one means transcription stopped.
+                        kairo_stt::SttEvent::Error {
+                            message,
+                            fatal: true,
+                        } => Some(Health::Error(message)),
                         kairo_stt::SttEvent::Network { weak } => Some(Health::Network { weak }),
                         _ => None,
                     };

@@ -18,11 +18,11 @@ use gpui_kit::component::{
     Disableable, Icon, Sizable, VirtualListScrollHandle, h_flex, v_flex, v_virtual_list,
 };
 use gpui_kit::{
-    AnyElement, AppContext, Bounds, Context, DragMoveEvent, Entity, ExternalPaths, Focusable,
-    FontWeight, InteractiveElement, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, ObjectFit, ParentElement, Pixels, Point, Render, Role,
-    SharedString, StatefulInteractiveElement, Styled, StyledImage, Subscription, Window, canvas,
-    div, img, point, prelude::FluentBuilder, px, size,
+    AnyElement, AppContext, Bounds, Context, DragMoveEvent, Entity, ExternalPaths, FocusHandle,
+    Focusable, FontWeight, InteractiveElement, IntoElement, KeyDownEvent, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, ObjectFit, ParentElement, Pixels, Point, Render,
+    Role, SharedString, StatefulInteractiveElement, Styled, StyledImage, Subscription, Window,
+    canvas, div, img, point, prelude::FluentBuilder, px, size,
 };
 use kairo_domain::media::{MediaItem, MediaKind, MediaPlayback};
 use kairo_domain::media_order::DropPosition;
@@ -122,6 +122,9 @@ pub struct MediaDockView {
     preview: Option<(String, Entity<PreviewPlayer>)>,
     inspector: Option<(String, Entity<Inspector>, Subscription)>,
     inspector_focus: kairo_ui_kit::components::ModalFocus,
+    /// Clicking the dock takes focus here, so ⌘C/⌘X/⌘V reach the dock only
+    /// when no text field elsewhere has focus.
+    focus: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -172,6 +175,8 @@ impl MediaDockView {
         // ⌘C · ⌘X · ⌘V while open, and Esc in a name field, before the field.
         let weak = cx.entity().downgrade();
         let rename_focus = rename.read(cx).focus_handle(cx);
+        let focus = cx.focus_handle();
+        let dock_focus = focus.clone();
         subs.push(cx.intercept_keystrokes(move |event, window, cx| {
             let k = &event.keystroke;
             if k.key == "escape" && rename_focus.is_focused(window) {
@@ -189,8 +194,10 @@ impl MediaDockView {
             {
                 return;
             }
-            // A text field keeps its own copy and paste.
-            if window.focused(cx).is_some_and(|f| f == rename_focus) {
+            // A text field keeps its own copy and paste, in the dock or not.
+            if window.focused(cx).is_some_and(|f| f == rename_focus)
+                || (window.focused(cx).is_some() && !dock_focus.contains_focused(window, cx))
+            {
                 return;
             }
             let handled = weak
@@ -218,6 +225,7 @@ impl MediaDockView {
             preview: None,
             inspector: None,
             inspector_focus: kairo_ui_kit::components::ModalFocus::new(cx),
+            focus,
             _subscriptions: subs,
         }
     }
@@ -1568,6 +1576,11 @@ impl Render for MediaDockView {
         v_flex()
             .id(ids::DOCK)
             .test_support()
+            .track_focus(&self.focus)
+            // Capture: a field inside the dock still focuses itself after.
+            .capture_any_mouse_down(cx.listener(|this, _, window, cx| {
+                window.focus(&this.focus, cx);
+            }))
             .flex_none()
             .h(px(height))
             .w_full()

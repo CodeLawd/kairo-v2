@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
 /// Ids that are also English words, so only their capitalised form counts.
-const WORD_IDS: &[&str] = &["WEB"];
+const WORD_IDS: &[&str] = &["WEB", "EASY"];
 
 /// Spoken forms replacing the registry's name patterns for common-word names.
 const SPOKEN_NAME_OVERRIDES: &[(&str, &[&str])] = &[
@@ -27,6 +27,13 @@ const SPOKEN_NAME_OVERRIDES: &[(&str, &[&str])] = &[
             "the message (?:bible|translation|version)",
             "message bible",
             "message translation",
+        ],
+    ),
+    (
+        "GNT",
+        &[
+            "good news (?:translation|bible|version)",
+            "today[’']?s english version",
         ],
     ),
     (

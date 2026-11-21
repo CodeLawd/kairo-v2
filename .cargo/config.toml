@@ -13,3 +13,11 @@ GPUI_A11Y_ACTIVE = "1"
 # from the PROD_API_URL and PROD_WEB_URL repository variables. To run a local
 # build against production, set both in the shell, for example
 # KAIRO_API_URL=https://api.kairopresenter.com KAIRO_WEB_URL=https://kairopresenter.com
+
+# Sign debug `kairo` with a stable identity so the keychain's "Always Allow"
+# survives rebuilds (tools/dev-sign-run.sh). Other binaries run unchanged.
+[target.aarch64-apple-darwin]
+runner = "tools/dev-sign-run.sh"
+
+[target.x86_64-apple-darwin]
+runner = "tools/dev-sign-run.sh"

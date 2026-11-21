@@ -36,6 +36,14 @@ fn setup(cx: &mut TestAppContext) {
 }
 
 fn open(cx: &mut TestAppContext, version: &str) -> (AnyWindowHandle, Entity<Shell>) {
+    open_sized(cx, version, 800.)
+}
+
+fn open_sized(
+    cx: &mut TestAppContext,
+    version: &str,
+    height: f32,
+) -> (AnyWindowHandle, Entity<Shell>) {
     let options = ShellOptions {
         version: version.into(),
         dev: false,
@@ -47,7 +55,7 @@ fn open(cx: &mut TestAppContext, version: &str) -> (AnyWindowHandle, Entity<Shel
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(Bounds::new(
                     Default::default(),
-                    size(px(1280.), px(800.)),
+                    size(px(1280.), px(height)),
                 ))),
                 ..Default::default()
             },
@@ -108,6 +116,35 @@ fn the_rail_navigates_every_workspace(cx: &mut TestAppContext) {
         }
     })
     .unwrap();
+}
+
+#[gpui_kit::test]
+fn a_short_window_keeps_every_workspace_in_view(cx: &mut TestAppContext) {
+    setup(cx);
+    for (height, labels) in [(600., false), (900., true)] {
+        let (handle, shell) = open_sized(cx, "1.0.0", height);
+        ready(cx, handle, &shell);
+        // The rail measures itself after layout, then settles.
+        for _ in 0..2 {
+            cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+                .unwrap();
+        }
+        cx.update_window(handle, |_, window, _| {
+            let last = ui_shell::WORKSPACES[ui_shell::WORKSPACES.len() - 1];
+            let last = window
+                .find(SharedString::from(format!("rail-{}", last.route.as_str())))
+                .bounds();
+            let feedback = window.find("feedback").bounds();
+            assert!(
+                last.origin.y + last.size.height <= feedback.origin.y,
+                "{height}: the last workspace sits under the rail's buttons"
+            );
+            // Names show when there is room, icons alone when there is not.
+            let operator = window.find("rail-operator").bounds();
+            assert_eq!(operator.size.height > px(36.), labels, "{height}");
+        })
+        .unwrap();
+    }
 }
 
 #[gpui_kit::test]

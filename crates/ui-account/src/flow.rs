@@ -102,7 +102,10 @@ impl AccountFlow {
         let (offer, gate) = {
             let account = self.account.read(cx);
             (
-                should_offer_onboarding(account.onboarding(), self.dismissed),
+                // Not before the saved progress loads: the default state
+                // looks unfinished and would hold setup open every launch.
+                account.onboarding_known()
+                    && should_offer_onboarding(account.onboarding(), self.dismissed),
                 should_offer_account_gate(account.session()),
             )
         };

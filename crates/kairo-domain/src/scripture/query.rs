@@ -325,7 +325,41 @@ pub fn resolve_submitted_scripture_query(input: &str) -> String {
     normalize_scripture_query(&completed).unwrap_or_else(|| js::trim(&completed).to_string())
 }
 
-fn verse_reference(book: &str, chapter: f64, verse: f64) -> String {
+/// Where a playlist keeps a verse's own reference line, exactly as it is
+/// shown (translation and all).
+pub const VERSE_LABEL_KEY: &str = "label";
+
+/// The reference line a playlist gave this verse, if any.
+pub fn custom_reference_line(verse: &super::ScriptureVerse) -> Option<&str> {
+    verse
+        .extra
+        .get(VERSE_LABEL_KEY)
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+}
+
+/// The reference line over a verse: the playlist's own line when it gave
+/// one, else `reference` with the translation as the options say.
+pub fn verse_reference_line(
+    verse: Option<&super::ScriptureVerse>,
+    reference: &str,
+    translation: &str,
+    show_translation: bool,
+) -> String {
+    verse
+        .and_then(custom_reference_line)
+        .map(str::to_owned)
+        .unwrap_or_else(|| {
+            crate::overlay_content::format_overlay_reference(
+                reference,
+                translation,
+                show_translation,
+            )
+        })
+}
+
+pub fn verse_reference(book: &str, chapter: f64, verse: f64) -> String {
     format!(
         "{book} {}:{}",
         js::number_to_string(chapter),

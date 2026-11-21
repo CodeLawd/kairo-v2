@@ -1736,3 +1736,24 @@ fn a_key_press_asks_for_the_push_within_a_frame(cx: &mut TestAppContext) {
         assert!(times[10] < Duration::from_micros(16_667));
     }
 }
+
+#[gpui_kit::test]
+fn quick_edit_keeps_typed_text(cx: &mut TestAppContext) {
+    let core = grid_core();
+    let opened = open_song(cx, core.clone(), "x");
+    act(cx, &opened, |m, cx| m.start_quick_edit(1, cx));
+    // Clicking inside the box keeps it open.
+    click(cx, &opened, song_ids::QUICK_EDIT);
+    assert!(read(cx, &opened, |m| m.quick_edit().is_some()));
+    cx.update_window(opened.handle, |_, w, cx| w.input(" more", cx))
+        .unwrap();
+    draw(cx, &opened);
+    press(cx, &opened, "cmd-enter");
+    assert!(read(cx, &opened, |m| m.quick_edit().is_none()));
+    let last = updates(&core).last().cloned().expect("a save");
+    assert!(
+        last.sections[0].lines.iter().any(|l| l.contains("more")),
+        "{:?}",
+        last.sections[0].lines
+    );
+}

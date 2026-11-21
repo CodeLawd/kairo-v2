@@ -35,6 +35,11 @@ pub struct VerseCard {
     sending: bool,
     background: crate::backend::CardBackground,
     on_click: Option<OnClick>,
+    /// Drawn in the verse's and the reference's theme frames instead of
+    /// their text, sized for the verse text given.
+    layers: Option<EditLayers>,
+    /// No label bar under the slide.
+    bare: bool,
 }
 
 impl VerseCard {
@@ -52,6 +57,8 @@ impl VerseCard {
             sending: false,
             background: Default::default(),
             on_click: None,
+            layers: None,
+            bare: false,
         }
     }
     /// The theme background drawn under the text.
@@ -90,6 +97,94 @@ impl VerseCard {
     pub fn on_click(mut self, f: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static) -> Self {
         self.on_click = Some(Box::new(f));
         self
+    }
+    /// Edits in place: `verse` and `reference` are drawn where the theme
+    /// puts the verse and the reference, in its fonts and alignment, at the
+    /// sizes the output would use for `verse_text`.
+    pub fn edit_layers(
+        mut self,
+        verse: impl gpui_kit::IntoElement,
+        reference: impl gpui_kit::IntoElement,
+        verse_text: impl Into<String>,
+    ) -> Self {
+        self.layers = Some(EditLayers {
+            verse: verse.into_any_element(),
+            reference: reference.into_any_element(),
+            verse_text: verse_text.into(),
+        });
+        self
+    }
+    /// Just the slide, without the label bar.
+    pub fn bare(mut self, bare: bool) -> Self {
+        self.bare = bare;
+        self
+    }
+}
+
+struct EditLayers {
+    verse: gpui_kit::AnyElement,
+    reference: gpui_kit::AnyElement,
+    verse_text: String,
+}
+
+/// How the verse text looks on a `width` × `height` slide.
+#[derive(Clone, Debug)]
+pub struct VerseTextStyle {
+    pub family: Option<SharedString>,
+    pub size: Pixels,
+    pub line_height: Pixels,
+    pub weight: FontWeight,
+    pub color: gpui_kit::Hsla,
+    /// The width the verse wraps at.
+    pub wrap_width: Pixels,
+    pub align: gpui_kit::TextAlign,
+    /// The reference line's alignment.
+    pub reference_align: gpui_kit::TextAlign,
+}
+
+fn text_align(align: kairo_domain::overlay::OverlayTextAlign) -> gpui_kit::TextAlign {
+    use kairo_domain::overlay::OverlayTextAlign;
+    match align {
+        OverlayTextAlign::Left => gpui_kit::TextAlign::Left,
+        OverlayTextAlign::Right => gpui_kit::TextAlign::Right,
+        _ => gpui_kit::TextAlign::Center,
+    }
+}
+
+pub fn verse_text_style(
+    background: &crate::backend::CardBackground,
+    reference: &str,
+    text: &str,
+    width: f32,
+    height: f32,
+) -> VerseTextStyle {
+    let Some(theme) = &background.theme else {
+        let body = (height * 0.07).clamp(7.0, 40.0);
+        return VerseTextStyle {
+            family: None,
+            size: px(body),
+            line_height: px(body * 1.25),
+            weight: FontWeight::NORMAL,
+            color: gpui_kit::white(),
+            wrap_width: px((width - body * 2.0).max(1.0)),
+            align: gpui_kit::TextAlign::Center,
+            reference_align: gpui_kit::TextAlign::Center,
+        };
+    };
+    let scale = (width / 1920.0).min(height / 1080.0);
+    let style = &theme.verse;
+    let (verse_px, _) = output_sizes(theme, reference, text);
+    let size = (verse_px.unwrap_or(style.font_size_px as f32) * scale).max(4.0);
+    let pad = (theme.layout.padding_px as f32 * scale).max(0.0) + 6.0;
+    VerseTextStyle {
+        family: font_family(&style.font_family),
+        size: px(size),
+        line_height: px(size * style.line_height.max(0.8) as f32),
+        weight: FontWeight(style.font_weight as f32),
+        color: css_color(&style.color, style.color_opacity).unwrap_or(gpui_kit::white()),
+        wrap_width: px((width * (style.frame.width_pct / 100.0) as f32 - pad * 2.0).max(1.0)),
+        align: text_align(style.align),
+        reference_align: text_align(theme.reference.text.align),
     }
 }
 
@@ -139,8 +234,11 @@ impl RenderOnce for VerseCard {
         div()
             .id(self.id)
             .test_support()
-            .role(Role::Button)
-            .aria_label(SharedString::from(format!("Send {} live", self.reference)))
+            // Only a card that sends is a button (the edit preview is not).
+            .when(self.on_click.is_some(), |d| {
+                d.role(Role::Button)
+                    .aria_label(SharedString::from(format!("Send {} live", self.reference)))
+            })
             .relative()
             .flex()
             .flex_col()
@@ -204,10 +302,18 @@ impl RenderOnce for VerseCard {
                                 .bg(gpui_kit::black().opacity(0.4)),
                         )
                     })
-                    .map(|d| match (themed, self.text.clone()) {
+                    .map(|d| match (themed, self.text.clone(), self.layers) {
+                        (theme, _, Some(layers)) => d.child(edit_layers(
+                            theme.as_deref(),
+                            layers,
+                            self.slide_reference.clone(),
+                            self.width,
+                            self.slide_height,
+                            body,
+                        )),
                         // As the output lays it out: the theme's verse and
                         // reference frames, fonts and colours at card scale.
-                        (Some(theme), Some(text)) => d.child(themed_text(
+                        (Some(theme), Some(text), None) => d.child(themed_text(
                             &theme,
                             text,
                             self.slide_reference.clone(),
@@ -253,31 +359,33 @@ impl RenderOnce for VerseCard {
                         ),
                     }),
             )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .h(px(34.))
-                    .px_3()
-                    .bg(gpui_kit::black())
-                    .text_size(text::SM.size)
-                    .text_color(k.text(TextStep::T200))
-                    .child(
-                        div()
-                            .min_w_0()
-                            .flex_1()
-                            .truncate()
-                            .font_weight(FontWeight::MEDIUM)
-                            .child(self.reference),
-                    )
-                    .child(
-                        div()
-                            .flex_none()
-                            .text_color(k.text(TextStep::T500))
-                            .child(self.number.to_string()),
-                    ),
-            )
+            .when(!self.bare, |d| {
+                d.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .h(px(34.))
+                        .px_3()
+                        .bg(gpui_kit::black())
+                        .text_size(text::SM.size)
+                        .text_color(k.text(TextStep::T200))
+                        .child(
+                            div()
+                                .min_w_0()
+                                .flex_1()
+                                .truncate()
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(self.reference),
+                        )
+                        .child(
+                            div()
+                                .flex_none()
+                                .text_color(k.text(TextStep::T500))
+                                .child(self.number.to_string()),
+                        ),
+                )
+            })
             .when(self.sending, |d| {
                 d.child(
                     div()
@@ -347,7 +455,7 @@ fn output_sizes(theme: &kairo_domain::overlay::OverlayTheme, reference: &str, te
 /// the size the output draws it at.
 fn text_box(
     style: &kairo_domain::overlay::OverlayTextStyle,
-    text: SharedString,
+    text: impl gpui_kit::IntoElement,
     scale: f32,
     output_px: Option<f32>,
     padding: f32,
@@ -389,6 +497,61 @@ fn text_box(
                 })
                 .child(text),
         )
+}
+
+/// The edit layers in the verse's and the reference's frames.
+fn edit_layers(
+    theme: Option<&kairo_domain::overlay::OverlayTheme>,
+    layers: EditLayers,
+    reference: SharedString,
+    width: Pixels,
+    height: Pixels,
+    body: f32,
+) -> gpui_kit::AnyElement {
+    let Some(theme) = theme else {
+        return div()
+            .absolute()
+            .size_full()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap(px(body * 0.4))
+            .px(px(body))
+            .text_color(gpui_kit::white())
+            .text_center()
+            .child(
+                div()
+                    .w_full()
+                    .text_size(px(body))
+                    .line_height(px(body * 1.25))
+                    .child(layers.verse),
+            )
+            .child(
+                div()
+                    .text_size(px(body * 0.7))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(layers.reference),
+            )
+            .into_any_element();
+    };
+    let scale = (f32::from(width) / 1920.0).min(f32::from(height) / 1080.0);
+    let (verse_px, reference_px) = output_sizes(theme, &reference, &layers.verse_text);
+    let pad = (theme.layout.padding_px as f32 * scale).max(0.0) + 6.0;
+    div()
+        .absolute()
+        .size_full()
+        .child(text_box(&theme.verse, layers.verse, scale, verse_px, pad))
+        .when(theme.reference.show, |d| {
+            d.child(text_box(
+                &theme.reference.text,
+                layers.reference,
+                scale,
+                reference_px,
+                pad,
+            ))
+        })
+        .into_any_element()
 }
 
 /// The verse and its reference, laid out by `theme` on a `width` slide.

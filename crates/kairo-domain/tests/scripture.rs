@@ -1512,3 +1512,30 @@ fn reference_parse_speed() {
         "reference parse median {median} µs exceeds 20 µs"
     );
 }
+
+#[test]
+fn a_playlist_verse_keeps_its_own_reference_line() {
+    use kairo_domain::scripture::query::{VERSE_LABEL_KEY, verse_reference_line};
+    let mut verse: kairo_domain::scripture::ScriptureVerse = serde_json::from_value(
+        serde_json::json!({"book": "Esther", "chapter": 8.0, "verse": 9.0, "text": "So"}),
+    )
+    .unwrap();
+    assert_eq!(
+        verse_reference_line(Some(&verse), "Esther 8:9", "NKJV", true),
+        "Esther 8:9 (NKJV)"
+    );
+    verse
+        .extra
+        .insert(VERSE_LABEL_KEY.into(), "Esther 8:9 · New King James".into());
+    // Shown as written: no translation added on top.
+    assert_eq!(
+        verse_reference_line(Some(&verse), "Esther 8:9", "NKJV", true),
+        "Esther 8:9 · New King James"
+    );
+    verse.extra.insert(VERSE_LABEL_KEY.into(), "  ".into());
+    assert_eq!(
+        verse_reference_line(Some(&verse), "Esther 8:9", "NKJV", false),
+        "Esther 8:9",
+        "a blank line falls back"
+    );
+}

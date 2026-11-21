@@ -396,19 +396,9 @@ impl Booth {
             && self.active_service().is_none()
             && !self.transcribing
     }
-    /// The upload is struggling: captions may lag, AI detection is paused.
-    pub fn stt_weak(&self) -> bool {
-        self.resilience
-            .as_ref()
-            .is_some_and(|r| kairo_domain::status::stt_connection_weak(&r.health))
-    }
-    pub fn stt_reconnecting(&self) -> bool {
-        self.resilience.as_ref().is_some_and(|r| {
-            r.health.iter().any(|h| {
-                h.service == ServiceName::Stt
-                    && matches!(h.status, HealthStatus::Degraded | HealthStatus::Error)
-            })
-        })
+    /// What the microphone and the connection are doing, for the transcript.
+    pub fn listen_state(&self) -> ListenState {
+        ListenState::of(self.resilience.as_ref())
     }
     pub fn groups(&self) -> Vec<ScriptureSuggestionGroup> {
         group_scripture_suggestions(&self.suggestions)
@@ -1850,5 +1840,156 @@ impl BoothViews {
             let rail = w.rail().clone();
             rail.update(cx, |r, cx| r.set_toolbox(Some(toolbox.into()), cx));
         });
+    }
+}
+
+/// What the transcript tells the operator about listening, worst first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListenState {
+    /// Transcription gave up (licence refused, reconnects exhausted).
+    Stopped,
+    MicUnavailable,
+    MicInterrupted,
+    Offline,
+    /// The upload is struggling: captions may lag, AI detection is paused.
+    WeakConnection,
+    Reconnecting,
+    Listening,
+}
+
+impl ListenState {
+    pub fn of(resilience: Option<&ResilienceStatus>) -> Self {
+        let Some(r) = resilience else {
+            return Self::Listening;
+        };
+        let status = |service| {
+            r.health
+                .iter()
+                .find(|h| h.service == service)
+                .map(|h| h.status)
+        };
+        let stt = status(ServiceName::Stt);
+        if stt == Some(HealthStatus::Error) {
+            return Self::Stopped;
+        }
+        match status(ServiceName::Audio) {
+            Some(HealthStatus::Error) => return Self::MicUnavailable,
+            Some(HealthStatus::Degraded) => return Self::MicInterrupted,
+            _ => {}
+        }
+        if !r.internet_connected {
+            Self::Offline
+        } else if kairo_domain::status::stt_connection_weak(&r.health) {
+            Self::WeakConnection
+        } else if stt == Some(HealthStatus::Degraded) {
+            Self::Reconnecting
+        } else {
+            Self::Listening
+        }
+    }
+
+    /// The short state beside the transcript title.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Stopped => "Stopped",
+            Self::MicUnavailable => "Mic unavailable",
+            Self::MicInterrupted => "Mic interrupted",
+            Self::Offline => "Offline",
+            Self::WeakConnection => "Weak connection",
+            Self::Reconnecting => "Reconnecting",
+            Self::Listening => "Listening",
+        }
+    }
+
+    /// The banner's headline and what happens next; `None` when all is well.
+    pub fn notice(self) -> Option<(&'static str, &'static str)> {
+        Some(match self {
+            Self::Stopped => ("Transcription stopped", "Pause and resume to retry"),
+            Self::MicUnavailable => ("Microphone unavailable", "Check the audio input"),
+            Self::MicInterrupted => ("Microphone interrupted", "Reconnecting to the input"),
+            Self::Offline => (
+                "No internet connection",
+                "Captions resume when it\u{2019}s back",
+            ),
+            Self::WeakConnection => ("Weak connection", "Captions may lag"),
+            Self::Reconnecting => ("Reconnecting\u{2026}", "Audio is buffered"),
+            Self::Listening => return None,
+        })
+    }
+
+    /// Red rather than amber: transcription will not recover by itself.
+    pub fn is_critical(self) -> bool {
+        matches!(self, Self::Stopped | Self::MicUnavailable)
+    }
+}
+
+#[cfg(test)]
+mod listen_state_tests {
+    use super::*;
+    use kairo_domain::status::{OverallHealth, ServiceHealth, WEAK_CONNECTION};
+
+    fn status(
+        internet: bool,
+        health: &[(ServiceName, HealthStatus, Option<&str>)],
+    ) -> ResilienceStatus {
+        ResilienceStatus {
+            overall_health: OverallHealth::AllGood,
+            internet_connected: internet,
+            claude_fallback_active: false,
+            detector_fallback_reason: None,
+            recovery_session_available: false,
+            health: health
+                .iter()
+                .map(|&(service, status, error)| ServiceHealth {
+                    service,
+                    status,
+                    last_error: error.map(str::to_owned),
+                    last_updated: 0.0,
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn the_worst_problem_wins_and_all_good_is_listening() {
+        use HealthStatus::*;
+        use ServiceName::*;
+        let of = |s: ResilienceStatus| ListenState::of(Some(&s));
+        assert_eq!(ListenState::of(None), ListenState::Listening);
+        assert_eq!(
+            of(status(true, &[(Audio, Ok, None), (Stt, Ok, None)])),
+            ListenState::Listening
+        );
+        assert_eq!(
+            of(status(true, &[(Stt, Degraded, None)])),
+            ListenState::Reconnecting
+        );
+        assert_eq!(
+            of(status(true, &[(Stt, Degraded, Some(WEAK_CONNECTION))])),
+            ListenState::WeakConnection
+        );
+        // Offline explains the reconnect better than "Reconnecting".
+        assert_eq!(
+            of(status(false, &[(Stt, Degraded, None)])),
+            ListenState::Offline
+        );
+        assert_eq!(
+            of(status(
+                false,
+                &[(Audio, Degraded, None), (Stt, Degraded, None)]
+            )),
+            ListenState::MicInterrupted
+        );
+        assert_eq!(
+            of(status(true, &[(Audio, Error, None)])),
+            ListenState::MicUnavailable
+        );
+        assert_eq!(
+            of(status(true, &[(Audio, Error, None), (Stt, Error, None)])),
+            ListenState::Stopped
+        );
+        assert!(ListenState::Listening.notice().is_none());
+        assert!(ListenState::MicUnavailable.is_critical());
+        assert!(!ListenState::Offline.is_critical());
     }
 }

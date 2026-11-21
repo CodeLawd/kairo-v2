@@ -597,7 +597,7 @@ impl SettingsWindow {
             ))
             .child(widgets::row(
                 "Safety delay",
-                Some("Time to cancel before a verse goes live. The largest part of the wait."),
+                Some("Time to cancel a quote or uncertain match. Spoken references like John 3:16 go live at once."),
                 SegmentedControl::new(ids::DELAY, "Safety delay")
                     .fit()
                     .compact(true)

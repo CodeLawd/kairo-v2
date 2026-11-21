@@ -298,13 +298,15 @@ impl<S: RecordServices> ServiceRecords<S> {
                 plan_id,
             } => {
                 let plan = match plan_id.filter(|id| !id.is_empty()) {
-                    Some(id) => Some(
-                        self.0
-                            .services
-                            .sermon_plan(&id)
-                            .await
-                            .ok_or("Selected notes are unavailable.")?,
-                    ),
+                    // Notes deleted mid-service must never block saving it; the
+                    // record already keeps its own copy of attached notes.
+                    Some(id) => {
+                        let plan = self.0.services.sermon_plan(&id).await;
+                        if plan.is_none() {
+                            tracing::warn!(plan_id = %id, "[Records] selected notes gone; ending service without them");
+                        }
+                        plan
+                    }
                     None => None,
                 };
                 self.0.services.stop_orchestrator().await?;
@@ -935,6 +937,32 @@ mod tests {
             .await
             .unwrap();
         assert!(records.snapshot().await.services[0].nuggets.is_empty());
+    }
+
+    #[tokio::test]
+    async fn end_saves_service_when_selected_notes_were_deleted() {
+        let root = tempfile::tempdir().unwrap();
+        let hooks = Hooks::default();
+        let records = records(root.path(), hooks.clone(), Publisher::default()).await;
+        records.command(ServiceCommand::Start).await.unwrap();
+        records
+            .transcript(segment("a", "Grace and peace."))
+            .await
+            .unwrap();
+        hooks.release_stop.notify_one();
+        // `Hooks::sermon_plan` finds nothing, as after the plan is deleted.
+        let ended = records
+            .command(ServiceCommand::End {
+                title: "Evening service".into(),
+                speaker: String::new(),
+                sermon_title: String::new(),
+                plan_id: Some("deleted-plan".into()),
+            })
+            .await
+            .unwrap();
+        assert!(ended.active_id.is_none());
+        assert_eq!(ended.services[0].status, ServiceStatus::Ended);
+        assert_eq!(ended.services[0].transcript.len(), 1);
     }
 
     #[test]

@@ -121,14 +121,16 @@ fn validate(path: &Path, expected: Option<&str>) -> Result<ValidatedPack> {
     )?;
     let mut rows = statement.query([source_id])?;
     let mut verses = Vec::new();
+    let mut book_count = 0;
     let mut chapter_count = 0;
     // Walk the canonical numbering and the actual rows together. A missing,
     // duplicate, omitted, or out-of-bounds reference cannot match this sequence.
     for (book_index, counts) in BIBLE_VERSE_COUNTS.iter().enumerate() {
         let book_id = (book_index + 1) as u32;
+        let chapters_before = chapter_count;
         for (chapter_index, &canonical_last) in counts.iter().enumerate() {
             let chapter = (chapter_index + 1) as u32;
-            chapter_count += 1;
+            let verses_before = verses.len();
             let numbering = get_verse_numbering_override(
                 &translation_id,
                 f64::from(book_id),
@@ -167,7 +169,10 @@ fn validate(path: &Path, expected: Option<&str>) -> Result<ValidatedPack> {
                     text,
                 });
             }
+            // An untranslated chapter (TPT's missing books) expects no verses.
+            chapter_count += usize::from(verses.len() > verses_before);
         }
+        book_count += usize::from(chapter_count > chapters_before);
     }
     if rows.next()?.is_some() {
         return Err(invalid("The Bible pack contains unexpected extra verses."));
@@ -184,7 +189,7 @@ fn validate(path: &Path, expected: Option<&str>) -> Result<ValidatedPack> {
             .filter(|language| !language.is_empty())
             .unwrap_or_else(|| "en".into()),
         verses,
-        book_count: BIBLE_VERSE_COUNTS.len(),
+        book_count,
         chapter_count,
     })
 }

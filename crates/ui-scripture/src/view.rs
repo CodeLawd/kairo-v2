@@ -14,7 +14,7 @@ use std::sync::Arc;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
-use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
+use gpui_kit::component::menu::{ContextMenuExt, DropdownMenu, PopupMenuItem};
 use gpui_kit::component::popover::Popover;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{
@@ -28,7 +28,7 @@ use gpui_kit::{
 };
 use kairo_domain::collections::{DEFAULT_LIBRARY_ID, LibrariesCommand, LibraryKind as DomainKind};
 use kairo_domain::media_order::DropPosition;
-use kairo_domain::overlay_content::{format_overlay_reference, format_overlay_verse_text};
+use kairo_domain::overlay_content::format_overlay_verse_text;
 use kairo_domain::scripture::query::{Direction, is_likely_phrase_query};
 use kairo_ui_kit::coach::{anchors, coach_anchor};
 use kairo_ui_kit::components::{
@@ -40,11 +40,12 @@ use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
 use crate::backend::{OptionChange, ScriptureBackend};
 use crate::card::VerseCard;
-use crate::model::{PickGesture, Scripture, ScriptureEvent, ScrollTarget, Source};
+use crate::model::{MissingPassage, PickGesture, Scripture, ScriptureEvent, ScrollTarget, Source};
 use crate::review::{ReviewEvent, SermonReview};
 use crate::rows::{
     self, BarItem, CARD_ZOOM_DEFAULT, CARD_ZOOM_MAX, CARD_ZOOM_MIN, GridKey, GridLine, SendStatus,
 };
+use crate::verse_edit::{VerseEditDone, VerseEditor};
 use kairo_domain::scripture::SermonPlanDraft;
 
 /// Element ids, for tests and the coach tour.
@@ -56,9 +57,12 @@ pub mod ids {
     pub const TRANSLATION: &str = "scripture-translation";
     pub const OPTIONS: &str = "scripture-options";
     pub const USE_FOR_SERVICE: &str = "scripture-use-for-service";
+    pub const SAVE_TO_PLAYLIST: &str = "scripture-save-to-playlist";
     pub const ERROR: &str = "scripture-error";
     pub const NOTICE: &str = "scripture-translation-notice";
     pub const EMPTY: &str = "scripture-empty";
+    pub const MISSING: &str = "scripture-missing-passage";
+    pub const MISSING_USE_FALLBACK: &str = "scripture-missing-use-fallback";
     pub const GRID: &str = "scripture-grid";
     pub const DOCK: &str = "scripture-queue";
     pub const PREV: &str = "scripture-prev";
@@ -81,6 +85,9 @@ pub mod ids {
 
     pub fn card(index: usize) -> String {
         format!("scripture-card-{index}")
+    }
+    pub fn card_menu(index: usize) -> String {
+        format!("scripture-card-menu-{index}")
     }
     pub fn suggestion(index: usize) -> String {
         format!("scripture-suggestion-{index}")
@@ -162,6 +169,7 @@ pub struct ScriptureWorkspace {
     drag_over: Option<(String, DropPosition)>,
     backend: Arc<dyn ScriptureBackend>,
     review: Option<(Entity<SermonReview>, Subscription)>,
+    verse_edit: Option<(Entity<VerseEditor>, Subscription)>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -312,6 +320,7 @@ impl ScriptureWorkspace {
             drag_over: None,
             backend,
             review: None,
+            verse_edit: None,
             _subscriptions: subs,
         }
     }
@@ -323,6 +332,37 @@ impl ScriptureWorkspace {
 
     pub fn model(&self) -> &Entity<Scripture> {
         &self.model
+    }
+
+    /// Edit text for playlist item `item_id`, open on its verse `verse`.
+    pub fn open_verse_edit(
+        &mut self,
+        item_id: String,
+        verse: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.model.read(cx).editable_item(&item_id).is_none() {
+            return;
+        }
+        let model = self.model.clone();
+        let editor = cx.new(|cx| VerseEditor::new(model, item_id, verse, window, cx));
+        let sub = cx.subscribe_in(
+            &editor,
+            window,
+            |this, editor, _: &VerseEditDone, window, cx| {
+                editor.update(cx, |e, cx| e.restore_focus(window, cx));
+                this.verse_edit = None;
+                cx.notify();
+            },
+        );
+        self.verse_edit = Some((editor, sub));
+        cx.notify();
+    }
+
+    /// The open Edit text dialog, if any.
+    pub fn verse_edit(&self) -> Option<&Entity<VerseEditor>> {
+        self.verse_edit.as_ref().map(|(e, _)| e)
     }
 
     /// The open sermon notes review, if any.
@@ -610,6 +650,42 @@ impl ScriptureWorkspace {
 
 // ─── Small pieces ───────────────────────────────────────────────────────────
 
+/// Right-click on a playlist verse: Edit text… and Remove from playlist.
+/// `verse` is the verse Edit text opens on (`None`: no text to edit).
+fn playlist_item_menu(
+    menu: gpui_kit::component::menu::PopupMenu,
+    page: &Entity<ScriptureWorkspace>,
+    item_id: &str,
+    verse: Option<usize>,
+) -> gpui_kit::component::menu::PopupMenu {
+    let (edit, remove) = (page.clone(), page.clone());
+    let item_id = item_id.to_owned();
+    let edit_id = item_id.clone();
+    menu.item(
+        PopupMenuItem::new("Edit text…")
+            .icon(Icon::new(KairoIcon::Pencil))
+            .disabled(verse.is_none())
+            .on_click(move |_, window, cx| {
+                if let Some(verse) = verse {
+                    let id = edit_id.clone();
+                    edit.update(cx, |p, cx| p.open_verse_edit(id, verse, window, cx))
+                }
+            }),
+    )
+    .separator()
+    .item(
+        PopupMenuItem::new("Remove from playlist")
+            .icon(Icon::new(KairoIcon::Trash2))
+            .on_click(move |_, _, cx| {
+                let id = item_id.clone();
+                remove.update(cx, |p, cx| {
+                    p.model
+                        .update(cx, |m, cx| m.remove_plan_items(vec![id], cx))
+                })
+            }),
+    )
+}
+
 fn quiet_button(id: impl Into<gpui_kit::ElementId>, label: impl Into<SharedString>) -> Button {
     Button::new(id)
         .cursor_pointer()
@@ -655,8 +731,13 @@ impl ScriptureWorkspace {
                 |m, cx| m.clear_passage_picks(cx),
             )
         });
-        let items =
-            (self.model.read(cx).source() == Some(Source::Plan)).then(|| self.render_items(cx));
+        // The selected playlist's items stay listed while you look up more.
+        let items = self
+            .model
+            .read(cx)
+            .selected_plan()
+            .is_some()
+            .then(|| self.render_items(cx));
         let model_keys = self.model.clone();
         let passage_keys = cx.listener(move |this, event: &KeyDownEvent, window, cx| {
             let k = &event.keystroke;
@@ -675,7 +756,7 @@ impl ScriptureWorkspace {
         let importing = m.importing();
         let viewing_search = m.source() == Some(Source::Search);
         let search_count = m.search_count();
-        let show_items = m.source() == Some(Source::Plan);
+        let show_items = m.selected_plan().is_some();
         let open_items = m.open_plan_items().len();
 
         let upload = div().px_3().pt_3().child(
@@ -1088,7 +1169,7 @@ impl ScriptureWorkspace {
 
     fn remove_picked_items(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let m = self.model.read(cx);
-        if m.source() != Some(Source::Plan) {
+        if m.selected_plan().is_none() {
             return;
         }
         let ids: Vec<String> = m
@@ -1153,24 +1234,26 @@ impl ScriptureWorkspace {
                             ),
                         )
                         .child(
+                            // Cancel then Save, right-aligned, Save as the
+                            // one primary action.
                             h_flex()
-                                .gap_1p5()
+                                .justify_end()
+                                .gap_1()
+                                .child(quiet_button(ids::RENAME_CANCEL, "Cancel").on_click(
+                                    move |_, _, cx| model.update(cx, |m, cx| m.cancel_rename(cx)),
+                                ))
                                 .child(
                                     Button::new(ids::RENAME_SAVE)
                                         .cursor_pointer()
+                                        .primary()
                                         .xsmall()
-                                        .flex_1()
-                                        .icon(Icon::new(KairoIcon::Check))
                                         .label("Save")
                                         .on_click(move |_, _, cx| {
                                             let draft = rename.read(cx).value().to_string();
                                             save_model
                                                 .update(cx, |m, cx| m.save_rename(&draft, cx));
                                         }),
-                                )
-                                .child(quiet_button(ids::RENAME_CANCEL, "Cancel").on_click(
-                                    move |_, _, cx| model.update(cx, |m, cx| m.cancel_rename(cx)),
-                                )),
+                                ),
                         ),
                 )
                 .into_any_element();
@@ -1312,6 +1395,12 @@ impl ScriptureWorkspace {
         let picks = m.item_picks().clone();
         let can_reorder = m.can_reorder();
         let filter = m.item_filter().trim().to_owned();
+        let editable: std::collections::HashSet<String> = filtered
+            .iter()
+            .filter(|(_, i)| m.editable_item(&i.id).is_some())
+            .map(|(_, i)| i.id.clone())
+            .collect();
+        let item_page = cx.entity();
         let model = self.model.clone();
         let band = h_flex()
             .flex_none()
@@ -1423,6 +1512,9 @@ impl ScriptureWorkspace {
                                 });
                             }))
                     };
+                    let menu_page = item_page.clone();
+                    let menu_id = item.id.clone();
+                    let can_edit = editable.contains(&item.id);
                     h_flex()
                         .id(SharedString::from(ids::item(&item.id)))
                         .test_support()
@@ -1521,6 +1613,9 @@ impl ScriptureWorkspace {
                                 .when(!item.available, |d| d.line_through())
                                 .child(item.translation.to_uppercase()),
                         )
+                        .context_menu(move |menu, _, _| {
+                            playlist_item_menu(menu, &menu_page, &menu_id, can_edit.then_some(0))
+                        })
                 }))
                 .into_any_element()
         };
@@ -1707,6 +1802,50 @@ impl ScriptureWorkspace {
                 })
         });
 
+        // Looked-up verses go into a playlist from here.
+        let save_to_playlist =
+            (m.source() != Some(Source::Plan) && !m.rows().is_empty()).then(|| {
+                let plans: Vec<(String, String)> = m
+                    .plans()
+                    .iter()
+                    .map(|p| (p.id.clone(), p.title.clone()))
+                    .collect();
+                let creating = m.creating();
+                let model = model.clone();
+                Button::new(ids::SAVE_TO_PLAYLIST)
+                    .cursor_pointer()
+                    .with_size(gpui_kit::component::Size::Medium)
+                    .h(px(36.))
+                    .px(px(12.))
+                    .icon(Icon::new(KairoIcon::Plus))
+                    .label("Add to playlist")
+                    .dropdown_caret(true)
+                    .popover_trigger()
+                    .dropdown_menu(move |mut menu, _, _| {
+                        menu = menu.max_h(px(320.)).scrollable(true);
+                        let new = model.clone();
+                        menu = menu.item(
+                            PopupMenuItem::new("New playlist")
+                                .icon(Icon::new(KairoIcon::Plus))
+                                .disabled(creating)
+                                .on_click(move |_, _, cx| {
+                                    new.update(cx, |m, cx| m.create_playlist(true, cx))
+                                }),
+                        );
+                        if !plans.is_empty() {
+                            menu = menu.separator();
+                        }
+                        for (id, title) in plans.clone() {
+                            let model = model.clone();
+                            menu =
+                                menu.item(PopupMenuItem::new(title).on_click(move |_, _, cx| {
+                                    model.update(cx, |m, cx| m.add_all_to_playlist(&id, cx))
+                                }));
+                        }
+                        menu
+                    })
+            });
+
         h_flex()
             .flex_none()
             .flex_wrap()
@@ -1716,6 +1855,7 @@ impl ScriptureWorkspace {
             .pb_1()
             .child(translation_select)
             .child(field)
+            .children(save_to_playlist)
             .child(self.render_options(cx))
             .children(use_for_service)
             .into_any_element()
@@ -1978,23 +2118,41 @@ impl ScriptureWorkspace {
                     .filter(|t| t.available)
                     .map(|t| (t.id.clone(), t.name.clone()))
                     .collect();
+                let current = options.default_translation.clone();
+                let installed = ready.iter().any(|(id, _)| *id == current);
+                let bible_label = |id: &str, name: &str| format!("{name} ({id})");
+                let current_name = ready
+                    .iter()
+                    .find(|(id, _)| *id == current)
+                    .map(|(id, name)| bible_label(id, name))
+                    .unwrap_or_else(|| format!("{current} (not installed)"));
                 let toggle = |id: &'static str,
                               label: &'static str,
+                              detail: String,
                               on: bool,
                               change: fn(bool) -> OptionChange| {
                     let model = model.clone();
                     h_flex()
                         .justify_between()
+                        .items_center()
                         .gap_3()
-                        .px_1p5()
-                        .py_1p5()
-                        .rounded(radius::md())
-                        .text_size(text::SM.size)
-                        .child(label)
+                        .py_1()
+                        .child(
+                            v_flex()
+                                .flex_1()
+                                .min_w_0()
+                                .gap_0p5()
+                                .child(div().text_size(text::SM.size).child(label))
+                                .child(
+                                    div()
+                                        .text_size(text::XS.size)
+                                        .text_color(k.text(TextStep::T500))
+                                        .child(detail),
+                                ),
+                        )
                         .child(
                             Switch::new(id)
                                 .checked(on)
-                                .small()
                                 .accessibility_label(label)
                                 .on_click(move |on, _, cx| {
                                     let on = *on;
@@ -2002,13 +2160,6 @@ impl ScriptureWorkspace {
                                 }),
                         )
                 };
-                let current = options.default_translation.clone();
-                let installed = ready.iter().any(|(id, _)| *id == current);
-                let current_name = ready
-                    .iter()
-                    .find(|(id, _)| *id == current)
-                    .map(|(_, n)| n.clone())
-                    .unwrap_or_else(|| format!("{current} (not installed)"));
                 let pick_model = model.clone();
                 let settings_model = model.clone();
                 let heading = |title: &'static str| {
@@ -2018,57 +2169,25 @@ impl ScriptureWorkspace {
                         .text_color(k.text(TextStep::T500))
                         .child(title)
                 };
+                let example = format!("John 3:16 ({current})");
                 v_flex()
-                    .w(px(288.))
-                    .gap_4()
+                    .w(px(320.))
+                    .gap_5()
                     .p_1()
                     .child(
                         v_flex()
-                            .gap_1p5()
-                            .child(heading("Slides"))
-                            .child(toggle(
-                                "scripture-opt-numbers",
-                                "Verse numbers",
-                                options.show_verse_numbers,
-                                OptionChange::VerseNumbers,
-                            ))
-                            .child(toggle(
-                                "scripture-opt-translation",
-                                "Translation after reference",
-                                options.show_translation,
-                                OptionChange::ShowTranslation,
-                            ))
-                            .child(toggle(
-                                "scripture-opt-one",
-                                "One verse per slide",
-                                options.max_verses == 1.0,
-                                |on| OptionChange::MaxVerses(if on { 1.0 } else { 0.0 }),
-                            )),
-                    )
-                    .child(
-                        v_flex()
-                            .gap_1p5()
-                            .child(
-                                h_flex().justify_between().child(heading("Bible")).child(
-                                    Button::new("scripture-get-more")
-                                        .cursor_pointer()
-                                        .ghost()
-                                        .xsmall()
-                                        .label("Get more")
-                                        .icon(Icon::new(KairoIcon::ChevronRight))
-                                        .on_click(move |_, _, cx| {
-                                            settings_model.update(cx, |m, cx| m.open_settings(cx))
-                                        }),
-                                ),
-                            )
+                            .gap_2()
+                            .child(heading("Bible"))
                             .child(
                                 Button::new("scripture-default-bible")
                                     .cursor_pointer()
-                                    .small()
+                                    .outline()
+                                    .with_size(gpui_kit::component::Size::Medium)
+                                    .h(px(36.))
                                     .w_full()
                                     .label(current_name)
                                     .dropdown_caret(true)
-                                    .accessibility_label("Default Bible")
+                                    .accessibility_label("Bible for search")
                                     .popover_trigger()
                                     .dropdown_menu(move |mut menu, _, _| {
                                         if !installed {
@@ -2076,17 +2195,19 @@ impl ScriptureWorkspace {
                                                 PopupMenuItem::new(format!(
                                                     "{current} (not installed)"
                                                 ))
+                                                .checked(true)
                                                 .disabled(true),
                                             );
                                         }
                                         for (id, name) in ready.clone() {
                                             let model = pick_model.clone();
-                                            let pick = id.clone();
+                                            let label = bible_label(&id, &name);
+                                            let checked = id == current;
                                             menu = menu.item(
-                                                PopupMenuItem::new(name)
-                                                    .checked(id == current)
+                                                PopupMenuItem::new(label)
+                                                    .checked(checked)
                                                     .on_click(move |_, _, cx| {
-                                                        let pick = pick.clone();
+                                                        let pick = id.clone();
                                                         model.update(cx, |m, cx| {
                                                             m.change_option(
                                                                 OptionChange::DefaultTranslation(
@@ -2098,9 +2219,49 @@ impl ScriptureWorkspace {
                                                     }),
                                             );
                                         }
-                                        menu
+                                        let settings_model = settings_model.clone();
+                                        menu.separator().item(
+                                            PopupMenuItem::new("Get more Bibles…").on_click(
+                                                move |_, _, cx| {
+                                                    settings_model
+                                                        .update(cx, |m, cx| m.open_settings(cx))
+                                                },
+                                            ),
+                                        )
                                     }),
+                            )
+                            .child(
+                                div()
+                                    .text_size(text::XS.size)
+                                    .text_color(k.text(TextStep::T500))
+                                    .child("Search results use this Bible."),
                             ),
+                    )
+                    .child(
+                        v_flex()
+                            .gap_1()
+                            .child(heading("On slides"))
+                            .child(toggle(
+                                "scripture-opt-numbers",
+                                "Show verse numbers",
+                                "A number before each verse".into(),
+                                options.show_verse_numbers,
+                                OptionChange::VerseNumbers,
+                            ))
+                            .child(toggle(
+                                "scripture-opt-translation",
+                                "Show translation",
+                                example,
+                                options.show_translation,
+                                OptionChange::ShowTranslation,
+                            ))
+                            .child(toggle(
+                                "scripture-opt-one",
+                                "One verse per slide",
+                                "Long passages get a slide per verse".into(),
+                                options.max_verses == 1.0,
+                                |on| OptionChange::MaxVerses(if on { 1.0 } else { 0.0 }),
+                            )),
                     )
             })
             .into_any_element()
@@ -2150,8 +2311,118 @@ impl ScriptureWorkspace {
 
     // ─── The grid ───────────────────────────────────────────────────────────
 
+    /// The chosen Bible lacks the passage: say so, preview it in the Bible
+    /// that has it, and let the operator choose. Nothing swaps silently.
+    fn render_missing(&self, missing: MissingPassage, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let m = self.model.read(cx);
+        let name = m.translation_name(&missing.translation);
+        let fallback_name = m.translation_name(&missing.fallback);
+        let verses: Vec<_> = missing.results.iter().flat_map(|r| &r.verses).collect();
+        let mut preview = verses
+            .first()
+            .map(|v| v.text.trim().to_owned())
+            .unwrap_or_default();
+        if preview.chars().count() > 180 {
+            preview = preview
+                .chars()
+                .take(180)
+                .collect::<String>()
+                .trim_end()
+                .to_owned()
+                + "…";
+        } else if verses.len() > 1 {
+            preview.push_str(" …");
+        }
+        let model = self.model.clone();
+        v_flex()
+            .id(ids::MISSING)
+            .test_support()
+            .flex_1()
+            .items_center()
+            .py_16()
+            .px_6()
+            .child(
+                v_flex()
+                    .max_w(px(460.))
+                    .w_full()
+                    .items_center()
+                    .gap_4()
+                    .child(
+                        Icon::new(KairoIcon::BookOpen)
+                            .size_6()
+                            .text_color(k.text(TextStep::T500)),
+                    )
+                    .child(
+                        v_flex()
+                            .items_center()
+                            .gap_1()
+                            .child(
+                                div()
+                                    .text_size(text::BASE.size)
+                                    .font_weight(FontWeight::MEDIUM)
+                                    .text_center()
+                                    .child(format!("{} isn’t in {name}", missing.reference)),
+                            )
+                            .child(
+                                div()
+                                    .text_size(text::SM.size)
+                                    .text_color(k.text(TextStep::T500))
+                                    .text_center()
+                                    .child(format!(
+                                        "This Bible doesn’t include that passage. {fallback_name} does:"
+                                    )),
+                            ),
+                    )
+                    .child(
+                        v_flex()
+                            .w_full()
+                            .gap_2()
+                            .px_4()
+                            .py_3()
+                            .rounded(radius::lg())
+                            .border_1()
+                            .border_color(k.surface_border)
+                            .bg(k.surface_tertiary)
+                            .child(div().text_size(text::SM.size).child(preview))
+                            .child(
+                                div()
+                                    .text_size(text::XS.size)
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(format!("{} ({})", missing.reference, missing.fallback)),
+                            ),
+                    )
+                    .child(
+                        Button::new(ids::MISSING_USE_FALLBACK)
+                            .cursor_pointer()
+                            .primary()
+                            .with_size(gpui_kit::component::Size::Medium)
+                            .label(format!("Show in {}", missing.fallback))
+                            .accessibility_label(format!("Show {} in {fallback_name}", missing.reference))
+                            .on_click(move |_, _, cx| {
+                                model.update(cx, |m, cx| m.show_missing_in_fallback(cx))
+                            }),
+                    )
+                    .child(
+                        div()
+                            .text_size(text::XS.size)
+                            .text_color(k.text(TextStep::T600))
+                            .child(format!("Or choose another Bible from the {} menu.", missing.translation)),
+                    ),
+            )
+            .into_any_element()
+    }
+
     fn render_grid(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
+        let m = self.model.read(cx);
+        if m.rows().is_empty()
+            && !m.loading()
+            && m.source() == Some(Source::Search)
+            && let Some(missing) = m.missing_passage()
+        {
+            return self.render_missing(missing.clone(), cx);
+        }
         let m = self.model.read(cx);
         if m.rows().is_empty() {
             if m.loading() || m.error().is_some() {
@@ -2305,6 +2576,7 @@ impl ScriptureWorkspace {
                 let cue = m.cue();
                 let picks = m.picks().clone();
                 let active = m.active();
+                let page = cx.entity();
                 h_flex()
                     .items_start()
                     .gap(px(rows::CARD_GAP))
@@ -2315,11 +2587,13 @@ impl ScriptureWorkspace {
                             .map(|(offset, card)| {
                                 let local = first + offset;
                                 let flat = start + local;
-                                let reference = format_overlay_reference(
-                                    &card.result.reference,
-                                    &card.result.translation,
-                                    options.show_translation,
-                                );
+                                let reference =
+                                    kairo_domain::scripture::query::verse_reference_line(
+                                        card.result.verses.first(),
+                                        &card.result.reference,
+                                        &card.result.translation,
+                                        options.show_translation,
+                                    );
                                 let body = format_overlay_verse_text(
                                     &card.result.verses,
                                     options.show_verse_numbers,
@@ -2327,30 +2601,42 @@ impl ScriptureWorkspace {
                                 );
                                 let model = self.model.clone();
                                 let focus = self.page_focus.clone();
-                                VerseCard::new(
-                                    SharedString::from(ids::card(flat)),
-                                    card.result.reference.clone(),
-                                )
-                                .slide(reference, body.map(Into::into))
-                                .number(local + 1)
-                                .size(w, slide_h)
-                                .background(options.background.clone())
-                                .live(cue && flat == active)
-                                .current(picks.contains(&flat) || flat == active)
-                                .sending(card.send_status == SendStatus::Sending)
-                                .on_click(
-                                    move |event, window, cx| {
-                                        focus.focus(window, cx);
-                                        match gesture(event) {
-                                            Some(g) => {
-                                                model.update(cx, |m, cx| m.pick_card(flat, g, cx))
+                                let page = page.clone();
+                                let item_id = card.plan_item_id.clone();
+                                let card =
+                                    VerseCard::new(
+                                        SharedString::from(ids::card(flat)),
+                                        card.result.reference.clone(),
+                                    )
+                                    .slide(reference, body.map(Into::into))
+                                    .number(local + 1)
+                                    .size(w, slide_h)
+                                    .background(options.background.clone())
+                                    .live(cue && flat == active)
+                                    .current(picks.contains(&flat) || flat == active)
+                                    .sending(card.send_status == SendStatus::Sending)
+                                    .on_click(
+                                        move |event, window, cx| {
+                                            focus.focus(window, cx);
+                                            match gesture(event) {
+                                                Some(g) => model
+                                                    .update(cx, |m, cx| m.pick_card(flat, g, cx)),
+                                                None => model
+                                                    .update(cx, |m, cx| m.select_card(flat, cx)),
                                             }
-                                            None => {
-                                                model.update(cx, |m, cx| m.select_card(flat, cx))
-                                            }
-                                        }
-                                    },
-                                )
+                                        },
+                                    );
+                                let Some(item_id) = item_id else {
+                                    return card.into_any_element();
+                                };
+                                // Playlist verses: edit their words or remove them.
+                                div()
+                                    .id(SharedString::from(ids::card_menu(flat)))
+                                    .child(card)
+                                    .context_menu(move |menu, _, _| {
+                                        playlist_item_menu(menu, &page, &item_id, Some(local))
+                                    })
+                                    .into_any_element()
                             }),
                     )
                     .into_any_element()
@@ -2553,5 +2839,6 @@ impl Render for ScriptureWorkspace {
             )
             .children(self.rail.clone())
             .children(self.review.as_ref().map(|(r, _)| r.clone()))
+            .children(self.verse_edit.as_ref().map(|(e, _)| e.clone()))
     }
 }

@@ -1047,3 +1047,41 @@ fn password_reset_is_reachable_and_activates_from_the_keyboard(cx: &mut TestAppC
     draw(cx, &opened);
     assert_eq!(opened.fake.calls.lock().unwrap().resets, 1);
 }
+
+#[gpui_kit::test]
+fn finished_setup_stays_closed_when_progress_loads_after_launch(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        gpui_kit::init(cx);
+        kairo_ui_kit::init(kairo_ui_kit::Appearance::Dark, cx);
+    });
+    let fake = Arc::new(Fake {
+        calls: Mutex::default(),
+        session: session(true),
+        reset_reply: Mutex::default(),
+        write_reply: Mutex::default(),
+        sign_out_reply: Mutex::default(),
+        state: Mutex::new(finished()),
+        overlay_reply: Mutex::default(),
+    });
+    let backend: Arc<dyn AccountBackend> = fake;
+    // As at launch: the window opens before the saved progress arrives.
+    let account = cx.update(|cx| {
+        cx.new(|cx| {
+            let mut account = Account::new(backend, "Africa/Lagos");
+            account.set_session(session(true), cx);
+            account
+        })
+    });
+    let model = account.clone();
+    let (_, flow) = cx.update(|cx| {
+        gpui_kit::open_window(WindowOptions::default(), cx, move |window, cx| {
+            cx.new(|cx| AccountFlow::new(model, window, cx))
+        })
+        .expect("open")
+    });
+    cx.run_until_parked();
+    assert!(!flow.read_with(cx, |f, _| f.wizard_open()));
+    cx.update(|cx| account.update(cx, |a, cx| a.set_onboarding(finished(), cx)));
+    cx.run_until_parked();
+    assert!(!flow.read_with(cx, |f, _| f.wizard_open()));
+}

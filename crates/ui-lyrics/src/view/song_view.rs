@@ -907,7 +907,11 @@ impl LyricsWorkspace {
             .on_mouse_down(
                 gpui_kit::MouseButton::Left,
                 cx.listener(|this, _, window, cx| {
-                    this.song_focus.focus(window, cx);
+                    // A click inside the quick-edit box must not blur it:
+                    // the blur saves and closes the edit.
+                    if !this.song_focus.contains_focused(window, cx) {
+                        this.song_focus.focus(window, cx);
+                    }
                 }),
             )
             .flex_1()

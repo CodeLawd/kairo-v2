@@ -8,7 +8,7 @@ use crate::keymap::{
     WhatsNew, ZoomIn, ZoomOut, ZoomWindow,
 };
 use crate::route::{Route, WORKSPACES};
-use crate::shell::{FeedbackPhase, Overlay, Shell};
+use crate::shell::{FeedbackPhase, Overlay, RailFit, Shell};
 use crate::state::{FeedbackKind, ScreensLevel, ShellRequest, UpdateState, screens_status};
 use crate::whats_new::{self, CHANGELOG_URL};
 use gpui_kit::base::TestSupportExt;
@@ -19,7 +19,8 @@ use gpui_kit::component::popover::Popover;
 use gpui_kit::component::{Disableable, Icon, Selectable, Sizable, h_flex, v_flex};
 use gpui_kit::{
     AnyElement, App, Context, InteractiveElement, IntoElement, MouseButton, ParentElement, Render,
-    Role, SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder,
+    Role, SharedString, StatefulInteractiveElement, Styled, Window, canvas, div,
+    prelude::FluentBuilder,
 };
 use kairo_ui_kit::brand::{KairoMark, MarkSize};
 use kairo_ui_kit::components::PopoverTriggerExt;
@@ -506,6 +507,26 @@ impl Shell {
                     })
                     .content(move |_, _, _| view.clone())
             });
+        let fit = self.rail_fit.clone();
+        let compact = fit.compact();
+        let view = cx.entity();
+        // Lay out, then measure; a changed answer redraws once next frame.
+        let measure = move |record: fn(&RailFit, f32) -> bool| {
+            let fit = fit.clone();
+            let view = view.clone();
+            canvas(
+                move |bounds, window, _| {
+                    let rems = f32::from(bounds.size.height) / f32::from(window.rem_size());
+                    if record(&fit, rems) {
+                        let view = view.clone();
+                        window.on_next_frame(move |_, cx| view.update(cx, |_, cx| cx.notify()));
+                    }
+                },
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .size_full()
+        };
         v_flex()
             .id(ids::RAIL)
             .test_support()
@@ -526,34 +547,62 @@ impl Shell {
                     .min_h_0()
                     .w_full()
                     .flex_1()
-                    .items_center()
-                    .gap_2p5()
+                    // Icon-only mode keeps every workspace in view; scrolling
+                    // remains only for a rail too short even for that.
                     .overflow_y_scroll()
-                    .px_1()
-                    .py_3()
-                    .children(WORKSPACES.iter().map(|w| {
-                        let target = w.route;
-                        let item = RailItem::new(
-                            SharedString::from(format!("rail-{}", w.route.as_str())),
-                            w.icon,
-                            w.rail_label(),
-                            w.hue,
-                        )
-                        .active(route == w.route)
-                        .on_click(cx.listener(move |this, _, _, cx| this.navigate(target, cx)));
-                        match w.tooltip() {
-                            Some(tip) => div()
-                                .id(SharedString::from(format!("rail-tip-{}", w.route.as_str())))
-                                .w_full()
-                                .tooltip(move |window, cx| {
-                                    gpui_kit::component::tooltip::Tooltip::new(tip.clone())
-                                        .build(window, cx)
-                                })
-                                .child(item)
-                                .into_any_element(),
-                            None => item.into_any_element(),
-                        }
-                    })),
+                    .child(measure(|fit, rems| {
+                        let moved = (fit.room.get() - rems).abs() > 0.01;
+                        fit.room.set(rems);
+                        moved
+                    }))
+                    .child(
+                        v_flex()
+                            .relative()
+                            .w_full()
+                            .items_center()
+                            .when(compact, |this| this.gap_1p5())
+                            .when(!compact, |this| this.gap_2p5())
+                            .px_1()
+                            .py_3()
+                            .when(!compact, |this| {
+                                this.child(measure(|fit, rems| {
+                                    let moved = (fit.full.get() - rems).abs() > 0.01;
+                                    fit.full.set(rems);
+                                    moved
+                                }))
+                            })
+                            .children(WORKSPACES.iter().map(|w| {
+                                let target = w.route;
+                                let item = RailItem::new(
+                                    SharedString::from(format!("rail-{}", w.route.as_str())),
+                                    w.icon,
+                                    w.rail_label(),
+                                    w.hue,
+                                )
+                                .active(route == w.route)
+                                .compact(compact)
+                                .on_click(
+                                    cx.listener(move |this, _, _, cx| this.navigate(target, cx)),
+                                );
+                                // Icon-only items name themselves on hover.
+                                let tip = w.tooltip().or_else(|| compact.then(|| w.label.into()));
+                                match tip {
+                                    Some(tip) => div()
+                                        .id(SharedString::from(format!(
+                                            "rail-tip-{}",
+                                            w.route.as_str()
+                                        )))
+                                        .w_full()
+                                        .tooltip(move |window, cx| {
+                                            gpui_kit::component::tooltip::Tooltip::new(tip.clone())
+                                                .build(window, cx)
+                                        })
+                                        .child(item)
+                                        .into_any_element(),
+                                    None => item.into_any_element(),
+                                }
+                            })),
+                    ),
             )
             .child(
                 v_flex()

@@ -358,7 +358,7 @@ fn closed_service_reports_not_open_or_nothing() {
         block_on(service.get_translation_options(false, false))
             .unwrap()
             .len(),
-        15
+        17
     );
 }
 

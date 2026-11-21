@@ -61,6 +61,9 @@ pub struct Account {
     pairing: DevicePairingState,
     license: Option<LicenseSnapshot>,
     onboarding: OnboardingState,
+    /// The saved setup progress has arrived; before it, `onboarding` is only
+    /// the default and must not open setup.
+    onboarding_known: bool,
     reset_revision: u64,
     settings: Option<AppSettings>,
     settings_revision: u64,
@@ -82,6 +85,7 @@ impl Account {
             pairing: idle_pairing(),
             license: None,
             onboarding: OnboardingState::default(),
+            onboarding_known: false,
             reset_revision: 0,
             settings: None,
             settings_revision: 0,
@@ -113,6 +117,10 @@ impl Account {
     /// Setup progress.
     pub fn onboarding(&self) -> &OnboardingState {
         &self.onboarding
+    }
+    /// Whether the saved setup progress has loaded.
+    pub fn onboarding_known(&self) -> bool {
+        self.onboarding_known
     }
     /// Generation of settings snapshots, used by async setup saves.
     pub fn settings_revision(&self) -> u64 {
@@ -171,7 +179,11 @@ impl Account {
 
     /// `setOnboarding`.
     pub fn set_onboarding(&mut self, state: OnboardingState, cx: &mut Context<Self>) {
-        if self.onboarding != state {
+        let first = !std::mem::replace(&mut self.onboarding_known, true);
+        if first && self.onboarding == state {
+            cx.emit(AccountChanged::Onboarding);
+            cx.notify();
+        } else if self.onboarding != state {
             if state == kairo_domain::cloud::reset_onboarding(&self.onboarding) {
                 self.reset_revision = self.reset_revision.wrapping_add(1);
             }

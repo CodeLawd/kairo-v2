@@ -575,7 +575,10 @@ fn a_degraded_stt_shows_reconnecting(cx: &mut TestAppContext) {
         &opened,
         ui_operator::booth::transcript::ids::RECONNECTING
     ));
-    assert!(!cx.read(|cx| opened.booth().read(cx).stt_weak()));
+    assert_eq!(
+        cx.read(|cx| opened.booth().read(cx).listen_state()),
+        ui_operator::booth::ListenState::Reconnecting
+    );
 }
 
 #[gpui_kit::test]
@@ -591,7 +594,40 @@ fn a_weak_connection_warns_while_listening_only(cx: &mut TestAppContext) {
     listening(&core);
     draw(cx, &opened);
     assert!(exists(cx, &opened, id));
-    assert!(cx.read(|cx| opened.booth().read(cx).stt_weak()));
+    assert_eq!(
+        cx.read(|cx| opened.booth().read(cx).listen_state()),
+        ui_operator::booth::ListenState::WeakConnection
+    );
+}
+
+#[gpui_kit::test]
+fn an_interrupted_microphone_warns_and_listening_shows_when_well(cx: &mut TestAppContext) {
+    let core = Core::new(base());
+    let opened = open(cx, core.clone());
+    listening(&core);
+    core.push(BoothFeed::Resilience(resilience(false, "ok")));
+    draw(cx, &opened);
+    let banner = ui_operator::booth::transcript::ids::RECONNECTING;
+    let state = ui_operator::booth::transcript::ids::LISTEN_STATE;
+    assert!(!exists(cx, &opened, banner), "no banner when all is well");
+    assert!(
+        exists(cx, &opened, state),
+        "the header says it is listening"
+    );
+    let mut mic = resilience(false, "ok");
+    mic.health.push(
+        serde_json::from_value(
+            json!({"service": "audio", "status": "degraded", "lastUpdated": 0.0}),
+        )
+        .expect("audio"),
+    );
+    core.push(BoothFeed::Resilience(mic));
+    draw(cx, &opened);
+    assert!(exists(cx, &opened, banner));
+    assert_eq!(
+        cx.read(|cx| opened.booth().read(cx).listen_state()),
+        ui_operator::booth::ListenState::MicInterrupted
+    );
 }
 
 #[gpui_kit::test]

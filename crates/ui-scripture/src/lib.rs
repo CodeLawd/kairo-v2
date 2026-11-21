@@ -10,6 +10,8 @@ pub mod card;
 pub mod model;
 pub mod review;
 pub mod rows;
+pub mod slide_text;
+pub mod verse_edit;
 pub mod view;
 
 pub use backend::ScriptureBackend;

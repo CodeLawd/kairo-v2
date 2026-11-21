@@ -249,6 +249,9 @@ impl SongEditor {
                             .soft_wrap(true)
                             .auto_close(false)
                             .smart_indent(false)
+                            // No code-editor space past the last line: the
+                            // box fits its text and never scrolls on its own.
+                            .scroll_beyond_last_line(Some(0))
                             .placeholder("Type the words for this slide")
                             .default_value(text)
                     });
@@ -714,11 +717,13 @@ impl SongEditor {
                             .id(SharedString::from(ids::slide(key)))
                             .test_support()
                             .px_6()
-                            .py_3()
+                            .py_1()
                             .child(
                                 Editor::new(&field.state)
                                     .appearance(false)
-                                    .h(px(84.))
+                                    .h(px(slide_height(
+                                        field.state.read(cx).value().lines().count(),
+                                    )))
                                     .aria_label(format!("{label}, slide {n}"))
                                     .on_paste(move |item, window, cx| {
                                         let Some(text) = item.text() else {
@@ -859,4 +864,13 @@ impl Focusable for SongEditor {
     fn focus_handle(&self, cx: &gpui_kit::App) -> gpui_kit::FocusHandle {
         self.title.read(cx).focus_handle(cx)
     }
+}
+
+/// A slide box just tall enough for its lines, so it never scrolls inside
+/// the editor's own scroll: 20px editor rows, 16px of editor insets, 8px slack.
+/// shortcut: counts hard lines only; a very long soft-wrapped line can still
+/// scroll, upgrade to measured wrap height if that shows up.
+fn slide_height(lines: usize) -> f32 {
+    const LINE: f32 = 20.;
+    lines.max(1) as f32 * LINE + 24.
 }

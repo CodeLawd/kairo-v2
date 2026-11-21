@@ -31,17 +31,22 @@ pub struct PackTotals {
 
 /// A complete pack's book, chapter and verse counts for `translation`.
 pub fn pack_totals_for(translation: &str) -> PackTotals {
+    // Untranslated books and chapters hold no verses, so they are not counted.
+    let mut books = 0;
     let mut chapters = 0;
     let mut verses = 0;
     for (book_index, counts) in BIBLE_VERSE_COUNTS.iter().enumerate() {
-        chapters += counts.len() as u64;
+        let before = chapters;
         for chapter in 1..=counts.len() as u32 {
-            verses +=
+            let count =
                 get_pack_verse_numbers(translation, book_index as u32 + 1, chapter).len() as u64;
+            chapters += u64::from(count > 0);
+            verses += count;
         }
+        books += u64::from(chapters > before);
     }
     PackTotals {
-        books: BIBLE_VERSE_COUNTS.len() as u64,
+        books,
         chapters,
         verses,
     }
@@ -69,6 +74,10 @@ mod tests {
         let mark = get_pack_verse_numbers("AMPC", 41, 9);
         assert_eq!(&mark[42..46], [43, 45, 47, 48]);
         assert_eq!(get_pack_verse_numbers("AMPC", 64, 1).last(), Some(&15));
+        // TPT leaves 15 books (391 chapters) untranslated.
+        let tpt = pack_totals_for("TPT");
+        assert_eq!((tpt.books, tpt.chapters), (51, 1_189 - 391));
+        assert!(get_pack_verse_numbers("TPT", 2, 1).is_empty());
         assert_eq!(get_pack_verse_numbers("KJV", 64, 1).last(), Some(&14));
         assert!(get_pack_verse_numbers("KJV", 67, 1).is_empty());
         assert!(get_pack_verse_numbers("KJV", 1, 0).is_empty());

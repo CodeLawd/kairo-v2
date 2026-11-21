@@ -20,6 +20,15 @@ const DRAIN_INTERVAL: Duration = Duration::from_millis(10);
 /// How often a default-device capture checks whether the default moved, on
 /// hosts where cpal does not follow it.
 const DEFAULT_POLL: Duration = Duration::from_secs(2);
+/// No callback from the device for this long: CoreAudio stopped the stream
+/// without an error, as it does when another stream reconfigures a shared
+/// USB interface. Silence still arrives as zeros, so this is never speech.
+const STALL_TIMEOUT: Duration = Duration::from_secs(2);
+/// Between attempts to reopen a lost input.
+const REOPEN_INTERVAL: Duration = Duration::from_secs(1);
+/// How long a lost saved device is waited for before the default input is
+/// used instead; a USB interface that resets is back well within this.
+const FALLBACK_AFTER: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CaptureError {
@@ -62,7 +71,12 @@ pub enum CaptureEvent {
     FellBackToDefault {
         requested: String,
     },
-    /// Capture stopped. `Audio input disconnected` on unplug.
+    /// The input stalled or went away; capture is reopening it.
+    Interrupted,
+    /// The input is back after [`CaptureEvent::Interrupted`].
+    Restored,
+    /// The input is lost and could not be reopened, even on the default
+    /// input. Capture keeps trying until it is stopped.
     Error(CaptureError),
 }
 
@@ -181,7 +195,8 @@ pub fn start_capture(
 }
 
 struct Open {
-    stream: cpal::Stream,
+    /// Held for its lifetime: dropping it stops the device.
+    _stream: cpal::Stream,
     consumer: rtrb::Consumer<f32>,
     errors: std::sync::mpsc::Receiver<cpal::ErrorKind>,
     rate: u32,
@@ -197,8 +212,10 @@ fn find_device(host: &cpal::Host, device_id: &str) -> Option<cpal::Device> {
     host.device_by_id(&id)
 }
 
+/// `fallback`: a saved device that is gone opens the default input instead.
 fn open(
     device_id: &str,
+    fallback: bool,
     overruns: &Arc<AtomicU64>,
     sink: &mut dyn FnMut(CaptureEvent),
 ) -> Result<Open, CaptureError> {
@@ -207,6 +224,12 @@ fn open(
         None
     } else {
         let found = find_device(&host, device_id);
+        if found.is_none() && !fallback {
+            return Err(capture_error(
+                AudioErrorCode::DeviceNotFound,
+                "Audio input disconnected",
+            ));
+        }
         if found.is_none() {
             // Unplugged, or a saved id from another enumerator: retry on the
             // default input rather than failing the whole session.
@@ -297,7 +320,7 @@ fn open(
     }?;
     stream.play()?;
     Ok(Open {
-        stream,
+        _stream: stream,
         consumer,
         errors,
         rate,
@@ -348,80 +371,104 @@ fn run(
     overruns: &Arc<AtomicU64>,
     ready: std::sync::mpsc::SyncSender<Result<(), CaptureError>>,
 ) {
-    let mut current = match open(requested, overruns, &mut sink) {
-        Ok(open) => open,
-        Err(error) => {
-            let _ = ready.send(Err(error));
-            return;
-        }
-    };
-    let mut pipeline = match Pipeline::new(current.rate) {
-        Ok(p) => p,
+    let opened = open(requested, true, overruns, &mut sink)
+        .and_then(|open| Pipeline::new(open.rate).map(|p| (open, p)));
+    let (first, mut pipeline) = match opened {
+        Ok(opened) => opened,
         Err(error) => {
             let _ = ready.send(Err(error));
             return;
         }
     };
     let _ = ready.send(Ok(()));
-    tracing::info!(rate = current.rate, device = ?current.device_id, "audio capture started");
+    tracing::info!(rate = first.rate, device = ?first.device_id, "audio capture started");
 
     let follows_default = is_default(requested);
     let mut last_default_check = Instant::now();
-    let mut scratch: Vec<f32> = Vec::with_capacity(current.rate as usize);
+    let mut scratch: Vec<f32> = Vec::with_capacity(first.rate as usize);
+    let mut current = Some(first);
+    let mut recovery = Recovery::new(Instant::now());
     while !stop.load(Ordering::Acquire) {
         std::thread::sleep(DRAIN_INTERVAL);
-        let mut rebuild = false;
-        while let Ok(kind) = current.errors.try_recv() {
+        let now = Instant::now();
+        // A lost input is reopened, never given up on: the service is still
+        // running and the transcript must carry on once the device is back.
+        let Some(open_now) = current.as_mut() else {
+            if !recovery.due(now) {
+                continue;
+            }
+            match open(requested, recovery.fallback(now), overruns, &mut sink)
+                .and_then(|open| Pipeline::new(open.rate).map(|p| (open, p)))
+            {
+                Ok((open, p)) => {
+                    tracing::info!(rate = open.rate, device = ?open.device_id, "audio input reopened");
+                    sink(CaptureEvent::Restored);
+                    scratch = Vec::with_capacity(open.rate as usize);
+                    current = Some(open);
+                    pipeline = p;
+                    recovery = Recovery::new(now);
+                }
+                Err(error) => {
+                    if recovery.failed(now) {
+                        tracing::error!(%error, "audio input still unavailable; retrying");
+                        sink(CaptureEvent::Error(error));
+                    }
+                }
+            }
+            continue;
+        };
+        let mut lost = false;
+        while let Ok(kind) = open_now.errors.try_recv() {
             match kind {
                 cpal::ErrorKind::DeviceNotAvailable => {
-                    sink(CaptureEvent::Error(capture_error(
-                        AudioErrorCode::DeviceNotFound,
-                        "Audio input disconnected",
-                    )));
-                    return;
+                    tracing::warn!("audio input disconnected; reopening");
+                    lost = true;
                 }
                 // The host rerouted a default-device stream itself.
                 cpal::ErrorKind::DeviceChanged => tracing::info!("audio route changed"),
-                cpal::ErrorKind::StreamInvalidated => rebuild = true,
+                cpal::ErrorKind::StreamInvalidated => {
+                    tracing::warn!("audio stream invalidated; reopening");
+                    lost = true;
+                }
                 other => tracing::warn!(?other, "audio stream error"),
             }
         }
+        if !lost && recovery.stalled(now) {
+            tracing::warn!(
+                waited_ms = STALL_TIMEOUT.as_millis() as u64,
+                "audio input stalled; reopening"
+            );
+            lost = true;
+        }
         if follows_default
+            && !lost
             && !cfg!(target_os = "macos")
             && last_default_check.elapsed() >= DEFAULT_POLL
         {
-            last_default_check = Instant::now();
+            last_default_check = now;
             let now_default = cpal::default_host()
                 .default_input_device()
                 .and_then(|d| d.id().ok())
                 .map(|id| id.to_string());
-            if now_default != current.device_id {
+            if now_default != open_now.device_id {
                 tracing::info!(?now_default, "default audio input changed");
-                rebuild = true;
+                lost = true;
             }
         }
-        if rebuild {
-            drop(std::mem::take(&mut scratch));
-            match open(requested, overruns, &mut sink)
-                .and_then(|open| Pipeline::new(open.rate).map(|p| (open, p)))
-            {
-                Ok((open, p)) => {
-                    current = open;
-                    pipeline = p;
-                    scratch = Vec::with_capacity(current.rate as usize);
-                }
-                Err(error) => {
-                    sink(CaptureEvent::Error(error));
-                    return;
-                }
-            }
+        if lost {
+            sink(CaptureEvent::Interrupted);
+            current = None;
+            recovery.lose(now);
+            continue;
         }
 
         scratch.clear();
-        let available = current.consumer.slots();
+        let available = open_now.consumer.slots();
         if available == 0 {
             continue;
         }
+        recovery.samples(now);
+        let current = open_now;
         if let Ok(chunk) = current.consumer.read_chunk(available) {
             let (a, b) = chunk.as_slices();
             scratch.extend_from_slice(a);
@@ -446,8 +493,62 @@ fn run(
             return;
         }
     }
-    drop(current.stream);
+    drop(current);
     tracing::info!("audio capture stopped");
+}
+
+/// When a stalled or lost input is reopened. Kept apart from cpal so the
+/// timing can be tested without hardware.
+#[derive(Debug)]
+struct Recovery {
+    last_samples: Instant,
+    lost_at: Option<Instant>,
+    next_try: Instant,
+    reported: bool,
+}
+
+impl Recovery {
+    fn new(now: Instant) -> Self {
+        Self {
+            last_samples: now,
+            lost_at: None,
+            next_try: now,
+            reported: false,
+        }
+    }
+
+    fn samples(&mut self, now: Instant) {
+        self.last_samples = now;
+    }
+
+    fn stalled(&self, now: Instant) -> bool {
+        self.lost_at.is_none() && now.saturating_duration_since(self.last_samples) >= STALL_TIMEOUT
+    }
+
+    fn lose(&mut self, now: Instant) {
+        if self.lost_at.is_none() {
+            self.lost_at = Some(now);
+            self.next_try = now;
+        }
+    }
+
+    fn due(&self, now: Instant) -> bool {
+        self.lost_at.is_some() && now >= self.next_try
+    }
+
+    /// The saved device has had its grace period; take the default input.
+    fn fallback(&self, now: Instant) -> bool {
+        self.lost_at
+            .is_some_and(|at| now.saturating_duration_since(at) >= FALLBACK_AFTER)
+    }
+
+    /// A reopen failed. True once, when even the fallback has failed.
+    fn failed(&mut self, now: Instant) -> bool {
+        self.next_try = now + REOPEN_INTERVAL;
+        let report = !self.reported && self.fallback(now);
+        self.reported |= report;
+        report
+    }
 }
 
 #[cfg(test)]
@@ -520,6 +621,36 @@ mod tests {
                 meters.len()
             );
         }
+    }
+
+    #[test]
+    fn a_stalled_input_is_reopened_and_the_saved_device_gets_a_grace_period() {
+        let t0 = Instant::now();
+        let mut r = Recovery::new(t0);
+        r.samples(t0 + Duration::from_secs(1));
+        assert!(!r.stalled(t0 + Duration::from_millis(2_900)));
+        assert!(r.stalled(t0 + Duration::from_secs(3)));
+
+        let lost = t0 + Duration::from_secs(3);
+        r.lose(lost);
+        assert!(
+            !r.stalled(lost + Duration::from_secs(60)),
+            "no stall while lost"
+        );
+        assert!(r.due(lost));
+        assert!(!r.fallback(lost), "the saved device is tried first");
+        assert!(!r.failed(lost));
+        assert!(!r.due(lost + Duration::from_millis(500)));
+        assert!(r.due(lost + REOPEN_INTERVAL));
+
+        let late = lost + FALLBACK_AFTER;
+        assert!(r.fallback(late));
+        assert!(r.failed(late), "reported once the fallback fails too");
+        assert!(!r.failed(late + REOPEN_INTERVAL), "and only once");
+        assert!(
+            r.due(late + REOPEN_INTERVAL * 2),
+            "but retrying never stops"
+        );
     }
 
     #[test]

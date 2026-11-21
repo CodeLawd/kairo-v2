@@ -58,9 +58,9 @@ impl Default for ModelConfig {
         Self {
             provider: ModelProvider::default(),
             model: None,
-            // Room for a reasoning model's thinking before its JSON answer:
-            // 1536 ran out first ("finish_reason": "length", no text).
-            max_tokens: 4096,
+            // The answer is a short JSON array; thinking is off (see
+            // `model_request`), so no room is needed for a chain of thought.
+            max_tokens: 1024,
             timeout: Duration::from_secs(15),
         }
     }
@@ -86,8 +86,11 @@ pub fn model_request(config: &ModelConfig, text: &str) -> ManagedRequest {
         ModelProvider::Deepseek => (
             ManagedProvider::Deepseek,
             "/chat/completions",
+            // Thinking is on by default and costs seconds per call (and
+            // ignores `temperature`); spotting a reference does not need it.
             json!({
                 "model": model, "max_tokens": config.max_tokens, "temperature": 0,
+                "thinking": {"type": "disabled"},
                 "messages": [{"role": "system", "content": SYSTEM_PROMPT}, message],
             }),
         ),

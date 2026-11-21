@@ -284,6 +284,8 @@ pub struct Scripture {
     scroll: Option<ScrollTarget>,
     loading: bool,
     error: Option<String>,
+    /// The chosen Bible lacks the passage another Bible has.
+    missing: Option<MissingPassage>,
     navigating: Option<Direction>,
     opening_chapter: bool,
     translation_reload: u64,
@@ -344,6 +346,7 @@ impl Scripture {
             scroll: None,
             loading: false,
             error: None,
+            missing: None,
             navigating: None,
             opening_chapter: false,
             translation_reload: 0,
@@ -559,11 +562,10 @@ impl Scripture {
     }
 
     /// The open playlist's items (`openPlanItems`).
+    /// The selected playlist's items, listed in the sidebar whether the
+    /// playlist or a lookup is on the cards.
     pub fn open_plan_items(&self) -> &[SermonScriptureItem] {
-        match (self.source, self.selected_plan()) {
-            (Some(Source::Plan), Some(plan)) => &plan.items,
-            _ => &[],
-        }
+        self.selected_plan().map_or(&[], |plan| &plan.items)
     }
 
     /// The open playlist's items after the filter, with their numbers.
@@ -608,6 +610,50 @@ impl Scripture {
         rows::locate(&self.rows, self.active)
             .map(|(row, _)| self.rows[row].reference.clone())
             .unwrap_or_else(|| "—".into())
+    }
+
+    /// The chosen Bible lacks the last searched passage.
+    pub fn missing_passage(&self) -> Option<&MissingPassage> {
+        self.missing.as_ref()
+    }
+
+    /// A translation's display name, or its id when unknown.
+    pub fn translation_name(&self, id: &str) -> String {
+        self.translations
+            .iter()
+            .find(|t| t.id == id)
+            .map_or_else(|| id.to_owned(), |t| t.name.clone())
+    }
+
+    /// Show the missing passage in the Bible that has it, for this search only.
+    pub fn show_missing_in_fallback(&mut self, cx: &mut Context<Self>) {
+        let Some(missing) = self.missing.take() else {
+            return;
+        };
+        self.remember(&missing.reference);
+        // The picker names the Bible on screen. Set directly: the slides are
+        // already in this Bible, so `set_translation` would reload for nothing.
+        self.translation = missing.fallback.clone();
+        self.tab_translation = Some((
+            missing.fallback.clone(),
+            self.options.default_translation.clone(),
+        ));
+        let found = missing
+            .results
+            .iter()
+            .enumerate()
+            .map(|(i, r)| {
+                create_result_row(
+                    r,
+                    RowOptions {
+                        id: Some(format!("search-{i}-{}", r.reference)),
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+        self.show_search(found);
+        cx.notify();
     }
 
     /// The default Bible has no text here (the yellow notice).
@@ -762,50 +808,65 @@ impl Scripture {
         self.close_suggestions(Some(q.clone()));
         self.loading = true;
         self.error = None;
+        self.missing = None;
         cx.notify();
         let backend = self.backend.clone();
         let translation = self.translation.clone();
+        let default = self.options.default_translation.clone();
         let translations = self.translations.clone();
         cx.spawn(async move |this, cx| {
-            let outcome: Result<(Vec<ScriptureResult>, Option<String>), String> = async {
-                let mut notice = None;
-                let mut results = search(&backend, q.clone(), translation.clone()).await?;
-                let looks_like_reference = normalize_scripture_query(&q).is_some()
-                    || has_chapter_verse(&q);
+            let outcome: Result<(Vec<ScriptureResult>, Option<MissingPassage>), String> = async {
+                let results = search(&backend, q.clone(), translation.clone()).await?;
+                let looks_like_reference =
+                    normalize_scripture_query(&q).is_some() || has_chapter_verse(&q);
+                // Never swap Bibles silently: find one that has the passage,
+                // default Bible first, and let the operator choose it.
+                let mut missing = None;
                 if results.is_empty() && looks_like_reference {
-                    for fallback in translation_fallback_order(&translation, &translation, &translations) {
+                    for fallback in
+                        translation_fallback_order(&translation, &default, &translations)
+                    {
                         if fallback == translation {
                             continue;
                         }
-                        results = search(&backend, q.clone(), fallback.clone()).await?;
-                        if !results.is_empty() {
-                            notice = Some(format!("{translation} text unavailable — showing {fallback}. Change translation in the dropdown when the Bible is available."));
+                        let found = search(&backend, q.clone(), fallback.clone()).await?;
+                        if !found.is_empty() {
+                            let reference = if found.len() == 1 {
+                                found[0].reference.clone()
+                            } else {
+                                q.clone()
+                            };
+                            missing = Some(MissingPassage {
+                                reference,
+                                translation: translation.clone(),
+                                fallback,
+                                results: found,
+                            });
                             break;
                         }
                     }
                 }
-                Ok((results, notice))
+                Ok((results, missing))
             }
             .await;
             let target = this
                 .read_with(cx, |this, _| this.translation.clone())
                 .unwrap_or_default();
             let outcome = match outcome {
-                Ok((results, notice)) if target != translation && !results.is_empty() => {
+                Ok((results, missing)) if target != translation && !results.is_empty() => {
                     let b = backend.clone();
-                    let reloaded = reload_passages_in_translation(&results, &target, |q, t| {
-                        search(&b, q, t)
-                    })
-                    .await;
-                    Ok((reloaded.results, notice))
+                    let reloaded =
+                        reload_passages_in_translation(&results, &target, |q, t| search(&b, q, t))
+                            .await;
+                    Ok((reloaded.results, missing))
                 }
                 other => other,
             };
             let _ = this.update(cx, |this, cx| {
                 this.loading = false;
                 match outcome {
-                    Ok((results, notice)) => {
-                        this.error = notice;
+                    Ok((results, missing)) => {
+                        this.missing = missing;
                         if !results.is_empty() && normalize_scripture_query(&q).is_some() {
                             let reference = if results.len() == 1 {
                                 results[0].reference.clone()
@@ -828,8 +889,11 @@ impl Scripture {
                             })
                             .collect();
                         this.show_search(found);
-                        if results.is_empty() {
-                            this.error = Some("No results. Try a reference like “John 3:16” or “Romans 8:28”.".into());
+                        if results.is_empty() && this.missing.is_none() {
+                            this.error = Some(
+                                "No results. Try a reference like “John 3:16” or “Romans 8:28”."
+                                    .into(),
+                            );
                         }
                     }
                     Err(error) => {
@@ -850,9 +914,9 @@ impl Scripture {
     }
 
     fn show_search(&mut self, found: Vec<ResultRow>) {
-        self.search_rows = found.clone();
-        self.rows = found;
+        self.search_rows = found;
         self.source = Some(Source::Search);
+        self.refresh_search_view();
         self.added_all = None;
         self.active = 0;
     }
@@ -961,8 +1025,8 @@ impl Scripture {
                 ..Default::default()
             },
         );
-        self.rows = vec![row.clone()];
         self.search_rows = vec![row];
+        self.refresh_search_view();
         self.query = card.result.reference.clone();
         self.active = 0;
         cx.notify();
@@ -994,6 +1058,11 @@ impl Scripture {
     pub fn set_translation(&mut self, next: String, cx: &mut Context<Self>) {
         self.translation = next.clone();
         self.tab_translation = Some((next.clone(), self.options.default_translation.clone()));
+        // A passage the old Bible lacked: look it up again in the new one.
+        if let Some(missing) = self.missing.take() {
+            self.run_search(missing.reference, cx);
+            return;
+        }
         self.schedule_suggestions(cx);
         cx.notify();
         if self.source != Some(Source::Search) || self.rows.is_empty() {
@@ -1011,7 +1080,7 @@ impl Scripture {
         let active_reference =
             rows::card_at(&self.rows, self.active).map(|c| c.result.reference.clone());
         let passages: Vec<ScriptureResult> = self
-            .rows
+            .search_rows
             .iter()
             .filter_map(|r| {
                 combine_scripture_results(
@@ -1031,6 +1100,23 @@ impl Scripture {
                     return;
                 }
                 this.loading = false;
+                // The new Bible has none of it: ask, as a fresh lookup would,
+                // rather than leave the old Bible's slides under its name.
+                if !reloaded.results.is_empty()
+                    && reloaded.unavailable.len() == reloaded.results.len()
+                {
+                    this.missing = Some(MissingPassage {
+                        reference: reloaded.unavailable.join(", "),
+                        translation: next.clone(),
+                        fallback: reloaded.results[0].translation.clone(),
+                        results: reloaded.results,
+                    });
+                    this.search_rows.clear();
+                    this.refresh_search_view();
+                    this.active = 0;
+                    cx.notify();
+                    return;
+                }
                 let updated: Vec<ResultRow> = reloaded
                     .results
                     .iter()
@@ -1039,7 +1125,7 @@ impl Scripture {
                         create_result_row(
                             r,
                             RowOptions {
-                                id: Some(this.rows.get(i).map_or_else(
+                                id: Some(this.search_rows.get(i).map_or_else(
                                     || format!("search-{i}-{}", r.reference),
                                     |row| row.id.clone(),
                                 )),
@@ -1048,7 +1134,8 @@ impl Scripture {
                         )
                     })
                     .collect();
-                this.rows = updated;
+                this.search_rows = updated;
+                this.refresh_search_view();
                 if let Some(reference) = active_reference {
                     this.active = rows::find_flat(&this.rows, |c, _| c.result.reference == reference)
                         .unwrap_or_else(|| {
@@ -1200,8 +1287,8 @@ impl Scripture {
 
     /// The Library's "Search results" row.
     pub fn show_search_results(&mut self, cx: &mut Context<Self>) {
-        self.rows = self.search_rows.clone();
         self.source = Some(Source::Search);
+        self.refresh_search_view();
         cx.notify();
     }
 
@@ -1391,6 +1478,17 @@ impl Scripture {
         }
     }
 
+    /// The lookup's cards back on the grid.
+    fn refresh_search_view(&mut self) {
+        if self.source != Some(Source::Search) {
+            return;
+        }
+        self.rows = self.search_rows.clone();
+        self.active = self
+            .active
+            .min(rows::card_count(&self.rows).saturating_sub(1));
+    }
+
     fn plan(&self, id: &str) -> Option<SermonPlan> {
         self.plans.iter().find(|p| p.id == id).cloned()
     }
@@ -1442,25 +1540,7 @@ impl Scripture {
         self.item_filter.clear();
         self.item_picks.clear();
         self.source = Some(Source::Plan);
-        self.rows = plan
-            .items
-            .iter()
-            .map(|item| {
-                create_result_row(
-                    &ScriptureResult {
-                        reference: item.reference.clone(),
-                        translation: item.translation.clone(),
-                        verses: item.verses.clone(),
-                    },
-                    RowOptions {
-                        id: Some(item.id.clone()),
-                        plan_item_id: Some(item.id.clone()),
-                        note: item.error.clone(),
-                        ..Default::default()
-                    },
-                )
-            })
-            .collect();
+        self.rows = plan_rows(&plan);
         let missing = plan.items.iter().filter(|i| !i.available).count();
         if missing > 0 {
             self.error = Some(format!(
@@ -1472,6 +1552,12 @@ impl Scripture {
 
     /// A sidebar item: focus and scroll only, never live.
     pub fn select_plan_item(&mut self, item_id: &str, cx: &mut Context<Self>) {
+        // From a lookup, the item opens its playlist first.
+        if self.source != Some(Source::Plan)
+            && let Some(plan) = self.selected_plan().cloned()
+        {
+            self.show_plan(plan);
+        }
         let Some(index) = rows::find_flat(&self.rows, |_, r| {
             r.plan_item_id.as_deref() == Some(item_id)
         }) else {
@@ -1644,6 +1730,7 @@ impl Scripture {
     fn loaded_results(&self) -> Vec<ScriptureResult> {
         self.rows
             .iter()
+            .filter(|r| r.plan_item_id.is_none())
             .filter_map(|r| {
                 combine_scripture_results(
                     &r.cards.iter().map(|c| c.result.clone()).collect::<Vec<_>>(),
@@ -1710,6 +1797,69 @@ impl Scripture {
                     }
                     Err(error) => {
                         this.error = Some(plain_error(error, "Could not create a playlist."))
+                    }
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// The playlist item a card shows and the card's verse in it.
+    pub fn card_item(&self, index: usize) -> Option<(String, usize)> {
+        let (row, local) = rows::locate(&self.rows, index)?;
+        Some((self.rows[row].plan_item_id.clone()?, local))
+    }
+
+    /// A selected-playlist item whose verses can take new words.
+    pub fn editable_item(&self, id: &str) -> Option<&SermonScriptureItem> {
+        self.selected_plan()?
+            .items
+            .iter()
+            .find(|i| i.id == id && i.available && !i.verses.is_empty())
+    }
+
+    /// Replaces a playlist item's verses with edited ones: new words,
+    /// verses split into parts, given names. The playlist keeps them in place
+    /// of the Bible text from then on.
+    pub fn save_item_verses(
+        &mut self,
+        id: &str,
+        verses: Vec<kairo_domain::scripture::ScriptureVerse>,
+        cx: &mut Context<Self>,
+    ) {
+        if verses.is_empty() || verses.iter().any(|v| v.text.trim().is_empty()) {
+            return;
+        }
+        let Some(mut plan) = self.selected_plan().cloned() else {
+            return;
+        };
+        let Some(item) = plan.items.iter_mut().find(|i| i.id == id) else {
+            return;
+        };
+        if item.verses == verses {
+            return;
+        }
+        item.verses = verses;
+        plan.updated_at = now_ms();
+        let backend = self.backend.clone();
+        cx.spawn(async move |this, cx| {
+            let saved = save_plan(&backend, plan).await;
+            let _ = this.update(cx, |this, cx| {
+                match saved {
+                    Ok(saved) => {
+                        let (active, cue) = (this.active, this.cue);
+                        if this.source == Some(Source::Plan) {
+                            this.show_plan(saved);
+                        } else {
+                            this.replace_plan(saved);
+                        }
+                        this.active = active;
+                        this.cue = cue;
+                        cx.emit(ScriptureEvent::Notify("Verse text saved".into()));
+                    }
+                    Err(error) => {
+                        this.error = Some(plain_error(error, "Could not save those verses."))
                     }
                 }
                 cx.notify();
@@ -1861,7 +2011,13 @@ impl Scripture {
                 match outcome {
                     Ok(plan) => {
                         let title = plan.title.clone();
-                        this.show_plan(plan);
+                        if this.source == Some(Source::Search) {
+                            // Stay on the lookup; the playlist shows under it.
+                            this.selected_plan = Some(plan.id.clone());
+                            this.replace_plan(plan);
+                        } else {
+                            this.show_plan(plan);
+                        }
                         this.added_all = Some(title);
                     }
                     Err(error) => {
@@ -2301,4 +2457,36 @@ async fn resolve_and_open(
     } else {
         Ok(next)
     }
+}
+
+/// A playlist's items as grid rows.
+fn plan_rows(plan: &SermonPlan) -> Vec<ResultRow> {
+    plan.items
+        .iter()
+        .map(|item| {
+            create_result_row(
+                &ScriptureResult {
+                    reference: item.reference.clone(),
+                    translation: item.translation.clone(),
+                    verses: item.verses.clone(),
+                },
+                RowOptions {
+                    id: Some(item.id.clone()),
+                    plan_item_id: Some(item.id.clone()),
+                    note: item.error.clone(),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect()
+}
+
+/// A reference the chosen Bible does not include, and the first Bible
+/// (the default one first) that does.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MissingPassage {
+    pub reference: String,
+    pub translation: String,
+    pub fallback: String,
+    pub results: Vec<ScriptureResult>,
 }

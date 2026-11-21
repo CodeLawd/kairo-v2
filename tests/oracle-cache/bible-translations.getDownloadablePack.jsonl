@@ -1,6 +1,7 @@
-{"fn":"bible-translations.getDownloadablePack","electron_commit":"af978c5159","src_lib_dirty":false}
+{"fn":"bible-translations.getDownloadablePack","electron_commit":"3ba6e3389f","src_lib_dirty":true}
 {"k":"02468e31dfe21e07","r":{"$oracle":"undefined"}}
 {"k":"046a03f2113fbb65","r":{"$oracle":"undefined"}}
+{"k":"063b08af9852cc66","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/gnt-pack.db.gz","sha256":"5df80c33b57ac552bb2ff69d2f1cc94e387fc8d0fc008c5fb0b67d92f344a909","approxLabel":"about 5 MB"}}
 {"k":"0a457a6c0b1303c9","r":{"$oracle":"undefined"}}
 {"k":"0edfd1f1e78b2f8f","r":{"$oracle":"undefined"}}
 {"k":"1337da25647c342b","r":{"$oracle":"undefined"}}
@@ -10,31 +11,34 @@
 {"k":"2a4801d8510dc7e8","r":{"$oracle":"undefined"}}
 {"k":"2aabfdc11ef785ca","r":{"$oracle":"undefined"}}
 {"k":"2da4c645563d14cf","r":{"$oracle":"undefined"}}
-{"k":"30e355bb43a040f4","r":{"$oracle":"undefined"}}
+{"k":"30e355bb43a040f4","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/msg-pack.db.gz","sha256":"0a3ddc7dd55d04b347b07de41540cb51fdeeb85c415d8ca6cf45b0760960ac8f","approxLabel":"about 6 MB"}}
 {"k":"32236aa210ca4a98","r":{"$oracle":"undefined"}}
 {"k":"368c7665ab612b13","r":{"$oracle":"undefined"}}
 {"k":"41fc345f5fa5069f","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/nlt-pack.db.gz","sha256":"ea57d70425083de77ad1aca16193bb2f8bd6629ec640200c88937aefd6f45528","approxLabel":"about 5 MB"}}
 {"k":"45c9a8988f9b8fce","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/ampc-pack.db.gz","sha256":"d4a6d9a3faef85daea7f3b26c8f99dacb6e8ebdc4f859c10791d87e65c242f51","approxLabel":"about 6 MB"}}
 {"k":"4ffec128bcf01b43","r":{"$oracle":"undefined"}}
-{"k":"50674ba3542c42f9","r":{"$oracle":"undefined"}}
+{"k":"50674ba3542c42f9","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/tpt-pack.db.gz","sha256":"13822ccd801dce33584cfec25d9234eaed5e777ed820665a60a8c81242e8c614","approxLabel":"about 4 MB"}}
 {"k":"52cee29de9a682be","r":{"$oracle":"undefined"}}
 {"k":"556e58627f808320","r":{"$oracle":"undefined"}}
 {"k":"56f51f55a870551b","r":{"$oracle":"undefined"}}
 {"k":"59c027027862ed3e","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/nkjv-pack.db.gz","sha256":"12efa45e3be35978ffc72ee2305f4f085ca7076ef5974b7046dfcb8ac450b041","approxLabel":"about 5 MB"}}
 {"k":"62bbf9a6f7de368e","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/ampc-pack.db.gz","sha256":"d4a6d9a3faef85daea7f3b26c8f99dacb6e8ebdc4f859c10791d87e65c242f51","approxLabel":"about 6 MB"}}
 {"k":"6f2f3d9edc94ea9b","r":{"$oracle":"undefined"}}
+{"k":"718eba4fca973cbb","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/easy-pack.db.gz","sha256":"6c3c11097104035a64003ed26d36dcec42c28f61b9ae036234684fd0b3da6184","approxLabel":"about 6 MB"}}
 {"k":"7a5ea440fe939e6d","r":{"$oracle":"undefined"}}
 {"k":"7a87f13a687e89eb","r":{"$oracle":"undefined"}}
 {"k":"802de93e46f951ae","r":{"$oracle":"undefined"}}
 {"k":"8159f444ae667e3d","r":{"$oracle":"undefined"}}
+{"k":"855f8255c3f5d286","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/gnt-pack.db.gz","sha256":"5df80c33b57ac552bb2ff69d2f1cc94e387fc8d0fc008c5fb0b67d92f344a909","approxLabel":"about 5 MB"}}
 {"k":"8657e43c351ebc28","r":{"$oracle":"undefined"}}
-{"k":"875c0f6036b530d4","r":{"$oracle":"undefined"}}
+{"k":"875c0f6036b530d4","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/msg-pack.db.gz","sha256":"0a3ddc7dd55d04b347b07de41540cb51fdeeb85c415d8ca6cf45b0760960ac8f","approxLabel":"about 6 MB"}}
 {"k":"889ba44703de60f8","r":{"$oracle":"undefined"}}
 {"k":"957dfee6b2d52a3d","r":{"$oracle":"undefined"}}
 {"k":"a22a4badf88dfd15","r":{"$oracle":"undefined"}}
 {"k":"a48ab3dbcbf88790","r":{"$oracle":"undefined"}}
 {"k":"a9d5041af1e3c4aa","r":{"$oracle":"undefined"}}
 {"k":"aa9620d0a74cf680","r":{"$oracle":"undefined"}}
+{"k":"ae1c178d2e20bf76","r":{"$oracle":"undefined"}}
 {"k":"ba62d28bcc9c1cce","r":{"$oracle":"undefined"}}
 {"k":"bc7c72fb9969acda","r":{"$oracle":"undefined"}}
 {"k":"c457060d04615dfb","r":{"$oracle":"undefined"}}
@@ -43,9 +47,11 @@
 {"k":"d3a55c4416b96a5e","r":{"$oracle":"undefined"}}
 {"k":"d6680bdad932533e","r":{"$oracle":"undefined"}}
 {"k":"d7cc18fbd584163b","r":{"$oracle":"undefined"}}
+{"k":"df9de0e0e36f807b","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/easy-pack.db.gz","sha256":"6c3c11097104035a64003ed26d36dcec42c28f61b9ae036234684fd0b3da6184","approxLabel":"about 6 MB"}}
 {"k":"eb83faba6c90f03f","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/nlt-pack.db.gz","sha256":"ea57d70425083de77ad1aca16193bb2f8bd6629ec640200c88937aefd6f45528","approxLabel":"about 5 MB"}}
 {"k":"ee2305a43dded284","r":{"$oracle":"undefined"}}
+{"k":"ee48a2149b2ae20b","r":{"$oracle":"undefined"}}
 {"k":"eec16066295540f9","r":{"$oracle":"undefined"}}
 {"k":"f43eecc6187c3abc","r":{"$oracle":"undefined"}}
 {"k":"f8a28552eba21375","r":{"$oracle":"undefined"}}
-{"k":"fcf203352dd08a99","r":{"$oracle":"undefined"}}
+{"k":"fcf203352dd08a99","r":{"url":"https://github.com/CodeLawd/kairo-bible-packs/releases/download/bible-packs-v1/tpt-pack.db.gz","sha256":"13822ccd801dce33584cfec25d9234eaed5e777ed820665a60a8c81242e8c614","approxLabel":"about 4 MB"}}

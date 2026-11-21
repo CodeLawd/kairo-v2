@@ -56,6 +56,8 @@ fn main() {
                 CaptureEvent::FellBackToDefault { requested } => {
                     println!("fell back to default from {requested}")
                 }
+                CaptureEvent::Interrupted => println!("capture interrupted; reopening"),
+                CaptureEvent::Restored => println!("capture restored"),
                 CaptureEvent::Error(e) => println!("capture error: {e}"),
             }
         })

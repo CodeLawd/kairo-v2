@@ -883,3 +883,20 @@ fn dialog_form(cx: &gpui_kit::App, o: &Opened) -> (String, String, String, Strin
         None => Default::default(),
     }
 }
+
+#[gpui_kit::test]
+fn a_slide_box_fits_its_lines_without_spare_rows(cx: &mut TestAppContext) {
+    let o = open_editor(cx, Core::new(base()));
+    let key = slide_key(cx, &o, 0, 0);
+    let e = editor(cx, &o);
+    let (height, line) = cx
+        .update_window(o.handle, move |_, _, cx| {
+            let state = e.read(cx).slide_state(key).unwrap().clone();
+            let s = state.read(cx);
+            (s.input_bounds().size.height, s.line_height().unwrap())
+        })
+        .unwrap();
+    // Two lines: room for both, and less than a spare row more.
+    assert!(height >= line * 2., "{height:?}");
+    assert!(height < line * 3., "{height:?}");
+}

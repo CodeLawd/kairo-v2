@@ -46,6 +46,7 @@ pub mod ids {
     pub const PREVIEW: &str = "lyrics-quick-open-preview";
     pub const ADD: &str = "lyrics-quick-open-add";
     pub const OPEN: &str = "lyrics-quick-open-open";
+    pub const EDIT: &str = "lyrics-quick-open-edit";
     pub const BACKDROP: &str = "lyrics-quick-open-backdrop";
 
     pub fn row(index: usize) -> String {
@@ -368,23 +369,38 @@ impl QuickOpen {
 
     /// Enter: open the song, or import a web hit then open it.
     pub fn open_row(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.open_row_as(index, false, cx);
+    }
+
+    /// Opens the row straight into the song editor (a web hit is imported
+    /// first).
+    pub fn edit_row(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.open_row_as(index, true, cx);
+    }
+
+    fn open_row_as(&mut self, index: usize, edit: bool, cx: &mut Context<Self>) {
         match self.row(index) {
             Some(Row::Local(hit)) => {
                 if let Some(song) = self.local_song(&hit, cx) {
-                    self.open(song, cx);
+                    self.open(song, edit, cx);
                 }
             }
-            Some(Row::Online(result)) => self.import(result, cx),
+            Some(Row::Online(result)) => self.import(result, edit, cx),
             None => {}
         }
     }
 
-    fn open(&mut self, song: LyricsSong, cx: &mut Context<Self>) {
-        self.lyrics.update(cx, |m, cx| m.open_song(song, cx));
+    fn open(&mut self, song: LyricsSong, edit: bool, cx: &mut Context<Self>) {
+        self.lyrics.update(cx, |m, cx| {
+            m.open_song(song, cx);
+            if edit {
+                m.edit(cx);
+            }
+        });
         self.close(cx);
     }
 
-    fn import(&mut self, result: LyricsOnlineResult, cx: &mut Context<Self>) {
+    fn import(&mut self, result: LyricsOnlineResult, edit: bool, cx: &mut Context<Self>) {
         if rows::lyrics_unavailable(&result) {
             self.backend
                 .call(LyricsCall::OpenUrl(result.url), Box::new(|_| {}));
@@ -404,7 +420,7 @@ impl QuickOpen {
             let _ = this.update(cx, |this, cx| {
                 this.importing = None;
                 match answer {
-                    Ok(LyricsAnswer::Song(song)) => this.open(song, cx),
+                    Ok(LyricsAnswer::Song(song)) => this.open(song, edit, cx),
                     Ok(_) => {}
                     Err(e) => this.online_error = Some(format_online_lyrics_error(&e)),
                 }
@@ -847,7 +863,7 @@ impl QuickOpen {
                 } else if let Some(p) = &self.preview {
                     v_flex()
                         .mt_3()
-                        .gap_2p5()
+                        .gap_4()
                         .children(review_notice_element(p.review.as_ref(), cx))
                         .children(p.sections.iter().map(|s| preview_section_card(k, s)))
                         .into_any_element()
@@ -905,7 +921,7 @@ impl QuickOpen {
                     .child(if sections > 0 {
                         v_flex()
                             .mt_3()
-                            .gap_2p5()
+                            .gap_4()
                             .children(song.sections.iter().map(|s| preview_section_card(k, s)))
                             .into_any_element()
                     } else {
@@ -935,7 +951,8 @@ impl QuickOpen {
             Row::Online(_) => "Import & open",
             Row::Local(_) => "Open",
         };
-        let (add, open, close_preview) = (entity.clone(), entity.clone(), entity);
+        let (add, open, edit, close_preview) =
+            (entity.clone(), entity.clone(), entity.clone(), entity);
         let active = self.active;
         let preview_panel = v_flex()
             .id(ids::PREVIEW)
@@ -1021,6 +1038,18 @@ impl QuickOpen {
                             .when(!local, |b| b.tooltip("Import the song first"))
                             .on_click(move |_, _, cx| {
                                 add.update(cx, |this, cx| this.add_active(cx))
+                            }),
+                    )
+                    .child(
+                        Button::new(ids::EDIT)
+                            .cursor_pointer()
+                            .secondary()
+                            .small()
+                            .icon(Icon::new(KairoIcon::Pencil))
+                            .label(if local { "Edit" } else { "Import & edit" })
+                            .disabled(self.importing.is_some())
+                            .on_click(move |_, _, cx| {
+                                edit.update(cx, |this, cx| this.edit_row(active, cx))
                             }),
                     )
                     .child(
@@ -1568,14 +1597,26 @@ impl Render for QuickOpen {
 }
 
 fn preview_section_card(k: kairo_ui_kit::KairoColors, section: &LyricsSongSection) -> AnyElement {
-    div()
-        .rounded(radius::md())
-        .bg(k.surface.opacity(0.6))
-        .border_1()
-        .border_color(k.panel_border)
-        .px_3()
-        .py_2p5()
-        .child(section_block(k, section))
+    // A thin rule in the section's colour marks it, with no box around it.
+    h_flex()
+        .items_stretch()
+        .gap_3()
+        .child(
+            div()
+                .w(px(2.))
+                .flex_none()
+                .rounded_full()
+                .bg(kairo_ui_kit::tokens::section_color(rows::section_kind(
+                    section.kind,
+                ))),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .py_0p5()
+                .child(section_block(k, section)),
+        )
         .into_any_element()
 }
 

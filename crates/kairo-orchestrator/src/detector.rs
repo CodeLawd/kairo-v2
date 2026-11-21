@@ -105,6 +105,18 @@ pub fn can_auto_present(reference: &ScriptureReference) -> bool {
         )
 }
 
+/// A reference spoken in full ("John 3:16") and read by the local parser.
+/// It goes live at once: the safety delay is for quotes, paraphrases and
+/// guesses, where the operator may need to step in.
+pub fn presents_at_once(reference: &ScriptureReference) -> bool {
+    reference.detection_type == DetectionType::Explicit
+        && reference
+            .resolver
+            .is_none_or(|r| r == ScriptureResolver::Explicit)
+        && !reference.ambiguous
+        && !reference.provisional
+}
+
 /// The passage the preacher is reading, so reading it aloud is not a quote.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReadingPassage {

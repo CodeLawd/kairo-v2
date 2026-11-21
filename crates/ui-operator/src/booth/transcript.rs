@@ -30,6 +30,7 @@ pub mod ids {
     pub const NUGGETS: &str = "transcript-nuggets";
     pub const NUGGETS_EXPORT: &str = "nuggets-export";
     pub const RECONNECTING: &str = "transcript-reconnecting";
+    pub const LISTEN_STATE: &str = "transcript-listen-state";
     pub const LISTENING: &str = "transcript-listening";
     pub const METER: &str = "transcript-meter";
 }
@@ -73,6 +74,7 @@ impl TranscriptPanel {
         let percent = (level.rms.clamp(0.0, 1.0) * 100.0).round() as u32;
         let count = booth.nuggets().len();
         let open = booth.nuggets_open;
+        let state = booth.transcribing.then(|| booth.listen_state());
         let meter = h_flex()
             .id(ids::METER)
             .test_support()
@@ -128,7 +130,33 @@ impl TranscriptPanel {
                             .text_color(k.text(TextStep::T200))
                             .child("Transcript"),
                     )
-                    .child(meter),
+                    .child(meter)
+                    .when_some(state, |this, state| {
+                        // A dot beside the words, never colour alone.
+                        let dot = if state.is_critical() {
+                            k.danger_text
+                        } else if state.notice().is_some() {
+                            k.warning_text
+                        } else {
+                            k.success_text
+                        };
+                        this.child(
+                            h_flex()
+                                .id(ids::LISTEN_STATE)
+                                .test_support()
+                                .min_w_0()
+                                .items_center()
+                                .gap_1p5()
+                                .child(div().size(px(6.)).flex_shrink_0().rounded_full().bg(dot))
+                                .child(
+                                    div()
+                                        .truncate()
+                                        .text_size(text::LABEL.size)
+                                        .text_color(k.text(TextStep::T400))
+                                        .child(state.label()),
+                                ),
+                        )
+                    }),
             )
             .child(
                 Button::new(ids::NUGGETS)
@@ -471,17 +499,8 @@ impl TranscriptPanel {
         let booth = self.booth.read(cx);
         let transcribing = booth.transcribing;
         let label = if transcribing { "Pause" } else { "Resume" };
-        let status = (booth.active_service().is_none()).then(|| {
-            if transcribing {
-                if booth.stt_reconnecting() {
-                    "Reconnecting"
-                } else {
-                    "Listening"
-                }
-            } else {
-                "Paused"
-            }
-        });
+        // The header carries the listening state; this says only paused.
+        let status = (booth.active_service().is_none() && !transcribing).then_some("Paused");
         let busy = booth.pipeline_busy;
         h_flex()
             .h_12()
@@ -616,12 +635,12 @@ impl Render for TranscriptPanel {
         let can_save = booth.active_service().is_some();
         let idle = booth.transcript_idle();
         // Only while listening: stopping also reports "disconnected".
-        let reconnecting =
-            booth.resilience.is_some() && booth.transcribing && booth.stt_reconnecting();
-        let (notice, detail) = if booth.stt_weak() {
-            ("Weak connection", "Captions may lag")
+        let state = booth.listen_state();
+        let notice = booth.transcribing.then(|| state.notice()).flatten();
+        let (tint, ink) = if state.is_critical() {
+            (k.tints.red, k.danger_text)
         } else {
-            ("Reconnecting…", "Audio is buffered")
+            (k.tints.amber, k.warning_text)
         };
         let nuggets_open = booth.nuggets_open;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
@@ -654,7 +673,7 @@ impl Render for TranscriptPanel {
             .border_r_1()
             .border_color(k.surface_line)
             .child(self.header(cx))
-            .when(reconnecting, |this| {
+            .when_some(notice, |this, (notice, detail)| {
                 this.child(
                     h_flex()
                         .id(ids::RECONNECTING)
@@ -665,16 +684,16 @@ impl Render for TranscriptPanel {
                         .gap_1p5()
                         .px_3()
                         .py_2()
-                        .bg(k.tints.amber)
+                        .bg(tint)
                         .text_size(text::LABEL.size)
-                        .text_color(k.warning_text)
+                        .text_color(ink)
                         .child(notice)
                         .child(
                             div()
                                 .rounded_sm()
                                 .px_1p5()
                                 .py_0p5()
-                                .bg(k.tints.amber)
+                                .bg(tint)
                                 .text_size(px(9.))
                                 .child(detail),
                         ),

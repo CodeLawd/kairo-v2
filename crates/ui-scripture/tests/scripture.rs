@@ -391,7 +391,7 @@ fn no_results_explains_what_to_type(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
-fn a_reference_missing_in_the_bible_falls_back(cx: &mut TestAppContext) {
+fn a_reference_missing_in_the_bible_offers_another_bible(cx: &mut TestAppContext) {
     let core = Core::new(base());
     core.script(|call| match call {
         ScriptureCall::Search { translation, .. } if translation == "KJV" => {
@@ -410,12 +410,21 @@ fn a_reference_missing_in_the_bible_falls_back(cx: &mut TestAppContext) {
     });
     let opened = open(cx, core);
     lookup(cx, &opened, "John 3:16");
-    let error = read(cx, &opened, |m| m.error().map(str::to_owned)).unwrap();
-    assert!(
-        error.starts_with("KJV text unavailable — showing "),
-        "{error}"
-    );
+    // Nothing swaps silently: the passage waits for the operator's choice.
+    assert!(read(cx, &opened, |m| m.error().is_none()));
+    assert!(!exists(cx, &opened, &ids::card(0)));
+    assert!(exists(cx, &opened, ids::MISSING));
+    let (translation, fallback) = read(cx, &opened, |m| {
+        let missing = m.missing_passage().unwrap();
+        (missing.translation.clone(), missing.fallback.clone())
+    });
+    assert_eq!(translation, "KJV");
+    assert_ne!(fallback, "KJV");
+    click(cx, &opened, ids::MISSING_USE_FALLBACK);
     assert!(exists(cx, &opened, &ids::card(0)));
+    assert!(read(cx, &opened, |m| m.missing_passage().is_none()));
+    // The picker now names the Bible on screen.
+    assert_eq!(read(cx, &opened, |m| m.translation().to_owned()), fallback);
 }
 
 #[gpui_kit::test]
@@ -901,7 +910,7 @@ fn changing_translation_reloads_search_cards(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
-fn a_translation_without_the_text_keeps_the_old_one(cx: &mut TestAppContext) {
+fn a_translation_without_the_text_offers_the_old_one(cx: &mut TestAppContext) {
     let core = Core::new(base());
     let script = bible();
     core.script(move |call| match call {
@@ -918,12 +927,20 @@ fn a_translation_without_the_text_keeps_the_old_one(cx: &mut TestAppContext) {
             .update(cx, |m, cx| m.set_translation("WEB".into(), cx))
     });
     draw(cx, &opened);
+    // The old Bible's slides are not left up under the new Bible's name.
+    assert!(read(cx, &opened, |m| m.error().is_none()));
+    assert!(!exists(cx, &opened, &ids::card(0)));
+    let (reference, translation) = read(cx, &opened, |m| {
+        let missing = m.missing_passage().unwrap();
+        (missing.reference.clone(), missing.translation.clone())
+    });
     assert_eq!(
-        read(cx, &opened, |m| m.error().map(str::to_owned)).as_deref(),
-        Some(
-            "WEB text unavailable for John 3:16–18. Those verses still show the previous translation."
-        )
+        (reference.as_str(), translation.as_str()),
+        ("John 3:16–18", "WEB")
     );
+    click(cx, &opened, ids::MISSING_USE_FALLBACK);
+    assert!(exists(cx, &opened, &ids::card(0)));
+    assert_ne!(read(cx, &opened, |m| m.translation().to_owned()), "WEB");
 }
 
 #[gpui_kit::test]
@@ -1097,4 +1114,315 @@ fn grid_bench(cx: &mut TestAppContext) {
         times[0],
         times[times.len() - 1]
     );
+}
+
+#[gpui_kit::test]
+fn looked_up_verses_go_to_a_playlist_from_the_toolbar(cx: &mut TestAppContext) {
+    let mut snap = base();
+    snap.plans = vec![plan("p1", vec![])];
+    let core = Core::new(snap);
+    core.script(bible());
+    let opened = open(cx, core.clone());
+    assert!(
+        !exists(cx, &opened, ids::SAVE_TO_PLAYLIST),
+        "nothing loaded"
+    );
+    lookup(cx, &opened, "John 3:19");
+    assert!(exists(cx, &opened, ids::SAVE_TO_PLAYLIST));
+    cx.update(|cx| {
+        opened
+            .model
+            .update(cx, |m, cx| m.add_all_to_playlist("p1", cx))
+    });
+    draw(cx, &opened);
+    let saved = core.saved_plans();
+    assert_eq!(saved.last().unwrap().items.len(), 1);
+    // The lookup stays on the cards; the playlist lists it in the sidebar.
+    assert_eq!(read(cx, &opened, |m| m.source()), Some(Source::Search));
+    assert_eq!(read(cx, &opened, |m| m.rows().len()), 1);
+    let id = saved.last().unwrap().items[0].id.clone();
+    assert!(exists(cx, &opened, &ids::item(&id)));
+    // Opening the playlist itself, the button gives way.
+    click(cx, &opened, &ids::plan("p1"));
+    assert!(!exists(cx, &opened, ids::SAVE_TO_PLAYLIST));
+}
+
+#[gpui_kit::test]
+fn the_selected_playlist_stays_listed_through_lookups(cx: &mut TestAppContext) {
+    let a = passage("John 3:16-18", "John", 3.0, &[16., 17., 18.], "KJV");
+    let mut snap = base();
+    snap.plans = vec![plan("p1", vec![item("i1", &a)])];
+    let core = Core::new(snap);
+    core.script(bible());
+    let opened = open(cx, core.clone());
+    click(cx, &opened, &ids::plan("p1"));
+    lookup(cx, &opened, "John 3:19");
+    // Only the lookup is on the cards, and the sidebar still lists i1.
+    assert_eq!(read(cx, &opened, |m| m.rows().len()), 1);
+    assert!(exists(cx, &opened, &ids::item("i1")));
+    cx.update(|cx| {
+        opened
+            .model
+            .update(cx, |m, cx| m.add_all_to_playlist("p1", cx))
+    });
+    draw(cx, &opened);
+    let ids_now: Vec<String> = core
+        .saved_plans()
+        .last()
+        .unwrap()
+        .items
+        .iter()
+        .map(|i| i.id.clone())
+        .collect();
+    assert_eq!(ids_now.len(), 2);
+    assert!(exists(cx, &opened, &ids::item(&ids_now[1])));
+    // A listed item opens the playlist on it.
+    click(cx, &opened, &ids::item("i1"));
+    assert_eq!(read(cx, &opened, |m| m.source()), Some(Source::Plan));
+    assert_eq!(
+        read(cx, &opened, |m| m.active_item_id().map(str::to_owned)).as_deref(),
+        Some("i1")
+    );
+    // Removing from the list.
+    cx.update(|cx| {
+        opened
+            .model
+            .update(cx, |m, cx| m.remove_plan_items(vec!["i1".into()], cx))
+    });
+    draw(cx, &opened);
+    assert_eq!(core.saved_plans().last().unwrap().items.len(), 1);
+    assert!(!exists(cx, &opened, &ids::item("i1")));
+}
+
+#[gpui_kit::test]
+fn every_verse_of_a_playlist_passage_can_take_new_words(cx: &mut TestAppContext) {
+    use ui_scripture::verse_edit::ids as edit;
+    let a = passage("John 3:16-18", "John", 3.0, &[16., 17., 18.], "KJV");
+    let mut snap = base();
+    snap.plans = vec![plan("p1", vec![item("i1", &a)])];
+    let core = Core::new(snap);
+    let opened = open(cx, core.clone());
+    click(cx, &opened, &ids::plan("p1"));
+    assert_eq!(
+        read(cx, &opened, |m| m.card_item(1)),
+        Some(("i1".into(), 1))
+    );
+    cx.update_window(opened.handle, |_, window, cx| {
+        opened
+            .page
+            .update(cx, |p, cx| p.open_verse_edit("i1".into(), 1, window, cx))
+    })
+    .unwrap();
+    draw(cx, &opened);
+    assert!(exists(cx, &opened, edit::DIALOG));
+    // Every verse is listed; it opens on the one asked for.
+    for i in 0..3 {
+        assert!(exists(cx, &opened, &edit::verse(i)));
+    }
+    let editor = cx.read(|cx| opened.page.read(cx).verse_edit().unwrap().clone());
+    assert_eq!(cx.read(|cx| editor.read(cx).selected()), 1);
+    cx.update_window(opened.handle, |_, w, cx| w.input(" (one)", cx))
+        .unwrap();
+    draw(cx, &opened);
+    click(cx, &opened, &edit::verse(2));
+    cx.update_window(opened.handle, |_, w, cx| w.input(" (two)", cx))
+        .unwrap();
+    draw(cx, &opened);
+    // Going back keeps what was typed there.
+    click(cx, &opened, &edit::verse(1));
+    assert!(cx.read(|cx| editor.read(cx).parts()[1].text.ends_with("(one)")));
+    click(cx, &opened, edit::SAVE);
+    assert!(!exists(cx, &opened, edit::DIALOG));
+    let saved = core.saved_plans();
+    assert_eq!(saved.len(), 1, "one save for both verses");
+    let verses = &saved[0].items[0].verses;
+    assert!(!verses[0].text.contains('('));
+    assert!(verses[1].text.ends_with("(one)"), "{:?}", verses[1].text);
+    assert!(verses[2].text.ends_with("(two)"), "{:?}", verses[2].text);
+    let shown = read(cx, &opened, |m| {
+        m.rows()[0].cards[2].result.verses[0].text.clone()
+    });
+    assert!(shown.ends_with("(two)"));
+}
+
+#[gpui_kit::test]
+fn a_long_verse_splits_into_named_parts_and_takes_a_new_name(cx: &mut TestAppContext) {
+    use ui_scripture::verse_edit::ids as edit;
+    let a = passage("John 3:16-17", "John", 3.0, &[16., 17.], "KJV");
+    let mut snap = base();
+    snap.plans = vec![plan("p1", vec![item("i1", &a)])];
+    let core = Core::new(snap);
+    let opened = open(cx, core.clone());
+    click(cx, &opened, &ids::plan("p1"));
+    cx.update_window(opened.handle, |_, window, cx| {
+        opened
+            .page
+            .update(cx, |p, cx| p.open_verse_edit("i1".into(), 0, window, cx))
+    })
+    .unwrap();
+    draw(cx, &opened);
+    // Both fields are drawn on the slide.
+    assert!(exists(cx, &opened, edit::TEXT));
+    assert!(exists(cx, &opened, edit::REFERENCE));
+    let editor = cx.read(|cx| opened.page.read(cx).verse_edit().unwrap().clone());
+    let words = cx.read(|cx| editor.read(cx).parts()[0].text.clone());
+    // Split with the caret mid-verse.
+    let mid = words.find(' ').expect("two words");
+    let state = cx.read(|cx| editor.read(cx).verse_field().clone());
+    cx.update(|cx| state.update(cx, |s, cx| s.set_selected_range(mid..mid, cx)));
+    click(cx, &opened, edit::SPLIT);
+    let parts: Vec<(String, String)> = cx.read(|cx| {
+        editor
+            .read(cx)
+            .parts()
+            .iter()
+            .map(|p| (p.label.clone(), p.text.clone()))
+            .collect()
+    });
+    assert_eq!(parts.len(), 3, "verse 16 is two slides now");
+    assert_eq!(
+        parts[0].0, "John 3:16 (KJV)",
+        "the whole line, translation too"
+    );
+    assert_eq!(
+        parts[1].0, "John 3:16 (KJV)",
+        "the part keeps the verse's name"
+    );
+    assert_eq!(format!("{} {}", parts[0].1, parts[1].1), words);
+    assert!(exists(cx, &opened, &edit::verse(2)));
+    // Rename the second part's reference line.
+    let reference = cx.read(|cx| editor.read(cx).reference_field().clone());
+    cx.update_window(opened.handle, |_, window, cx| {
+        reference.update(cx, |s, cx| {
+            let end = s.value().len();
+            s.set_selected_range(end..end, cx);
+            s.focus(window, cx);
+        })
+    })
+    .unwrap();
+    draw(cx, &opened);
+    cx.update_window(opened.handle, |_, w, cx| w.input(" (cont.)", cx))
+        .unwrap();
+    draw(cx, &opened);
+    click(cx, &opened, edit::SAVE);
+    let saved = core.saved_plans();
+    let verses = &saved.last().expect("saved").items[0].verses;
+    assert_eq!(verses.len(), 3);
+    // The slides show the parts' reference lines, in order.
+    let names = read(cx, &opened, |m| {
+        m.rows()[0]
+            .cards
+            .iter()
+            .map(|c| {
+                kairo_domain::scripture::query::verse_reference_line(
+                    c.result.verses.first(),
+                    &c.result.reference,
+                    &c.result.translation,
+                    true,
+                )
+            })
+            .collect::<Vec<_>>()
+    });
+    assert_eq!(
+        names,
+        [
+            "John 3:16 (KJV)",
+            "John 3:16 (KJV) (cont.)",
+            "John 3:17 (KJV)"
+        ]
+    );
+}
+
+#[gpui_kit::test]
+fn the_slide_edits_like_a_text_box(cx: &mut TestAppContext) {
+    use ui_scripture::verse_edit::ids as edit;
+    let a = passage("John 3:16-17", "John", 3.0, &[16., 17.], "KJV");
+    let mut snap = base();
+    snap.plans = vec![plan("p1", vec![item("i1", &a)])];
+    let core = Core::new(snap);
+    let opened = open(cx, core.clone());
+    click(cx, &opened, &ids::plan("p1"));
+    cx.update_window(opened.handle, |_, window, cx| {
+        opened
+            .page
+            .update(cx, |p, cx| p.open_verse_edit("i1".into(), 0, window, cx))
+    })
+    .unwrap();
+    draw(cx, &opened);
+    let editor = cx.read(|cx| opened.page.read(cx).verse_edit().unwrap().clone());
+    let verse = cx.read(|cx| editor.read(cx).verse_field().clone());
+    let reference = cx.read(|cx| editor.read(cx).reference_field().clone());
+    // A click on the reference line sends the keys there.
+    click(cx, &opened, edit::REFERENCE);
+    cx.update_window(opened.handle, |_, w, cx| w.input("X", cx))
+        .unwrap();
+    draw(cx, &opened);
+    let part = cx.read(|cx| editor.read(cx).parts()[0].clone());
+    assert!(part.label.contains('X'), "{:?}", part.label);
+    assert!(!part.text.contains('X'));
+    // A click on the words sends them back to the verse.
+    click(cx, &opened, edit::TEXT);
+    assert!(
+        cx.update_window(opened.handle, |_, w, cx| gpui_kit::Focusable::focus_handle(
+            verse.read(cx),
+            cx
+        )
+        .is_focused(w))
+            .unwrap()
+    );
+    // Double-click takes a word; a drag selects across.
+    cx.update_window(opened.handle, |_, w, cx| w.double_click(edit::TEXT, cx))
+        .unwrap();
+    draw(cx, &opened);
+    let range = cx.read(|cx| verse.read(cx).selected_range());
+    let words = cx.read(|cx| editor.read(cx).parts()[0].text.clone());
+    assert!(range.start < range.end, "a word is selected");
+    assert!(!words[range.clone()].contains(' '), "{:?}", &words[range]);
+    // A drag across the words selects them; ⌘A takes them all.
+    let bounds = cx
+        .update_window(opened.handle, |_, w, _| w.find(edit::TEXT).bounds())
+        .unwrap();
+    let (from, to) = (
+        gpui_kit::point(bounds.left() + gpui_kit::px(4.), bounds.center().y),
+        gpui_kit::point(bounds.right() - gpui_kit::px(4.), bounds.center().y),
+    );
+    cx.update_window(opened.handle, |_, w, cx| w.drag(from, to, cx))
+        .unwrap();
+    draw(cx, &opened);
+    let dragged = cx.read(|cx| verse.read(cx).selected_range());
+    assert!(dragged.end - dragged.start > 3, "{dragged:?}");
+    press(cx, &opened, "cmd-a");
+    assert_eq!(
+        cx.read(|cx| verse.read(cx).selected_range()),
+        0..words.len()
+    );
+    // ⌥↵ splits at the caret, as in the lyrics editor.
+    let mid = words.find(' ').unwrap();
+    cx.update(|cx| verse.update(cx, |s, cx| s.set_selected_range(mid..mid, cx)));
+    draw(cx, &opened);
+    press(cx, &opened, "alt-enter");
+    assert_eq!(cx.read(|cx| editor.read(cx).parts().len()), 3);
+    // ↓ from the start moves down a row or to the end; ↑ back to the start.
+    cx.update(|cx| verse.update(cx, |s, cx| s.set_selected_range(0..0, cx)));
+    draw(cx, &opened);
+    press(cx, &opened, "down");
+    let after_down = cx.read(|cx| verse.read(cx).cursor());
+    assert!(after_down > 0);
+    press(cx, &opened, "up");
+    assert_eq!(cx.read(|cx| verse.read(cx).cursor()), 0);
+    // ⌘⇧↵ splits at the caret, ⌘↵ saves.
+    let before = cx.read(|cx| editor.read(cx).parts().len());
+    let current = cx.read(|cx| verse.read(cx).value().to_string());
+    let mid = current.find(' ').unwrap();
+    cx.update(|cx| verse.update(cx, |s, cx| s.set_selected_range(mid..mid, cx)));
+    draw(cx, &opened);
+    press(cx, &opened, "cmd-shift-enter");
+    assert_eq!(cx.read(|cx| editor.read(cx).parts().len()), before + 1);
+    press(cx, &opened, "cmd-enter");
+    assert!(!exists(cx, &opened, edit::DIALOG));
+    assert_eq!(
+        core.saved_plans().last().unwrap().items[0].verses.len(),
+        before + 1
+    );
+    let _ = reference;
 }

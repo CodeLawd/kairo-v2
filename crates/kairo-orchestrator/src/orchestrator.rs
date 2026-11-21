@@ -28,7 +28,7 @@ use kairo_domain::overlay::{
     MediaFit, OverlayBackgroundType, OverlayContentKind, OverlayDispatchResult, OverlayOutput,
     OverlayTheme,
 };
-use kairo_domain::overlay_content::{format_overlay_reference, format_overlay_verse_text};
+use kairo_domain::overlay_content::format_overlay_verse_text;
 use kairo_domain::overlay_outputs::output_theme_for;
 use kairo_domain::program::ProgramSlideInfo;
 use kairo_domain::scripture::plan::{PlanReference, match_plan_reference};
@@ -1192,7 +1192,12 @@ impl Orchestrator {
                     && reference.confidence >= cfg.confidence_threshold
                     && let Some(content) = self.prepare_projection(&suggestion)
                 {
-                    self.schedule_auto(&mut state, &cfg, suggestion, content);
+                    let delay_sec = if crate::detector::presents_at_once(&reference) {
+                        0.0
+                    } else {
+                        cfg.auto_present_delay_sec
+                    };
+                    self.schedule_auto(&mut state, delay_sec, suggestion, content);
                 }
             }
             state.update_health(ServiceName::Detector, HealthStatus::Ok, None);
@@ -1223,7 +1228,11 @@ impl Orchestrator {
                     .unwrap_or(TranscriptSource::Final),
                 resolver: reference.resolver.unwrap_or(ScriptureResolver::Explicit),
                 translation: Some(translation.into()),
-                auto_present_delay_ms: Some(cfg.auto_present_delay_sec * 1000.0),
+                auto_present_delay_ms: Some(if crate::detector::presents_at_once(reference) {
+                    0.0
+                } else {
+                    cfg.auto_present_delay_sec * 1000.0
+                }),
                 presenter_connection_mode: None,
                 reference: Some(format!(
                     "{} {}:{}{range}",
@@ -1239,15 +1248,15 @@ impl Orchestrator {
     }
 
     /// The operator's window to cancel before a verse reaches the room. One
-    /// countdown at a time: a newer one supersedes the older.
+    /// countdown at a time: a newer one supersedes the older, even at 0 s.
     fn schedule_auto(
         &self,
         state: &mut State,
-        cfg: &OrchestratorConfig,
+        delay_sec: f64,
         suggestion: ScriptureSuggestion,
         content: PushContent,
     ) {
-        let delay_ms = cfg.auto_present_delay_sec * 1000.0;
+        let delay_ms = delay_sec * 1000.0;
         for (_, timer) in state.auto_timers.drain() {
             timer.abort();
         }
@@ -1284,7 +1293,7 @@ impl Orchestrator {
         });
         tracing::info!(
             reference = suggestion.reference,
-            delay_sec = cfg.auto_present_delay_sec,
+            delay_sec,
             "auto-present scheduled"
         );
     }
@@ -1494,7 +1503,9 @@ impl Orchestrator {
             return None;
         }
         Some(PushContent {
-            reference: format_overlay_reference(
+            // A playlist verse may carry its own reference line.
+            reference: kairo_domain::scripture::query::verse_reference_line(
+                suggestion.verses.first(),
                 &suggestion.reference,
                 &suggestion.translation,
                 overlay.show_translation,

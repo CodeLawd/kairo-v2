@@ -25,6 +25,7 @@ pub struct RailItem {
     hue: Hue,
     active: bool,
     open: bool,
+    compact: bool,
     on_click: Option<Handler>,
 }
 
@@ -43,8 +44,16 @@ impl RailItem {
             hue,
             active: false,
             open: false,
+            compact: false,
             on_click: None,
         }
+    }
+
+    /// Icon only, for a rail too short for every name. The name stays the
+    /// accessible label; the caller gives it a tooltip.
+    pub fn compact(mut self, compact: bool) -> Self {
+        self.compact = compact;
+        self
     }
 
     /// The current workspace.
@@ -99,15 +108,17 @@ impl RenderOnce for RailItem {
             })
             .focus_visible(move |s| s.border_2().border_color(hue.opacity(0.6)))
             .child(Icon::new(self.icon.fill()).size_5())
-            .child(
-                div()
-                    .max_w_full()
-                    .truncate()
-                    .text_size(text::MICRO.size)
-                    .line_height(text::MICRO.line_height)
-                    .font_weight(gpui_kit::FontWeight::MEDIUM)
-                    .child(self.label),
-            )
+            .when(!self.compact, |this| {
+                this.child(
+                    div()
+                        .max_w_full()
+                        .truncate()
+                        .text_size(text::MICRO.size)
+                        .line_height(text::MICRO.line_height)
+                        .font_weight(gpui_kit::FontWeight::MEDIUM)
+                        .child(self.label),
+                )
+            })
             .when_some(self.on_click, |this, handler| {
                 this.on_click(move |event, window, cx| handler(event, window, cx))
             })

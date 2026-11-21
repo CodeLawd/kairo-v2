@@ -11,10 +11,13 @@ use kairo_domain::settings::OverlaySettings;
 use kairo_domain::status::{OrchestratorConfig, SttProvider};
 use kairo_domain::transcript::TranscriptResult;
 use kairo_orchestrator::clients::*;
-use kairo_orchestrator::detector::{Detector, LiveDetector};
+use kairo_orchestrator::detector::{
+    Detector, DetectorEvent, LiveDetector, ReadingPassage, ScriptureReference,
+};
 use kairo_orchestrator::live_plan::{LivePlanService, PlanSource};
 use kairo_orchestrator::orchestrator::{MANAGED, NO_ACTIVE_SERVICE, Orchestrator, Services};
 use kairo_orchestrator::voice::{BoxFuture, LiveScriptureContext};
+use kairo_scripture::model_detector::DetectionType;
 use kairo_scripture::model_detector::ModelConfig;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
@@ -359,7 +362,71 @@ struct Harness {
     traces: Arc<kairo_core::scripture_traces::ScriptureTraces>,
 }
 
+/// Reports every detection as an AI quote match, which waits for the
+/// safety delay, unlike a spoken reference.
+struct AsQuote {
+    inner: Arc<dyn Detector>,
+    events: broadcast::Sender<DetectorEvent>,
+}
+
+impl AsQuote {
+    fn wrap(inner: Arc<dyn Detector>) -> Arc<dyn Detector> {
+        let (events, _) = broadcast::channel(64);
+        let mut rx = inner.subscribe();
+        let tx = events.clone();
+        tokio::spawn(async move {
+            while let Ok(event) = rx.recv().await {
+                let event = match event {
+                    DetectorEvent::Detection(refs) => DetectorEvent::Detection(
+                        refs.into_iter()
+                            .map(|r| ScriptureReference {
+                                detection_type: DetectionType::Quote,
+                                ..r
+                            })
+                            .collect(),
+                    ),
+                    other => other,
+                };
+                let _ = tx.send(event);
+            }
+        });
+        Arc::new(Self { inner, events })
+    }
+}
+
+impl Detector for AsQuote {
+    fn on_final(&self, result: &TranscriptResult) {
+        self.inner.on_final(result)
+    }
+    fn on_interim(&self, result: &kairo_domain::transcript::InterimResult) {
+        self.inner.on_interim(result)
+    }
+    fn release(&self, book: &str, chapter: f64, verse_start: f64) {
+        self.inner.release(book, chapter, verse_start)
+    }
+    fn set_reading_passage(&self, passage: Option<ReadingPassage>) {
+        self.inner.set_reading_passage(passage)
+    }
+    fn is_general_quote_current(&self, reference: &ScriptureReference) -> bool {
+        self.inner.is_general_quote_current(reference)
+    }
+    fn set_fallback_mode(&self, on: bool) {
+        self.inner.set_fallback_mode(on)
+    }
+    fn subscribe(&self) -> broadcast::Receiver<DetectorEvent> {
+        self.events.subscribe()
+    }
+    fn destroy(&self) {
+        self.inner.destroy()
+    }
+}
+
 fn harness(service: bool) -> Harness {
+    harness_with(service, false)
+}
+
+/// `quotes`: detections arrive as AI quote matches, behind the safety delay.
+fn harness_with(service: bool, quotes: bool) -> Harness {
     let calls: Calls = Arc::default();
     let engine_log = Arc::new(Log::default());
     let program_log = Arc::new(Log::default());
@@ -410,7 +477,7 @@ fn harness(service: bool) -> Harness {
                 None,
                 Arc::new(move || plan.index()),
             );
-            d
+            if quotes { AsQuote::wrap(d) } else { d }
         }),
         resilience: None,
         traces: traces.clone(),
@@ -569,8 +636,8 @@ async fn cards_for_several_translations_arrive_in_request_order() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn an_auto_detection_presents_after_the_operator_delay() {
-    let h = harness(true);
+async fn a_quote_match_presents_after_the_safety_delay() {
+    let h = harness_with(true, true);
     let mut pending = h.orchestrator.subscribe_pending_auto();
     h.orchestrator.start_from_ui(config(true)).await.unwrap();
     h.say("Turn with me to John 3:16").await;
@@ -677,13 +744,34 @@ async fn a_range_auto_presents_its_first_verse_only_when_passages_are_on() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn a_newer_citation_supersedes_the_running_countdown() {
-    let h = harness(true);
+async fn a_newer_match_supersedes_the_running_countdown() {
+    let h = harness_with(true, true);
     h.orchestrator.start_from_ui(config(true)).await.unwrap();
     h.say("John 3:16").await;
     tokio::time::sleep(Duration::from_millis(500)).await;
     h.say("Romans 8:28").await;
     tokio::time::sleep(Duration::from_millis(2000)).await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        ["ShowSlide screen Romans 8:28 (KJV) | Romans 8:28 text"]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_spoken_reference_goes_live_without_the_safety_delay() {
+    let h = harness(true);
+    let mut pending = h.orchestrator.subscribe_pending_auto();
+    h.orchestrator.start_from_ui(config(true)).await.unwrap();
+    h.say("Turn with me to John 3:16").await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        ["ShowSlide screen John 3:16 (KJV) | John 3:16 text"],
+        "no countdown for a reference spoken in full"
+    );
+    assert_eq!(pending.try_recv().unwrap().reference, "John 3:16");
+    h.say("Romans 8:28").await;
     settle().await;
     assert_eq!(
         h.engine_log.take(),
@@ -758,7 +846,7 @@ async fn approving_presents_and_next_verse_steps_on() {
 
 #[tokio::test(start_paused = true)]
 async fn stop_cancels_countdowns_and_restore_needs_a_service() {
-    let h = harness(true);
+    let h = harness_with(true, true);
     h.orchestrator.start_from_ui(config(true)).await.unwrap();
     h.say("John 3:16").await;
     let snapshot = h.orchestrator.recovery_snapshot().await.unwrap();
