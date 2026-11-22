@@ -437,19 +437,6 @@ pub struct PendingAutoPresent {
     pub expires_at: f64,
 }
 
-/// How far the reading of the passage on screen has got, as the core
-/// follows it. Native only.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FollowProgress {
-    pub passage_id: String,
-    /// The card on screen.
-    pub index: f64,
-    /// Words of its verse read so far, and how many of them were heard.
-    pub read_to: Option<f64>,
-    pub heard: Option<f64>,
-}
-
 /// `passages.ts` `SavedPassage`. Persisted in `kairo-passages.json`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -250,7 +250,7 @@ pub struct VoiceNavigation {
 }
 
 /// `Book C:S` or `Book C:S-E`, with JavaScript number text.
-fn reference_text(book: &str, chapter: f64, start: f64, end: f64) -> String {
+pub(crate) fn reference_text(book: &str, chapter: f64, start: f64, end: f64) -> String {
     let range = if end != start {
         format!("-{}", number_to_string(end))
     } else {
@@ -369,20 +369,30 @@ impl VoiceNavigation {
             VoiceCommand::Translation(t) => t.clone(),
             VoiceCommand::Step(_) | VoiceCommand::Resume => current.translation.clone(),
         };
-        let command = match command {
+        // `None` keeps the verse and switches translation.
+        let (current, step) = match command {
+            VoiceCommand::Translation(_) => (current, None),
+            VoiceCommand::Step(direction) => (current, Some(direction)),
             VoiceCommand::Resume => match self.deps.paused_reading().await {
-                Some(paused) => {
-                    return self
-                        .resume(paused, &current, generation, &key, text, translation)
-                        .await;
-                }
-                None => VoiceCommand::Step(1),
+                // Back to where the main reading paused: a step from the verse before it.
+                Some((book, chapter, verse)) => (
+                    LiveScriptureContext {
+                        book,
+                        chapter,
+                        verse_start: verse - 1.0,
+                        verse_end: verse - 1.0,
+                        passage_id: None,
+                        passage_index: None,
+                        ..current
+                    },
+                    Some(1),
+                ),
+                None => (current, Some(1)),
             },
-            command => command,
         };
         // A translation switch changes its row; only in Auto mode does the
         // verse also go back up in the new translation.
-        if let (VoiceCommand::Translation(_), Some(passage)) = (&command, &current.passage_id)
+        if let (None, Some(passage)) = (step, &current.passage_id)
             && self.deps.retranslate_row(passage, &translation)
             && !self.deps.auto_mode()
         {
@@ -397,14 +407,13 @@ impl VoiceNavigation {
             Ok(v) => v,
             Err(e) => return self.deps.error(e),
         };
-        let selected: Vec<ScriptureVerse> = match &command {
-            VoiceCommand::Translation(_) => verses
+        let selected: Vec<ScriptureVerse> = match step {
+            None => verses
                 .into_iter()
                 .filter(|v| v.verse >= current.verse_start && v.verse <= current.verse_end)
                 .collect(),
-            VoiceCommand::Resume => unreachable!("resolved to a step above"),
-            VoiceCommand::Step(direction) => {
-                let forward = *direction == 1;
+            Some(direction) => {
+                let forward = direction == 1;
                 let mut picked: Vec<_> = verses
                     .drain(..)
                     .filter(|v| {
@@ -416,7 +425,7 @@ impl VoiceNavigation {
                     })
                     .collect();
                 if picked.is_empty() {
-                    chapter += f64::from(*direction);
+                    chapter += f64::from(direction);
                     if chapter < 1.0 {
                         return;
                     }
@@ -442,13 +451,10 @@ impl VoiceNavigation {
         }
         let start = selected[0].verse;
         let end = selected[selected.len() - 1].verse;
-        let passage_index = current.passage_id.as_ref().map(|_| {
-            current.passage_index.unwrap_or(0.0)
-                + match &command {
-                    VoiceCommand::Translation(_) | VoiceCommand::Resume => 0.0,
-                    VoiceCommand::Step(d) => f64::from(*d),
-                }
-        });
+        let passage_index = current
+            .passage_id
+            .as_ref()
+            .map(|_| current.passage_index.unwrap_or(0.0) + step.map_or(0.0, f64::from));
         let suggestion = crate::suggestion::manual(
             format!("voice-{generation}-{key}"),
             reference_text(&current.book, chapter, start, end),
@@ -458,72 +464,6 @@ impl VoiceNavigation {
             current.passage_id.clone(),
             passage_index,
         );
-        self.deliver(
-            suggestion,
-            &current,
-            chapter,
-            start,
-            translation,
-            generation,
-        )
-        .await;
-    }
-
-    /// Back to the main reading after an aside, at the verse it paused on.
-    async fn resume(
-        &self,
-        (book, chapter, verse): (String, f64, f64),
-        current: &LiveScriptureContext,
-        generation: u64,
-        key: &str,
-        text: String,
-        translation: String,
-    ) {
-        let verses = match self
-            .deps
-            .chapter(book.clone(), chapter, translation.clone())
-            .await
-        {
-            Ok(v) => v,
-            Err(e) => return self.deps.error(e),
-        };
-        let selected: Vec<ScriptureVerse> =
-            verses.into_iter().filter(|v| v.verse == verse).collect();
-        if selected.is_empty()
-            || generation != self.generation()
-            || !self.deps.enabled()
-            || self.deps.current().map(|c| c.revision) != Some(current.revision)
-        {
-            return;
-        }
-        let suggestion = crate::suggestion::manual(
-            format!("voice-{generation}-{key}"),
-            reference_text(&book, chapter, verse, verse),
-            selected,
-            translation.clone(),
-            text,
-            None,
-            None,
-        );
-        let target = LiveScriptureContext {
-            book,
-            ..current.clone()
-        };
-        self.deliver(suggestion, &target, chapter, verse, translation, generation)
-            .await;
-    }
-
-    /// Presents in Auto mode, else leaves a card; a step presented here is
-    /// remembered as this command's own revision.
-    async fn deliver(
-        &self,
-        suggestion: ScriptureSuggestion,
-        current: &LiveScriptureContext,
-        chapter: f64,
-        start: f64,
-        translation: String,
-        generation: u64,
-    ) {
         if self.deps.auto_mode() {
             self.deps.present(suggestion).await;
             let after = self.deps.current();

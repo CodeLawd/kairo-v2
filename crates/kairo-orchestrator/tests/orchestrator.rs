@@ -880,7 +880,7 @@ async fn with_no_booth_a_read_passage_advances_then_clears() {
     while let Ok(p) = progress.try_recv() {
         last = p;
     }
-    assert_eq!(last.map(|p| p.index), Some(1.0));
+    assert_eq!(last.map(|p| p.current_index), Some(1.0));
     h.say(READ[1].3).await;
     settle().await;
     assert!(

@@ -11,8 +11,8 @@ use std::sync::Arc;
 use kairo_domain::{
     program::{PresentationSettings, ProgramState},
     scripture::{
-        FollowProgress, LivePlanState, PendingAutoPresent, ScriptureResult,
-        ScriptureRowTranslation, ScriptureSuggestion, ScriptureTranslationOption, SermonPlan,
+        LivePlanState, PendingAutoPresent, ScriptureResult, ScriptureRowTranslation,
+        ScriptureSuggestion, ScriptureTranslationOption, SermonPlan,
     },
     services::{ServiceCommand, ServiceSnapshot},
     settings::{ScriptureAutomation, ShortcutBindings},
@@ -87,7 +87,7 @@ pub enum BoothFeed {
     Suggestion(ScriptureSuggestion),
     PendingAuto(PendingAutoPresent),
     /// Where the core's follow-along has got; `None` once it stops.
-    Follow(Option<FollowProgress>),
+    Follow(Option<kairo_domain::scripture::live_progress::PassageFollowState>),
     Status(OrchestratorStatus),
     Resilience(ResilienceStatus),
     Services(ServiceSnapshot),

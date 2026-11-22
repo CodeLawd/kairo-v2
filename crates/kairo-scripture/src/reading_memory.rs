@@ -59,24 +59,6 @@ impl Reading {
             .max(self.last_read.unwrap_or(0.0));
         self.start <= verse && verse <= reached + JUST_PAST
     }
-
-    pub fn citation(&self, verse_start: f64, verse_end: Option<f64>) -> ExplicitCitation {
-        let end = verse_end.map_or_else(String::new, |end| format!("-{end}"));
-        ExplicitCitation {
-            book: self.book,
-            chapter: self.chapter,
-            verse_start,
-            verse_end,
-            source_text: format!("{} {}:{verse_start}{end}", self.book, self.chapter),
-        }
-    }
-}
-
-/// A reading picked for a resume; `ambiguous` when another fitted as well.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Recall<'a> {
-    pub reading: &'a Reading,
-    pub ambiguous: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -88,10 +70,6 @@ pub struct ReadingMemory {
 impl ReadingMemory {
     pub fn readings(&self) -> &[Reading] {
         &self.readings
-    }
-
-    pub fn clear(&mut self) {
-        self.readings.clear();
     }
 
     pub fn newest(&self) -> Option<&Reading> {
@@ -172,8 +150,8 @@ impl ReadingMemory {
 
     /// The main reading a resume to `verse` means: one whose read span holds
     /// the verse beats one whose chapter merely has it; newest wins a tie,
-    /// which is then ambiguous.
-    pub fn main_with(&self, verse: f64) -> Option<Recall<'_>> {
+    /// which is then ambiguous (the `bool`).
+    pub fn main_with(&self, verse: f64) -> Option<(&Reading, bool)> {
         let fits: Vec<&Reading> = self
             .readings
             .iter()
@@ -181,22 +159,26 @@ impl ReadingMemory {
             .collect();
         let spanning: Vec<&Reading> = fits.iter().copied().filter(|r| r.spans(verse)).collect();
         let tier = if spanning.is_empty() { fits } else { spanning };
-        Some(Recall {
-            reading: tier.first()?,
-            ambiguous: tier.len() > 1,
-        })
+        Some((tier.first()?, tier.len() > 1))
     }
 
     /// A bare verse heard without resume wording: the reading just cited if
     /// its chapter has the verse, else the main reading that does.
-    pub fn current_with(&self, verse: f64) -> Option<Recall<'_>> {
+    pub fn current_with(&self, verse: f64) -> Option<(&Reading, bool)> {
         match self.newest() {
-            Some(reading) if reading.has(verse) => Some(Recall {
-                reading,
-                ambiguous: false,
-            }),
+            Some(reading) if reading.has(verse) => Some((reading, false)),
             _ => self.main_with(verse),
         }
+    }
+
+    /// A resume to `verse` stays in this chapter's reading: it is a main
+    /// reading, or the verse carries on from it ("continue to verse 29").
+    pub fn carries(&self, book: &str, chapter: f64, verse: f64) -> bool {
+        self.readings.iter().any(|r| {
+            r.book == book
+                && r.chapter == chapter
+                && (r.kind == ReadingKind::Main || r.spans(verse))
+        })
     }
 
     /// The reference lies in a passage read in the last `within_ms`, not

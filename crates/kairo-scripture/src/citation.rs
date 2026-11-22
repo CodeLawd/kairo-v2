@@ -474,6 +474,25 @@ pub struct ExplicitCitation {
     pub source_text: String,
 }
 
+impl ExplicitCitation {
+    /// A citation placed by context, written out as `Book C:V[-E]`.
+    pub fn placed(
+        book: &'static str,
+        chapter: f64,
+        verse_start: f64,
+        verse_end: Option<f64>,
+    ) -> Self {
+        let end = verse_end.map_or_else(String::new, |end| format!("-{end}"));
+        Self {
+            book,
+            chapter,
+            verse_start,
+            verse_end,
+            source_text: format!("{book} {chapter}:{verse_start}{end}"),
+        }
+    }
+}
+
 fn split_merged(book: &str, raw: &str) -> Option<(u32, u32)> {
     if !(3..=4).contains(&raw.len()) || valid(book, digits(raw), 1) {
         return None;

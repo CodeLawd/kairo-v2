@@ -103,7 +103,8 @@ static RESUME_BOOK: LazyLock<Regex> = LazyLock::new(|| {
     .expect("valid resume rule")
 });
 
-pub use crate::reading_memory::{Reading, ReadingKind, ReadingMemory};
+pub use crate::reading_memory::ReadingKind;
+use crate::reading_memory::ReadingMemory;
 
 /// How long a passage read aloud keeps its words from counting as a quote.
 const READ_ALOUD_MS: u64 = 15 * 60_000;
@@ -140,6 +141,22 @@ struct Context {
     awaiting_range_end: bool,
     quote_text: String,
     quote_verses: Option<Vec<ChapterVerseTokens>>,
+}
+
+impl Context {
+    /// Book and chapter just heard, waiting for a verse.
+    fn at(book: &'static str, chapter: f64, now: u64) -> Self {
+        Self {
+            book,
+            chapter,
+            updated: now,
+            awaiting_verse: true,
+            verse_start: None,
+            awaiting_range_end: false,
+            quote_text: String::new(),
+            quote_verses: None,
+        }
+    }
 }
 
 struct Cached {
@@ -185,7 +202,6 @@ pub struct LiveCitationDetector {
     recovery_at: u64,
     plan_text: String,
     plan_at: u64,
-    reading: Option<(ExplicitCitation, u64)>,
     unresolved: Option<UnresolvedTranscript>,
     plan_progress: Option<(String, String)>,
     generation: u64,
@@ -219,7 +235,6 @@ impl LiveCitationDetector {
             recovery_at: 0,
             plan_text: String::new(),
             plan_at: 0,
-            reading: None,
             unresolved: None,
             plan_progress: None,
             generation: 0,
@@ -270,11 +285,6 @@ impl LiveCitationDetector {
                 }
             };
             if credible {
-                if work.transcript.resume {
-                    // Asked for on purpose, even for a verse heard before.
-                    self.cache
-                        .retain(|entry| !overlaps(&entry.reference, &reference));
-                }
                 self.publish_as(
                     CitationEmission {
                         reference,
@@ -333,8 +343,12 @@ impl LiveCitationDetector {
         self.generation
     }
 
+    /// The passage on screen joins the readings, so reading it aloud is not
+    /// taken for a quote. Clearing the screen leaves it remembered.
     pub fn set_reading_passage(&mut self, passage: Option<ExplicitCitation>, at_ms: u64) {
-        self.reading = passage.map(|reference| (reference, at_ms));
+        if let Some(passage) = passage {
+            self.memory.cite(&passage, false, at_ms);
+        }
     }
 
     /// The service's readings, newest first.
@@ -427,11 +441,6 @@ impl LiveCitationDetector {
         self.introduced = INTRODUCED.is_match(spoken);
         self.expire(now);
         let recalled = self.recall(spoken, now);
-        let references = if recalled.is_some() {
-            Vec::new()
-        } else {
-            self.analyze(spoken, now, interim)
-        };
         let emit = |reference| CitationEmission {
             reference,
             translations: Vec::new(),
@@ -448,24 +457,22 @@ impl LiveCitationDetector {
             // Interim speech may still be naming the verse ("verse 6…5").
             if !interim {
                 self.supersede_model();
-                // A resume is asked for on purpose, even for a verse heard
-                // before; a bare mention of one ("as verse 62 says") is not.
-                if RESUME.is_match(spoken) {
-                    self.cache
-                        .retain(|entry| !overlaps(&entry.reference, &reference));
-                }
-                self.publish(
+                // A bare mention of a verse heard before ("as verse 62 says")
+                // stays deduplicated; only resume wording asks for it again.
+                self.publish_as(
                     CitationEmission {
                         resolver: ScriptureResolver::Reading,
                         ambiguous,
                         ..emit(reference)
                     },
                     &mut out,
+                    RESUME.is_match(spoken),
                 );
                 self.settle();
             }
             return out;
         }
+        let references = self.analyze(spoken, now, interim);
         if !references.is_empty() {
             self.supersede_model();
             for reference in references {
@@ -773,28 +780,6 @@ impl LiveCitationDetector {
         {
             return None;
         }
-        let phrase: String = spoken
-            .chars()
-            .filter(|c| !matches!(c, '.' | '!' | '?' | ','))
-            .collect();
-        let phrase = phrase.trim_matches(is_whitespace);
-        let resume = RESUME.is_match(spoken);
-        // Right after an aside, "continue to verse 29" carries the aside on;
-        // "continue from verse 20" goes back to the main reading.
-        let fresh = |verse: f64| {
-            self.context.as_ref().is_some_and(|c| {
-                !resume
-                    || c.verse_start
-                        .is_some_and(|at| at <= verse && verse <= at + 3.0)
-                    || self.memory.readings().iter().any(|r| {
-                        r.book == c.book && r.chapter == c.chapter && r.kind == ReadingKind::Main
-                    })
-            })
-        };
-        let named = BOOK_LEAD
-            .captures_iter(spoken)
-            .find_map(|c| canonical_book(&c[1]))
-            .or_else(|| self.pending_book.map(|(book, _)| book));
         let (reading, start, end, ambiguous) = if let Some(verse) = VERSE.find(spoken) {
             let range = RANGE.captures(&spoken[verse.start()..])?;
             let start = string_to_number(&range[1]);
@@ -802,31 +787,44 @@ impl LiveCitationDetector {
                 .get(2)
                 .map(|m| string_to_number(m.as_str()))
                 .filter(|end| *end > start);
-            let found = if let Some(book) = named {
-                let reading = self.memory.of_book(book, Some(start))?;
-                (reading, false)
-            } else if fresh(start) {
-                // "John 3 … verse 16": the citation just heard.
+            let resume = RESUME.is_match(spoken);
+            let named = BOOK_LEAD
+                .captures_iter(spoken)
+                .find_map(|c| canonical_book(&c[1]))
+                .or_else(|| self.pending_book.map(|(book, _)| book));
+            // "John 3 … verse 16" is the citation just heard. Right after an
+            // aside, "continue from verse 20" goes back to the main reading.
+            let fresh = self
+                .context
+                .as_ref()
+                .is_some_and(|c| !resume || self.memory.carries(c.book, c.chapter, start));
+            let (reading, ambiguous) = if let Some(book) = named {
+                (self.memory.of_book(book, Some(start))?, false)
+            } else if fresh {
                 return None;
             } else if resume {
-                let recall = self.memory.main_with(start)?;
-                (recall.reading, recall.ambiguous)
+                self.memory.main_with(start)?
             } else {
-                let recall = self.memory.current_with(start)?;
-                (recall.reading, recall.ambiguous)
+                self.memory.current_with(start)?
             };
-            (found.0, start, end, found.1)
-        } else if RESUME_ONLY.is_match(phrase) {
-            let reading = self.memory.newest_main()?;
-            (reading, reading.resume_verse(), None, false)
+            (reading, start, end, ambiguous)
         } else {
-            let book = RESUME_BOOK
-                .captures(phrase)
-                .and_then(|c| canonical_book(&c[1]))?;
-            let reading = self.memory.of_book(book, None)?;
+            let phrase: String = spoken
+                .chars()
+                .filter(|c| !matches!(c, '.' | '!' | '?' | ','))
+                .collect();
+            let phrase = phrase.trim_matches(is_whitespace);
+            let reading = if RESUME_ONLY.is_match(phrase) {
+                self.memory.newest_main()?
+            } else {
+                let book = RESUME_BOOK
+                    .captures(phrase)
+                    .and_then(|c| canonical_book(&c[1]))?;
+                self.memory.of_book(book, None)?
+            };
             (reading, reading.resume_verse(), None, false)
         };
-        let reference = reading.citation(start, end);
+        let reference = ExplicitCitation::placed(reading.book, reading.chapter, start, end);
         if !is_valid_scripture_reference(reference.book, reference.chapter, start, end) {
             return None;
         }
@@ -834,14 +832,9 @@ impl LiveCitationDetector {
         self.pending_book = None;
         self.passage = Some((reference.book, Some(reference.chapter)));
         self.context = Some(Context {
-            book: reference.book,
-            chapter: reference.chapter,
-            updated: now,
-            awaiting_verse: true,
             verse_start: Some(start),
             awaiting_range_end: RANGE_PENDING.is_match(spoken),
-            quote_text: String::new(),
-            quote_verses: None,
+            ..Context::at(reference.book, reference.chapter, now)
         });
         Some((reference, ambiguous))
     }
@@ -863,7 +856,6 @@ impl LiveCitationDetector {
     }
 
     fn analyze(&mut self, spoken: &str, now: u64, interim: bool) -> Vec<ExplicitCitation> {
-        self.expire(now);
         if let Some(book) = bare_book(spoken) {
             self.fallback = None;
             self.pending_book = Some((book, now));
@@ -884,14 +876,8 @@ impl LiveCitationDetector {
             self.passage = Some((last.book, Some(last.chapter)));
             self.pending_book = None;
             self.context = Some(Context {
-                book: last.book,
-                chapter: last.chapter,
-                updated: now,
                 awaiting_verse: verse_word || !VERSE_SIGNAL.is_match(&last.source_text),
-                verse_start: None,
-                awaiting_range_end: false,
-                quote_text: String::new(),
-                quote_verses: None,
+                ..Context::at(last.book, last.chapter, now)
             });
         } else if let Some(context) = &mut self.context
             && verse_word
@@ -950,11 +936,14 @@ impl LiveCitationDetector {
                 emission.resolver,
                 ScriptureResolver::QuotationLocal | ScriptureResolver::Ai
             )
-            && (self.reading.as_ref().is_some_and(|(reading, at)| {
-                now.saturating_sub(*at) <= READ_ALOUD_MS && contains(reading, reference)
-            }) || self.memory.covers(reference, now, READ_ALOUD_MS)))
+            && self.memory.covers(reference, now, READ_ALOUD_MS))
         {
             return;
+        }
+        if resume {
+            // Asked for on purpose, even for a verse heard before.
+            self.cache
+                .retain(|entry| !overlaps(&entry.reference, reference));
         }
         let spoken = if emission.resolver == ScriptureResolver::Ai {
             &[][..]
@@ -1038,16 +1027,7 @@ fn fragments(context: &mut Context, text: &str, now: u64, interim: bool) -> Vec<
         return Vec::new();
     }
     context.updated = now;
-    let book = context.book;
-    let chapter = context.chapter;
-    let end = verse_end.map_or_else(String::new, |end| format!("-{end}"));
-    let reference = ExplicitCitation {
-        book,
-        chapter,
-        verse_start,
-        verse_end,
-        source_text: format!("{book} {chapter}:{verse_start}{end}"),
-    };
+    let reference = ExplicitCitation::placed(context.book, context.chapter, verse_start, verse_end);
     if let Some(list) = LIST.captures(text) {
         let numbers: Vec<_> = DIGITS
             .find_iter(&list[1])

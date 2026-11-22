@@ -557,7 +557,7 @@ impl Presenter for Orchestrator {
         Box::pin(Orchestrator::set_confidence_threshold(self, threshold))
     }
     fn set_automation(&self, automation: ScriptureAutomation) -> BoxFuture<'_, ()> {
-        Box::pin(async move { Orchestrator::set_automation(self, &automation).await })
+        Box::pin(Orchestrator::set_automation(self, automation))
     }
 }
 

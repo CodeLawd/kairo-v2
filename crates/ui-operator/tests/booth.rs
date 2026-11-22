@@ -12,9 +12,10 @@ use gpui_kit::{
     size,
 };
 use kairo_domain::program::PresentationSettings;
+use kairo_domain::scripture::live_progress::PassageFollowState;
 use kairo_domain::scripture::{
-    FollowProgress, PendingAutoPresent, ScriptureResult, ScriptureRowTranslation,
-    ScriptureSuggestion, ScriptureVerse,
+    PendingAutoPresent, ScriptureResult, ScriptureRowTranslation, ScriptureSuggestion,
+    ScriptureVerse,
 };
 use kairo_domain::services::{ServiceCommand, ServiceSnapshot};
 use kairo_domain::status::ResilienceStatus;
@@ -970,11 +971,12 @@ fn passage() -> [ScriptureSuggestion; 2] {
 }
 
 fn progress(index: f64, read_to: Option<f64>) -> BoothFeed {
-    BoothFeed::Follow(Some(FollowProgress {
+    BoothFeed::Follow(Some(PassageFollowState {
         passage_id: "prov-5".into(),
-        index,
+        current_index: index,
+        matched_token_indexes: Vec::new(),
         read_to,
-        heard: read_to,
+        heard_count: read_to,
     }))
 }
 

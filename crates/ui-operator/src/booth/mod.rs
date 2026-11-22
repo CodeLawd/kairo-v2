@@ -35,9 +35,8 @@ use kairo_domain::scripture::query::{
 };
 use kairo_domain::scripture::small::{single_verse_suggestion, split_verse_suggestions};
 use kairo_domain::scripture::{
-    FollowProgress, LivePlanState, PendingAutoPresent, PlanMatch, ScriptureResult,
-    ScriptureSuggestion, ScriptureTranslationOption, SermonPlan, SermonScriptureItem,
-    SuggestionSource,
+    LivePlanState, PendingAutoPresent, PlanMatch, ScriptureResult, ScriptureSuggestion,
+    ScriptureTranslationOption, SermonPlan, SermonScriptureItem, SuggestionSource,
 };
 use kairo_domain::services::{ServiceCommand, ServiceRecord, ServiceSnapshot, ServiceStatus};
 use kairo_domain::settings::{ScriptureAutomation, ShortcutBindings, ShortcutCommand};
@@ -780,18 +779,18 @@ impl Booth {
 
     /// The core follows the reading; the card it moved to is picked here
     /// too, unless the operator picked another passage.
-    fn on_follow(&mut self, progress: Option<FollowProgress>) {
+    fn on_follow(&mut self, progress: Option<PassageFollowState>) {
         let Some(progress) = progress else {
             self.follow = None;
             return;
         };
         let moved = self.follow.as_ref().is_none_or(|f| {
-            f.passage_id != progress.passage_id || f.current_index != progress.index
+            f.passage_id != progress.passage_id || f.current_index != progress.current_index
         });
         if moved
             && let Some(card) = self.suggestions.iter().find(|s| {
                 s.passage_id.as_deref() == Some(progress.passage_id.as_str())
-                    && s.passage_index.unwrap_or(0.0) == progress.index
+                    && s.passage_index.unwrap_or(0.0) == progress.current_index
             })
         {
             let picked_passage = self
@@ -803,13 +802,7 @@ impl Booth {
                 self.selected = Some(card.id.clone());
             }
         }
-        self.follow = Some(PassageFollowState {
-            passage_id: progress.passage_id,
-            current_index: progress.index,
-            matched_token_indexes: Vec::new(),
-            read_to: progress.read_to,
-            heard_count: progress.heard,
-        });
+        self.follow = Some(progress);
     }
 
     /// Saves the automation options and applies them to the running service.

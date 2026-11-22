@@ -7,9 +7,10 @@ use std::sync::Arc;
 
 use kairo_domain::cloud::LicenseSnapshot;
 use kairo_domain::program::{PresentationSettings, ProgramState, normalize_presentation_settings};
+use kairo_domain::scripture::live_progress::PassageFollowState;
 use kairo_domain::scripture::trace::ScriptureTraceStage;
 use kairo_domain::scripture::{
-    FollowProgress, LivePlanState, PendingAutoPresent, ScriptureRowTranslation, ScriptureSuggestion,
+    LivePlanState, PendingAutoPresent, ScriptureRowTranslation, ScriptureSuggestion,
 };
 use kairo_domain::services::ServiceSnapshot;
 use kairo_domain::settings::AppSettings;
@@ -196,7 +197,9 @@ impl BoothBackend for ServicesBooth {
         watch!(PendingAutoPresent, |v: &PendingAutoPresent| Some(
             BoothFeed::PendingAuto(v.clone())
         ));
-        watch!(Option<FollowProgress>, |v: &Option<FollowProgress>| Some(
+        watch!(Option<PassageFollowState>, |v: &Option<
+            PassageFollowState,
+        >| Some(
             BoothFeed::Follow(v.clone())
         ));
         watch!(OrchestratorStatus, |v: &OrchestratorStatus| Some(
