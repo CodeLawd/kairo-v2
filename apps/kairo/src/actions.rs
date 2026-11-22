@@ -389,9 +389,7 @@ impl Actions {
         self.scripture.set_confidence_threshold(threshold);
         self.orchestrator.set_auto_mode(automation.auto_mode).await;
         self.orchestrator.set_confidence_threshold(threshold).await;
-        self.orchestrator
-            .set_automation(automation.auto_present_passages, f64::from(delay.value()))
-            .await;
+        self.orchestrator.set_automation(automation).await;
         self.settings
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -506,6 +504,7 @@ pub fn lyric_slide(
 }
 
 use kairo_domain::documents::{DocumentSlide, ProjectionDocument};
+use kairo_domain::settings::ScriptureAutomation;
 use kairo_orchestrator::voice::BoxFuture;
 use std::path::PathBuf;
 
@@ -527,7 +526,7 @@ pub trait Presenter: Send + Sync {
     fn present_live_background(&self) -> BoxFuture<'_, bool>;
     fn set_auto_mode(&self, enabled: bool) -> BoxFuture<'_, ()>;
     fn set_confidence_threshold(&self, threshold: f64) -> BoxFuture<'_, ()>;
-    fn set_automation(&self, auto_present_passages: bool, delay_sec: f64) -> BoxFuture<'_, ()>;
+    fn set_automation(&self, automation: ScriptureAutomation) -> BoxFuture<'_, ()>;
 }
 impl Presenter for Orchestrator {
     fn present_lyric_slide(
@@ -557,12 +556,8 @@ impl Presenter for Orchestrator {
     fn set_confidence_threshold(&self, threshold: f64) -> BoxFuture<'_, ()> {
         Box::pin(Orchestrator::set_confidence_threshold(self, threshold))
     }
-    fn set_automation(&self, auto_present_passages: bool, delay_sec: f64) -> BoxFuture<'_, ()> {
-        Box::pin(Orchestrator::set_automation(
-            self,
-            auto_present_passages,
-            delay_sec,
-        ))
+    fn set_automation(&self, automation: ScriptureAutomation) -> BoxFuture<'_, ()> {
+        Box::pin(async move { Orchestrator::set_automation(self, &automation).await })
     }
 }
 
@@ -674,7 +669,7 @@ mod effects {
             );
             Box::pin(async {})
         }
-        fn set_automation(&self, _: bool, _: f64) -> BoxFuture<'_, ()> {
+        fn set_automation(&self, _: ScriptureAutomation) -> BoxFuture<'_, ()> {
             Box::pin(async {})
         }
     }

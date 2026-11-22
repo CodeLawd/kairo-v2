@@ -13,8 +13,8 @@ use gpui_kit::{
 };
 use kairo_domain::program::PresentationSettings;
 use kairo_domain::scripture::{
-    PendingAutoPresent, ScriptureResult, ScriptureRowTranslation, ScriptureSuggestion,
-    ScriptureVerse,
+    FollowProgress, PendingAutoPresent, ScriptureResult, ScriptureRowTranslation,
+    ScriptureSuggestion, ScriptureVerse,
 };
 use kairo_domain::services::{ServiceCommand, ServiceSnapshot};
 use kairo_domain::status::ResilienceStatus;
@@ -969,81 +969,71 @@ fn passage() -> [ScriptureSuggestion; 2] {
     [card("p15", 15.0, VERSE_ONE), card("p16", 16.0, VERSE_TWO)]
 }
 
-fn automated(follow_along: bool, auto_clear: bool) -> Arc<Core> {
-    let mut snapshot = base();
-    snapshot.automation.follow_along = follow_along;
-    snapshot.automation.auto_clear = auto_clear;
-    snapshot.automation.auto_clear_delay_sec = 4.0;
-    let core = Core::new(snapshot);
-    core.script(|call| match call {
-        BoothCall::ClearScriptureIfLive { .. } => Some(Ok(BoothAnswer::Cleared(true))),
-        _ => Some(Ok(BoothAnswer::Done)),
-    });
-    core
+fn progress(index: f64, read_to: Option<f64>) -> BoothFeed {
+    BoothFeed::Follow(Some(FollowProgress {
+        passage_id: "prov-5".into(),
+        index,
+        read_to,
+        heard: read_to,
+    }))
 }
 
-fn read_passage_aloud(cx: &mut TestAppContext, core: &Arc<Core>, opened: &Opened) {
+#[gpui_kit::test]
+fn follow_progress_comes_from_the_core(cx: &mut TestAppContext) {
+    let core = Core::new(base());
+    let opened = open(cx, core.clone());
     for card in passage() {
         core.push(BoothFeed::Suggestion(card));
     }
-    draw(cx, opened);
+    draw(cx, &opened);
     cx.update(|cx| opened.booth().update(cx, |b, cx| b.approve("p15", cx)));
     core.push(BoothFeed::Transcript(transcript("t1", VERSE_ONE)));
-    draw(cx, opened);
     core.push(BoothFeed::Transcript(transcript("t2", VERSE_TWO)));
-    draw(cx, opened);
-}
-
-fn cleared(core: &Core) -> Vec<(String, f64, f64)> {
-    core.calls()
-        .into_iter()
-        .filter_map(|call| match call {
-            BoothCall::ClearScriptureIfLive {
-                book,
-                chapter,
-                verse,
-            } => Some((book, chapter, verse)),
-            _ => None,
-        })
-        .collect()
-}
-
-#[gpui_kit::test]
-fn a_read_through_passage_clears_after_the_pause(cx: &mut TestAppContext) {
-    let core = automated(true, true);
-    let opened = open(cx, core.clone());
-    read_passage_aloud(cx, &core, &opened);
+    draw(cx, &opened);
     assert!(
-        core.calls().contains(&BoothCall::Approve("p16".into())),
-        "follow-along moved to the second verse"
+        !core.calls().contains(&BoothCall::Approve("p16".into())),
+        "the booth never moves the screen on by itself"
     );
-    assert!(cleared(&core).is_empty(), "nothing clears before the pause");
-    cx.executor().advance_clock(Duration::from_secs(5));
+    core.push(progress(0.0, Some(5.0)));
     draw(cx, &opened);
-    assert_eq!(cleared(&core), [("Proverbs".to_owned(), 5.0, 16.0)]);
+    let follow = cx
+        .read(|cx| opened.booth().read(cx).follow().cloned())
+        .unwrap();
+    assert_eq!((follow.current_index, follow.read_to), (0.0, Some(5.0)));
+    core.push(progress(1.0, None));
+    draw(cx, &opened);
     assert_eq!(
-        cx.read(|cx| opened.booth().read(cx).projection().cloned()),
-        None
+        cx.read(|cx| opened.booth().read(cx).selected().map(str::to_owned)),
+        Some("p16".into()),
+        "the card the core moved to is picked"
     );
+    core.push(BoothFeed::Follow(None));
+    draw(cx, &opened);
+    assert!(cx.read(|cx| opened.booth().read(cx).follow().is_none()));
 }
 
 #[gpui_kit::test]
-fn follow_along_off_leaves_the_verse_for_the_operator(cx: &mut TestAppContext) {
-    let core = automated(false, false);
+fn the_operators_pick_wins_over_follow_along(cx: &mut TestAppContext) {
+    let core = Core::new(base());
     let opened = open(cx, core.clone());
-    read_passage_aloud(cx, &core, &opened);
-    assert!(!core.calls().contains(&BoothCall::Approve("p16".into())));
-    cx.executor().advance_clock(Duration::from_secs(20));
+    for card in passage() {
+        core.push(BoothFeed::Suggestion(card));
+    }
+    let other = detection("j316", "John 3:16", "For God so loved the world");
+    core.push(BoothFeed::Suggestion(other));
     draw(cx, &opened);
-    assert!(cleared(&core).is_empty());
-}
-
-#[gpui_kit::test]
-fn auto_clear_off_keeps_the_last_verse_up(cx: &mut TestAppContext) {
-    let core = automated(true, false);
-    let opened = open(cx, core.clone());
-    read_passage_aloud(cx, &core, &opened);
-    cx.executor().advance_clock(Duration::from_secs(20));
+    cx.update(|cx| opened.booth().update(cx, |b, cx| b.select("j316", cx)));
+    core.push(progress(1.0, None));
     draw(cx, &opened);
-    assert!(cleared(&core).is_empty());
+    assert_eq!(
+        cx.read(|cx| opened.booth().read(cx).selected().map(str::to_owned)),
+        Some("j316".into()),
+        "a card picked in another passage stays picked"
+    );
+    cx.update(|cx| opened.booth().update(cx, |b, cx| b.approve("p15", cx)));
+    draw(cx, &opened);
+    assert!(core.calls().contains(&BoothCall::Approve("p15".into())));
+    cx.update(|cx| opened.booth().update(cx, |b, cx| b.dismiss("p16", cx)));
+    draw(cx, &opened);
+    assert!(core.calls().contains(&BoothCall::Dismiss("p16".into())));
 }

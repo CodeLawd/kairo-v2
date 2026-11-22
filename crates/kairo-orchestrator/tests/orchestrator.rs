@@ -193,6 +193,49 @@ struct Scripture {
     slow: Mutex<Option<(String, Arc<tokio::sync::Notify>)>>,
 }
 
+/// Verses with real words, so reading them aloud can be followed.
+const READ: &[(&str, f64, f64, &str)] = &[
+    (
+        "Proverbs",
+        5.0,
+        15.0,
+        "Drink water from your own cistern and running water from your own well",
+    ),
+    (
+        "Proverbs",
+        5.0,
+        16.0,
+        "Should your fountains be dispersed abroad streams of water in the streets",
+    ),
+    (
+        "Luke",
+        1.0,
+        5.0,
+        "There was in the days of Herod the king of Judaea a certain priest named Zacharias",
+    ),
+    (
+        "Luke",
+        1.0,
+        6.0,
+        "And they were both righteous before God walking in all the commandments",
+    ),
+    (
+        "Luke",
+        1.0,
+        7.0,
+        "And they had no child because that Elisabeth was barren",
+    ),
+];
+
+fn verse_text(book: &str, chapter: f64, verse: f64) -> String {
+    READ.iter()
+        .find(|(b, c, v, _)| *b == book && *c == chapter && *v == verse)
+        .map_or_else(
+            || format!("{book} {chapter}:{verse} text"),
+            |r| r.3.to_owned(),
+        )
+}
+
 impl ScriptureClient for Scripture {
     fn search(
         &self,
@@ -217,7 +260,7 @@ impl ScriptureClient for Scripture {
         };
         let verses = range
             .into_iter()
-            .map(|n| serde_json::from_value(json!({ "book": book, "chapter": chapter, "verse": n, "text": format!("{book} {chapter}:{n} text") })).unwrap())
+            .map(|n| serde_json::from_value(json!({ "book": book, "chapter": chapter, "verse": n, "text": verse_text(book, chapter, n) })).unwrap())
             .collect();
         let result = serde_json::from_value(
             json!({ "reference": query, "verses": [], "translation": translation }),
@@ -406,6 +449,15 @@ impl Detector for AsQuote {
     }
     fn set_reading_passage(&self, passage: Option<ReadingPassage>) {
         self.inner.set_reading_passage(passage)
+    }
+    fn note_shown(&self, book: &str, chapter: f64, verse: f64) {
+        self.inner.note_shown(book, chapter, verse)
+    }
+    fn note_read(&self, book: &str, chapter: f64, verse: f64) {
+        self.inner.note_read(book, chapter, verse)
+    }
+    fn paused_reading(&self) -> Option<(String, f64, f64)> {
+        self.inner.paused_reading()
     }
     fn is_general_quote_current(&self, reference: &ScriptureReference) -> bool {
         self.inner.is_general_quote_current(reference)
@@ -776,6 +828,137 @@ async fn a_spoken_reference_goes_live_without_the_safety_delay() {
     assert_eq!(
         h.engine_log.take(),
         ["ShowSlide screen Romans 8:28 (KJV) | Romans 8:28 text"]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_bare_verse_after_an_aside_goes_live_in_the_main_reading() {
+    let h = harness(true);
+    h.orchestrator.start_from_ui(config(true)).await.unwrap();
+    h.say("Turn with me to Luke chapter 1 verse 7.").await;
+    tokio::time::sleep(Duration::from_secs(60)).await;
+    h.say("This reminds me of Romans 8:28.").await;
+    tokio::time::sleep(Duration::from_secs(30)).await;
+    h.engine_log.take();
+    h.say("Let's continue from verse 20.").await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        ["ShowSlide screen Luke 1:20 (KJV) | Luke 1:20 text"],
+        "not Romans 8:20, and no countdown"
+    );
+}
+
+fn following(auto_clear: bool) -> OrchestratorConfig {
+    let mut config = config(true);
+    config.auto_present_passages = true;
+    config.follow_along = true;
+    config.auto_clear = auto_clear;
+    config.auto_clear_delay_sec = 4.0;
+    config
+}
+
+#[tokio::test(start_paused = true)]
+async fn with_no_booth_a_read_passage_advances_then_clears() {
+    let h = harness(true);
+    let mut progress = h.orchestrator.subscribe_follow_progress();
+    h.orchestrator.start_from_ui(following(true)).await.unwrap();
+    h.say("Proverbs 5:15-16").await;
+    settle().await;
+    assert_eq!(h.engine_log.take().len(), 1, "the first verse goes up");
+    h.say(READ[0].3).await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        [format!(
+            "ShowSlide screen Proverbs 5:16 (KJV) | {}",
+            READ[1].3
+        )],
+        "reading the first verse moves the screen on"
+    );
+    let mut last = None;
+    while let Ok(p) = progress.try_recv() {
+        last = p;
+    }
+    assert_eq!(last.map(|p| p.index), Some(1.0));
+    h.say(READ[1].3).await;
+    settle().await;
+    assert!(
+        h.engine_log.take().is_empty(),
+        "nothing clears before the pause"
+    );
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    settle().await;
+    assert_eq!(h.engine_log.take(), ["ClearText screen", "Clear screen"]);
+}
+
+#[tokio::test(start_paused = true)]
+async fn reading_on_past_the_detected_verse_is_followed() {
+    let h = harness(true);
+    h.orchestrator.start_from_ui(following(true)).await.unwrap();
+    h.say("Let's read Luke chapter 1 verse 5.").await;
+    settle().await;
+    h.engine_log.take();
+    h.say(READ[2].3).await;
+    settle().await;
+    assert!(h.engine_log.take().is_empty(), "the end of the passage");
+    h.say("And they were both righteous before God").await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        [format!("ShowSlide screen Luke 1:6 (KJV) | {}", READ[3].3)],
+        "its opening words carry the screen on"
+    );
+    h.say(&format!("{} {}", READ[3].3, READ[4].3)).await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        [format!("ShowSlide screen Luke 1:7 (KJV) | {}", READ[4].3)]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn follow_along_off_leaves_the_verse_for_the_operator() {
+    let h = harness(true);
+    let mut config = following(true);
+    config.follow_along = false;
+    h.orchestrator.start_from_ui(config).await.unwrap();
+    h.say("Proverbs 5:15-16").await;
+    settle().await;
+    h.engine_log.take();
+    h.say(READ[0].3).await;
+    h.say(READ[1].3).await;
+    tokio::time::sleep(Duration::from_secs(20)).await;
+    settle().await;
+    assert!(h.engine_log.take().is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn let_us_continue_after_an_aside_resumes_where_the_reading_stopped() {
+    let h = harness(true);
+    h.orchestrator
+        .start_from_ui(following(false))
+        .await
+        .unwrap();
+    h.say("Let's read Luke chapter 1 verses 5 to 7.").await;
+    settle().await;
+    h.say(READ[2].3).await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take().last().unwrap(),
+        &format!("ShowSlide screen Luke 1:6 (KJV) | {}", READ[3].3)
+    );
+    tokio::time::sleep(Duration::from_secs(30)).await;
+    h.say("This reminds me of Romans 8:28.").await;
+    settle().await;
+    tokio::time::sleep(Duration::from_secs(30)).await;
+    h.engine_log.take();
+    h.say("Let's continue our reading.").await;
+    settle().await;
+    assert_eq!(
+        h.engine_log.take(),
+        [format!("ShowSlide screen Luke 1:6 (KJV) | {}", READ[3].3)],
+        "verse 5 was read through; verse 6 was left half-read"
     );
 }
 

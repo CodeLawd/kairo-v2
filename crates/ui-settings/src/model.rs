@@ -680,6 +680,7 @@ pub fn resolver_label(resolver: ScriptureResolver) -> &'static str {
         ScriptureResolver::QuotationLocal => "Verse quoted",
         ScriptureResolver::SermonPlan => "Sermon plan",
         ScriptureResolver::Ai => "AI match",
+        ScriptureResolver::Reading => "Reading resumed",
     }
 }
 

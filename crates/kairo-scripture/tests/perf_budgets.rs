@@ -179,6 +179,11 @@ fn detector_fast_path_p99_is_within_budget() {
         "Hebrews eleven",
         "chapter eleven verse one now faith is the substance",
         "so as we close let us pray together",
+        // Resolved against the reading memory.
+        "let's continue from verse twenty",
+        "go back to verse four",
+        "back in Romans verse twenty nine",
+        "let's continue our reading",
     ];
     let mut owned = Vec::new();
     let mut at_ms = 0u64;

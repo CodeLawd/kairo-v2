@@ -486,6 +486,15 @@ impl Detector for QuoteDetector {
         self.local.set_reading_passage(passage.clone());
         lock(&self.state).reading = passage;
     }
+    fn note_shown(&self, book: &str, chapter: f64, verse: f64) {
+        self.local.note_shown(book, chapter, verse);
+    }
+    fn note_read(&self, book: &str, chapter: f64, verse: f64) {
+        self.local.note_read(book, chapter, verse);
+    }
+    fn paused_reading(&self) -> Option<(String, f64, f64)> {
+        self.local.paused_reading()
+    }
     fn is_general_quote_current(&self, reference: &ScriptureReference) -> bool {
         let Some(evidence) = &reference.quote_evidence else {
             return true;

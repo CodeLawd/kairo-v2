@@ -9,7 +9,7 @@ use kairo_domain::cloud::LicenseSnapshot;
 use kairo_domain::program::{PresentationSettings, ProgramState, normalize_presentation_settings};
 use kairo_domain::scripture::trace::ScriptureTraceStage;
 use kairo_domain::scripture::{
-    LivePlanState, PendingAutoPresent, ScriptureRowTranslation, ScriptureSuggestion,
+    FollowProgress, LivePlanState, PendingAutoPresent, ScriptureRowTranslation, ScriptureSuggestion,
 };
 use kairo_domain::services::ServiceSnapshot;
 use kairo_domain::settings::AppSettings;
@@ -196,6 +196,9 @@ impl BoothBackend for ServicesBooth {
         watch!(PendingAutoPresent, |v: &PendingAutoPresent| Some(
             BoothFeed::PendingAuto(v.clone())
         ));
+        watch!(Option<FollowProgress>, |v: &Option<FollowProgress>| Some(
+            BoothFeed::Follow(v.clone())
+        ));
         watch!(OrchestratorStatus, |v: &OrchestratorStatus| Some(
             BoothFeed::Status(v.clone())
         ));
@@ -372,6 +375,9 @@ async fn run(
                     settings.scripture.auto_present_delay_sec.value(),
                 ),
                 auto_present_passages: settings.scripture.auto_present_passages,
+                follow_along: settings.scripture.follow_along,
+                auto_clear: settings.scripture.auto_clear,
+                auto_clear_delay_sec: settings.scripture.auto_clear_delay_sec,
             };
             services
                 .orchestrator
@@ -415,24 +421,10 @@ async fn run(
                 .map_err(|e| e.to_string())?;
             done
         }
-        BoothCall::FollowStepped => {
-            services.orchestrator.note_follow_step();
-            done
-        }
         BoothCall::SetAutomation(automation) => {
             services.actions().set_automation(automation).await;
             done
         }
-        BoothCall::ClearScriptureIfLive {
-            book,
-            chapter,
-            verse,
-        } => Ok(BoothAnswer::Cleared(
-            services
-                .orchestrator
-                .clear_scripture_if_live(&book, chapter, verse)
-                .await,
-        )),
         BoothCall::ClearText => {
             services.orchestrator.clear_text().await;
             done

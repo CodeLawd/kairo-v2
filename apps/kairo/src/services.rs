@@ -1382,6 +1382,13 @@ fn wire_events(
             topics.publish(value);
         }
     });
+    let mut follow = services.orchestrator.subscribe_follow_progress();
+    let topics = services.core.publisher();
+    tokio::spawn(async move {
+        while let Ok(value) = follow.recv().await {
+            topics.publish(value);
+        }
+    });
     let mut snapshots = services.core.watch::<ServiceSnapshot>();
     tokio::spawn(async move {
         while let Some(value) = snapshots.next().await {

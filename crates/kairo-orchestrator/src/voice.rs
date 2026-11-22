@@ -36,6 +36,9 @@ pub struct LiveScriptureContext {
 #[derive(Clone, Debug, PartialEq)]
 pub enum VoiceCommand {
     Step(i8),
+    /// "Continue": the next verse of the main reading, which after an aside
+    /// is back where that reading paused.
+    Resume,
     Translation(String),
 }
 
@@ -49,17 +52,15 @@ static NEXT_VERSE: LazyLock<Regex> = LazyLock::new(|| {
         "^(?:{})(?: please)?$",
         [
             "(?:(?:go|move|read) (?:on )?(?:to )?)?(?:the )?next(?: verse| one)?",
-            "go on",
             "move on",
-            "carry on",
-            "keep going",
-            "continue",
             "(?:the )?following verse",
         ]
         .join("|")
     ))
     .unwrap()
 });
+static RESUME: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new("^(?:go on|carry on|keep going|continue)(?: please)?$").unwrap());
 static PREVIOUS_VERSE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(
         "^(?:{})(?: please)?$",
@@ -95,6 +96,9 @@ pub fn parse_voice_command(text: &str) -> Option<VoiceCommand> {
     let phrase = LEAD_IN.replace(&collapsed, "");
     if NEXT_VERSE.is_match(&phrase) {
         return Some(VoiceCommand::Step(1));
+    }
+    if RESUME.is_match(&phrase) {
+        return Some(VoiceCommand::Resume);
     }
     if PREVIOUS_VERSE.is_match(&phrase) {
         return Some(VoiceCommand::Step(-1));
@@ -198,6 +202,9 @@ pub trait VoiceDeps: Send + Sync + 'static {
         chapter: f64,
         translation: String,
     ) -> BoxFuture<'_, Result<Vec<ScriptureVerse>, String>>;
+    /// Where the main reading paused, while an aside is the newest reading:
+    /// book, chapter and verse.
+    fn paused_reading(&self) -> BoxFuture<'_, Option<(String, f64, f64)>>;
     fn present(&self, suggestion: ScriptureSuggestion) -> BoxFuture<'_, ()>;
     fn suggest(&self, suggestion: ScriptureSuggestion);
     /// Switch a whole detected row to another translation in place.
@@ -360,7 +367,18 @@ impl VoiceNavigation {
         }
         let translation = match &command {
             VoiceCommand::Translation(t) => t.clone(),
-            VoiceCommand::Step(_) => current.translation.clone(),
+            VoiceCommand::Step(_) | VoiceCommand::Resume => current.translation.clone(),
+        };
+        let command = match command {
+            VoiceCommand::Resume => match self.deps.paused_reading().await {
+                Some(paused) => {
+                    return self
+                        .resume(paused, &current, generation, &key, text, translation)
+                        .await;
+                }
+                None => VoiceCommand::Step(1),
+            },
+            command => command,
         };
         // A translation switch changes its row; only in Auto mode does the
         // verse also go back up in the new translation.
@@ -384,6 +402,7 @@ impl VoiceNavigation {
                 .into_iter()
                 .filter(|v| v.verse >= current.verse_start && v.verse <= current.verse_end)
                 .collect(),
+            VoiceCommand::Resume => unreachable!("resolved to a step above"),
             VoiceCommand::Step(direction) => {
                 let forward = *direction == 1;
                 let mut picked: Vec<_> = verses
@@ -426,7 +445,7 @@ impl VoiceNavigation {
         let passage_index = current.passage_id.as_ref().map(|_| {
             current.passage_index.unwrap_or(0.0)
                 + match &command {
-                    VoiceCommand::Translation(_) => 0.0,
+                    VoiceCommand::Translation(_) | VoiceCommand::Resume => 0.0,
                     VoiceCommand::Step(d) => f64::from(*d),
                 }
         });
@@ -439,6 +458,72 @@ impl VoiceNavigation {
             current.passage_id.clone(),
             passage_index,
         );
+        self.deliver(
+            suggestion,
+            &current,
+            chapter,
+            start,
+            translation,
+            generation,
+        )
+        .await;
+    }
+
+    /// Back to the main reading after an aside, at the verse it paused on.
+    async fn resume(
+        &self,
+        (book, chapter, verse): (String, f64, f64),
+        current: &LiveScriptureContext,
+        generation: u64,
+        key: &str,
+        text: String,
+        translation: String,
+    ) {
+        let verses = match self
+            .deps
+            .chapter(book.clone(), chapter, translation.clone())
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => return self.deps.error(e),
+        };
+        let selected: Vec<ScriptureVerse> =
+            verses.into_iter().filter(|v| v.verse == verse).collect();
+        if selected.is_empty()
+            || generation != self.generation()
+            || !self.deps.enabled()
+            || self.deps.current().map(|c| c.revision) != Some(current.revision)
+        {
+            return;
+        }
+        let suggestion = crate::suggestion::manual(
+            format!("voice-{generation}-{key}"),
+            reference_text(&book, chapter, verse, verse),
+            selected,
+            translation.clone(),
+            text,
+            None,
+            None,
+        );
+        let target = LiveScriptureContext {
+            book,
+            ..current.clone()
+        };
+        self.deliver(suggestion, &target, chapter, verse, translation, generation)
+            .await;
+    }
+
+    /// Presents in Auto mode, else leaves a card; a step presented here is
+    /// remembered as this command's own revision.
+    async fn deliver(
+        &self,
+        suggestion: ScriptureSuggestion,
+        current: &LiveScriptureContext,
+        chapter: f64,
+        start: f64,
+        translation: String,
+        generation: u64,
+    ) {
         if self.deps.auto_mode() {
             self.deps.present(suggestion).await;
             let after = self.deps.current();
@@ -493,6 +578,7 @@ mod tests {
         suggested: Mutex<Vec<ScriptureSuggestion>>,
         lookup: Lookup,
         enabled: AtomicBool,
+        paused: Mutex<Option<(String, f64, f64)>>,
     }
 
     impl VoiceDeps for Harness {
@@ -512,6 +598,10 @@ mod tests {
             _t: String,
         ) -> BoxFuture<'_, Result<Vec<ScriptureVerse>, String>> {
             (self.lookup)(&book, chapter)
+        }
+        fn paused_reading(&self) -> BoxFuture<'_, Option<(String, f64, f64)>> {
+            let paused = self.paused.lock().unwrap().clone();
+            Box::pin(async move { paused })
         }
         fn present(&self, s: ScriptureSuggestion) -> BoxFuture<'_, ()> {
             Box::pin(async move {
@@ -559,6 +649,7 @@ mod tests {
                 })
             }),
             enabled: AtomicBool::new(true),
+            paused: Mutex::default(),
         });
         let nav = VoiceNavigation::new(h.clone());
         (h, nav)
@@ -613,14 +704,9 @@ mod tests {
             ("Back to the previous verse.", -1),
             ("Next.", 1),
             ("Next one.", 1),
-            ("Go on.", 1),
-            ("Continue.", 1),
-            ("Keep going.", 1),
-            ("Carry on.", 1),
             ("Move on.", 1),
             ("Following verse.", 1),
             ("And the next one.", 1),
-            ("Okay, go on.", 1),
             ("Previous.", -1),
             ("Previous one.", -1),
             ("Back.", -1),
@@ -634,6 +720,35 @@ mod tests {
                 "{text}"
             );
         }
+    }
+
+    #[test]
+    fn continue_is_a_resume() {
+        for text in [
+            "Go on.",
+            "Continue.",
+            "Keep going.",
+            "Carry on.",
+            "Okay, go on.",
+        ] {
+            assert_eq!(
+                parse_voice_command(text),
+                Some(VoiceCommand::Resume),
+                "{text}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn continue_steps_on_in_the_main_reading_and_returns_to_it_after_an_aside() {
+        let (h, nav) = harness(true, None);
+        nav.claim(&final_result("Continue.", "one"));
+        nav.settled().await;
+        assert_eq!(refs(&h.presented), ["John 3:17"]);
+        *h.paused.lock().unwrap() = Some(("Luke".into(), 1.0, 18.0));
+        nav.claim(&final_result("Continue.", "two"));
+        nav.settled().await;
+        assert_eq!(refs(&h.presented), ["John 3:17", "Luke 1:18"]);
     }
 
     #[tokio::test]

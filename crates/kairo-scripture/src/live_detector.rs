@@ -72,7 +72,41 @@ rule!(
     CITATION_LEAD,
     r"\b(?:in|to|into|from|read|open|turn|at|of|see)\s+(?:the\s+(?:book|gospel|epistle|letter)\s+of\s+)?$"
 );
+rule!(
+    RESUME,
+    r"\b(?:continue|continuing|carry\s+on|keep\s+going|go\s+on|go\s+back|going\s+back|come\s+back|coming\s+back|back\s+(?:to|in)|return(?:ing)?\s+to|pick\s+(?:it\s+|that\s+)?up|resume|where\s+we\s+(?:stopped|left\s+off)|our\s+(?:reading|text))\b"
+);
+rule!(
+    READING_HINT,
+    r"\b(?:where\s+we\s+(?:left\s+off|stopped)|our\s+(?:reading|text|passage)|the\s+(?:gospel|epistle|letter|passage|text|reading|chapter))\b"
+);
+rule!(
+    INTRODUCED,
+    r"\b(?:turn|turning|let's\s+read|let\s+us\s+read|we\s+are\s+reading|we're\s+reading|read(?:ing)?\s+(?:from|in)|our\s+(?:text|reading|scripture)|open\s+(?:your\s+bibles?\s+)?to)\b"
+);
+rule!(
+    BOOK_LEAD,
+    r"\b(?:back\s+(?:in|to)|return(?:ing)?\s+to|in|to)\s+(?:the\s+(?:book|gospel|epistle|letter)\s+of\s+)?((?:[1-3]\s)?[a-z]+(?:\s+of\s+solomon)?)\b"
+);
+// Whole phrases, so narration ("let's continue in prayer") stays narration.
+const LEAD: &str = r"^(?:(?:okay|ok|alright|all\s+right|so|and|now|then|right|please|well)\s+)*(?:(?:let's|let\s+us|we'll|we\s+will|we're\s+going\s+to|we\s+are\s+going\s+to)\s+)?";
+static RESUME_ONLY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(&format!(
+        r"{LEAD}(?:(?:(?:continue|carry\s+on|keep\s+going|go\s+on|pick\s+up|resume|get\s+back\s+to|go\s+back\s+to|come\s+back\s+to|return\s+to|back\s+to)(?:\s+(?:with|in|on))?\s+(?:our|the|that)\s+(?:reading|text|passage|scripture))|(?:(?:continue|carry\s+on|pick\s+(?:it\s+|things\s+)?up|go\s+back|start)\s+(?:from\s+)?where\s+we\s+(?:left\s+off|stopped))|(?:continue|resume)\s+reading)(?:\s+please)?$"
+    ))
+    .expect("valid resume rule")
+});
+static RESUME_BOOK: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(&format!(
+        r"{LEAD}(?:(?:go|turn|get|come|going|coming)\s+)?(?:back\s+(?:to|in(?:to)?)|return(?:ing)?\s+to)\s+(?:the\s+(?:book|gospel|epistle|letter)\s+of\s+)?(.+?)(?:\s+please)?$"
+    ))
+    .expect("valid resume rule")
+});
 
+pub use crate::reading_memory::{Reading, ReadingKind, ReadingMemory};
+
+/// How long a passage read aloud keeps its words from counting as a quote.
+const READ_ALOUD_MS: u64 = 15 * 60_000;
 pub use kairo_domain::scripture_trace::{ScriptureResolver, TranscriptSource as TranscriptKind};
 
 pub struct TranscriptEvent<'a> {
@@ -90,6 +124,8 @@ pub struct CitationEmission {
     pub confidence: f64,
     pub detection_type: DetectionType,
     pub superseded: bool,
+    /// Another reading fitted a resume as well: wait for the operator.
+    pub ambiguous: bool,
     pub source: TranscriptKind,
     pub received_at_ms: u64,
     pub emitted_at_ms: u64,
@@ -128,6 +164,8 @@ pub struct LocalEvidence<'a> {
 pub struct UnresolvedTranscript {
     pub text: String,
     pub received_at_ms: u64,
+    /// A resume no rule placed; `text` lists the service's readings.
+    pub resume: bool,
 }
 
 pub struct LiveCitationDetector {
@@ -151,6 +189,9 @@ pub struct LiveCitationDetector {
     unresolved: Option<UnresolvedTranscript>,
     plan_progress: Option<(String, String)>,
     generation: u64,
+    memory: ReadingMemory,
+    /// The utterance being processed introduced its passage as a reading.
+    introduced: bool,
 }
 
 impl Default for LiveCitationDetector {
@@ -182,6 +223,8 @@ impl LiveCitationDetector {
             unresolved: None,
             plan_progress: None,
             generation: 0,
+            memory: ReadingMemory::default(),
+            introduced: false,
         }
     }
 
@@ -198,25 +241,41 @@ impl LiveCitationDetector {
         let mut out = Vec::new();
         for detection in detections {
             let reference = detection.reference;
-            let credible = match detection.detection_type {
-                DetectionType::Explicit => {
-                    VERSE_SIGNAL.is_match(&reference.source_text.to_ascii_lowercase())
+            // A resume may only land in a passage this service has read.
+            let credible = if work.transcript.resume {
+                !superseded
+                    && out.is_empty()
+                    && self
+                        .memory
+                        .readings()
+                        .iter()
+                        .any(|r| r.book == reference.book && r.chapter == reference.chapter)
+            } else {
+                match detection.detection_type {
+                    DetectionType::Explicit => {
+                        VERSE_SIGNAL.is_match(&reference.source_text.to_ascii_lowercase())
+                    }
+                    DetectionType::Partial => {
+                        !superseded
+                            && VERSE_SIGNAL.is_match(&reference.source_text.to_ascii_lowercase())
+                    }
+                    DetectionType::Quote => quote_evidence.iter().any(|quote| {
+                        quote.book == reference.book
+                            && quote.chapter == reference.chapter
+                            && (reference.verse_start
+                                ..=reference.verse_end.unwrap_or(reference.verse_start))
+                                .contains(&quote.verse)
+                    }),
+                    DetectionType::Paraphrase => false,
                 }
-                DetectionType::Partial => {
-                    !superseded
-                        && VERSE_SIGNAL.is_match(&reference.source_text.to_ascii_lowercase())
-                }
-                DetectionType::Quote => quote_evidence.iter().any(|quote| {
-                    quote.book == reference.book
-                        && quote.chapter == reference.chapter
-                        && (reference.verse_start
-                            ..=reference.verse_end.unwrap_or(reference.verse_start))
-                            .contains(&quote.verse)
-                }),
-                DetectionType::Paraphrase => false,
             };
             if credible {
-                self.publish(
+                if work.transcript.resume {
+                    // Asked for on purpose, even for a verse heard before.
+                    self.cache
+                        .retain(|entry| !overlaps(&entry.reference, &reference));
+                }
+                self.publish_as(
                     CitationEmission {
                         reference,
                         translations: Vec::new(),
@@ -224,11 +283,13 @@ impl LiveCitationDetector {
                         confidence: detection.confidence,
                         detection_type: detection.detection_type,
                         superseded,
+                        ambiguous: false,
                         source: TranscriptKind::Final,
                         received_at_ms: work.transcript.received_at_ms,
                         emitted_at_ms: now,
                     },
                     &mut out,
+                    work.transcript.resume,
                 );
             }
         }
@@ -249,6 +310,7 @@ impl LiveCitationDetector {
                     confidence: 0.9,
                     detection_type: DetectionType::Explicit,
                     superseded: false,
+                    ambiguous: false,
                     source: TranscriptKind::Final,
                     received_at_ms: work.transcript.received_at_ms,
                     emitted_at_ms: now,
@@ -273,6 +335,21 @@ impl LiveCitationDetector {
 
     pub fn set_reading_passage(&mut self, passage: Option<ExplicitCitation>, at_ms: u64) {
         self.reading = passage.map(|reference| (reference, at_ms));
+    }
+
+    /// The service's readings, newest first.
+    pub fn memory(&self) -> &ReadingMemory {
+        &self.memory
+    }
+
+    /// This verse went on screen.
+    pub fn note_shown(&mut self, reference: &ExplicitCitation, at_ms: u64) {
+        self.memory.shown(reference, at_ms);
+    }
+
+    /// Follow-along heard this verse read to its end.
+    pub fn note_read(&mut self, book: &'static str, chapter: f64, verse: f64, at_ms: u64) {
+        self.memory.read(book, chapter, verse, at_ms);
     }
 
     fn supersede_model(&mut self) {
@@ -347,7 +424,14 @@ impl LiveCitationDetector {
         let translations = self.spoken_translations.clone();
         let spoken = normalize(event.text);
         let spoken = spoken.trim_matches(is_whitespace);
-        let references = self.analyze(spoken, now, interim);
+        self.introduced = INTRODUCED.is_match(spoken);
+        self.expire(now);
+        let recalled = self.recall(spoken, now);
+        let references = if recalled.is_some() {
+            Vec::new()
+        } else {
+            self.analyze(spoken, now, interim)
+        };
         let emit = |reference| CitationEmission {
             reference,
             translations: Vec::new(),
@@ -355,10 +439,33 @@ impl LiveCitationDetector {
             confidence: 0.9,
             detection_type: DetectionType::Explicit,
             superseded: false,
+            ambiguous: false,
             source: event.kind,
             received_at_ms: now,
             emitted_at_ms: now,
         };
+        if let Some((reference, ambiguous)) = recalled {
+            // Interim speech may still be naming the verse ("verse 6…5").
+            if !interim {
+                self.supersede_model();
+                // A resume is asked for on purpose, even for a verse heard
+                // before; a bare mention of one ("as verse 62 says") is not.
+                if RESUME.is_match(spoken) {
+                    self.cache
+                        .retain(|entry| !overlaps(&entry.reference, &reference));
+                }
+                self.publish(
+                    CitationEmission {
+                        resolver: ScriptureResolver::Reading,
+                        ambiguous,
+                        ..emit(reference)
+                    },
+                    &mut out,
+                );
+                self.settle();
+            }
+            return out;
+        }
         if !references.is_empty() {
             self.supersede_model();
             for reference in references {
@@ -485,6 +592,7 @@ impl LiveCitationDetector {
                     self.unresolved = Some(UnresolvedTranscript {
                         text: self.recovery_text.clone(),
                         received_at_ms: now,
+                        resume: false,
                     });
                 } else {
                     self.supersede_model();
@@ -505,13 +613,57 @@ impl LiveCitationDetector {
             for reference in matches {
                 self.publish(emit(reference), &mut out);
             }
+        } else if let Some(text) = self.resume_request(spoken, event.text) {
+            self.unresolved = Some(UnresolvedTranscript {
+                text,
+                received_at_ms: now,
+                resume: true,
+            });
         } else if sounds_like_scripture(&self.recent_finals) {
             self.unresolved = Some(UnresolvedTranscript {
                 text: self.recent_finals.clone(),
                 received_at_ms: now,
+                resume: false,
             });
         }
         out
+    }
+
+    /// A resume naming no verse or book the rules know ("where we left off
+    /// in the Gospel"), put to the model with the service's readings.
+    fn resume_request(&self, spoken: &str, text: &str) -> Option<String> {
+        if self.memory.newest().is_none()
+            || !RESUME.is_match(spoken)
+            || !READING_HINT.is_match(spoken)
+        {
+            return None;
+        }
+        let readings = self
+            .memory
+            .readings()
+            .iter()
+            .map(|r| {
+                format!(
+                    "{} {}:{}-{} ({}, resume at verse {})",
+                    r.book,
+                    r.chapter,
+                    r.start,
+                    r.end,
+                    if r.kind == ReadingKind::Main {
+                        "main reading"
+                    } else {
+                        "aside"
+                    },
+                    r.resume_verse()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        Some(format!(
+            "{text}\n\nThe preacher is returning to a passage read earlier in this service. \
+             Passages read so far, newest first: {readings}. Answer with the one verse to \
+             resume at, from these passages only."
+        ))
     }
 
     fn chapter_quote(
@@ -614,7 +766,87 @@ impl LiveCitationDetector {
         text.to_owned()
     }
 
-    fn analyze(&mut self, spoken: &str, now: u64, interim: bool) -> Vec<ExplicitCitation> {
+    /// A verse or a resume resolved against the service's readings, when the
+    /// words leave out the chapter and no citation was just heard.
+    fn recall(&mut self, spoken: &str, now: u64) -> Option<(ExplicitCitation, bool)> {
+        if self.memory.newest().is_none() || named_citation(spoken) || CHAPTER_WORD.is_match(spoken)
+        {
+            return None;
+        }
+        let phrase: String = spoken
+            .chars()
+            .filter(|c| !matches!(c, '.' | '!' | '?' | ','))
+            .collect();
+        let phrase = phrase.trim_matches(is_whitespace);
+        let resume = RESUME.is_match(spoken);
+        // Right after an aside, "continue to verse 29" carries the aside on;
+        // "continue from verse 20" goes back to the main reading.
+        let fresh = |verse: f64| {
+            self.context.as_ref().is_some_and(|c| {
+                !resume
+                    || c.verse_start
+                        .is_some_and(|at| at <= verse && verse <= at + 3.0)
+                    || self.memory.readings().iter().any(|r| {
+                        r.book == c.book && r.chapter == c.chapter && r.kind == ReadingKind::Main
+                    })
+            })
+        };
+        let named = BOOK_LEAD
+            .captures_iter(spoken)
+            .find_map(|c| canonical_book(&c[1]))
+            .or_else(|| self.pending_book.map(|(book, _)| book));
+        let (reading, start, end, ambiguous) = if let Some(verse) = VERSE.find(spoken) {
+            let range = RANGE.captures(&spoken[verse.start()..])?;
+            let start = string_to_number(&range[1]);
+            let end = range
+                .get(2)
+                .map(|m| string_to_number(m.as_str()))
+                .filter(|end| *end > start);
+            let found = if let Some(book) = named {
+                let reading = self.memory.of_book(book, Some(start))?;
+                (reading, false)
+            } else if fresh(start) {
+                // "John 3 … verse 16": the citation just heard.
+                return None;
+            } else if resume {
+                let recall = self.memory.main_with(start)?;
+                (recall.reading, recall.ambiguous)
+            } else {
+                let recall = self.memory.current_with(start)?;
+                (recall.reading, recall.ambiguous)
+            };
+            (found.0, start, end, found.1)
+        } else if RESUME_ONLY.is_match(phrase) {
+            let reading = self.memory.newest_main()?;
+            (reading, reading.resume_verse(), None, false)
+        } else {
+            let book = RESUME_BOOK
+                .captures(phrase)
+                .and_then(|c| canonical_book(&c[1]))?;
+            let reading = self.memory.of_book(book, None)?;
+            (reading, reading.resume_verse(), None, false)
+        };
+        let reference = reading.citation(start, end);
+        if !is_valid_scripture_reference(reference.book, reference.chapter, start, end) {
+            return None;
+        }
+        self.fallback = None;
+        self.pending_book = None;
+        self.passage = Some((reference.book, Some(reference.chapter)));
+        self.context = Some(Context {
+            book: reference.book,
+            chapter: reference.chapter,
+            updated: now,
+            awaiting_verse: true,
+            verse_start: Some(start),
+            awaiting_range_end: RANGE_PENDING.is_match(spoken),
+            quote_text: String::new(),
+            quote_verses: None,
+        });
+        Some((reference, ambiguous))
+    }
+
+    fn expire(&mut self, now: u64) {
         if self
             .context
             .as_ref()
@@ -628,6 +860,10 @@ impl LiveCitationDetector {
         {
             self.pending_book = None;
         }
+    }
+
+    fn analyze(&mut self, spoken: &str, now: u64, interim: bool) -> Vec<ExplicitCitation> {
+        self.expire(now);
         if let Some(book) = bare_book(spoken) {
             self.fallback = None;
             self.pending_book = Some((book, now));
@@ -688,7 +924,18 @@ impl LiveCitationDetector {
         references
     }
 
-    fn publish(&mut self, mut emission: CitationEmission, out: &mut Vec<CitationEmission>) {
+    fn publish(&mut self, emission: CitationEmission, out: &mut Vec<CitationEmission>) {
+        self.publish_as(emission, out, false);
+    }
+
+    /// `resume`: a model answer to a resume, which lands in a passage read
+    /// earlier on purpose, so reading suppression does not apply.
+    fn publish_as(
+        &mut self,
+        mut emission: CitationEmission,
+        out: &mut Vec<CitationEmission>,
+        resume: bool,
+    ) {
         self.fallback = None;
         let now = emission.emitted_at_ms;
         self.cache.retain(|entry| now <= entry.expires);
@@ -698,12 +945,15 @@ impl LiveCitationDetector {
             reference.chapter,
             reference.verse_start,
             reference.verse_end,
-        ) || (matches!(
-            emission.resolver,
-            ScriptureResolver::QuotationLocal | ScriptureResolver::Ai
-        ) && self.reading.as_ref().is_some_and(|(reading, at)| {
-            now.saturating_sub(*at) <= 15 * 60_000 && contains(reading, reference)
-        })) {
+        ) || (!resume
+            && matches!(
+                emission.resolver,
+                ScriptureResolver::QuotationLocal | ScriptureResolver::Ai
+            )
+            && (self.reading.as_ref().is_some_and(|(reading, at)| {
+                now.saturating_sub(*at) <= READ_ALOUD_MS && contains(reading, reference)
+            }) || self.memory.covers(reference, now, READ_ALOUD_MS)))
+        {
             return;
         }
         let spoken = if emission.resolver == ScriptureResolver::Ai {
@@ -754,6 +1004,13 @@ impl LiveCitationDetector {
                 expires: now.saturating_add(self.cache_window_ms),
                 released: false,
             });
+        }
+        if matches!(
+            emission.resolver,
+            ScriptureResolver::Explicit | ScriptureResolver::Reading
+        ) {
+            self.memory
+                .cite(&emission.reference, self.introduced, emission.emitted_at_ms);
         }
         self.last = Some(emission.clone());
         out.push(emission);

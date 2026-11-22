@@ -10,6 +10,8 @@ string_enum!(
         QuotationLocal = "quotation-local",
         SermonPlan = "sermon-plan",
         Ai = "ai",
+        /// A bare verse or a resume, resolved against the service's readings.
+        Reading = "reading",
     }
 );
 string_enum!(

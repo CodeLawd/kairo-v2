@@ -31,13 +31,19 @@ use kairo_domain::overlay::{
 use kairo_domain::overlay_content::format_overlay_verse_text;
 use kairo_domain::overlay_outputs::output_theme_for;
 use kairo_domain::program::ProgramSlideInfo;
+use kairo_domain::scripture::live_progress::{
+    PassageFollowState, passage_read_through, tokenize, update_passage_follow_strict,
+};
 use kairo_domain::scripture::plan::{PlanReference, match_plan_reference};
 use kairo_domain::scripture::small::single_verse_suggestion;
 use kairo_domain::scripture::trace::{
     CompleteInput, ConfirmationLevel, ScriptureResolver, ScriptureTraceStage as Stage,
     TraceFailureReason, TraceStartInput, TraceStatus, TranscriptSource,
 };
-use kairo_domain::scripture::{PendingAutoPresent, ScriptureSuggestion, ScriptureVerse};
+use kairo_domain::scripture::{
+    FollowProgress, PendingAutoPresent, ScriptureSuggestion, ScriptureVerse,
+};
+use kairo_domain::settings::ScriptureAutomation;
 use kairo_domain::status::{
     HealthStatus, OrchestratorConfig, OrchestratorStatus, ServiceHealth, ServiceName, SessionStats,
     SttProvider,
@@ -126,6 +132,63 @@ struct State {
     start_generation: u64,
     /// A `start` is awaiting STT.
     starting: bool,
+    /// The passage on screen, followed as it is read aloud.
+    follow: Option<Following>,
+    /// The followed passage whose auto-clear is counting down.
+    auto_clear: Option<(String, JoinHandle<()>)>,
+    /// The chapter of the reading followed last, fetched when it began.
+    chapter: Option<ChapterText>,
+}
+
+struct ChapterText {
+    book: String,
+    chapter: f64,
+    translation: String,
+    verses: Vec<ScriptureVerse>,
+}
+
+impl ChapterText {
+    fn is(&self, book: &str, chapter: f64, translation: &str) -> bool {
+        self.book.eq_ignore_ascii_case(book)
+            && self.chapter == chapter
+            && self.translation == translation
+    }
+
+    /// Verses `start..=end`, when the chapter has every one of them.
+    fn range(&self, start: f64, end: f64) -> Option<Vec<ScriptureVerse>> {
+        let verses: Vec<ScriptureVerse> = self
+            .verses
+            .iter()
+            .filter(|v| v.verse >= start && v.verse <= end)
+            .cloned()
+            .collect();
+        (verses.len() as f64 == end - start + 1.0).then_some(verses)
+    }
+}
+
+/// The verse's opening words were heard in order, so the reader went on
+/// into it: all of its first four content words, and at least three.
+fn opening_heard(verse: &str, text: &str) -> bool {
+    let mut lead = tokenize(verse);
+    lead.truncate(4);
+    let heard = tokenize(text);
+    let mut words = heard.iter();
+    lead.len() >= 3 && lead.iter().all(|word| words.any(|h| h == word))
+}
+
+/// A passage being read aloud and its cards, one per verse.
+struct Following {
+    state: PassageFollowState,
+    cards: Vec<ScriptureSuggestion>,
+}
+
+impl Following {
+    fn current(&self) -> Option<&ScriptureVerse> {
+        self.cards
+            .iter()
+            .find(|c| c.passage_index.unwrap_or(0.0) == self.state.current_index)
+            .and_then(|c| c.verses.first())
+    }
 }
 
 impl State {
@@ -182,6 +245,7 @@ struct Inner {
     quick: Mutex<Quick>,
     status: broadcast::Sender<OrchestratorStatus>,
     pending_auto: broadcast::Sender<PendingAutoPresent>,
+    follow_progress: broadcast::Sender<Option<FollowProgress>>,
     voice: std::sync::OnceLock<VoiceNavigation>,
     /// Bounds concurrent detection lookups so a slow one never stalls the
     /// detector pump, without letting a burst flood the Bible service.
@@ -259,6 +323,14 @@ impl VoiceDeps for VoiceHost {
                 translation,
             )
             .await
+        })
+    }
+
+    fn paused_reading(&self) -> BoxFuture<'_, Option<(String, f64, f64)>> {
+        Box::pin(async move {
+            let inner = self.0.upgrade()?;
+            let detector = inner.state.lock().await.detector.clone()?;
+            detector.paused_reading()
         })
     }
 
@@ -378,6 +450,7 @@ impl Orchestrator {
     pub fn new(services: Services) -> Self {
         let (status, _) = broadcast::channel(64);
         let (pending_auto, _) = broadcast::channel(64);
+        let (follow_progress, _) = broadcast::channel(64);
         let inner = Arc::new(Inner {
             services,
             state: tokio::sync::Mutex::new(State {
@@ -392,11 +465,15 @@ impl Orchestrator {
                 pumps: Vec::new(),
                 start_generation: 0,
                 starting: false,
+                follow: None,
+                auto_clear: None,
+                chapter: None,
             }),
             present: tokio::sync::Mutex::new(()),
             quick: Mutex::new(Quick::default()),
             status,
             pending_auto,
+            follow_progress,
             voice: std::sync::OnceLock::new(),
             lookups: Arc::new(tokio::sync::Semaphore::new(DETECTION_LOOKUPS)),
             latest_auto: Default::default(),
@@ -425,6 +502,12 @@ impl Orchestrator {
 
     pub fn subscribe_pending_auto(&self) -> broadcast::Receiver<PendingAutoPresent> {
         self.inner.pending_auto.subscribe()
+    }
+
+    /// Where the reading of the passage on screen has got; `None` when
+    /// nothing is followed.
+    pub fn subscribe_follow_progress(&self) -> broadcast::Receiver<Option<FollowProgress>> {
+        self.inner.follow_progress.subscribe()
     }
 
     fn status_of(state: &State) -> OrchestratorStatus {
@@ -619,6 +702,7 @@ impl Orchestrator {
         }
         state.pending.clear();
         state.suggestion_refs.clear();
+        self.end_follow(state);
         self.inner.services.stt.detach_audio();
         self.inner.services.stt.stop();
         for pump in state.pumps.drain(..) {
@@ -708,8 +792,12 @@ impl Orchestrator {
                         if !orchestrator.voice().claim(&result) {
                             detector.on_final(&result);
                         }
+                        orchestrator.advance_follow(&result.text, true).await;
                     }
-                    TranscriptEvent::Interim(result) => detector.on_interim(&result),
+                    TranscriptEvent::Interim(result) => {
+                        detector.on_interim(&result);
+                        orchestrator.advance_follow(&result.text, false).await;
+                    }
                 }
             }
         }));
@@ -865,6 +953,9 @@ impl Orchestrator {
     fn dismiss_locked(&self, state: &mut State, id: &str) {
         Self::cancel_auto(state, id);
         state.take_pending(id);
+        if let Some(following) = state.follow.as_mut() {
+            following.cards.retain(|c| c.id != id);
+        }
         // The next time the preacher says this verse it must come back.
         if let Some((book, chapter, verse)) = state.suggestion_refs.remove(id)
             && let Some(detector) = &state.detector
@@ -893,11 +984,19 @@ impl Orchestrator {
         }
     }
 
-    /// Passage auto-present and the countdown, changed mid-service.
-    pub async fn set_automation(&self, auto_present_passages: bool, delay_sec: f64) {
-        if let Some(cfg) = self.inner.state.lock().await.cfg.as_mut() {
-            cfg.auto_present_passages = auto_present_passages;
-            cfg.auto_present_delay_sec = delay_sec.max(0.0);
+    /// Passage auto-present, the countdown, follow-along and auto-clear,
+    /// changed mid-service.
+    pub async fn set_automation(&self, automation: &ScriptureAutomation) {
+        let mut state = self.inner.state.lock().await;
+        if let Some(cfg) = state.cfg.as_mut() {
+            cfg.auto_present_passages = automation.auto_present_passages;
+            cfg.auto_present_delay_sec = f64::from(automation.auto_present_delay_sec.value());
+            cfg.follow_along = automation.follow_along;
+            cfg.auto_clear = automation.auto_clear;
+            cfg.auto_clear_delay_sec = automation.auto_clear_delay_sec.max(0.0);
+        }
+        if !automation.auto_clear {
+            Self::cancel_auto_clear(&mut state);
         }
     }
 
@@ -1008,6 +1107,21 @@ impl Orchestrator {
             let traces = &self.inner.services.traces;
             let mut verses: Vec<ScriptureVerse> =
                 plan_entries.iter().map(|e| e.verse.clone()).collect();
+            // The chapter being read is already here: no lookup.
+            if verses.is_empty()
+                && let Some(found) = state
+                    .chapter
+                    .as_ref()
+                    .filter(|c| c.is(&reference.book, reference.chapter, &translation))
+                    .and_then(|c| {
+                        c.range(
+                            reference.verse_start,
+                            reference.verse_end.unwrap_or(reference.verse_start),
+                        )
+                    })
+            {
+                verses = found;
+            }
             if verses.is_empty() {
                 // Lookups go to the network: never hold the state across them.
                 drop(state);
@@ -1338,13 +1452,301 @@ impl Orchestrator {
     fn next_already_shown(&self, text: &str) -> bool {
         matches!(
             crate::voice::parse_voice_command(text),
-            Some(crate::voice::VoiceCommand::Step(1))
+            Some(crate::voice::VoiceCommand::Step(1) | crate::voice::VoiceCommand::Resume)
         ) && self
             .inner
             .scripture_live_at
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .is_some_and(|at| at.elapsed() < NEXT_ALREADY_SHOWN)
+    }
+
+    /// Follows the reading of what just went live. A single verse is
+    /// followed too, so auto-clear can tell when it has been read.
+    fn follow_presented(&self, state: &mut State, suggestion: &ScriptureSuggestion) {
+        Self::cancel_auto_clear(state);
+        let Some(passage) = suggestion.passage_id.clone() else {
+            return self.end_follow(state);
+        };
+        let index = suggestion.passage_index.unwrap_or(0.0);
+        let mut following = match state.follow.take() {
+            Some(f) if f.state.passage_id == passage => f,
+            _ => {
+                self.prefetch_chapter(state, suggestion);
+                Following {
+                    state: PassageFollowState {
+                        passage_id: passage.clone(),
+                        current_index: index,
+                        matched_token_indexes: Vec::new(),
+                        read_to: None,
+                        heard_count: None,
+                    },
+                    cards: state
+                        .pending
+                        .iter()
+                        .filter(|s| s.passage_id.as_deref() == Some(passage.as_str()))
+                        .cloned()
+                        .collect(),
+                }
+            }
+        };
+        // Follow-along itself presented this card: what was heard since stays.
+        if following.state.current_index != index {
+            following.state = PassageFollowState {
+                passage_id: passage,
+                current_index: index,
+                matched_token_indexes: Vec::new(),
+                read_to: None,
+                heard_count: None,
+            };
+        }
+        if !following
+            .cards
+            .iter()
+            .any(|c| c.passage_index.unwrap_or(0.0) == index)
+        {
+            following.cards.push(suggestion.clone());
+        }
+        state.follow = Some(following);
+        self.publish_follow(state);
+    }
+
+    /// Fetches the chapter a reading began in, so it can be followed past
+    /// the verses detected and its verses are found without a lookup.
+    fn prefetch_chapter(&self, state: &State, suggestion: &ScriptureSuggestion) {
+        let Some(first) = suggestion.verses.first() else {
+            return;
+        };
+        let (book, chapter, translation) = (
+            first.book.clone(),
+            first.chapter,
+            suggestion.translation.clone(),
+        );
+        if state
+            .chapter
+            .as_ref()
+            .is_some_and(|c| c.is(&book, chapter, &translation))
+        {
+            return;
+        }
+        let weak = Arc::downgrade(&self.inner);
+        tokio::spawn(async move {
+            let Some(inner) = weak.upgrade() else { return };
+            let scripture = inner.services.scripture.clone();
+            match chapter_verses(scripture.as_ref(), &book, chapter, translation.clone()).await {
+                Ok(verses) if !verses.is_empty() => {
+                    inner.state.lock().await.chapter = Some(ChapterText {
+                        book,
+                        chapter,
+                        translation,
+                        verses,
+                    });
+                }
+                Ok(_) => {}
+                Err(error) => tracing::warn!(book, chapter, error, "chapter prefetch failed"),
+            }
+        });
+    }
+
+    /// The verse after the passage's last card, as a card of the passage,
+    /// when the reader went on into it.
+    fn read_on(state: &State, following: &Following, text: &str) -> Option<ScriptureSuggestion> {
+        let last = following
+            .cards
+            .iter()
+            .map(|c| c.passage_index.unwrap_or(0.0))
+            .fold(f64::NEG_INFINITY, f64::max);
+        let card = following
+            .cards
+            .iter()
+            .find(|c| c.passage_index.unwrap_or(0.0) == last)?;
+        let verse = card.verses.first()?;
+        let chapter = state
+            .chapter
+            .as_ref()
+            .filter(|c| c.is(&verse.book, verse.chapter, &card.translation))?;
+        let next = chapter
+            .verses
+            .iter()
+            .find(|v| v.verse == verse.verse + 1.0)?;
+        if !opening_heard(&next.text, text) {
+            return None;
+        }
+        Some(crate::suggestion::manual(
+            format!("follow-{}-{}", following.state.passage_id, last + 1.0),
+            format!(
+                "{} {}:{}",
+                next.book,
+                number_to_string(next.chapter),
+                number_to_string(next.verse)
+            ),
+            vec![next.clone()],
+            card.translation.clone(),
+            text.to_owned(),
+            Some(following.state.passage_id.clone()),
+            Some(last + 1.0),
+        ))
+    }
+
+    fn end_follow(&self, state: &mut State) {
+        Self::cancel_auto_clear(state);
+        if state.follow.take().is_some() {
+            self.publish_follow(state);
+        }
+    }
+
+    fn publish_follow(&self, state: &State) {
+        let _ = self
+            .inner
+            .follow_progress
+            .send(state.follow.as_ref().map(|f| FollowProgress {
+                passage_id: f.state.passage_id.clone(),
+                index: f.state.current_index,
+                read_to: f.state.read_to,
+                heard: f.state.heard_count,
+            }));
+    }
+
+    fn cancel_auto_clear(state: &mut State) {
+        if let Some((_, timer)) = state.auto_clear.take() {
+            timer.abort();
+        }
+    }
+
+    /// A reading moves the screen to the next verse of the passage on
+    /// screen (`advanceAutoFollowFromText`). Presenting is spawned, so the
+    /// transcript path never waits on a screen.
+    async fn advance_follow(&self, text: &str, final_text: bool) {
+        if kairo_domain::js::trim(text).is_empty() {
+            return;
+        }
+        let mut state = self.inner.state.lock().await;
+        let follow_along = state.cfg.as_ref().is_some_and(|c| c.follow_along);
+        let detector = state.detector.clone();
+        let Some(following) = state.follow.as_mut() else {
+            return;
+        };
+        let update =
+            update_passage_follow_strict(&following.state, text, &following.cards, final_text);
+        if final_text {
+            tracing::info!(
+                verse = following.state.current_index,
+                read_to = update.state.read_to,
+                heard = update.state.heard_count,
+                next = update.next_suggestion_id.as_deref(),
+                follow_along,
+                "follow-along heard a phrase"
+            );
+        }
+        let read = following.current().cloned();
+        let Some(next) = update.next_suggestion_id else {
+            following.state = update.state;
+            let through = passage_read_through(&following.state, &following.cards);
+            if through && let (Some(detector), Some(verse)) = (&detector, &read) {
+                detector.note_read(&verse.book, verse.chapter, verse.verse);
+            }
+            self.publish_follow(&state);
+            if !through {
+                return;
+            }
+            // Reading on past the detected verses (finished speech only).
+            let extra = state
+                .follow
+                .as_ref()
+                .filter(|_| final_text && follow_along)
+                .and_then(|f| Self::read_on(&state, f, text));
+            let Some(card) = extra else {
+                self.arm_auto_clear(&mut state);
+                return;
+            };
+            if let Some(following) = state.follow.as_mut() {
+                following.cards.push(card.clone());
+                following.state = PassageFollowState {
+                    current_index: card.passage_index.unwrap_or(0.0),
+                    read_to: Some(0.0),
+                    heard_count: Some(0.0),
+                    ..following.state.clone()
+                };
+            }
+            self.publish_follow(&state);
+            drop(state);
+            self.note_follow_step();
+            let this = self.clone();
+            tokio::spawn(async move { this.present_scripture(card, None).await });
+            return;
+        };
+        // Follow-along off: the operator moves the screen, so the reading
+        // stays on the verse that is showing.
+        if !follow_along {
+            return;
+        }
+        following.state = update.state;
+        let card = following.cards.iter().find(|c| c.id == next).cloned();
+        if let (Some(detector), Some(verse)) = (&detector, &read) {
+            detector.note_read(&verse.book, verse.chapter, verse.verse);
+        }
+        self.publish_follow(&state);
+        let Some(card) = card.filter(|c| c.suggestion_only != Some(true)) else {
+            return;
+        };
+        Self::cancel_auto(&mut state, &card.id);
+        state.take_pending(&card.id);
+        drop(state);
+        self.note_follow_step();
+        let this = self.clone();
+        tokio::spawn(async move { this.present_scripture(card, None).await });
+    }
+
+    /// Once the passage on screen has been read through, scripture clears
+    /// after the configured pause, unless something else goes live first.
+    fn arm_auto_clear(&self, state: &mut State) {
+        let Some(delay) = state
+            .cfg
+            .as_ref()
+            .filter(|c| c.auto_clear)
+            .map(|c| c.auto_clear_delay_sec)
+        else {
+            return;
+        };
+        let Some(following) = &state.follow else {
+            return;
+        };
+        let passage = following.state.passage_id.clone();
+        let index = following.state.current_index;
+        if state
+            .auto_clear
+            .as_ref()
+            .is_some_and(|(armed, _)| *armed == passage)
+        {
+            return;
+        }
+        let weak = Arc::downgrade(&self.inner);
+        let armed = passage.clone();
+        let timer = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs_f64(delay.max(0.0))).await;
+            let Some(inner) = weak.upgrade() else { return };
+            let this = Orchestrator { inner };
+            let verse = {
+                let mut state = this.inner.state.lock().await;
+                // Taken first: clearing ends the follow, which cancels this timer.
+                if state.auto_clear.take().is_none() {
+                    return;
+                }
+                let Some(verse) = state
+                    .follow
+                    .as_ref()
+                    .filter(|f| f.state.passage_id == armed && f.state.current_index == index)
+                    .and_then(Following::current)
+                    .cloned()
+                else {
+                    return;
+                };
+                verse
+            };
+            this.clear_scripture_if_live(&verse.book, verse.chapter, verse.verse)
+                .await;
+        });
+        state.auto_clear = Some((passage, timer));
     }
 
     /// Follow-along just moved the screen on by itself.
@@ -1429,7 +1831,11 @@ impl Orchestrator {
                 passage
             });
             detector.set_reading_passage(passage);
+            if let Some(first) = suggestion.verses.first() {
+                detector.note_shown(&first.book, first.chapter, first.verse);
+            }
         }
+        self.follow_presented(state, &suggestion);
         if let (Some(content), Some(first), Some(last)) = (
             &content,
             suggestion.verses.first(),
@@ -1476,6 +1882,8 @@ impl Orchestrator {
             .await;
         let mut state = self.inner.state.lock().await;
         self.record_dispatch_health(&mut state, &results);
+        // Lyrics replaced the verse: reading on must not bring it back.
+        self.end_follow(&mut state);
         if !results.iter().any(|r| r.ok) {
             tracing::warn!(reference, "lyric slide is live but no screen took it");
         }
@@ -1722,8 +2130,12 @@ impl Orchestrator {
     pub async fn clear_text(&self) -> bool {
         let _present = self.inner.present.lock().await;
         self.inner.services.program.clear_current();
-        if let Some(detector) = self.inner.state.lock().await.detector.clone() {
-            detector.set_reading_passage(None);
+        {
+            let mut state = self.inner.state.lock().await;
+            self.end_follow(&mut state);
+            if let Some(detector) = &state.detector {
+                detector.set_reading_passage(None);
+            }
         }
         let engine = &self.inner.services.engine;
         let surfaces = engine.all_surfaces();

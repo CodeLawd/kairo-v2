@@ -14,8 +14,8 @@ use kairo_domain::scripture::plan::SermonPlanIndex;
 use kairo_domain::transcript::{InterimResult, TranscriptResult};
 use kairo_scripture::citation::ExplicitCitation;
 use kairo_scripture::live_detector::{
-    CitationEmission, LiveCitationDetector, LocalEvidence, ScriptureResolver, TranscriptEvent,
-    TranscriptKind,
+    CitationEmission, LiveCitationDetector, LocalEvidence, ReadingKind, ScriptureResolver,
+    TranscriptEvent, TranscriptKind,
 };
 use kairo_scripture::model_detector::{
     DetectionType, ManagedDetectorTransport, ManagedModelDetector, ModelConfig, ModelError,
@@ -69,7 +69,7 @@ impl ScriptureReference {
             resolver: Some(e.resolver),
             superseded: e.superseded,
             suggestion_only: false,
-            ambiguous: false,
+            ambiguous: e.ambiguous,
             provisional: false,
             quote_evidence: None,
             translations: e.translations.clone(),
@@ -105,14 +105,15 @@ pub fn can_auto_present(reference: &ScriptureReference) -> bool {
         )
 }
 
-/// A reference spoken in full ("John 3:16") and read by the local parser.
-/// It goes live at once: the safety delay is for quotes, paraphrases and
-/// guesses, where the operator may need to step in.
+/// A reference spoken in full ("John 3:16") and read by the local parser, or
+/// a verse placed in a remembered reading. It goes live at once: the safety
+/// delay is for quotes, paraphrases, guesses and resumes two readings fit,
+/// where the operator may need to step in.
 pub fn presents_at_once(reference: &ScriptureReference) -> bool {
     reference.detection_type == DetectionType::Explicit
         && reference
             .resolver
-            .is_none_or(|r| r == ScriptureResolver::Explicit)
+            .is_none_or(|r| matches!(r, ScriptureResolver::Explicit | ScriptureResolver::Reading))
         && !reference.ambiguous
         && !reference.provisional
 }
@@ -152,6 +153,12 @@ pub trait Detector: Send + Sync {
     /// Lets the next mention of this verse through the dedup again.
     fn release(&self, book: &str, chapter: f64, verse_start: f64);
     fn set_reading_passage(&self, passage: Option<ReadingPassage>);
+    /// This verse went on screen: the reading it belongs to has got here.
+    fn note_shown(&self, book: &str, chapter: f64, verse: f64);
+    /// Follow-along heard this verse read to its end.
+    fn note_read(&self, book: &str, chapter: f64, verse: f64);
+    /// Where the main reading paused, while an aside is the newest reading.
+    fn paused_reading(&self) -> Option<(String, f64, f64)>;
     fn is_general_quote_current(&self, reference: &ScriptureReference) -> bool;
     fn set_fallback_mode(&self, on: bool);
     fn subscribe(&self) -> broadcast::Receiver<DetectorEvent>;
@@ -520,6 +527,41 @@ impl Detector for LiveDetector {
         });
         self.lock().live.set_reading_passage(citation, now);
         self.wake.notify_one();
+    }
+
+    fn note_shown(&self, book: &str, chapter: f64, verse: f64) {
+        let Some(book) = canonical_book(book) else {
+            return;
+        };
+        let now = self.now();
+        self.lock().live.note_shown(
+            &ExplicitCitation {
+                book,
+                chapter,
+                verse_start: verse,
+                verse_end: None,
+                source_text: String::new(),
+            },
+            now,
+        );
+    }
+
+    fn note_read(&self, book: &str, chapter: f64, verse: f64) {
+        let Some(book) = canonical_book(book) else {
+            return;
+        };
+        let now = self.now();
+        self.lock().live.note_read(book, chapter, verse, now);
+    }
+
+    fn paused_reading(&self) -> Option<(String, f64, f64)> {
+        let state = self.lock();
+        let memory = state.live.memory();
+        if memory.newest()?.kind != ReadingKind::Aside {
+            return None;
+        }
+        let main = memory.newest_main()?;
+        Some((main.book.to_owned(), main.chapter, main.resume_verse()))
     }
 
     /// General-corpus quotes are not produced by this composition, so any

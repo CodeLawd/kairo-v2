@@ -146,6 +146,14 @@ pub struct OrchestratorConfig {
     /// Detected passages (ranges) auto-present their first verse too.
     #[serde(default)]
     pub auto_present_passages: bool,
+    /// The screen moves on as a passage is read aloud.
+    #[serde(default)]
+    pub follow_along: bool,
+    /// Scripture clears once its passage has been read through.
+    #[serde(default)]
+    pub auto_clear: bool,
+    #[serde(default)]
+    pub auto_clear_delay_sec: f64,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -28,15 +28,16 @@ use kairo_domain::program::{PresentationSettings, ProgramState};
 use kairo_domain::scripture::live_progress::{
     DEFAULT_VISIBLE_GROUP_COUNT, PassageFollowState, ScriptureSuggestionGroup,
     group_scripture_suggestions, merge_scripture_suggestion, navigate_operator_suggestion_id,
-    partition_operator_suggestion_groups, passage_read_through, update_passage_follow_strict,
+    partition_operator_suggestion_groups,
 };
 use kairo_domain::scripture::query::{
     Direction, expand_scripture_result, get_adjacent_verse_queries,
 };
 use kairo_domain::scripture::small::{single_verse_suggestion, split_verse_suggestions};
 use kairo_domain::scripture::{
-    LivePlanState, PendingAutoPresent, PlanMatch, ScriptureResult, ScriptureSuggestion,
-    ScriptureTranslationOption, SermonPlan, SermonScriptureItem, SuggestionSource,
+    FollowProgress, LivePlanState, PendingAutoPresent, PlanMatch, ScriptureResult,
+    ScriptureSuggestion, ScriptureTranslationOption, SermonPlan, SermonScriptureItem,
+    SuggestionSource,
 };
 use kairo_domain::services::{ServiceCommand, ServiceRecord, ServiceSnapshot, ServiceStatus};
 use kairo_domain::settings::{ScriptureAutomation, ShortcutBindings, ShortcutCommand};
@@ -166,7 +167,6 @@ pub struct Booth {
     pub(crate) adjacent_loading: Option<String>,
     pub(crate) retranslating: Option<String>,
     pub(crate) translations: Vec<ScriptureTranslationOption>,
-    sent: HashSet<String>,
     pub(crate) follow: Option<PassageFollowState>,
     pub(crate) pending_auto: Vec<PendingAutoPresent>,
     auto_tasks: HashMap<String, Task<()>>,
@@ -188,8 +188,6 @@ pub struct Booth {
     pub(crate) default_translation: String,
     pub(crate) shortcuts: ShortcutBindings,
     pub(crate) automation: ScriptureAutomation,
-    /// The passage whose auto-clear is counting down, and its timer.
-    auto_clear: Option<(String, Task<()>)>,
     // Program panels.
     pub(crate) program: ProgramState,
     pub(crate) presentation: PresentationSettings,
@@ -233,7 +231,6 @@ impl Booth {
             adjacent_loading: None,
             retranslating: None,
             translations: snapshot.translations,
-            sent: HashSet::new(),
             follow: None,
             pending_auto: Vec::new(),
             auto_tasks: HashMap::new(),
@@ -251,7 +248,6 @@ impl Booth {
             default_translation: snapshot.default_translation,
             shortcuts: snapshot.shortcuts,
             automation: snapshot.automation,
-            auto_clear: None,
             program: ProgramState::default(),
             presentation: snapshot.presentation.unwrap_or_default(),
             devices: snapshot.devices,
@@ -528,15 +524,15 @@ impl Booth {
 
     pub(crate) fn apply(&mut self, feed: BoothFeed, at: Instant, cx: &mut Context<Self>) {
         match feed {
-            BoothFeed::Transcript(result) => self.on_transcript(result, cx),
+            BoothFeed::Transcript(result) => self.on_transcript(result),
             BoothFeed::Interim(text) => {
                 if self.service_open() {
                     self.interim = text.clone();
-                    self.advance_follow(&text, false, cx);
                 }
             }
             BoothFeed::Suggestion(suggestion) => self.on_suggestion(suggestion, at),
             BoothFeed::PendingAuto(pending) => self.on_pending_auto(pending, cx),
+            BoothFeed::Follow(progress) => self.on_follow(progress),
             BoothFeed::Status(status) => self.on_status(status),
             BoothFeed::Resilience(status) => self.resilience = Some(status),
             BoothFeed::Services(snapshot) => self.set_services(snapshot),
@@ -637,11 +633,10 @@ impl Booth {
         self.selected = None;
         self.pending_auto.clear();
         self.auto_tasks.clear();
-        self.sent.clear();
         self.follow = None;
     }
 
-    fn on_transcript(&mut self, result: TranscriptResult, cx: &mut Context<Self>) {
+    fn on_transcript(&mut self, result: TranscriptResult) {
         // The live feed shows only while a service is open; pausing is separate.
         if !self.service_open() {
             return;
@@ -652,7 +647,6 @@ impl Booth {
             self.segments.drain(..extra);
         }
         self.interim.clear();
-        self.advance_follow(&result.text, true, cx);
     }
 
     fn on_status(&mut self, status: OrchestratorStatus) {
@@ -774,25 +768,8 @@ impl Booth {
         self.auto_tasks.remove(id);
         if let Some(sug) = self.suggestions.iter().find(|s| s.id == id).cloned() {
             self.go_live(&sug.reference, &joined(&sug));
-            self.sent.insert(sug.id.clone());
-            self.start_follow(&sug);
         }
         self.pending_auto.retain(|p| p.suggestion_id != id);
-    }
-
-    /// Follows the reading of what just went live. A single verse is followed
-    /// too, so auto-clear can tell when it has been read.
-    fn start_follow(&mut self, sug: &ScriptureSuggestion) {
-        self.auto_clear = None;
-        if let Some(passage) = &sug.passage_id {
-            self.follow = Some(PassageFollowState {
-                passage_id: passage.clone(),
-                current_index: sug.passage_index.unwrap_or(0.0),
-                matched_token_indexes: Vec::new(),
-                read_to: None,
-                heard_count: None,
-            });
-        }
     }
 
     fn go_live(&mut self, reference: &str, text: &str) {
@@ -801,157 +778,44 @@ impl Booth {
 
     // ─── Follow along ───────────────────────────────────────────────────────
 
-    /// `advanceAutoFollowFromText`: a reading moves the screen to the next verse.
-    fn advance_follow(&mut self, text: &str, final_text: bool, cx: &mut Context<Self>) {
-        let Some(current) = self.follow.clone() else {
+    /// The core follows the reading; the card it moved to is picked here
+    /// too, unless the operator picked another passage.
+    fn on_follow(&mut self, progress: Option<FollowProgress>) {
+        let Some(progress) = progress else {
+            self.follow = None;
             return;
         };
-        if text.trim().is_empty() {
-            return;
-        }
-        let update = update_passage_follow_strict(&current, text, &self.suggestions, final_text);
-        if final_text {
-            tracing::info!(
-                verse = current.current_index,
-                read_to = update.state.read_to,
-                heard = update.state.heard_count,
-                next = update.next_suggestion_id.as_deref(),
-                follow_along = self.automation.follow_along,
-                "follow-along heard a phrase"
-            );
-        }
-        let Some(next) = update.next_suggestion_id else {
-            self.follow = Some(update.state);
-            self.arm_auto_clear(cx);
-            return;
-        };
-        // Follow-along off: the operator moves the screen, so the reading
-        // stays on the verse that is showing.
-        if !self.automation.follow_along {
-            return;
-        }
-        self.follow = Some(update.state);
-        if self.sent.contains(&next) {
-            return;
-        }
-        let Some(candidate) = self.suggestions.iter().find(|s| s.id == next).cloned() else {
-            return;
-        };
-        if candidate.suggestion_only == Some(true) {
-            return;
-        }
-        self.sent.insert(candidate.id.clone());
-        // The card shows the picked verse; follow the screen.
-        let picked_passage = self
-            .selected
-            .as_ref()
-            .and_then(|id| self.suggestions.iter().find(|s| &s.id == id))
-            .map(|s| s.passage_id.clone());
-        if picked_passage.is_none() || picked_passage == Some(candidate.passage_id.clone()) {
-            self.selected = Some(candidate.id.clone());
-        }
-        self.go_live(&candidate.reference, &joined(&candidate));
-        let id = candidate.id.clone();
-        self.call(
-            BoothCall::Register(candidate),
-            cx,
-            move |this, result, cx| match result {
-                Ok(_) => this.call(
-                    BoothCall::Approve(id.clone()),
-                    cx,
-                    move |this, result, cx| {
-                        if result.is_ok() {
-                            this.fire(BoothCall::FollowStepped, cx);
-                        }
-                        if let Err(error) = result {
-                            tracing::error!(%error, "[Operator] follow-along present failed");
-                            this.follow = Some(current);
-                            this.sent.remove(&id);
-                        }
-                    },
-                ),
-                Err(error) => {
-                    tracing::error!(%error, "[Operator] follow-along register failed");
-                    this.follow = Some(current);
-                    this.sent.remove(&id);
-                }
-            },
-        );
-    }
-
-    /// Once the passage on screen has been read through, scripture clears
-    /// after the configured pause, unless something else goes live first.
-    fn arm_auto_clear(&mut self, cx: &mut Context<Self>) {
-        if !self.automation.auto_clear {
-            return;
-        }
-        let Some(follow) = self.follow.clone() else {
-            return;
-        };
-        if self
-            .auto_clear
-            .as_ref()
-            .is_some_and(|(passage, _)| *passage == follow.passage_id)
-            || !passage_read_through(&follow, &self.suggestions)
-        {
-            return;
-        }
-        let delay = Duration::from_secs_f64(self.automation.auto_clear_delay_sec.max(0.0));
-        let passage = follow.passage_id.clone();
-        let task = cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(delay).await;
-            let _ = this.update(cx, |this, cx| this.fire_auto_clear(&passage, cx));
+        let moved = self.follow.as_ref().is_none_or(|f| {
+            f.passage_id != progress.passage_id || f.current_index != progress.index
         });
-        self.auto_clear = Some((follow.passage_id, task));
-    }
-
-    fn fire_auto_clear(&mut self, passage: &str, cx: &mut Context<Self>) {
-        let Some((armed, _)) = self.auto_clear.take() else {
-            return;
-        };
-        let Some(follow) = self.follow.clone() else {
-            return;
-        };
-        if armed != passage || follow.passage_id != passage || !self.automation.auto_clear {
-            return;
-        }
-        let Some(verse) = self
-            .suggestions
-            .iter()
-            .find(|s| {
-                s.passage_id.as_deref() == Some(passage)
-                    && s.passage_index.unwrap_or(0.0) == follow.current_index
+        if moved
+            && let Some(card) = self.suggestions.iter().find(|s| {
+                s.passage_id.as_deref() == Some(progress.passage_id.as_str())
+                    && s.passage_index.unwrap_or(0.0) == progress.index
             })
-            .and_then(|s| s.verses.first().cloned())
-        else {
-            return;
-        };
-        self.call(
-            BoothCall::ClearScriptureIfLive {
-                book: verse.book,
-                chapter: verse.chapter,
-                verse: verse.verse,
-            },
-            cx,
-            |this, result, cx| match result {
-                Ok(BoothAnswer::Cleared(true)) => {
-                    this.projection = None;
-                    this.follow = None;
-                    cx.notify();
-                }
-                Ok(_) => {}
-                Err(error) => tracing::error!(%error, "[Operator] auto-clear failed"),
-            },
-        );
+        {
+            let picked_passage = self
+                .selected
+                .as_ref()
+                .and_then(|id| self.suggestions.iter().find(|s| &s.id == id))
+                .map(|s| s.passage_id.clone());
+            if picked_passage.is_none() || picked_passage == Some(card.passage_id.clone()) {
+                self.selected = Some(card.id.clone());
+            }
+        }
+        self.follow = Some(PassageFollowState {
+            passage_id: progress.passage_id,
+            current_index: progress.index,
+            matched_token_indexes: Vec::new(),
+            read_to: progress.read_to,
+            heard_count: progress.heard,
+        });
     }
 
     /// Saves the automation options and applies them to the running service.
     pub fn set_automation(&mut self, automation: ScriptureAutomation, cx: &mut Context<Self>) {
         let before = self.automation;
         self.automation = automation;
-        if !automation.auto_clear {
-            self.auto_clear = None;
-        }
         if before.auto_mode != automation.auto_mode {
             self.auto_mode = automation.auto_mode;
         }
@@ -976,10 +840,8 @@ impl Booth {
     pub fn approve(&mut self, id: &str, cx: &mut Context<Self>) {
         self.selected = Some(id.to_owned());
         if let Some(sug) = self.suggestions.iter().find(|s| s.id == id).cloned() {
-            self.start_follow(&sug);
             self.go_live(&sug.reference, &joined(&sug));
         }
-        self.sent.insert(id.to_owned());
         let id = id.to_owned();
         self.call(
             BoothCall::Approve(id.clone()),
@@ -1435,16 +1297,6 @@ impl Booth {
                         for slide in slides {
                             this.insert_suggestion(slide);
                         }
-                        this.sent.insert(first.id.clone());
-                        if let Some(passage) = first.passage_id.clone() {
-                            this.follow = Some(PassageFollowState {
-                                passage_id: passage,
-                                current_index: 0.0,
-                                matched_token_indexes: Vec::new(),
-                                read_to: None,
-                                heard_count: None,
-                            });
-                        }
                         let text = first
                             .verses
                             .first()
@@ -1459,7 +1311,6 @@ impl Booth {
 
     /// `handleClearText`.
     pub fn clear_text(&mut self, cx: &mut Context<Self>) {
-        self.auto_clear = None;
         self.call(BoothCall::ClearText, cx, |this, result, _| {
             if let Err(error) = result {
                 tracing::error!(%error, "[Operator] clear failed");

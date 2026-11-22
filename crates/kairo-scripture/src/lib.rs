@@ -23,6 +23,7 @@ pub mod model_detector;
 pub mod pack;
 pub mod quote;
 pub mod quote_recovery;
+pub mod reading_memory;
 pub mod reference;
 pub mod scripture_signal;
 pub mod sermon_notes;

@@ -51,6 +51,7 @@ fn work(text: &str) -> ModelWork {
         transcript: UnresolvedTranscript {
             text: text.into(),
             received_at_ms: 500,
+            resume: false,
         },
         generation: 0,
     }

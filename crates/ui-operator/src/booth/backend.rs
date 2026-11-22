@@ -11,8 +11,8 @@ use std::sync::Arc;
 use kairo_domain::{
     program::{PresentationSettings, ProgramState},
     scripture::{
-        LivePlanState, PendingAutoPresent, ScriptureResult, ScriptureRowTranslation,
-        ScriptureSuggestion, ScriptureTranslationOption, SermonPlan,
+        FollowProgress, LivePlanState, PendingAutoPresent, ScriptureResult,
+        ScriptureRowTranslation, ScriptureSuggestion, ScriptureTranslationOption, SermonPlan,
     },
     services::{ServiceCommand, ServiceSnapshot},
     settings::{ScriptureAutomation, ShortcutBindings},
@@ -86,6 +86,8 @@ pub enum BoothFeed {
     Interim(String),
     Suggestion(ScriptureSuggestion),
     PendingAuto(PendingAutoPresent),
+    /// Where the core's follow-along has got; `None` once it stops.
+    Follow(Option<FollowProgress>),
     Status(OrchestratorStatus),
     Resilience(ResilienceStatus),
     Services(ServiceSnapshot),
@@ -136,17 +138,8 @@ pub enum BoothCall {
     Translations,
     /// `scripture.setAutoMode`.
     SetAutoMode(bool),
-    /// Follow-along moved the screen on: a spoken "next verse" right after
-    /// asks for that verse, not the one after.
-    FollowStepped,
     /// Saves every automation option and applies it to the running service.
     SetAutomation(ScriptureAutomation),
-    /// Auto-clear: takes scripture off the screens while this verse is live.
-    ClearScriptureIfLive {
-        book: String,
-        chapter: f64,
-        verse: f64,
-    },
     /// `orchestrator.start` with the configuration built from settings.
     StartListening {
         auto_mode: bool,
@@ -212,8 +205,6 @@ pub enum BoothAnswer {
     Picked(Option<String>),
     /// `RequestCameraAccess`: the video inputs, once access was granted.
     VideoInputs(Vec<String>),
-    /// `ClearScriptureIfLive`: whether the verse was still live and cleared.
-    Cleared(bool),
 }
 
 pub type Reply = Box<dyn FnOnce(Result<BoothAnswer, String>) + Send>;
