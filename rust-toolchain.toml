@@ -1,3 +1,5 @@
 [toolchain]
-channel = "stable"
+# Pinned so a new Rust release can't add lints that fail CI overnight.
+# Upgrade on purpose: change this, run the checks, commit.
+channel = "1.100.0"
 components = ["rustfmt", "clippy"]

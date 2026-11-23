@@ -71,7 +71,8 @@ jobs:
           echo "endpoints: $KAIRO_API_URL / $KAIRO_WEB_URL"
 
       - name: Select Rust toolchain
-        run: rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
+        shell: bash
+        run: packaging/ci/install-toolchain.sh --profile minimal --target x86_64-pc-windows-msvc
 
       - name: nasm
         # rav1d (AV1 pictures) assembles its x86-64 code with nasm. Build tool only.

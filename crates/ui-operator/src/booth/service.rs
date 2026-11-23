@@ -206,7 +206,8 @@ impl ServicePanel {
         });
         self.plan_id = active.notes.first().map(|n| n.id.clone());
         self.open = Some(Open::End);
-        self.frame("Save service", 448., 456., window, cx);
+        // Sized for the 14px body text; the buttons must stay inside the frame.
+        self.frame("Save service", 448., 496., window, cx);
         cx.notify();
     }
 
@@ -272,7 +273,7 @@ impl ServicePanel {
 
     pub fn ask_discard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.open = Some(Open::Discard);
-        self.frame("Discard this service?", 384., 216., window, cx);
+        self.frame("Discard this service?", 384., 236., window, cx);
         cx.notify();
     }
 

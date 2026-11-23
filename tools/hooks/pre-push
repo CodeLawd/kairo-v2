@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Runs CI's quick checks before anything reaches GitHub:
+#   1. cargo fmt --check, as CI runs it
+#   2. cargo clippy on the whole workspace with warnings as errors, as CI runs it
+#   3. the tests of every crate the pushed commits change
+# CI still runs everything on macOS, Linux and Windows; this catches the
+# failures that would otherwise turn a push red within minutes.
+#
+# Skip once:          git push --no-verify
+# Skip only tests:    KAIRO_PUSH_TESTS=0 git push
+# Install:            tools/install-hooks.sh
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+# Builds that read config need these; the checks make no requests.
+export KAIRO_API_URL="${KAIRO_API_URL:-https://api.kairo.invalid}"
+export KAIRO_WEB_URL="${KAIRO_WEB_URL:-https://web.kairo.invalid}"
+
+step() { printf '\n\033[1mpre-push: %s\033[0m\n' "$1"; }
+fail() { printf '\n\033[31mpre-push: %s\033[0m\n' "$1" >&2; exit 1; }
+
+# What is being pushed: each line is "<local ref> <local sha> <remote ref> <remote sha>".
+zero=0000000000000000000000000000000000000000
+changed=""
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+    [ "$local_sha" = "$zero" ] && continue # a branch deletion
+    if [ "$remote_sha" = "$zero" ]; then
+        base="$(git merge-base "$local_sha" origin/main 2>/dev/null || true)"
+    else
+        base="$remote_sha"
+    fi
+    if [ -n "$base" ]; then
+        changed="$changed $(git diff --name-only "$base" "$local_sha")"
+    fi
+done
+# Nothing new to push (for example only tags): nothing to check.
+[ -z "${changed// /}" ] && exit 0
+
+step "cargo fmt --all -- --check"
+cargo fmt --all -- --check || fail "formatting differs. Run: cargo fmt --all"
+
+step "cargo clippy --locked --workspace --all-targets -- -D warnings"
+cargo clippy --locked --workspace --all-targets -- -D warnings || fail "clippy found problems"
+
+if [ "${KAIRO_PUSH_TESTS:-1}" = "0" ]; then
+    step "tests skipped (KAIRO_PUSH_TESTS=0)"
+    exit 0
+fi
+
+# The workspace packages the pushed files belong to, by their nearest
+# Cargo.toml. Files outside the workspace (spikes, deleted crates) are skipped.
+members="$(cargo metadata --no-deps --format-version 1 --locked)"
+packages=""
+for path in $changed; do
+    dir="$(dirname "$path")"
+    while [ "$dir" != "." ] && [ ! -f "$dir/Cargo.toml" ]; do dir="$(dirname "$dir")"; done
+    [ "$dir" = "." ] && continue
+    grep -qF "\"manifest_path\":\"$PWD/$dir/Cargo.toml\"" <<<"$members" || continue
+    name="$(sed -n 's/^name *= *"\(.*\)"/\1/p' "$dir/Cargo.toml" | head -n 1)"
+    [ -n "$name" ] && packages="$packages $name"
+done
+packages="$(printf '%s\n' $packages | sort -u | tr '\n' ' ')"
+
+if [ -z "${packages// /}" ]; then
+    step "no Rust packages changed: tests skipped"
+    exit 0
+fi
+step "cargo test for:$packages"
+args=()
+for p in $packages; do args+=(-p "$p"); done
+cargo test --locked "${args[@]}" || fail "tests failed in:$packages"

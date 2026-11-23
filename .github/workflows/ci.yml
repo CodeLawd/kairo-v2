@@ -147,7 +147,8 @@ jobs:
           Join-Path $dir 'bin' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Select workspace Rust toolchain
-        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+        shell: bash
+        run: packaging/ci/install-toolchain.sh --profile minimal --component rustfmt --component clippy
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -206,7 +207,8 @@ jobs:
           echo "HOMEBREW_NO_AUTO_UPDATE=1" >> "$GITHUB_ENV"
 
       - name: Select workspace Rust toolchain
-        run: rustup toolchain install stable --profile minimal
+        shell: bash
+        run: packaging/ci/install-toolchain.sh --profile minimal
 
       - name: Restore Cargo downloads
         if: runner.environment == 'github-hosted'
@@ -222,4 +224,8 @@ jobs:
       - name: Slide raster, scripture search and detector budgets
         env:
           KAIRO_PERF_HOSTED: ${{ runner.environment == 'github-hosted' && '1' || '0' }}
-        run: cargo test --release --locked -p kairo-scene -p kairo-scripture --test perf_budgets -- --nocapture
+        # Timings vary on shared runners: a miss is retried once before it fails.
+        shell: bash
+        run: |
+          budgets() { cargo test --release --locked -p kairo-scene -p kairo-scripture --test perf_budgets -- --nocapture; }
+          budgets || { echo "::warning::a performance budget was missed; retrying once"; budgets; }
