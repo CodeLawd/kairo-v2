@@ -4,3 +4,12 @@
 .wrangler/
 packaging/windows/node_modules/
 packaging/linux/node_modules/
+
+# Local working notes, prototypes and agent tooling: kept on disk, not published
+/native-migration/
+/spikes/
+/plans/
+/docs/
+/.agents/
+/.claude/
+/skills-lock.json

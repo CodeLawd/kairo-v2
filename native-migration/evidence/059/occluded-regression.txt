@@ -1,4 +1,0 @@
-
-thread 'main' (1111119) panicked at apps/kairo-engine/examples/verify_web.rs:222:25:
-fully covered web source must keep requestAnimationFrame advancing
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

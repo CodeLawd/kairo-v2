@@ -1,6 +1,0 @@
-open to first frame: 438.72 ms
-window active at end: true
-gpui draw: n=600 p50=2.70 p99=5.13 max=9.18
-gpui present interval: n=241 p50=33.23 p99=36.54 max=37.03 over16=241
-on_next_frame interval: n=599 p50=33.33 p95=33.45 p99=33.51 max=87.68 over8.4=599 over16=599
-thumbnail cache: 400

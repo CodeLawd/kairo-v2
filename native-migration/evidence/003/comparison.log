@@ -1,2 +1,0 @@
-parley: exact=479/480 fit=200/200 ssim_mean=0.98627 ssim_worst=0.81611 occupied_mean=0.87788 occupied_worst=0.47964 raster_median_ms=5.154 raster_p95_ms=25.282 total_p95_ms=26.009
-cosmic-text: exact=479/480 fit=200/200 ssim_mean=0.98603 ssim_worst=0.80003 occupied_mean=0.88565 occupied_worst=0.44229 raster_median_ms=5.157 raster_p95_ms=25.437 total_p95_ms=26.649

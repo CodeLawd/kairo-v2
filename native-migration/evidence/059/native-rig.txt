@@ -1,1 +1,0 @@
-PASS: one browser/two GPU outputs; framing bypass; direct click/text/scroll; camera+mic denial; blocked subframe top navigation; teardown/reopen/reload; URL adoption/return-to-original; replacement at capacity; malformed IPC ignored

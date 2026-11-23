@@ -1,9 +1,0 @@
-[controller] engine pid 94817
-[controller] sample t=0s controller[10608 0:00.01] footprint=3.3MB engine[] load={ 12.20 16.44 13.65 }
-[controller] displays: [DisplayInfo { id: 1, label: "Monitor #41038", bounds: Rect { x: 0, y: 0, width: 3600, height: 2338 }, scale_factor: 2.0 }]
-[engine     0.298s] output output-0 on Monitor #41038
-[controller] engine ready at 0.304s
-[controller] Report("rehearsal=false policy_accessory=true app_active=false isKey=false canBecomeKey=false level=1000 frame=(0,0,1800,1169) visible=true")
-[controller] frontmost_is_controller=true
-[controller] frontmost_is_controller=true
-[controller] done
