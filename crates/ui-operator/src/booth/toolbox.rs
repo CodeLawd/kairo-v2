@@ -1556,7 +1556,7 @@ impl MessagesPanel {
                         div()
                             .text_size(text::XS.size)
                             .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(k.white)
+                            .text_color(k.text_primary)
                             .child("Message style"),
                     )
                     .child(

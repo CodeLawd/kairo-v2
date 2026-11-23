@@ -5,7 +5,7 @@
 use super::js_text::{DOT, WS, collapse_ws, is_ws, re, trim};
 use super::{DuplicateMatch, DuplicateReason, LyricsSong};
 use regex::Regex;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 use unicode_normalization::UnicodeNormalization;
 
@@ -133,6 +133,108 @@ pub fn find_duplicate(candidate: &LyricsSong, library: &[LyricsSong]) -> Option<
         .map(|song| describe(song, DuplicateReason::Lyrics))
 }
 
+struct DuplicateEntry {
+    id: String,
+    title: String,
+    artist: String,
+    fingerprint_len: usize,
+}
+
+impl DuplicateEntry {
+    fn describe(&self, reason: DuplicateReason) -> DuplicateMatch {
+        DuplicateMatch {
+            song_id: self.id.clone(),
+            title: self.title.clone(),
+            artist: self.artist.clone(),
+            reason,
+        }
+    }
+}
+
+/// Indexed equivalent of [`find_duplicate`] for bulk imports: `O(1)` for CCLI
+/// and title/artist lookups, and inverted-index lookup for lyric containment.
+#[derive(Default)]
+pub struct DuplicateIndex {
+    entries: Vec<DuplicateEntry>,
+    by_ccli: HashMap<String, usize>,
+    by_key: HashMap<String, usize>,
+    by_line: HashMap<String, Vec<usize>>,
+}
+
+impl DuplicateIndex {
+    pub fn new(library: &[LyricsSong]) -> Self {
+        let mut index = Self::default();
+        for song in library {
+            index.insert(song);
+        }
+        index
+    }
+
+    pub fn insert(&mut self, song: &LyricsSong) {
+        let idx = self.entries.len();
+        let ccli = song.ccli_number.as_deref().map(trim).unwrap_or("");
+        if !ccli.is_empty() {
+            self.by_ccli.entry(ccli.to_owned()).or_insert(idx);
+        }
+        let key = song_key(&song.title, &song.artist);
+        self.by_key.entry(key).or_insert(idx);
+
+        let fingerprint = lyric_fingerprint(song);
+        let fingerprint_len = fingerprint.len();
+        if fingerprint_len >= MIN_LINES_FOR_LYRIC_MATCH {
+            for line in fingerprint {
+                self.by_line.entry(line).or_default().push(idx);
+            }
+        }
+        self.entries.push(DuplicateEntry {
+            id: song.id.clone(),
+            title: song.title.clone(),
+            artist: song.artist.clone(),
+            fingerprint_len,
+        });
+    }
+
+    pub fn find(&self, candidate: &LyricsSong) -> Option<DuplicateMatch> {
+        let ccli = candidate.ccli_number.as_deref().map(trim).unwrap_or("");
+        if !ccli.is_empty()
+            && let Some(&idx) = self.by_ccli.get(ccli)
+        {
+            return Some(self.entries[idx].describe(DuplicateReason::Ccli));
+        }
+
+        let bare_title = canonical(&candidate.title);
+        if !bare_title.is_empty() && !PLACEHOLDER_TITLE.is_match(&bare_title) {
+            let key = song_key(&candidate.title, &candidate.artist);
+            if let Some(&idx) = self.by_key.get(&key) {
+                return Some(self.entries[idx].describe(DuplicateReason::TitleArtist));
+            }
+        }
+
+        let fingerprint = lyric_fingerprint(candidate);
+        if fingerprint.len() < MIN_LINES_FOR_LYRIC_MATCH {
+            return None;
+        }
+        let mut shared: HashMap<usize, usize> = HashMap::new();
+        for line in &fingerprint {
+            if let Some(indices) = self.by_line.get(line) {
+                for &idx in indices {
+                    *shared.entry(idx).or_insert(0) += 1;
+                }
+            }
+        }
+        shared
+            .into_iter()
+            .filter(|&(idx, count)| {
+                let small = fingerprint.len().min(self.entries[idx].fingerprint_len);
+                small >= MIN_LINES_FOR_LYRIC_MATCH
+                    && (count as f64 / small as f64) >= LYRIC_MATCH_THRESHOLD
+            })
+            .map(|(idx, _)| idx)
+            .min()
+            .map(|idx| self.entries[idx].describe(DuplicateReason::Lyrics))
+    }
+}
+
 /// One line explaining a match, for the badge in the import list.
 pub fn describe_duplicate(found: &DuplicateMatch) -> String {
     let who = if found.artist.is_empty() {
@@ -146,5 +248,97 @@ pub fn describe_duplicate(found: &DuplicateMatch) -> String {
         DuplicateReason::Ccli => format!("Same CCLI number as \"{title}\"{who}"),
         DuplicateReason::TitleArtist => format!("Same title and artist as \"{title}\"{who}"),
         DuplicateReason::Lyrics => format!("Same lyrics as \"{title}\"{who}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lyrics::{LyricsSectionType, LyricsSongSection, LyricsSource};
+
+    fn song(id: &str, title: &str, artist: &str, ccli: Option<&str>, lines: &[&str]) -> LyricsSong {
+        LyricsSong {
+            id: id.into(),
+            title: title.into(),
+            artist: artist.into(),
+            copyright: None,
+            ccli_number: ccli.map(str::to_owned),
+            is_favorite: None,
+            source: Some(LyricsSource::Text),
+            sections: vec![LyricsSongSection {
+                kind: LyricsSectionType::Verse,
+                label: "Verse 1".into(),
+                lines: lines.iter().map(|s| (*s).to_owned()).collect(),
+                line_colors: None,
+                hotkey: None,
+                extra: Default::default(),
+            }],
+            created_at: 0.0,
+            updated_at: 0.0,
+            extra: Default::default(),
+        }
+    }
+
+    #[test]
+    fn duplicate_index_matches_find_duplicate() {
+        let lib = vec![
+            song(
+                "1",
+                "Way Maker",
+                "Sinach",
+                Some("7115744"),
+                &[
+                    "You are here moving in our midst",
+                    "I worship You I worship You",
+                    "You are here working in this place",
+                    "I worship You I worship You today",
+                ],
+            ),
+            song(
+                "2",
+                "Amazing Grace",
+                "John Newton",
+                None,
+                &[
+                    "Amazing grace how sweet the sound",
+                    "That saved a wretch like me",
+                    "I once was lost but now am found",
+                    "Was blind but now I see",
+                ],
+            ),
+        ];
+        let index = DuplicateIndex::new(&lib);
+        let cases = [
+            song("c1", "Different", "Other", Some("7115744"), &["x"]),
+            song(
+                "c2",
+                "Amazing Grace (Live)",
+                "John Newton feat. Choir",
+                None,
+                &["x"],
+            ),
+            song(
+                "c3",
+                "Untitled",
+                "",
+                None,
+                &[
+                    "Amazing grace how sweet the sound",
+                    "That saved a wretch like me",
+                    "I once was lost but now am found",
+                    "Was blind but now I see",
+                ],
+            ),
+            song(
+                "c4",
+                "Brand New Song",
+                "Nobody",
+                None,
+                &["Line one", "Line two"],
+            ),
+        ];
+        for cand in &cases {
+            assert_eq!(index.find(cand), find_duplicate(cand, &lib));
+        }
     }
 }

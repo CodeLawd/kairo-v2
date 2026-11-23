@@ -16,7 +16,7 @@ use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::components::{
     MovableDialog, MovableDialogEvent, TrafficLights, confirm, messages,
 };
-use kairo_ui_kit::tokens::{TextStep, radius, text};
+use kairo_ui_kit::tokens::{Appearance, TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 use serde_json::json;
 use std::{collections::VecDeque, sync::Arc, time::Instant};
@@ -601,25 +601,27 @@ impl ScreensWindow {
     }
     fn sidebar(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
+        let dark = k.appearance == Appearance::Dark;
+        let selected_rim = if dark {
+            k.white.opacity(0.16)
+        } else {
+            gpui_kit::black().opacity(0.10)
+        };
+        let sheen_top = if dark {
+            k.white.opacity(0.08)
+        } else {
+            k.white.opacity(0.45)
+        };
         let entity = cx.entity();
         let snapshot = self.snapshot.clone();
-        let lights = self
-            .dialog
-            .update(cx, |d, cx| d.drag_handle("screens-sidebar-drag", cx))
-            .h(px(44.))
-            .px_4()
-            .py_4()
-            .child(
-                TrafficLights::new("screens-lights")
-                    .on_close(cx.listener(|_, _, _, cx| cx.emit(ScreensEvent::Close))),
-            );
         let mut groups = v_flex()
             .id("screens-nav")
             .test_support()
             .flex_1()
             .min_h_0()
             .overflow_y_scroll()
-            .gap_3();
+            .pt_1()
+            .gap_2();
         if let Some(snapshot) = snapshot {
             for stage in [false, true] {
                 let settings = &snapshot.settings;
@@ -759,14 +761,17 @@ impl ScreensWindow {
                     .items_center()
                     .gap_2()
                     .px_3()
-                    .h(px(40.))
-                    .bg(k.surface_tertiary)
+                    .pt(if stage { px(12.) } else { px(8.) })
+                    .pb_1p5()
+                    .when(stage, |el| {
+                        el.border_t_1().border_color(k.panel_border.opacity(0.6))
+                    })
                     .when(!rows.is_empty(), |el| el.child(toggle))
                     .child(
                         div()
                             .flex_1()
                             .min_w_0()
-                            .text_size(px(14.))
+                            .text_size(text::SM.size)
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(k.text_primary)
                             .child(if stage { "Stage" } else { "Audience" }),
@@ -823,21 +828,42 @@ impl ScreensWindow {
                         model::Tone::Warn => k.text(TextStep::T400),
                         model::Tone::Off => k.text(TextStep::T600),
                     };
-                    let hover = k.surface_tertiary;
+                    let hover = k.surface_tertiary.opacity(0.65);
                     let row = h_flex()
                         .id(SharedString::from(format!("screens-row-{key}")))
                         .test_support()
                         .role(Role::Button)
                         .aria_label(SharedString::from(format!("{name}: {detail}, {status}")))
+                        .relative()
+                        .overflow_hidden()
                         .w_full()
                         .items_center()
                         .gap_2()
                         .rounded_lg()
+                        .border_1()
                         .px(px(10.))
-                        .py(px(6.))
+                        .py(px(7.))
                         .cursor_pointer()
-                        .when(selected, |el| el.bg(k.surface_elevated))
-                        .when(!selected, |el| el.hover(move |s| s.bg(hover)))
+                        .when(selected, |el| {
+                            el.bg(k.surface_tertiary)
+                                .border_color(selected_rim)
+                                .shadow_sm()
+                                .child(
+                                    div()
+                                        .absolute()
+                                        .inset_0()
+                                        .rounded_lg()
+                                        .bg(linear_gradient(
+                                            180.,
+                                            linear_color_stop(sheen_top, 0.0),
+                                            linear_color_stop(k.white.opacity(0.0), 0.55),
+                                        )),
+                                )
+                        })
+                        .when(!selected, |el| {
+                            el.border_color(transparent_black())
+                                .hover(move |s| s.bg(hover))
+                        })
                         .on_click(move |_, w, cx| {
                             e.update(cx, |t, cx| t.select(target.clone(), w, cx))
                         })
@@ -896,13 +922,12 @@ impl ScreensWindow {
             }
         }
         v_flex()
-            .w(px(232.))
+            .w(px(236.))
             .flex_shrink_0()
             .h_full()
-            .bg(k.glass_panel())
+            .bg(k.surface_rail)
             .border_r_1()
             .border_color(k.panel_border)
-            .child(lights)
             .child(groups)
             // `SidebarFooter`: two plain left-aligned rows, then the test buttons.
             .child({
@@ -1119,11 +1144,17 @@ impl ScreensWindow {
             String::new()
         };
         let k = *cx.kairo();
+        let dark = k.appearance == Appearance::Dark;
+        let glass_rim = if dark {
+            k.white.opacity(0.14)
+        } else {
+            gpui_kit::black().opacity(0.09)
+        };
         let header = self
             .dialog
             .update(cx, |d, cx| d.drag_handle("screens-header", cx))
             .px_6()
-            .py_4()
+            .py_3p5()
             .border_b_1()
             .border_color(k.panel_border)
             .child(
@@ -1133,11 +1164,11 @@ impl ScreensWindow {
                     // Name and status only (af978c5): screens are removed
                     // from the list, not from the detail header.
                     .child(
-                        div().flex_1().child(
+                        div().flex_1().ml(px(-10.)).child(
                             Input::new(&self.name)
                                 .kairo_size()
                                 .appearance(false)
-                                .text_size(px(17.))
+                                .text_size(text::LG.size)
                                 .aria_label("Name"),
                         ),
                     ),
@@ -1178,21 +1209,34 @@ impl ScreensWindow {
             let sending = o.enabled && snapshot.devices.outputs.get(&o.id).is_some_and(|s| s.ready);
             Some(
                 div()
-                    .h(px(185.))
+                    .h(px(190.))
                     .flex()
                     .items_center()
                     .justify_center()
                     .bg(k.surface_stage)
+                    .border_b_1()
+                    .border_color(k.panel_border)
                     .child(
                         div()
-                            .w(px(240.))
-                            .h(px(135.))
-                            .rounded(radius::md())
-                            .bg(k.surface_display)
-                            .border_2()
-                            .border_color(if sending { k.live } else { k.surface_display })
-                            .p_3()
-                            .text_size(text::SM.size)
+                            .w(px(260.))
+                            .h(px(146.))
+                            .rounded(px(4.))
+                            .bg(k.surface_display.opacity(0.85))
+                            .border_1()
+                            .border_color(if sending {
+                                k.live
+                            } else if dark {
+                                k.white.opacity(0.32)
+                            } else {
+                                gpui_kit::black().opacity(0.25)
+                            })
+                            .shadow_md()
+                            .px_3()
+                            .py_2()
+                            .text_center()
+                            .text_size(text::XS.size)
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(k.text_primary)
                             .child(port.map(|p| p.port_name.clone()).unwrap_or_else(|| {
                                 if o.device_port_label.is_empty() {
                                     "No output chosen".into()
@@ -1236,6 +1280,9 @@ impl ScreensWindow {
                                 div()
                                     .bg(k.surface_secondary)
                                     .rounded(radius::lg())
+                                    .border_1()
+                                    .border_color(k.panel_border)
+                                    .shadow_sm()
                                     .px_5()
                                     .pb_5()
                                     .pt(px(36.))
@@ -1252,6 +1299,10 @@ impl ScreensWindow {
                                         div()
                                             .bg(k.surface_tertiary)
                                             .rounded(radius::lg())
+                                            .border_1()
+                                            .border_color(glass_rim)
+                                            .shadow_sm()
+                                            .overflow_hidden()
                                             .child(tabs),
                                     ),
                             ),
@@ -1332,43 +1383,74 @@ impl Render for ScreensWindow {
                 t.resize((t.frame.0 + dx, t.frame.1 + dy), w, cx);
                 cx.stop_propagation();
             }));
-        let body = h_flex()
+        let titlebar = self
+            .dialog
+            .update(cx, |d, cx| d.drag_handle("screens-sidebar-drag", cx))
+            .flex()
+            .items_center()
+            .gap_3()
+            .h(px(36.))
+            .flex_shrink_0()
+            .px_3p5()
+            .bg(k.surface_header)
+            .border_b_1()
+            .border_color(k.panel_border)
+            .child(
+                TrafficLights::new("screens-lights")
+                    .on_close(cx.listener(|_, _, _, cx| cx.emit(ScreensEvent::Close))),
+            )
+            .child(
+                div()
+                    .text_size(text::XS.size)
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(k.text(TextStep::T300))
+                    .child("Screen Configuration"),
+            );
+        let body = v_flex()
             .relative()
             .size_full()
             .overflow_hidden()
             .bg(k.surface)
             .text_color(k.text_primary)
-            .child(sidebar)
+            .child(titlebar)
             .child(
-                v_flex()
+                h_flex()
                     .flex_1()
-                    .min_w_0()
-                    .h_full()
-                    .when_some(self.error.clone(), |d, e| {
-                        d.child(
-                            div()
-                                .id("screens-error")
-                                .test_support()
-                                .role(Role::Alert)
-                                .p_3()
-                                .text_size(text::XS.size)
-                                .text_color(k.destructive)
-                                .child(e),
-                        )
-                    })
-                    .when(!self.message.is_empty(), |d| {
-                        d.child(
-                            div()
-                                .id("screens-result")
-                                .test_support()
-                                .role(Role::Status)
-                                .px_6()
-                                .py_2()
-                                .text_size(text::XS.size)
-                                .child(self.message.clone()),
-                        )
-                    })
-                    .child(content),
+                    .min_h_0()
+                    .w_full()
+                    .overflow_hidden()
+                    .child(sidebar)
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .h_full()
+                            .when_some(self.error.clone(), |d, e| {
+                                d.child(
+                                    div()
+                                        .id("screens-error")
+                                        .test_support()
+                                        .role(Role::Alert)
+                                        .p_3()
+                                        .text_size(text::XS.size)
+                                        .text_color(k.destructive)
+                                        .child(e),
+                                )
+                            })
+                            .when(!self.message.is_empty(), |d| {
+                                d.child(
+                                    div()
+                                        .id("screens-result")
+                                        .test_support()
+                                        .role(Role::Status)
+                                        .px_6()
+                                        .py_2()
+                                        .text_size(text::XS.size)
+                                        .child(self.message.clone()),
+                                )
+                            })
+                            .child(content),
+                    ),
             )
             .child(grip)
             .when_some(self.opened.take(), |d, start| {

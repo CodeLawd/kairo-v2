@@ -408,6 +408,7 @@ pub struct ThemeInspector {
     backdrop_open: bool,
     spacing_open: bool,
     shapes_open: bool,
+    font_open: bool,
     numbers: HashMap<String, Entity<NumberField>>,
     colors: HashMap<String, Entity<ColorField>>,
     sliders: HashMap<String, Entity<SliderState>>,
@@ -459,6 +460,7 @@ impl ThemeInspector {
             backdrop_open: true,
             spacing_open: false,
             shapes_open: false,
+            font_open: false,
             numbers: HashMap::new(),
             colors: HashMap::new(),
             sliders: HashMap::new(),
@@ -1073,17 +1075,7 @@ impl ThemeInspector {
         }
 
         // Font, weight and size, decoration and spacing, capitalization.
-        let font = select(
-            ids::FONT,
-            "Font",
-            &style.font_family,
-            panels::font_options(&style.font_family),
-            self.on_choice(
-                "text.font",
-                move |t, v| panels::edit_layer(t, layer, |s| s.font_family = v),
-                cx,
-            ),
-        );
+        let font = self.font_picker(layer, &style.font_family, cx);
         let weight = select(
             ids::WEIGHT,
             "Weight",
@@ -2788,6 +2780,214 @@ fn grid3(a: AnyElement, b: AnyElement, c: AnyElement) -> AnyElement {
 
 /// `CompactSelect`: a dropdown showing the current choice; a value not in
 /// the list shows as written.
+impl ThemeInspector {
+    fn font_picker(
+        &self,
+        layer: &'static str,
+        value: &str,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let options = panels::font_options(value);
+        let current = options
+            .iter()
+            .find(|o| o.value == value)
+            .map(|o| o.label.clone())
+            .unwrap_or_else(|| value.to_owned());
+        let custom = options
+            .iter()
+            .find(|o| !kairo_scene::FONT_STACKS.iter().any(|(_, s)| *s == o.value))
+            .cloned();
+        let value = value.to_owned();
+        let open = self.font_open;
+        let entity = cx.entity();
+        let editor = self.editor.clone();
+        let on_open_entity = entity.clone();
+        let on_open_editor = editor.clone();
+        let trigger_face = panels::stack_label(&value);
+        Popover::new("theme-font-popover")
+            .anchor(gpui_kit::Anchor::TopLeft)
+            .offset(px(4.))
+            .appearance(false)
+            .open(open)
+            .on_open_change(move |next, _, cx| {
+                let next = *next;
+                on_open_entity.update(cx, |this, cx| {
+                    this.font_open = next;
+                    cx.notify();
+                });
+                if !next {
+                    on_open_editor.update(cx, |e, cx| e.preview_font(None, cx));
+                }
+            })
+            .trigger(
+                Button::new(ids::FONT)
+                    .cursor_pointer()
+                    .small()
+                    .h_8()
+                    .w_full()
+                    .font_family(trigger_face)
+                    .label(current)
+                    .dropdown_caret(true)
+                    .accessibility_label("Font")
+                    .popover_trigger(),
+            )
+            .content(move |_, _, cx| {
+                let k = *cx.kairo();
+                let mut rows: Vec<AnyElement> = Vec::new();
+                let make_item = |id: String, name: String, stack: String| -> AnyElement {
+                    let same = stack == value;
+                    let face = panels::stack_label(&stack);
+                    let hover_editor = editor.clone();
+                    let hover_stack = stack.clone();
+                    let click_entity = entity.clone();
+                    let click_editor = editor.clone();
+                    h_flex()
+                        .id(SharedString::from(id))
+                        .w_full()
+                        .items_center()
+                        .gap_2()
+                        .px_2p5()
+                        .py_1p5()
+                        .rounded(radius::md())
+                        .cursor_pointer()
+                        .when(same, |d| {
+                            d.bg(k.surface_tertiary)
+                                .text_color(k.text_primary)
+                        })
+                        .when(!same, |d| {
+                            d.text_color(k.text(TextStep::T200))
+                                .hover(|s| {
+                                    s.bg(k.white.opacity(0.07))
+                                        .text_color(k.text_primary)
+                                })
+                        })
+                        .on_hover(move |hovered, _, cx| {
+                            if *hovered {
+                                let s = hover_stack.clone();
+                                hover_editor.update(cx, |e, cx| {
+                                    e.preview_font(Some((layer, s)), cx)
+                                });
+                            }
+                        })
+                        .on_click(move |_, _, cx| {
+                            click_editor.update(cx, |e, cx| e.preview_font(None, cx));
+                            click_entity.update(cx, |this, cx| {
+                                this.font_open = false;
+                                if !same {
+                                    let next = stack.clone();
+                                    this.edit(
+                                        "text.font",
+                                        move |t| {
+                                            panels::edit_layer(t, layer, |s| {
+                                                s.font_family = next.clone()
+                                            })
+                                        },
+                                        cx,
+                                    );
+                                } else {
+                                    cx.notify();
+                                }
+                            });
+                        })
+                        .child(
+                            div()
+                                .w_3p5()
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .when(same, |d| {
+                                    d.child(
+                                        Icon::new(KairoIcon::Check)
+                                            .size_3p5()
+                                            .text_color(k.accent(kairo_ui_kit::tokens::Step::S400)),
+                                    )
+                                }),
+                        )
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w_0()
+                                .truncate()
+                                .font_family(face)
+                                .text_size(text::SM.size)
+                                .child(name),
+                        )
+                        .into_any_element()
+                };
+                for (gi, (group, range)) in kairo_scene::FONT_GROUPS.iter().enumerate() {
+                    if gi > 0 {
+                        rows.push(
+                            div()
+                                .my_1()
+                                .h(px(1.))
+                                .w_full()
+                                .bg(k.panel_border)
+                                .into_any_element(),
+                        );
+                    }
+                    rows.push(
+                        div()
+                            .px_2p5()
+                            .py_1()
+                            .text_size(text::MICRO.size)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(k.text(TextStep::T500))
+                            .child(*group)
+                            .into_any_element(),
+                    );
+                    for (fi, (name, stack)) in
+                        kairo_scene::FONT_STACKS[range.clone()].iter().enumerate()
+                    {
+                        rows.push(make_item(
+                            format!("theme-font-{gi}-{fi}"),
+                            (*name).to_owned(),
+                            (*stack).to_owned(),
+                        ));
+                    }
+                }
+                if let Some(extra) = &custom {
+                    rows.push(
+                        div()
+                            .my_1()
+                            .h(px(1.))
+                            .w_full()
+                            .bg(k.panel_border)
+                            .into_any_element(),
+                    );
+                    rows.push(
+                        div()
+                            .px_2p5()
+                            .py_1()
+                            .text_size(text::MICRO.size)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(k.text(TextStep::T500))
+                            .child("Custom")
+                            .into_any_element(),
+                    );
+                    rows.push(make_item(
+                        "theme-font-custom".into(),
+                        extra.label.clone(),
+                        extra.value.clone(),
+                    ));
+                }
+                v_flex()
+                    .id("theme-font-list")
+                    .w(px(236.))
+                    .max_h(px(300.))
+                    .overflow_y_scroll()
+                    .p_1()
+                    .rounded(radius::lg())
+                    .bg(k.surface_secondary)
+                    .border_1()
+                    .border_color(k.white.opacity(0.14))
+                    .shadow_2xl()
+                    .children(rows)
+            })
+            .into_any_element()
+    }
+}
+
 fn select(
     id: impl Into<SharedString>,
     label: &str,
@@ -2805,6 +3005,7 @@ fn select(
     Button::new(id)
         .cursor_pointer()
         .small()
+        .h_8()
         .w_full()
         .label(current)
         .dropdown_caret(true)

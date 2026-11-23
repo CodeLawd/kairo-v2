@@ -113,6 +113,9 @@ pub struct MediaPlayback {
     pub extra: Extra,
 }
 
+/// The playlist Imagine saves its pictures into, made on first save.
+pub const IMAGINE_PLAYLIST: &str = "Imagine";
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaLibrary {

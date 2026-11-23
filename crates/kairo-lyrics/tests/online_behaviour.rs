@@ -11,7 +11,9 @@ use kairo_lyrics::online::rank::rank_results;
 use kairo_lyrics::online::resolver::{SnippetResolver, discover_song_pages};
 use kairo_lyrics::online::translate::{TranslateOptions, translate_sections};
 use kairo_lyrics::online::web_search::{SearchProvider, WebSearch, WebSearchResult};
-use kairo_lyrics::online::{ProviderResult, genius::Genius, glosses::GlossFinder, lrclib::Lrclib};
+use kairo_lyrics::online::{
+    OnlineLyrics, ProviderResult, genius::Genius, glosses::GlossFinder, lrclib::Lrclib,
+};
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
 
@@ -500,4 +502,69 @@ fn a_named_artist_and_exact_titles_win_over_popularity() {
     ];
     assert_eq!(rank_results("ese", &exact)[0].id, "exact");
     assert!(rank_results("es", &exact).len() <= exact.len());
+}
+
+#[test]
+fn query_rescue_re_queries_clean_catalogues_and_skips_web_scraping() {
+    let full_lyrics = format!(
+        "You are here, moving in our midst\nI worship You\n{}",
+        "Way maker, miracle worker, promise keeper, light in the darkness\n".repeat(12)
+    );
+    let gateway = Gateway::new(|req| {
+        assert_eq!(req.path, "/chat/completions", "web search must be skipped");
+        Ok(json!({
+            "choices": [{
+                "finish_reason": "stop",
+                "message": {
+                    "content": "{\"candidates\":[{\"title\":\"Way Maker\",\"artist\":\"Sinach\"}]}"
+                }
+            }]
+        }))
+    });
+    let web = Web::new(move |url| {
+        if url.contains("lrclib.net/api/search") && url.contains("track_name=Way") {
+            Ok(json!([{
+                "id": 7,
+                "trackName": "Way Maker",
+                "artistName": "Sinach",
+                "plainLyrics": full_lyrics,
+            }])
+            .to_string())
+        } else if url.contains("lrclib.net") {
+            Ok("[]".into())
+        } else if url.contains("genius.com") {
+            Ok(json!({ "response": { "sections": [] } }).to_string())
+        } else {
+            Err(not_found())
+        }
+    });
+    // Use full_url() in fake HTTP so structured query params are visible.
+    struct QueryWeb(Arc<Web>);
+    impl Http for QueryWeb {
+        fn get(
+            &self,
+            request: HttpRequest,
+            accept: fn(u16) -> bool,
+        ) -> BoxFuture<'_, Result<HttpResponse, HttpError>> {
+            let mut forwarded = request.clone();
+            forwarded.url = request.full_url();
+            self.0.get(forwarded, accept)
+        }
+    }
+    let online = OnlineLyrics::new(Arc::new(QueryWeb(web.clone())), gateway.clone());
+    let hits = rt()
+        .block_on(online.search_all("you are here moving in our midst"))
+        .unwrap();
+    assert_eq!(hits.len(), 1);
+    assert_eq!(hits[0].provider, LyricsProvider::Lrclib);
+    assert_eq!(hits[0].title, "Way Maker");
+    assert_eq!(gateway.providers(), [ManagedProvider::Deepseek]);
+    assert!(
+        web.urls
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|u| !u.contains("duckduckgo")),
+        "web scraping was skipped after catalogue rescue"
+    );
 }

@@ -155,6 +155,9 @@ pub enum KairoIcon {
     Pause,
     /// `phosphor BookOpen`
     PhBookOpen,
+    /// `phosphor Brain`
+    PhBrain,
+    PhotoStack,
     /// `phosphor Broadcast`
     PhBroadcast,
     /// `phosphor ChatCircleDots`
@@ -337,6 +340,8 @@ impl KairoIcon {
         KairoIcon::Palette,
         KairoIcon::Pause,
         KairoIcon::PhBookOpen,
+        KairoIcon::PhBrain,
+        KairoIcon::PhotoStack,
         KairoIcon::PhBroadcast,
         KairoIcon::PhChatCircleDots,
         KairoIcon::PhChatsCircle,
@@ -468,6 +473,8 @@ impl KairoIcon {
             KairoIcon::Palette => "palette",
             KairoIcon::Pause => "pause",
             KairoIcon::PhBookOpen => "ph_book_open",
+            KairoIcon::PhBrain => "ph_brain",
+            KairoIcon::PhotoStack => "photo_stack",
             KairoIcon::PhBroadcast => "ph_broadcast",
             KairoIcon::PhChatCircleDots => "ph_chat_circle_dots",
             KairoIcon::PhChatsCircle => "ph_chats_circle",
@@ -807,6 +814,10 @@ impl KairoIcon {
             (KairoIcon::PhBookOpen, true) => {
                 include_bytes!("../../assets/icons/ph_book_open-fill.svg")
             }
+            (KairoIcon::PhBrain, false) => include_bytes!("../../assets/icons/ph_brain.svg"),
+            (KairoIcon::PhBrain, true) => include_bytes!("../../assets/icons/ph_brain-fill.svg"),
+            (KairoIcon::PhotoStack, false) => include_bytes!("../../assets/icons/photo_stack.svg"),
+            (KairoIcon::PhotoStack, true) => include_bytes!("../../assets/icons/photo_stack-fill.svg"),
             (KairoIcon::PhBroadcast, false) => {
                 include_bytes!("../../assets/icons/ph_broadcast.svg")
             }

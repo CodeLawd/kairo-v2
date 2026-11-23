@@ -166,6 +166,8 @@ pub struct ApplicationServices {
     /// Recent scripture latency traces (`scripture:recentTraces`,
     /// `scripture:markRendered`).
     pub traces: Arc<kairo_core::scripture_traces::ScriptureTraces>,
+    /// Guards the keychain data key, for secrets stored outside the cloud session.
+    pub protector: Arc<dyn KeyProtector>,
     runtime: tokio::runtime::Handle,
     _subscriptions: Mutex<Vec<Subscription>>,
     _pack_subscription: kairo_scripture::installer::Unsubscribe,
@@ -1173,6 +1175,7 @@ async fn compose(state: &StartupState) -> Result<Arc<ApplicationServices>, Strin
         capture_status: Arc::default(),
         quote,
         traces,
+        protector: state.protector.clone(),
         runtime: state.runtime.clone(),
         _subscriptions: Mutex::new(subscriptions),
         _pack_subscription: pack_subscription,
@@ -1459,6 +1462,10 @@ impl ApplicationServices {
     pub fn spawn(&self, future: impl std::future::Future<Output = ()> + Send + 'static) {
         self.runtime.spawn(future);
     }
+    /// The profile folder (`userData`).
+    pub fn user_data(&self) -> &std::path::Path {
+        &self.paths.user_data
+    }
     /// The services' runtime, for work started off it (the UI thread).
     pub fn runtime(&self) -> &tokio::runtime::Handle {
         &self.runtime
@@ -1615,6 +1622,8 @@ impl ApplicationServices {
             _ => UpdateState::Idle,
         };
         let overlay = normalize_overlay_settings(lock(&self.settings).data().get("overlay"));
+        state.audience_on =
+            (!overlay.outputs.is_empty()).then(|| overlay.outputs.iter().any(|o| o.enabled));
         state.outputs = Some(
             overlay
                 .outputs
@@ -1630,6 +1639,12 @@ impl ApplicationServices {
                 })
                 .collect(),
         );
+        if let Ok(presentation) = lock(&self.settings)
+            .section::<kairo_domain::program::PresentationSettings>("presentation")
+        {
+            state.stage_on = (!presentation.stage_displays.is_empty())
+                .then(|| presentation.stage_displays.iter().any(|s| s.enabled));
+        }
         let tracks = lock(&self.tracks).library();
         state.house_track = tracks
             .live_id
@@ -1683,6 +1698,12 @@ impl ApplicationServices {
                         .track(UsageFeature::OutputClear, 1.)
                         .await;
                     services.orchestrator.clear_overlay().await;
+                }
+                SetScreenGroupEnabled { stage, enabled } => {
+                    let edit = ui_screens::model::Edit::Group { stage, enabled };
+                    if let Err(error) = crate::screens::persist(&services, edit).await {
+                        tracing::error!(%error, stage, enabled, "[Shell] screen group switch failed");
+                    }
                 }
                 CheckForUpdates => {
                     services.updater.check().await;

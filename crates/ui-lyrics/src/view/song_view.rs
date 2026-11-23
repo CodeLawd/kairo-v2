@@ -576,11 +576,12 @@ impl LyricsWorkspace {
     fn render_grid(&self, song: &LyricsSong, passive: bool, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
         let m = self.model.read(cx);
-        let (_, card_w) = grid::layout(self.song.width.get(), m.zoom());
+        let (columns, card_w) = grid::layout(self.song.width.get(), m.zoom());
+        let card_w = card_w.floor().max(1.);
         let items = grid::song_grid(song, m.gloss());
         let editing = (!passive).then(|| m.quick_edit().map(|(i, _)| i)).flatten();
         let passive_song = passive.then_some(song.id.as_str());
-        let children: Vec<AnyElement> = items
+        let mut children: Vec<AnyElement> = items
             .iter()
             .map(|item| match item {
                 GridItem::Card(card) if editing == Some(card.index) => {
@@ -599,17 +600,28 @@ impl LyricsWorkspace {
             })
             .collect();
         let _ = k;
-        div()
+        let mut rows = Vec::new();
+        while !children.is_empty() {
+            let take = children.len().min(columns);
+            let row: Vec<AnyElement> = children.drain(..take).collect();
+            rows.push(
+                h_flex()
+                    .w_full()
+                    .items_start()
+                    .gap(px(grid::GAP))
+                    .children(row),
+            );
+        }
+        v_flex()
             .id(if passive {
                 SharedString::from(format!("{}-{}", ids::GRID, song.id))
             } else {
                 ids::GRID.into()
             })
             .test_support()
-            .flex()
-            .flex_wrap()
+            .w_full()
             .gap(px(grid::GAP))
-            .children(children)
+            .children(rows)
             .into_any_element()
     }
 

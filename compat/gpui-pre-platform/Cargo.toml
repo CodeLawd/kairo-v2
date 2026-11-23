@@ -12,7 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-backend = { package = "gpui-fast-platform", version = "=0.1.14", default-features = false }
+backend = { package = "gpui-fast-platform", version = "=0.1.17", default-features = false }
 
 [features]
 bench-support = ["backend/bench-support"]

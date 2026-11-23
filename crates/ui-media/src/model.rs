@@ -669,6 +669,73 @@ impl MediaDock {
         );
     }
 
+    /// Drops a dragged card onto a playlist row. When viewing another playlist,
+    /// moves the item(s) out of the current playlist into the target; when
+    /// viewing All backgrounds, adds them to the target.
+    pub fn drop_item_on_playlist(&mut self, playlist: String, item: String, cx: &mut Context<Self>) {
+        self.drag.over = None;
+        let source_playlist = self.playlist_id();
+        if source_playlist.as_deref() == Some(playlist.as_str()) {
+            return;
+        }
+        let Some(target) = self.library.playlists.iter().find(|p| p.id == playlist) else {
+            return;
+        };
+        let multi = self.picks.contains(&item) && self.picked_count() > 1;
+        let moving: Vec<String> = if multi {
+            self.picked_ids()
+        } else {
+            vec![item]
+        };
+        let mut target_ids = target.item_ids.clone();
+        for id in &moving {
+            if !target_ids.contains(id) {
+                target_ids.push(id.clone());
+            }
+        }
+        let target_changed = target_ids.len() != target.item_ids.len();
+        let remove_from_source = move |this: &mut Self, cx: &mut Context<Self>| {
+            if multi {
+                this.picks.clear();
+            }
+            let Some(src_id) = source_playlist else {
+                return;
+            };
+            let Some(src) = this.library.playlists.iter().find(|p| p.id == src_id) else {
+                return;
+            };
+            let remaining: Vec<String> = src
+                .item_ids
+                .iter()
+                .filter(|id| !moving.contains(id))
+                .cloned()
+                .collect();
+            if remaining.len() == src.item_ids.len() {
+                return;
+            }
+            this.library_call(
+                MediaCall::SetPlaylistItems {
+                    id: src_id,
+                    item_ids: remaining,
+                },
+                cx,
+                |_, _| {},
+            );
+        };
+        if target_changed {
+            self.library_call(
+                MediaCall::SetPlaylistItems {
+                    id: playlist,
+                    item_ids: target_ids,
+                },
+                cx,
+                remove_from_source,
+            );
+        } else {
+            remove_from_source(self, cx);
+        }
+    }
+
     pub fn remove_from_playlist(&mut self, item: String, cx: &mut Context<Self>) {
         let Some(playlist) = self.playlist_id() else {
             return;
@@ -1041,6 +1108,26 @@ impl MediaDock {
         }
         let playlist = self.playlist_id();
         self.adding_call(MediaCall::ImportPaths { paths, playlist }, cx, |_| {});
+    }
+
+    /// Files dropped from the OS directly onto a sidebar playlist row.
+    pub fn drop_files_on_playlist(
+        &mut self,
+        playlist: String,
+        paths: Vec<PathBuf>,
+        cx: &mut Context<Self>,
+    ) {
+        if paths.is_empty() || self.adding {
+            return;
+        }
+        self.adding_call(
+            MediaCall::ImportPaths {
+                paths,
+                playlist: Some(playlist),
+            },
+            cx,
+            |_| {},
+        );
     }
 
     /// An import: `adding` shows until it answers, either way.

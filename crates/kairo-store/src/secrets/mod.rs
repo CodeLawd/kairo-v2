@@ -74,14 +74,18 @@ impl KeyProtector for KeyringProtector {
                 .map(Some)
                 .map_err(|_| SecretError::InvalidKey),
             Err(keyring::Error::NoEntry) => Ok(None),
-            Err(_) => Err(SecretError::Keychain),
+            Err(error) => {
+                tracing::warn!(slot, %error, "[Secrets] keychain load failed");
+                Err(SecretError::Keychain)
+            }
         }
     }
 
     fn save(&self, slot: &str, key: &[u8; KEY_BYTES]) -> Result<(), SecretError> {
-        Self::entry(slot)?
-            .set_secret(key)
-            .map_err(|_| SecretError::Keychain)
+        Self::entry(slot)?.set_secret(key).map_err(|error| {
+            tracing::warn!(slot, %error, "[Secrets] keychain save failed");
+            SecretError::Keychain
+        })
     }
 }
 
@@ -237,24 +241,28 @@ impl<'a> SecureStore<'a> {
             Ok(Some(key)) => key,
             Ok(None) => match self.slot.migrate() {
                 Ok(Some(key)) => {
-                    if self.slot.save(&key).is_err() {
+                    if let Err(error) = self.slot.save(&key) {
+                        tracing::warn!(name, %error, "[Secrets] could not save migrated key");
                         self.notice.store(true, Ordering::Relaxed);
                         return None;
                     }
                     key
                 }
                 Ok(None) | Err(_) => {
+                    tracing::warn!(name, "[Secrets] data key missing from keychain; clearing unreadable secret");
                     self.notice.store(true, Ordering::Relaxed);
                     let _ = remove(&path);
                     return None;
                 }
             },
             Err(SecretError::InvalidKey) => {
+                tracing::warn!(name, "[Secrets] data key in keychain is invalid; clearing unreadable secret");
                 self.notice.store(true, Ordering::Relaxed);
                 let _ = remove(&path);
                 return None;
             }
-            Err(_) => {
+            Err(error) => {
+                tracing::warn!(name, %error, "[Secrets] keychain unavailable while reading secret");
                 self.notice.store(true, Ordering::Relaxed);
                 return None;
             }
@@ -263,6 +271,7 @@ impl<'a> SecureStore<'a> {
             .ok()
             .and_then(|blob| key.decrypt(&blob).ok());
         if result.is_none() {
+            tracing::warn!(name, "[Secrets] secret failed to decrypt; clearing file");
             let _ = remove(&path);
         }
         result
@@ -273,7 +282,8 @@ impl<'a> SecureStore<'a> {
             return false;
         };
         let result = self.write_inner(&path, value);
-        if result.is_err() {
+        if let Err(error) = &result {
+            tracing::warn!(name, %error, "[Secrets] could not save secret");
             self.notice.store(true, Ordering::Relaxed);
         }
         result.is_ok()

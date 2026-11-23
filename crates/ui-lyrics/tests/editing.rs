@@ -64,7 +64,8 @@ impl LyricsBackend for Core {
         reply(scripted.unwrap_or_else(|| {
             Ok(match &call {
                 LyricsCall::Update(s) => LyricsAnswer::Song(s.clone()),
-                LyricsCall::Import(LyricsImportSource::Text { title, text, .. }) => {
+                LyricsCall::Import(LyricsImportSource::Text { title, text, .. })
+                | LyricsCall::Import(LyricsImportSource::ProPresenter { title, text, .. }) => {
                     LyricsAnswer::Song(imported(title, text))
                 }
                 LyricsCall::Import(LyricsImportSource::Usr { filename, .. }) => LyricsAnswer::Song(
@@ -73,9 +74,30 @@ impl LyricsBackend for Core {
                 LyricsCall::Import(LyricsImportSource::Online { title, .. }) => {
                     LyricsAnswer::Song(imported(title, "[Verse 1]\nweb"))
                 }
+                LyricsCall::ImportBatch(sources) => LyricsAnswer::ImportBatch(
+                    sources
+                        .iter()
+                        .map(|s| {
+                            Ok(match s {
+                                LyricsImportSource::Text { title, text, .. }
+                                | LyricsImportSource::ProPresenter { title, text, .. } => {
+                                    imported(title, text)
+                                }
+                                LyricsImportSource::Usr { filename, .. } => {
+                                    imported(filename.as_deref().unwrap_or("usr"), "[Verse 1]\nusr")
+                                }
+                                LyricsImportSource::Online { title, .. } => {
+                                    imported(title, "[Verse 1]\nweb")
+                                }
+                                _ => imported("song", "[Verse 1]\nx"),
+                            })
+                        })
+                        .collect(),
+                ),
                 LyricsCall::PreviewFile(source) => {
                     let (title, text) = match source {
-                        LyricsImportSource::Text { title, text, .. } => {
+                        LyricsImportSource::Text { title, text, .. }
+                        | LyricsImportSource::ProPresenter { title, text, .. } => {
                             (title.clone(), text.clone())
                         }
                         _ => ("usr".into(), "x".into()),
@@ -90,6 +112,29 @@ impl LyricsBackend for Core {
                         }),
                     })
                 }
+                LyricsCall::PreviewFiles(sources) => LyricsAnswer::ImportPreviews(
+                    sources
+                        .iter()
+                        .map(|source| {
+                            let (title, text) = match source {
+                                LyricsImportSource::Text { title, text, .. }
+                                | LyricsImportSource::ProPresenter { title, text, .. } => {
+                                    (title.clone(), text.clone())
+                                }
+                                _ => ("usr".into(), "x".into()),
+                            };
+                            Ok(LyricsImportPreview {
+                                song: imported(&title, &text),
+                                duplicate: (title == "Amazing Grace").then(|| DuplicateMatch {
+                                    song_id: "a".into(),
+                                    title: "Amazing Grace".into(),
+                                    artist: "John Newton".into(),
+                                    reason: DuplicateReason::TitleArtist,
+                                }),
+                            })
+                        })
+                        .collect(),
+                ),
                 LyricsCall::Translate { sections, .. } => LyricsAnswer::Sections(
                     sections
                         .iter()
@@ -684,7 +729,7 @@ fn file(name: &str, text: &str) -> SongFile {
     SongFile {
         name: name.into(),
         key: format!("{name}:1"),
-        content: Ok(text.into()),
+        content: Ok(text.as_bytes().to_vec()),
     }
 }
 
@@ -695,8 +740,13 @@ fn the_import_menu_and_file_import_open_the_dialog(cx: &mut TestAppContext) {
     core.push(LyricsFeed::OpenImport);
     draw(cx, &o);
     assert!(exists(cx, &o, import::ids::DIALOG));
+    assert_eq!(dlg(cx, &o, |d| d.tab()), Tab::File);
     click(cx, &o, import::ids::CLOSE);
     assert!(!exists(cx, &o, import::ids::DIALOG));
+
+    click(cx, &o, ids::UPLOAD_LYRICS);
+    assert!(exists(cx, &o, import::ids::DIALOG));
+    assert_eq!(dlg(cx, &o, |d| d.tab()), Tab::File);
 }
 
 #[gpui_kit::test]
@@ -704,6 +754,7 @@ fn the_online_tab_searches_after_a_pause_and_imports(cx: &mut TestAppContext) {
     let core = Core::new(base());
     let o = open(cx, core.clone());
     act(cx, &o, |m, cx| m.open_import(cx));
+    dlg_do(cx, &o, |d, w, cx| d.set_tab(Tab::Online, w, cx));
     dlg_do(cx, &o, |d, _, cx| d.set_query("wa".into(), cx));
     assert!(exists(cx, &o, import::ids::ONLINE_EMPTY));
     dlg_do(cx, &o, |d, _, cx| d.set_query("way maker".into(), cx));
@@ -757,14 +808,14 @@ fn files_queue_with_duplicates_and_only_add_saves(cx: &mut TestAppContext) {
         dlg(cx, &o, |d| d.file_errors().to_vec()),
         [(
             "notes.docx".into(),
-            "Only .usr, .txt and .rtf files can be imported.".into()
+            "Only .usr, .txt, .rtf and .pro files can be imported.".into()
         )]
     );
     assert!(
         !core
             .calls()
             .iter()
-            .any(|c| matches!(c, LyricsCall::Import(_) | LyricsCall::Update(_))),
+            .any(|c| matches!(c, LyricsCall::Import(_) | LyricsCall::ImportBatch(_) | LyricsCall::Update(_))),
         "nothing saved yet"
     );
     // Replace the library copy, keeping its id.
@@ -833,7 +884,7 @@ fn files_that_cannot_be_read_are_named(cx: &mut TestAppContext) {
     });
     assert_eq!(
         dlg(cx, &o, |d| d.error().map(str::to_owned)),
-        Some("Only .usr, .txt and .rtf files are supported.".into())
+        Some("Only .usr, .txt, .rtf and .pro files are supported.".into())
     );
 }
 

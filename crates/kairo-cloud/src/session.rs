@@ -235,6 +235,9 @@ impl CloudSession {
         let mut session = signed_out(persisted);
         if token.is_some() {
             session.state = CloudSessionState::Stale;
+            tracing::info!("[Cloud] restored saved refresh token");
+        } else {
+            tracing::info!(persisted, "[Cloud] no saved refresh token found");
         }
         let pairing = pairing(DevicePairingStatus::Idle, None);
         topics.publish(session.clone());
@@ -433,12 +436,20 @@ impl CloudSession {
     }
 
     pub async fn stop(&self) {
-        let mut state = self.0.state.lock().await;
-        state.running = false;
-        abort(&mut state.periodic);
-        abort(&mut state.retry);
-        state.cancel_pairing();
-        self.0.topics.publish(state.pairing.clone());
+        let inflight = {
+            let mut state = self.0.state.lock().await;
+            state.running = false;
+            abort(&mut state.periodic);
+            abort(&mut state.retry);
+            state.cancel_pairing();
+            self.0.topics.publish(state.pairing.clone());
+            state.refresh.clone()
+        };
+        // Let an in-flight rotation finish persisting its new refresh token so
+        // the next launch does not replay a revoked token.
+        if let Some(mut rx) = inflight {
+            let _ = tokio::time::timeout(Duration::from_secs(5), rx.wait_for(Option::is_some)).await;
+        }
     }
 
     pub async fn sign_up(&self, input: SignUpInput) -> CloudResult<SessionSnapshot> {
@@ -492,6 +503,9 @@ impl CloudSession {
         state.reset_retry();
         let token = Zeroizing::new(result.refresh_token);
         let persisted = self.persist(Some(token.clone())).await;
+        if !persisted {
+            tracing::warn!("[Cloud] signed in, but refresh token could not be persisted");
+        }
         state.token = Some(token);
         self.set_access(Some(result.access_token), false);
         let org = result.org;
@@ -696,7 +710,13 @@ impl CloudSession {
             Ok(result) => {
                 state.reset_retry();
                 let token = Zeroizing::new(result.refresh_token);
-                state.session.credentials_persisted = Some(self.persist(Some(token.clone())).await);
+                let persisted = self.persist(Some(token.clone())).await;
+                if !persisted {
+                    tracing::warn!(
+                        "[Cloud] rotated refresh token could not be persisted; next launch may require sign-in"
+                    );
+                }
+                state.session.credentials_persisted = Some(persisted);
                 state.token = Some(token);
                 self.set_access(Some(result.access_token.clone()), true);
                 hydrate =
@@ -706,6 +726,10 @@ impl CloudSession {
                 Some(result.access_token)
             }
             Err(error) if error.status == Some(401) => {
+                tracing::warn!(
+                    message = %error.message,
+                    "[Cloud] refresh rejected with 401; clearing saved session"
+                );
                 state.epoch = state.epoch.wrapping_add(1);
                 state.token = None;
                 state.reset_retry();
@@ -713,8 +737,14 @@ impl CloudSession {
                 state.session = signed_out(self.persist(None).await);
                 None
             }
-            Err(_) => {
+            Err(error) => {
                 let wait = RETRY.delay(u32::try_from(state.failures).unwrap_or(u32::MAX));
+                tracing::debug!(
+                    status = ?error.status,
+                    message = %error.message,
+                    wait_secs = wait.as_secs(),
+                    "[Cloud] refresh failed; keeping saved session stale"
+                );
                 state.failures = state.failures.saturating_add(1);
                 let at = Instant::now() + wait;
                 state.retry_at = Some(at);

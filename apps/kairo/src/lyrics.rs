@@ -70,31 +70,55 @@ fn gloss_of(all: &Value) -> String {
     )
 }
 
+fn read_one_song_file(path: &Path) -> SongFile {
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let meta = std::fs::metadata(path).ok();
+    let size = meta.as_ref().map_or(0, |m| m.len());
+    let modified = meta
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_millis());
+    let content = std::fs::read(path).map_err(|e| e.to_string());
+    SongFile {
+        key: format!("{name}:{size}:{modified}"),
+        name,
+        content,
+    }
+}
+
 /// Reads song files for the import queue, one key per name, size and time.
 fn read_song_files(paths: &[std::path::PathBuf]) -> Vec<SongFile> {
-    paths
-        .iter()
-        .map(|path| {
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            let meta = std::fs::metadata(path).ok();
-            let size = meta.as_ref().map_or(0, |m| m.len());
-            let modified = meta
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map_or(0, |d| d.as_millis());
-            let content = std::fs::read(path)
-                .map(|bytes| String::from_utf8_lossy(&bytes).into_owned())
-                .map_err(|e| e.to_string());
-            SongFile {
-                key: format!("{name}:{size}:{modified}"),
-                name,
-                content,
+    if paths.len() < 32 {
+        return paths.iter().map(|p| read_one_song_file(p)).collect();
+    }
+    let threads = std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .min(8);
+    let chunk_size = paths.len().div_ceil(threads).max(1);
+    std::thread::scope(|s| {
+        let handles: Vec<_> = paths
+            .chunks(chunk_size)
+            .map(|chunk| {
+                s.spawn(move || {
+                    chunk
+                        .iter()
+                        .map(|p| read_one_song_file(p))
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        let mut out = Vec::with_capacity(paths.len());
+        for h in handles {
+            if let Ok(part) = h.join() {
+                out.extend(part);
             }
-        })
-        .collect()
+        }
+        out
+    })
 }
 
 /// `stt.llmProvider` picks the translation model (managed either way).
@@ -382,10 +406,20 @@ async fn run(
             .map(LyricsAnswer::Song)
             .map_err(|e| text(&e))
         }
+        LyricsCall::ImportBatch(sources) => lyrics
+            .import_songs_batch(sources)
+            .await
+            .map(LyricsAnswer::ImportBatch)
+            .map_err(|e| text(&e)),
         LyricsCall::PreviewFile(source) => lyrics
             .preview_import(source)
             .await
             .map(LyricsAnswer::ImportPreview)
+            .map_err(|e| text(&e)),
+        LyricsCall::PreviewFiles(sources) => lyrics
+            .preview_imports(sources)
+            .await
+            .map(LyricsAnswer::ImportPreviews)
             .map_err(|e| text(&e)),
         LyricsCall::GetSong(id) => lyrics
             .get_song(&id)
@@ -426,7 +460,7 @@ async fn run(
                 save: false,
                 filters: vec![kairo_core::dialogs::FileFilter {
                     name: "Song files",
-                    extensions: &["usr", "txt", "rtf"],
+                    extensions: &["usr", "txt", "rtf", "pro"],
                 }],
                 default_path: None,
             };

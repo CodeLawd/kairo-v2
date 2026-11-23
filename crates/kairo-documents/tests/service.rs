@@ -350,3 +350,30 @@ fn pages_cancel_and_finish_rules() {
     .unwrap();
     assert_eq!(docs.list().unwrap().len(), 1);
 }
+
+#[test]
+fn imagine_decks_become_documents_page_by_page() {
+    let dir = tempfile::tempdir().unwrap();
+    let svc = service(dir.path());
+    let png = |shade: u8| {
+        let mut out = Vec::new();
+        image::RgbaImage::from_pixel(32, 18, image::Rgba([shade, 0, 0, 255]))
+            .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
+            .unwrap();
+        out
+    };
+    let list = svc
+        .create_from_images("AI for media", &[png(10), png(20), png(30)])
+        .unwrap();
+    let doc = list.iter().find(|d| d.name == "AI for media").unwrap();
+    assert_eq!(doc.pages.len(), 3);
+    assert!(svc.page(&doc.id, 2.).is_ok());
+
+    // A bad page leaves no half-made document.
+    assert!(
+        svc.create_from_images("Broken", &[png(1), b"not a png".to_vec()])
+            .is_err()
+    );
+    assert!(svc.create_from_images("Empty", &[]).is_err());
+    assert_eq!(svc.list().unwrap().len(), 1);
+}

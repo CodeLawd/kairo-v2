@@ -5,12 +5,13 @@
 
 use crate::icons::KairoIcon;
 use crate::theme::KairoThemeExt;
-use crate::tokens::{Hue, TextStep, radius, text};
+use crate::tokens::{Appearance, Hue, TextStep, radius, text};
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::{Icon, v_flex};
 use gpui_kit::{
     App, ClickEvent, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce, Role,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px,
+    SharedString, StatefulInteractiveElement, Styled, Window, div, linear_color_stop,
+    linear_gradient, prelude::FluentBuilder, px, transparent_black,
 };
 use std::rc::Rc;
 
@@ -83,6 +84,22 @@ impl RenderOnce for RailItem {
         let k = *cx.kairo();
         let hue = k.hue(self.hue);
         let lifted = self.active || self.open;
+        let dark = k.appearance == Appearance::Dark;
+        let active_rim = if dark {
+            k.white.opacity(0.16)
+        } else {
+            gpui_kit::black().opacity(0.10)
+        };
+        let hover_rim = if dark {
+            k.white.opacity(0.10)
+        } else {
+            gpui_kit::black().opacity(0.07)
+        };
+        let sheen_top = if dark {
+            k.white.opacity(0.09)
+        } else {
+            k.white.opacity(0.5)
+        };
         v_flex()
             .id(self.id)
             .test_support()
@@ -91,19 +108,40 @@ impl RenderOnce for RailItem {
             .aria_selected(self.active)
             .tab_index(0)
             .relative()
+            .overflow_hidden()
             .w_full()
             .items_center()
             .justify_center()
             .gap(px(3.))
             .rounded(radius::lg())
+            .border_1()
             .px_0p5()
             .py_1()
             .map(|this| {
                 if lifted {
-                    this.bg(k.surface_elevated).text_color(hue)
+                    this.bg(k.surface_tertiary)
+                        .border_color(active_rim)
+                        .shadow_sm()
+                        .text_color(hue)
+                        .child(
+                            div()
+                                .absolute()
+                                .inset_0()
+                                .rounded(radius::lg())
+                                .bg(linear_gradient(
+                                    180.,
+                                    linear_color_stop(sheen_top, 0.0),
+                                    linear_color_stop(k.white.opacity(0.0), 0.55),
+                                )),
+                        )
                 } else {
-                    this.text_color(k.text(TextStep::T500))
-                        .hover(move |s| s.bg(k.surface_tertiary).text_color(hue))
+                    this.border_color(transparent_black())
+                        .text_color(k.text(TextStep::T500))
+                        .hover(move |s| {
+                            s.bg(k.surface_tertiary.opacity(0.75))
+                                .border_color(hover_rim)
+                                .text_color(hue)
+                        })
                 }
             })
             .focus_visible(move |s| s.border_2().border_color(hue.opacity(0.6)))
@@ -113,8 +151,8 @@ impl RenderOnce for RailItem {
                     div()
                         .max_w_full()
                         .truncate()
-                        .text_size(text::MICRO.size)
-                        .line_height(text::MICRO.line_height)
+                        .text_size(text::LABEL.size)
+                        .line_height(text::LABEL.line_height)
                         .font_weight(gpui_kit::FontWeight::MEDIUM)
                         .child(self.label),
                 )

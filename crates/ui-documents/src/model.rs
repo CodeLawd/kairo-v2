@@ -19,8 +19,8 @@ pub const THUMB_STEP: f32 = 10.;
 pub const GAP_X: f32 = 12.;
 pub const GAP_Y: f32 = 16.;
 pub const GRID_PAD: f32 = 12.;
-/// The page number under each slide (`mt-1.5` plus an 11px line).
-pub const CAPTION: f32 = 22.;
+/// The bar under each slide with its number, as on the Bible cards.
+pub const CAPTION: f32 = 34.;
 /// The slideshow presets.
 pub const PRESETS: [f64; 5] = [5., 10., 15., 30., 60.];
 /// How often the live slide's videos are read (`setTimeout(poll, 350)`).

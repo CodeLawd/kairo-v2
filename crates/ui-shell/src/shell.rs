@@ -50,7 +50,7 @@ impl Overlay {
             Overlay::Screens => "Screens",
             Overlay::Props => "Props",
             Overlay::Capture => "Capture Settings",
-            Overlay::SongSearch => "Search songs",
+            Overlay::SongSearch => "Search",
         }
     }
 
@@ -126,8 +126,6 @@ pub struct Shell {
     pub(crate) overlay_builders: HashMap<Overlay, OverlayBuilder>,
     /// The open overlay's built view.
     pub(crate) overlay_view: Option<AnyView>,
-    /// The workspace rail's measured room and full height, for icon-only mode.
-    pub(crate) rail_fit: std::rc::Rc<RailFit>,
     /// The media dock is open (the Media button shows pressed).
     pub(crate) media_open: bool,
     /// What the dock has on screen, for the button's dot and tooltip.
@@ -167,21 +165,6 @@ pub type OverlayBuilder = Box<dyn Fn(Option<&'static str>, &mut Window, &mut App
 
 /// What the app supplies at startup.
 #[derive(Clone, Debug)]
-/// Rem heights measured after layout, so a change of interface scale
-/// needs no re-measure. `full` is 0 until the full rail has been laid out.
-#[derive(Default)]
-pub(crate) struct RailFit {
-    pub(crate) room: std::cell::Cell<f32>,
-    pub(crate) full: std::cell::Cell<f32>,
-}
-
-impl RailFit {
-    /// Too short for every name: show icons only rather than scroll.
-    pub(crate) fn compact(&self) -> bool {
-        self.full.get() > 0.0 && self.room.get() + 0.01 < self.full.get()
-    }
-}
-
 pub struct ShellOptions {
     /// The running version (`CARGO_PKG_VERSION`).
     pub version: SharedString,
@@ -223,7 +206,6 @@ impl Shell {
         Self {
             focus: cx.focus_handle(),
             route: Route::Operator,
-            rail_fit: Default::default(),
             mounted,
             state: ShellState::default(),
             version: options.version,

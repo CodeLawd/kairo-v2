@@ -20,6 +20,8 @@ ui-shell = { path = "../../crates/ui-shell" }
 ui-operator = { path = "../../crates/ui-operator" }
 ui-scripture = { path = "../../crates/ui-scripture" }
 ui-documents = { path = "../../crates/ui-documents" }
+ui-imagine = { path = "../../crates/ui-imagine" }
+kairo-imagine = { path = "../../crates/kairo-imagine" }
 ui-lyrics = { path = "../../crates/ui-lyrics" }
 ui-media = { path = "../../crates/ui-media" }
 ui-account = { path = "../../crates/ui-account" }
@@ -29,6 +31,7 @@ ui-theme = { path = "../../crates/ui-theme" }
 kairo-scene = { path = "../../crates/kairo-scene" }
 kairo-video = { path = "../../crates/kairo-video" }
 futures-channel = "0.3"
+dirs = "6"
 iana-time-zone = "0.1"
 tracing = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }

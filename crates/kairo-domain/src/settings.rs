@@ -271,6 +271,8 @@ string_enum!(
     pub enum DisplayTheme {
         Dark = "dark",
         Light = "light",
+        /// Follows the system's light or dark appearance.
+        System = "system",
     }
 );
 

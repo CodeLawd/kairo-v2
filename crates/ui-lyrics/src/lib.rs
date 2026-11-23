@@ -18,5 +18,5 @@ pub mod view;
 
 pub use backend::LyricsBackend;
 pub use model::{Lyrics, LyricsEvent};
-pub use quick_open::{QuickOpen, QuickOpenEvent};
+pub use quick_open::{QuickOpen, QuickOpenEvent, SearchEntry, SearchScope};
 pub use view::LyricsWorkspace;

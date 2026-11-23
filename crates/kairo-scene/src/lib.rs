@@ -28,5 +28,6 @@ pub use scene::{
 };
 pub use text::{collapse, paragraphs_for, transform};
 pub use typeset::{
-    FONT_STACKS, Typesetter, bundled_families, bundled_font_covers, family_chain, with_typesetter,
+    FONT_GROUPS, FONT_STACKS, Typesetter, bundled_families, bundled_font_covers, family_chain,
+    with_typesetter,
 };

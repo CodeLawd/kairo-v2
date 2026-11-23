@@ -29,6 +29,11 @@ pub use icons::{KairoAssets, KairoIcon};
 pub use theme::{KairoTheme, KairoThemeExt, set_appearance, set_reduced_motion, set_solid_chrome};
 pub use tokens::{Appearance, Hue, KairoColors};
 
+/// Shared width of the right-hand Live Rail, so the header seam stays aligned
+/// with the rail's left border across every workspace.
+pub struct LiveRailWidth(pub f32);
+impl gpui_kit::Global for LiveRailWidth {}
+
 /// Registers fonts, key bindings and the theme. Call once, after
 /// `gpui_kit::init`.
 pub fn init(appearance: Appearance, cx: &mut gpui_kit::App) {

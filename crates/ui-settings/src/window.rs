@@ -9,6 +9,7 @@ use crate::panes::{AccountPane, AudioPane, LibraryPane, ShortcutsPane, TracePane
 use crate::widgets;
 use futures_util::StreamExt;
 use gpui_kit::base::TestSupportExt;
+use gpui_kit::component::color_picker::{ColorPickerEvent, ColorPickerState};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::slider::{SliderEvent, SliderState};
 use gpui_kit::component::{Icon, Sizable, h_flex, v_flex};
@@ -110,6 +111,8 @@ pub struct SettingsWindow {
     pub(crate) font_size: Entity<SliderState>,
     pub(crate) transcript_size: Entity<SliderState>,
     pub(crate) gloss: Entity<InputState>,
+    /// The gloss swatch's picker; it and the hex field stay in step.
+    pub(crate) gloss_picker: Entity<ColorPickerState>,
     pub(crate) workspace: WorkspacePane,
     pub(crate) converter: Option<SlideConverterStatus>,
     pub(crate) update: UpdateStatus,
@@ -191,6 +194,15 @@ impl SettingsWindow {
                 .placeholder(crate::model::DEFAULT_GLOSS)
                 .default_value(gloss_text(&settings))
         });
+        let gloss_picker = cx.new(|cx| {
+            let s = ColorPickerState::new(window, cx);
+            match crate::model::hex_to_rgb(crate::model::gloss_or_default(
+                &settings.lyrics.gloss_color,
+            )) {
+                Some(rgb) => s.default_value(gpui_kit::rgb(rgb)),
+                None => s,
+            }
+        });
         let max_verses = text_field(
             crate::model::number_text(settings.overlay.max_verses),
             window,
@@ -244,6 +256,18 @@ impl SettingsWindow {
                 }
             }),
             cx.subscribe_in(&gloss, window, Self::on_gloss),
+            cx.subscribe_in(
+                &gloss_picker,
+                window,
+                |this, _, e: &ColorPickerEvent, window, cx| {
+                    if let ColorPickerEvent::Change(Some(c)) = e {
+                        let hex = hex_of(*c);
+                        this.gloss
+                            .update(cx, |input, cx| input.set_value(hex.clone(), window, cx));
+                        this.set_gloss(hex, cx);
+                    }
+                },
+            ),
             cx.observe(&account, |this, account, cx| {
                 let session = account.read(cx).session().clone();
                 this.account_pane.sync(&session, cx);
@@ -311,6 +335,7 @@ impl SettingsWindow {
             font_size,
             transcript_size,
             gloss,
+            gloss_picker,
             workspace: WorkspacePane::default(),
             converter: None,
             update,
@@ -525,13 +550,21 @@ impl SettingsWindow {
         &mut self,
         input: &Entity<InputState>,
         event: &InputEvent,
-        _: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !matches!(event, InputEvent::Change) {
             return;
         }
         let value = input.read(cx).value().to_string();
+        // A typed colour moves the picker too.
+        if let Some(rgb) = crate::model::hex_to_rgb(value.trim()) {
+            let color: gpui_kit::Hsla = gpui_kit::rgb(rgb).into();
+            if self.gloss_picker.read(cx).value() != Some(color) {
+                self.gloss_picker
+                    .update(cx, |p, cx| p.set_value(color, window, cx));
+            }
+        }
         self.set_gloss(value, cx);
     }
 
@@ -584,23 +617,26 @@ impl SettingsWindow {
         }
     }
 
-    /// Dark mode applies and saves at once.
-    pub(crate) fn set_dark(&mut self, dark: bool, window: &mut Window, cx: &mut Context<Self>) {
+    /// The theme applies and saves at once. "Match system" takes the
+    /// system's appearance now and follows it from then on.
+    pub(crate) fn set_theme(
+        &mut self,
+        theme: kairo_domain::settings::DisplayTheme,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         use kairo_domain::settings::DisplayTheme;
-        self.settings.display.theme = if dark {
-            DisplayTheme::Dark
-        } else {
-            DisplayTheme::Light
+        if self.settings.display.theme == theme {
+            return;
+        }
+        self.settings.display.theme = theme;
+        kairo_ui_kit::theme::set_follow_system(theme == DisplayTheme::System, cx);
+        let appearance = match theme {
+            DisplayTheme::Dark => kairo_ui_kit::Appearance::Dark,
+            DisplayTheme::Light => kairo_ui_kit::Appearance::Light,
+            DisplayTheme::System => kairo_ui_kit::theme::appearance_of(window.appearance()),
         };
-        kairo_ui_kit::set_appearance(
-            if dark {
-                kairo_ui_kit::Appearance::Dark
-            } else {
-                kairo_ui_kit::Appearance::Light
-            },
-            Some(window),
-            cx,
-        );
+        kairo_ui_kit::set_appearance(appearance, Some(window), cx);
         self.persist("display", cx);
         cx.notify();
     }
@@ -1146,4 +1182,11 @@ impl Render for SettingsWindow {
         self.dialog
             .update(cx, |dialog, cx| dialog.frame(content, window, cx))
     }
+}
+
+/// `#RRGGBB` for a colour, as the gloss setting stores it.
+fn hex_of(color: gpui_kit::Hsla) -> String {
+    let c: gpui_kit::Rgba = color.into();
+    let byte = |v: f32| (v.clamp(0., 1.) * 255.).round() as u8;
+    format!("#{:02X}{:02X}{:02X}", byte(c.r), byte(c.g), byte(c.b))
 }

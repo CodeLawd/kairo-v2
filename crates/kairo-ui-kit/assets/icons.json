@@ -410,6 +410,16 @@
   "source": "phosphor:BookOpen"
  },
  {
+  "name": "PhBrain",
+  "file": "ph_brain",
+  "source": "phosphor:Brain"
+ },
+ {
+  "name": "PhotoStack",
+  "file": "photo_stack",
+  "source": "kairo:PhotoStack (hand-drawn, hugeicons stroke style)"
+ },
+ {
   "name": "PhBroadcast",
   "file": "ph_broadcast",
   "source": "phosphor:Broadcast"

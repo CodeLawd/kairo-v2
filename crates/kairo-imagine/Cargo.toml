@@ -1,0 +1,26 @@
+[package]
+name = "kairo-imagine"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+base64 = "0.22"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+kairo-net = { path = "../kairo-net" }
+kairo-scene = { path = "../kairo-scene" }
+tiny-skia = "0.11"
+kairo-store = { path = "../kairo-store" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "stream", "system-proxy"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }

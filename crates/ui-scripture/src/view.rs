@@ -22,9 +22,9 @@ use gpui_kit::component::{
 };
 use gpui_kit::{
     AnyElement, AnyView, App, AppContext, Context, Entity, FocusHandle, Focusable, FontWeight,
-    InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Render, Role, ScrollStrategy,
-    SharedString, StatefulInteractiveElement, Styled, Subscription, Window, canvas, deferred, div,
-    prelude::FluentBuilder, px, size,
+    HighlightStyle, InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Render, Role,
+    ScrollStrategy, SharedString, StatefulInteractiveElement, Styled, StyledText, Subscription,
+    Window, canvas, deferred, div, prelude::FluentBuilder, px, size,
 };
 use kairo_domain::collections::{DEFAULT_LIBRARY_ID, LibrariesCommand, LibraryKind as DomainKind};
 use kairo_domain::media_order::DropPosition;
@@ -841,7 +841,7 @@ impl ScriptureWorkspace {
                     d.bg(k.surface_elevated).text_color(k.text_primary)
                 } else {
                     d.text_color(k.text(TextStep::T400))
-                        .hover(|s| s.bg(k.white.opacity(0.05)))
+                        .hover(|s| s.bg(k.ink(0.05)))
                 }
             })
             // No results: a press from assistive technology does nothing, as the pointer does.
@@ -1322,7 +1322,7 @@ impl ScriptureWorkspace {
                             } else {
                                 k.text(TextStep::T300)
                             })
-                            .when(!selected, |d| d.hover(|s| s.bg(k.white.opacity(0.05))))
+                            .when(!selected, |d| d.hover(|s| s.bg(k.ink(0.05))))
                             .cursor_pointer()
                             .on_click(move |_, _, cx| {
                                 open.update(cx, |m, cx| m.open_plan(&open_id, cx))
@@ -1882,12 +1882,16 @@ impl ScriptureWorkspace {
                 .absolute()
                 .top(px(36.))
                 .left_0()
-                .w(px(576.))
-                .max_h(px(320.))
+                .w_full()
+                .min_w(px(460.))
+                .max_h(px(360.))
                 .overflow_y_scroll()
                 .rounded(radius::lg())
+                .border_1()
+                .border_color(k.surface_border)
                 .bg(k.surface_elevated)
-                .p_1()
+                .shadow_lg()
+                .p_1p5()
                 .on_mouse_down(gpui_kit::MouseButton::Left, |_, window, _| {
                     window.prevent_default()
                 })
@@ -1971,28 +1975,34 @@ impl ScriptureWorkspace {
                         BarItem::Verse(result) => {
                             let text_body = rows::verse_text(result);
                             let row = if phrase {
-                                row.items_start().child(
+                                let mut plain = String::new();
+                                let mut ranges = Vec::new();
+                                for (part, mark) in rows::highlight(&text_body, &query) {
+                                    let start = plain.len();
+                                    plain.push_str(&part);
+                                    if mark {
+                                        ranges.push((
+                                            start..plain.len(),
+                                            HighlightStyle {
+                                                color: Some(k.text_primary),
+                                                font_weight: Some(FontWeight::SEMIBOLD),
+                                                ..Default::default()
+                                            },
+                                        ));
+                                    }
+                                }
+                                row.items_start().px_2p5().py_2().child(
                                     v_flex()
                                         .flex_1()
                                         .min_w_0()
                                         .child(
                                             div()
                                                 .text_size(text::SM.size)
+                                                .line_height(px(20.))
                                                 .text_color(k.text(TextStep::T300))
                                                 .line_clamp(2)
-                                                .children(
-                                                    rows::highlight(&text_body, &query)
-                                                        .into_iter()
-                                                        .map(|(part, mark)| {
-                                                            div()
-                                                                .when(mark, |d| {
-                                                                    d.font_weight(
-                                                                        FontWeight::SEMIBOLD,
-                                                                    )
-                                                                    .text_color(k.text_primary)
-                                                                })
-                                                                .child(part)
-                                                        }),
+                                                .child(
+                                                    StyledText::new(plain).with_highlights(ranges),
                                                 ),
                                         )
                                         .child(

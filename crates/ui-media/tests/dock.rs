@@ -950,3 +950,71 @@ fn two_thousand_items_draw_only_visible_rows(cx: &mut TestAppContext) {
         "2000 items (test platform): open + first frames {first:?}, zoom relayout {relayout:?}"
     );
 }
+
+#[gpui_kit::test]
+fn dropping_media_onto_a_playlist_adds_single_and_picked_items(cx: &mut TestAppContext) {
+    let mut lib = library(3, &[]);
+    lib.playlists.clear();
+    lib.playlists.push(kairo_domain::media::MediaPlaylist {
+        id: "p1".into(),
+        name: "Service".into(),
+        item_ids: vec![],
+        created_at: 0.,
+        extra: Default::default(),
+    });
+    lib.playlists.push(kairo_domain::media::MediaPlaylist {
+        id: "p2".into(),
+        name: "Offering".into(),
+        item_ids: vec![],
+        created_at: 0.,
+        extra: Default::default(),
+    });
+    let core = Core::new(lib);
+    let o = open(cx, core.clone(), true);
+
+    // From All backgrounds: single card drop adds to p1.
+    act(cx, &o, |m, cx| {
+        m.drop_item_on_playlist("p1".into(), "i0".into(), cx)
+    });
+    assert_eq!(
+        read(cx, &o, |m| m.library().playlists[0].item_ids.clone()),
+        vec!["i0"]
+    );
+
+    // From All backgrounds: multi-select drop adds every picked item.
+    act(cx, &o, |m, cx| {
+        m.pick("i1", PickGesture::Toggle, cx);
+        m.pick("i2", PickGesture::Toggle, cx);
+        m.drop_item_on_playlist("p1".into(), "i1".into(), cx);
+    });
+    assert_eq!(
+        read(cx, &o, |m| m.library().playlists[0].item_ids.clone()),
+        vec!["i0", "i1", "i2"]
+    );
+
+    // From playlist p1: dragging onto p2 moves the item out of p1 into p2.
+    act(cx, &o, |m, cx| {
+        m.select(Selection::Playlist("p1".into()), cx);
+        m.drop_item_on_playlist("p2".into(), "i0".into(), cx);
+    });
+    assert_eq!(
+        read(cx, &o, |m| m.library().playlists[0].item_ids.clone()),
+        vec!["i1", "i2"]
+    );
+    assert_eq!(
+        read(cx, &o, |m| m.library().playlists[1].item_ids.clone()),
+        vec!["i0"]
+    );
+
+    // From playlist p1: multi-select drag moves all picked items to p2.
+    act(cx, &o, |m, cx| {
+        m.pick("i1", PickGesture::Toggle, cx);
+        m.pick("i2", PickGesture::Toggle, cx);
+        m.drop_item_on_playlist("p2".into(), "i1".into(), cx);
+    });
+    assert!(read(cx, &o, |m| m.library().playlists[0].item_ids.is_empty()));
+    assert_eq!(
+        read(cx, &o, |m| m.library().playlists[1].item_ids.clone()),
+        vec!["i0", "i1", "i2"]
+    );
+}

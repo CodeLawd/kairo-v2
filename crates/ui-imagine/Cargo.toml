@@ -1,0 +1,16 @@
+[package]
+name = "ui-imagine"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+gpui-kit.workspace = true
+kairo-imagine = { path = "../kairo-imagine" }
+kairo-ui-kit = { path = "../kairo-ui-kit" }
+
+[dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }
+kairo-ui-kit = { path = "../kairo-ui-kit", features = ["test-support"] }

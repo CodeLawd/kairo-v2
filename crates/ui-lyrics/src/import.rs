@@ -18,13 +18,14 @@ use gpui_kit::{
     AnyElement, AppContext, Context, Entity, EventEmitter, ExternalPaths, FontWeight,
     InteractiveElement, IntoElement, ParentElement, Render, Role, SharedString,
     StatefulInteractiveElement, Styled, Subscription, Task, Window, div, prelude::FluentBuilder,
-    px,
+    px, uniform_list,
 };
 use kairo_domain::lyrics::clipboard::{
     has_song_metadata, lift_heading_title, looks_like_lyrics, parse_clipboard_song,
 };
-use kairo_domain::lyrics::duplicate::{describe_duplicate, find_duplicate};
+use kairo_domain::lyrics::duplicate::{DuplicateIndex, describe_duplicate};
 use kairo_domain::lyrics::online_error::format_online_lyrics_error;
+use kairo_domain::lyrics::propresenter::parse_propresenter;
 use kairo_domain::lyrics::rtf::{looks_like_rtf, rtf_to_plain_text};
 use kairo_domain::lyrics::section_edit::parse_marked_sections;
 use kairo_domain::lyrics::{
@@ -97,10 +98,12 @@ pub struct Queued {
     pub renamed: bool,
 }
 
-/// Song sheets arrive as SongSelect exports, plain text, or RTF.
+/// Song sheets arrive as SongSelect exports, plain text, RTF, or ProPresenter 7.
 pub fn importable(name: &str) -> bool {
     let lower = name.to_lowercase();
-    [".usr", ".txt", ".rtf"].iter().any(|e| lower.ends_with(e))
+    [".usr", ".txt", ".rtf", ".pro"]
+        .iter()
+        .any(|e| lower.ends_with(e))
 }
 
 /// "Way Maker.rtf" → "Way Maker", the last resort for an untitled document.
@@ -119,6 +122,27 @@ pub fn title_from_file_name(name: &str) -> String {
     } else {
         collapsed
     }
+}
+
+/// Binary-aware entry point: `.pro` is decoded as ProPresenter 7 protobuf;
+/// text formats go through [`source_for_file`].
+pub fn source_for_file_bytes(name: &str, raw: &[u8]) -> Result<LyricsImportSource, String> {
+    if name.to_lowercase().ends_with(".pro") {
+        let parsed = parse_propresenter(raw)?;
+        let title = if parsed.title.trim().is_empty() {
+            title_from_file_name(name)
+        } else {
+            parsed.title
+        };
+        return Ok(LyricsImportSource::ProPresenter {
+            title,
+            artist: parsed.artist,
+            text: parsed.text,
+            copyright: parsed.copyright,
+            ccli_number: parsed.ccli_number,
+        });
+    }
+    source_for_file(name, &String::from_utf8_lossy(raw))
 }
 
 /// `sourceForFile`: a header block is a SongSelect export; RTF is read to
@@ -260,6 +284,7 @@ pub struct ImportDialog {
     error: Option<String>,
     queue: Vec<Queued>,
     file_errors: Vec<(String, String)>,
+    show_error_details: bool,
     progress: Option<(usize, usize)>,
     selected: Option<String>,
     online: Online,
@@ -342,16 +367,16 @@ impl ImportDialog {
                 }
             }),
         );
-        query.update(cx, |s, cx| s.focus(window, cx));
         Self {
             modal_focus: cx.focus_handle(),
             _model: model,
             backend,
-            tab: Tab::Online,
+            tab: Tab::File,
             busy: false,
             error: None,
             queue: Vec::new(),
             file_errors: Vec::new(),
+            show_error_details: false,
             progress: None,
             selected: None,
             online: Online::default(),
@@ -587,9 +612,11 @@ impl ImportDialog {
         .detach();
     }
 
-    /// `readFiles`: each file is parsed and checked, one at a time, and
-    /// nothing is saved. One bad file is named while the rest carry on.
+    /// `readFiles`: files are parsed and duplicate-checked in chunks off the
+    /// UI thread; nothing is saved. Bad files are recorded while the rest carry on.
     pub fn read_files(&mut self, files: Vec<SongFile>, cx: &mut Context<Self>) {
+        const PREVIEW_CHUNK: usize = 128;
+
         let (accepted, rejected): (Vec<_>, Vec<_>) =
             files.into_iter().partition(|f| importable(&f.name));
         self.file_errors = rejected
@@ -597,13 +624,14 @@ impl ImportDialog {
             .map(|f| {
                 (
                     f.name.clone(),
-                    "Only .usr, .txt and .rtf files can be imported.".to_owned(),
+                    "Only .usr, .txt, .rtf and .pro files can be imported.".to_owned(),
                 )
             })
             .collect();
+        self.show_error_details = false;
         if accepted.is_empty() {
             if !rejected.is_empty() {
-                self.error = Some("Only .usr, .txt and .rtf files are supported.".into());
+                self.error = Some("Only .usr, .txt, .rtf and .pro files are supported.".into());
             }
             cx.notify();
             return;
@@ -611,66 +639,135 @@ impl ImportDialog {
         self.busy = true;
         self.error = None;
         self.progress = Some((0, accepted.len()));
-        let mut queued_so_far: Vec<LyricsSong> = self
+        let queued_so_far: Vec<LyricsSong> = self
             .queue
             .iter()
             .filter(|q| q.action != FileAction::Skip)
             .map(|q| q.song.clone())
             .collect();
+        let mut batch_index = DuplicateIndex::new(&queued_so_far);
         let backend = self.backend.clone();
+        let bg = cx.background_executor().clone();
         cx.spawn(async move |this, cx| {
-            let mut read = Vec::new();
-            for file in accepted {
-                let result = match file
-                    .content
-                    .clone()
-                    .and_then(|raw| source_for_file(&file.name, &raw))
-                {
-                    Ok(source) => {
-                        match ask(&backend, LyricsCall::PreviewFile(source.clone())).await {
-                            Ok(LyricsAnswer::ImportPreview(preview)) => Ok((source, preview)),
-                            Ok(_) => Err("Could not read that file.".to_owned()),
-                            Err(e) => Err(clean_error(&e)),
+            let mut read = Vec::with_capacity(accepted.len());
+            let mut iter = accepted.into_iter();
+            loop {
+                let chunk: Vec<SongFile> = iter.by_ref().take(PREVIEW_CHUNK).collect();
+                if chunk.is_empty() {
+                    break;
+                }
+                let chunk_len = chunk.len();
+                let parsed: Vec<(String, String, Result<LyricsImportSource, String>)> = bg
+                    .spawn(async move {
+                        let parse_one = |file: SongFile| {
+                            let res = file
+                                .content
+                                .as_deref()
+                                .map_err(Clone::clone)
+                                .and_then(|raw| source_for_file_bytes(&file.name, raw));
+                            (file.key, file.name, res)
+                        };
+                        if chunk.len() < 16 {
+                            return chunk.into_iter().map(parse_one).collect();
                         }
-                    }
-                    Err(e) => Err(e),
-                };
-                match result {
-                    Ok((source, preview)) => {
-                        let in_batch = preview
-                            .duplicate
-                            .is_none()
-                            .then(|| find_duplicate(&preview.song, &queued_so_far))
-                            .flatten();
-                        let is_batch = in_batch.is_some();
-                        let duplicate = preview.duplicate.clone().or(in_batch);
-                        if duplicate.is_none() {
-                            queued_so_far.push(preview.song.clone());
+                        let threads = std::thread::available_parallelism()
+                            .map(usize::from)
+                            .unwrap_or(1)
+                            .min(8);
+                        let part = chunk.len().div_ceil(threads).max(1);
+                        let mut parts = Vec::with_capacity(threads);
+                        let mut ci = chunk.into_iter();
+                        loop {
+                            let slice: Vec<_> = ci.by_ref().take(part).collect();
+                            if slice.is_empty() {
+                                break;
+                            }
+                            parts.push(slice);
                         }
-                        read.push(Queued {
-                            key: file.key.clone(),
-                            file_name: file.name.clone(),
-                            song: preview.song,
-                            source,
-                            action: if duplicate.is_some() {
-                                FileAction::Skip
-                            } else {
-                                FileAction::New
-                            },
-                            duplicate,
-                            in_batch: is_batch,
-                            renamed: false,
-                        });
-                    }
-                    Err(message) => {
-                        let _ = this.update(cx, |this, _| {
-                            this.file_errors.push((file.name.clone(), message))
-                        });
+                        std::thread::scope(|s| {
+                            let handles: Vec<_> = parts
+                                .into_iter()
+                                .map(|p| {
+                                    s.spawn(move || p.into_iter().map(parse_one).collect::<Vec<_>>())
+                                })
+                                .collect();
+                            let mut out = Vec::with_capacity(chunk_len);
+                            for h in handles {
+                                if let Ok(v) = h.join() {
+                                    out.extend(v);
+                                }
+                            }
+                            out
+                        })
+                    })
+                    .await;
+
+                let mut chunk_errors: Vec<(String, String)> = Vec::new();
+                let mut valid_meta: Vec<(String, String, LyricsImportSource)> = Vec::new();
+                for (key, name, res) in parsed {
+                    match res {
+                        Ok(source) => valid_meta.push((key, name, source)),
+                        Err(e) => chunk_errors.push((name, e)),
                     }
                 }
+
+                if !valid_meta.is_empty() {
+                    let sources: Vec<LyricsImportSource> =
+                        valid_meta.iter().map(|(_, _, s)| s.clone()).collect();
+                    match ask(&backend, LyricsCall::PreviewFiles(sources)).await {
+                        Ok(LyricsAnswer::ImportPreviews(previews)) => {
+                            for ((key, name, source), preview_res) in
+                                valid_meta.into_iter().zip(previews)
+                            {
+                                match preview_res {
+                                    Ok(preview) => {
+                                        let in_batch = preview
+                                            .duplicate
+                                            .is_none()
+                                            .then(|| batch_index.find(&preview.song))
+                                            .flatten();
+                                        let is_batch = in_batch.is_some();
+                                        let duplicate = preview.duplicate.clone().or(in_batch);
+                                        if duplicate.is_none() {
+                                            batch_index.insert(&preview.song);
+                                        }
+                                        read.push(Queued {
+                                            key,
+                                            file_name: name,
+                                            song: preview.song,
+                                            source,
+                                            action: if duplicate.is_some() {
+                                                FileAction::Skip
+                                            } else {
+                                                FileAction::New
+                                            },
+                                            duplicate,
+                                            in_batch: is_batch,
+                                            renamed: false,
+                                        });
+                                    }
+                                    Err(e) => chunk_errors.push((name, clean_error(&e))),
+                                }
+                            }
+                        }
+                        Ok(_) => {
+                            for (_, name, _) in valid_meta {
+                                chunk_errors.push((name, "Could not read that file.".to_owned()));
+                            }
+                        }
+                        Err(e) => {
+                            let msg = clean_error(&e);
+                            for (_, name, _) in valid_meta {
+                                chunk_errors.push((name, msg.clone()));
+                            }
+                        }
+                    }
+                }
+
                 let _ = this.update(cx, |this, cx| {
+                    this.file_errors.extend(chunk_errors);
                     if let Some((done, _)) = this.progress.as_mut() {
-                        *done += 1;
+                        *done += chunk_len;
                     }
                     cx.notify();
                 });
@@ -678,11 +775,19 @@ impl ImportDialog {
             let _ = this.update(cx, |this, cx| {
                 let first = read.first().map(|q| q.key.clone());
                 let none = read.is_empty();
-                // Re-dropping a file replaces its entry.
+                // Re-dropping a file replaces its entry in O(1).
+                let mut by_key: HashMap<String, usize> = this
+                    .queue
+                    .iter()
+                    .enumerate()
+                    .map(|(i, q)| (q.key.clone(), i))
+                    .collect();
                 for entry in read {
-                    match this.queue.iter_mut().find(|q| q.key == entry.key) {
-                        Some(held) => *held = entry,
-                        None => this.queue.push(entry),
+                    if let Some(&idx) = by_key.get(&entry.key) {
+                        this.queue[idx] = entry;
+                    } else {
+                        by_key.insert(entry.key.clone(), this.queue.len());
+                        this.queue.push(entry);
                     }
                 }
                 if this.selected.is_none() {
@@ -782,8 +887,11 @@ impl ImportDialog {
         }
     }
 
-    /// Add: the only path that saves. A replace keeps the old song's id.
+    /// Add: the only path that saves. Plain new songs save in batched SQLite
+    /// transactions; replacements and renamed entries save individually.
     pub fn confirm_files(&mut self, cx: &mut Context<Self>) {
+        const SAVE_CHUNK: usize = 256;
+
         let chosen: Vec<Queued> = self
             .queue
             .iter()
@@ -798,9 +906,53 @@ impl ImportDialog {
         self.progress = Some((0, chosen.len()));
         let backend = self.backend.clone();
         cx.spawn(async move |this, cx| {
-            let mut saved = Vec::new();
+            let mut saved = Vec::with_capacity(chosen.len());
             let mut failures = Vec::new();
-            for entry in chosen {
+            let (batchable, individual): (Vec<Queued>, Vec<Queued>) = chosen
+                .into_iter()
+                .partition(|e| e.action != FileAction::Replace && !e.renamed);
+
+            // Fast path: plain new imports in single-transaction chunks.
+            let mut bi = batchable.into_iter();
+            loop {
+                let chunk: Vec<Queued> = bi.by_ref().take(SAVE_CHUNK).collect();
+                if chunk.is_empty() {
+                    break;
+                }
+                let chunk_len = chunk.len();
+                let sources: Vec<LyricsImportSource> =
+                    chunk.iter().map(|e| e.source.clone()).collect();
+                match ask(&backend, LyricsCall::ImportBatch(sources)).await {
+                    Ok(LyricsAnswer::ImportBatch(results)) => {
+                        for (entry, res) in chunk.into_iter().zip(results) {
+                            match res {
+                                Ok(s) => saved.push(s),
+                                Err(e) => failures.push((entry.file_name, clean_error(&e))),
+                            }
+                        }
+                    }
+                    Ok(_) => {
+                        for entry in chunk {
+                            failures.push((entry.file_name, "Could not add that song.".into()));
+                        }
+                    }
+                    Err(e) => {
+                        let msg = clean_error(&e);
+                        for entry in chunk {
+                            failures.push((entry.file_name, msg.clone()));
+                        }
+                    }
+                }
+                let _ = this.update(cx, |this, cx| {
+                    if let Some((done, _)) = this.progress.as_mut() {
+                        *done += chunk_len;
+                    }
+                    cx.notify();
+                });
+            }
+
+            // Individual path: replacements and renamed/edited entries.
+            for entry in individual {
                 let result: Result<LyricsSong, String> = if entry.action == FileAction::Replace
                     && !entry.in_batch
                     && let Some(dup) = &entry.duplicate
@@ -1036,9 +1188,14 @@ impl ImportDialog {
                 .font_weight(FontWeight::MEDIUM)
                 .map(|d| {
                     if on {
-                        d.bg(k.surface_elevated).text_color(k.text_primary)
+                        d.bg(k.surface_tertiary)
+                            .border_1()
+                            .border_color(k.white.opacity(0.14))
+                            .text_color(k.text_primary)
                     } else {
-                        d.text_color(k.text(TextStep::T400))
+                        d.border_1()
+                            .border_color(gpui_kit::transparent_black())
+                            .text_color(k.text(TextStep::T400))
                             .hover(|s| s.text_color(k.text_primary))
                     }
                 })
@@ -1054,10 +1211,12 @@ impl ImportDialog {
                     .gap_0p5()
                     .rounded(radius::lg())
                     .bg(k.surface)
+                    .border_1()
+                    .border_color(k.panel_border)
                     .p_0p5()
-                    .child(tab(ids::TAB_ONLINE, Tab::Online, "Search Online"))
                     .child(tab(ids::TAB_FILE, Tab::File, "Upload File"))
-                    .child(tab(ids::TAB_PASTE, Tab::Paste, "Paste Lyrics")),
+                    .child(tab(ids::TAB_PASTE, Tab::Paste, "Paste Lyrics"))
+                    .child(tab(ids::TAB_ONLINE, Tab::Online, "Search Online")),
             )
             .into_any_element()
     }
@@ -1306,8 +1465,20 @@ impl ImportDialog {
             .py_4()
             .child(
                 v_flex()
-                    .child(Input::new(&self.query).kairo_size().prefix(Icon::new(KairoIcon::ScanSearch).size_3p5()))
-                    .child(div().mt_1p5().text_size(text::LABEL.size).text_color(k.text(TextStep::T500)).child("Click a result to preview lyrics, then Import if it’s the right song.")),
+                    .child(
+                        div()
+                            .rounded(radius::md())
+                            .bg(k.surface)
+                            .border_1()
+                            .border_color(k.white.opacity(0.18))
+                            .child(
+                                Input::new(&self.query)
+                                    .appearance(false)
+                                    .kairo_size()
+                                    .prefix(Icon::new(KairoIcon::ScanSearch).size_3p5()),
+                            ),
+                    )
+                    .child(div().mt_1p5().text_size(text::LABEL.size).text_color(k.text(TextStep::T400)).child("Click a result to preview lyrics, then Import if it’s the right song.")),
             )
             .children(self.render_error(cx))
             .child(
@@ -1317,7 +1488,9 @@ impl ImportDialog {
                     .items_stretch()
                     .overflow_hidden()
                     .rounded(radius::xl())
-                    .bg(k.surface_tertiary)
+                    .bg(k.surface)
+                    .border_1()
+                    .border_color(k.panel_border)
                     .child(
                         v_flex()
                             .id("lyrics-import-results")
@@ -1327,7 +1500,7 @@ impl ImportDialog {
                             .p_2()
                             .gap_1()
                             .border_r_1()
-                            .border_color(k.surface_border)
+                            .border_color(k.panel_border)
                             .children(rows_)
                             .children(empty.map(|t| {
                                 div().id(ids::ONLINE_EMPTY).test_support().py_10().text_center().text_size(text::SM.size).text_color(k.text(TextStep::T300)).child(t)
@@ -1345,7 +1518,7 @@ impl ImportDialog {
         let label = match self.progress {
             Some((done, total)) => format!("Reading {} of {total}…", (done + 1).min(total)),
             None if compact => "Drop more files".into(),
-            None => "Drop .usr, .txt or .rtf files here".into(),
+            None => "Drop .usr, .txt, .rtf or .pro files here".into(),
         };
         v_flex()
             .id(ids::DROP)
@@ -1360,9 +1533,12 @@ impl ImportDialog {
             .rounded(radius::xl())
             .border_1()
             .border_dashed()
-            .border_color(k.surface_border)
-            .bg(k.surface_tertiary)
-            .hover(|s| s.bg(k.surface_elevated))
+            .border_color(k.white.opacity(0.22))
+            .bg(k.surface)
+            .hover(|s| {
+                s.bg(k.surface_header)
+                    .border_color(k.accent(kairo_ui_kit::tokens::Step::S400).opacity(0.6))
+            })
             .drag_over::<ExternalPaths>(move |s, _, _, cx| s.bg(cx.kairo().tints.teal))
             .on_drop(move |paths: &ExternalPaths, _, cx| {
                 let list = paths.paths().to_vec();
@@ -1409,16 +1585,209 @@ impl ImportDialog {
 
     fn render_file_errors(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let k = *cx.kairo();
-        self.file_errors
-            .iter()
-            .map(|(name, m)| {
-                div()
-                    .text_size(text::LABEL.size)
-                    .text_color(k.warning_text)
-                    .child(format!("{name} — {m}"))
-                    .into_any_element()
+        if self.file_errors.len() <= 4 {
+            return self
+                .file_errors
+                .iter()
+                .map(|(name, m)| {
+                    div()
+                        .text_size(text::LABEL.size)
+                        .text_color(k.warning_text)
+                        .child(format!("{name} — {m}"))
+                        .into_any_element()
+                })
+                .collect();
+        }
+        // Group identical skip reasons so bulk imports don't flood the modal.
+        let mut groups: Vec<(String, Vec<&str>)> = Vec::new();
+        for (name, reason) in &self.file_errors {
+            if let Some((_, names)) = groups.iter_mut().find(|(r, _)| r == reason) {
+                names.push(name.as_str());
+            } else {
+                groups.push((reason.clone(), vec![name.as_str()]));
+            }
+        }
+        let expanded = self.show_error_details;
+        let toggle = cx.entity();
+        let total = self.file_errors.len();
+        let mut out: Vec<AnyElement> = Vec::new();
+        out.push(
+            v_flex()
+                .gap_1()
+                .p_2p5()
+                .rounded(radius::md())
+                .bg(k.surface_header)
+                .border_1()
+                .border_color(k.panel_border)
+                .child(
+                    h_flex()
+                        .justify_between()
+                        .items_center()
+                        .gap_2()
+                        .child(
+                            div()
+                                .text_size(text::LABEL.size)
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(k.warning_text)
+                                .child(format!("{total} files skipped")),
+                        )
+                        .child(
+                            Button::new("lyrics-import-toggle-errors")
+                                .cursor_pointer()
+                                .ghost()
+                                .xsmall()
+                                .label(if expanded { "Hide details" } else { "Show details" })
+                                .on_click(move |_, _, cx| {
+                                    toggle.update(cx, |this, cx| {
+                                        this.show_error_details = !this.show_error_details;
+                                        cx.notify();
+                                    });
+                                }),
+                        ),
+                )
+                .children(groups.iter().map(|(reason, names)| {
+                    div()
+                        .text_size(text::LABEL.size)
+                        .text_color(k.text(TextStep::T400))
+                        .child(format!("{} — {reason}", rows::count_label(names.len(), "file")))
+                }))
+                .when(expanded, |el| {
+                    let preview_limit = 50;
+                    let extra = total.saturating_sub(preview_limit);
+                    el.child(
+                        v_flex()
+                            .mt_1()
+                            .pt_1p5()
+                            .border_t_1()
+                            .border_color(k.panel_border)
+                            .gap_0p5()
+                            .max_h(px(140.))
+                            .id("lyrics-import-error-details")
+                            .overflow_y_scroll()
+                            .children(self.file_errors.iter().take(preview_limit).map(|(n, m)| {
+                                div()
+                                    .text_size(text::MICRO.size)
+                                    .text_color(k.text(TextStep::T400))
+                                    .child(format!("{n} — {m}"))
+                            }))
+                            .when(extra > 0, |list| {
+                                list.child(
+                                    div()
+                                        .text_size(text::MICRO.size)
+                                        .text_color(k.text(TextStep::T500))
+                                        .child(format!("…and {extra} more")),
+                                )
+                            }),
+                    )
+                })
+                .into_any_element(),
+        );
+        out
+    }
+
+    fn render_queued_row(&self, i: usize, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let q = &self.queue[i];
+        let (pick, rm) = (cx.entity(), cx.entity());
+        let (k1, k2) = (q.key.clone(), q.key.clone());
+        let selected = self.selected.as_deref() == Some(q.key.as_str());
+        let detail = match &q.duplicate {
+            Some(_) if q.in_batch => "Already in this batch".to_owned(),
+            Some(_) => "Already in your library".to_owned(),
+            None => format!(
+                "{} · {}",
+                if q.song.artist.is_empty() {
+                    "Unknown artist"
+                } else {
+                    &q.song.artist
+                },
+                rows::count_label(q.song.sections.len(), "section")
+            ),
+        };
+        let badge = q.duplicate.as_ref().map(|_| match q.action {
+            FileAction::Skip => "Skipped",
+            FileAction::New => "New copy",
+            FileAction::Replace => "Replaces",
+        });
+        h_flex()
+            .id(SharedString::from(ids::queued(i)))
+            .test_support()
+            .h(px(48.))
+            .gap_2()
+            .px_2()
+            .rounded(radius::lg())
+            .when(q.action == FileAction::Skip, |d| d.opacity(0.6))
+            .map(|d| {
+                if selected {
+                    d.bg(k.row_selected())
+                } else {
+                    d.hover(|s| s.bg(k.surface_tertiary))
+                }
             })
-            .collect()
+            .cursor_pointer()
+            .on_click(move |_, _, cx| {
+                pick.update(cx, |this, cx| this.select_queued(k1.clone(), cx))
+            })
+            .child(
+                Icon::new(if q.duplicate.is_some() {
+                    KairoIcon::AlertCircle
+                } else {
+                    KairoIcon::Music2
+                })
+                .size_3()
+                .text_color(if q.duplicate.is_some() {
+                    k.warning_text
+                } else {
+                    k.notice_text
+                }),
+            )
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(text::SM.size)
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(k.text(TextStep::T200))
+                            .child(q.song.title.clone()),
+                    )
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(text::LABEL.size)
+                            .text_color(if q.duplicate.is_some() {
+                                k.warning_text
+                            } else {
+                                k.text(TextStep::T400)
+                            })
+                            .child(detail),
+                    ),
+            )
+            .children(badge.map(|b| {
+                div()
+                    .flex_none()
+                    .text_size(text::MICRO.size)
+                    .text_color(k.text(TextStep::T400))
+                    .child(b)
+            }))
+            .child(
+                Button::new(SharedString::from(format!("{}-remove", ids::queued(i))))
+                    .cursor_pointer()
+                    .ghost()
+                    .xsmall()
+                    .icon(Icon::new(KairoIcon::X))
+                    .accessibility_label(SharedString::from(format!(
+                        "Remove {} from this import",
+                        q.song.title
+                    )))
+                    .on_click(move |_, _, cx| {
+                        cx.stop_propagation();
+                        rm.update(cx, |this, cx| this.remove_queued(&k2, cx))
+                    }),
+            )
+            .into_any_element()
     }
 
     fn render_files(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -1438,113 +1807,7 @@ impl ImportDialog {
         let entity = cx.entity();
         let duplicates = self.queue.iter().filter(|q| q.duplicate.is_some()).count();
         let skipped = self.queue.len() - self.included();
-        let rows_: Vec<AnyElement> = self
-            .queue
-            .iter()
-            .enumerate()
-            .map(|(i, q)| {
-                let (pick, rm) = (entity.clone(), entity.clone());
-                let (k1, k2) = (q.key.clone(), q.key.clone());
-                let selected = self.selected.as_deref() == Some(q.key.as_str());
-                let detail = match &q.duplicate {
-                    Some(_) if q.in_batch => "Already in this batch".to_owned(),
-                    Some(_) => "Already in your library".to_owned(),
-                    None => format!(
-                        "{} · {}",
-                        if q.song.artist.is_empty() {
-                            "Unknown artist"
-                        } else {
-                            &q.song.artist
-                        },
-                        rows::count_label(q.song.sections.len(), "section")
-                    ),
-                };
-                let badge = q.duplicate.as_ref().map(|_| match q.action {
-                    FileAction::Skip => "Skipped",
-                    FileAction::New => "New copy",
-                    FileAction::Replace => "Replaces",
-                });
-                h_flex()
-                    .id(SharedString::from(ids::queued(i)))
-                    .test_support()
-                    .gap_2()
-                    .px_2()
-                    .py_2()
-                    .rounded(radius::lg())
-                    .when(q.action == FileAction::Skip, |d| d.opacity(0.6))
-                    .map(|d| {
-                        if selected {
-                            d.bg(k.row_selected())
-                        } else {
-                            d.hover(|s| s.bg(k.surface_tertiary))
-                        }
-                    })
-                    .cursor_pointer()
-                    .on_click(move |_, _, cx| {
-                        pick.update(cx, |this, cx| this.select_queued(k1.clone(), cx))
-                    })
-                    .child(
-                        Icon::new(if q.duplicate.is_some() {
-                            KairoIcon::AlertCircle
-                        } else {
-                            KairoIcon::Music2
-                        })
-                        .size_3()
-                        .text_color(if q.duplicate.is_some() {
-                            k.warning_text
-                        } else {
-                            k.notice_text
-                        }),
-                    )
-                    .child(
-                        v_flex()
-                            .flex_1()
-                            .min_w_0()
-                            .child(
-                                div()
-                                    .truncate()
-                                    .text_size(text::SM.size)
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(k.text(TextStep::T200))
-                                    .child(q.song.title.clone()),
-                            )
-                            .child(
-                                div()
-                                    .truncate()
-                                    .text_size(text::LABEL.size)
-                                    .text_color(if q.duplicate.is_some() {
-                                        k.warning_text
-                                    } else {
-                                        k.text(TextStep::T400)
-                                    })
-                                    .child(detail),
-                            ),
-                    )
-                    .children(badge.map(|b| {
-                        div()
-                            .flex_none()
-                            .text_size(text::MICRO.size)
-                            .text_color(k.text(TextStep::T400))
-                            .child(b)
-                    }))
-                    .child(
-                        Button::new(SharedString::from(format!("{}-remove", ids::queued(i))))
-                            .cursor_pointer()
-                            .ghost()
-                            .xsmall()
-                            .icon(Icon::new(KairoIcon::X))
-                            .accessibility_label(SharedString::from(format!(
-                                "Remove {} from this import",
-                                q.song.title
-                            )))
-                            .on_click(move |_, _, cx| {
-                                cx.stop_propagation();
-                                rm.update(cx, |this, cx| this.remove_queued(&k2, cx))
-                            }),
-                    )
-                    .into_any_element()
-            })
-            .collect();
+        let queue_len = self.queue.len();
         let preview: AnyElement = match self.selected() {
             None => div()
                 .flex_1()
@@ -1707,17 +1970,29 @@ impl ImportDialog {
                                     ),
                             )
                             .child(
-                                v_flex()
-                                    .id("lyrics-import-queue")
-                                    .flex_1()
-                                    .min_h_0()
-                                    .overflow_y_scroll()
-                                    .px_2()
-                                    .pb_2()
-                                    .gap_1()
-                                    .children(rows_)
-                                    .children(self.render_file_errors(cx)),
-                            ),
+                                uniform_list(
+                                    "lyrics-import-queue",
+                                    queue_len,
+                                    cx.processor(|this, range: std::ops::Range<usize>, _, cx| {
+                                        range
+                                            .map(|i| this.render_queued_row(i, cx))
+                                            .collect()
+                                    }),
+                                )
+                                .flex_1()
+                                .min_h_0()
+                                .px_2()
+                                .pb_2(),
+                            )
+                            .when(!self.file_errors.is_empty(), |col| {
+                                col.child(
+                                    v_flex()
+                                        .px_2()
+                                        .pb_2()
+                                        .gap_1()
+                                        .children(self.render_file_errors(cx)),
+                                )
+                            }),
                     )
                     .child(preview),
             )
@@ -1735,10 +2010,18 @@ impl ImportDialog {
                 .child(
                     div()
                         .text_size(text::LABEL.size)
-                        .text_color(k.text(TextStep::T400))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(k.text(TextStep::T300))
                         .child(label),
                 )
-                .child(Input::new(input).kairo_size())
+                .child(
+                    div()
+                        .rounded(radius::md())
+                        .bg(k.surface)
+                        .border_1()
+                        .border_color(k.white.opacity(0.18))
+                        .child(Input::new(input).kairo_size().appearance(false)),
+                )
         };
         v_flex()
             .id("lyrics-import-paste")
@@ -1754,12 +2037,14 @@ impl ImportDialog {
                     .gap_3()
                     .p_3()
                     .rounded(radius::xl())
-                    .bg(k.surface_tertiary)
+                    .bg(k.surface_header)
+                    .border_1()
+                    .border_color(k.panel_border)
                     .child(
                         v_flex()
                             .min_w_0()
-                            .child(div().text_size(text::SM.size).font_weight(FontWeight::MEDIUM).text_color(k.text(TextStep::T200)).child("Import from clipboard"))
-                            .child(div().mt_0p5().text_size(text::LABEL.size).text_color(k.text(TextStep::T500)).child("Copy a song from any lyrics site, then paste it here — title, artist and site clutter are sorted out for you.")),
+                            .child(div().text_size(text::SM.size).font_weight(FontWeight::MEDIUM).text_color(k.text_primary).child("Import from clipboard"))
+                            .child(div().mt_0p5().text_size(text::LABEL.size).text_color(k.text(TextStep::T400)).child("Copy a song from any lyrics site, then paste it here — title, artist and site clutter are sorted out for you.")),
                     )
                     .child(
                         Button::new(ids::CLIPBOARD).cursor_pointer()
@@ -1774,17 +2059,25 @@ impl ImportDialog {
             .child(
                 v_flex()
                     .gap_1()
-                    .child(div().text_size(text::LABEL.size).text_color(k.text(TextStep::T400)).child("Lyrics *"))
+                    .child(div().text_size(text::LABEL.size).font_weight(FontWeight::MEDIUM).text_color(k.text(TextStep::T300)).child("Lyrics *"))
                     .child(
-                        Textarea::new(&self.lyrics)
-                            .h(px(220.))
-                            .aria_label("Lyrics")
-                            .on_paste(move |item, window, cx| {
-                                let Some(raw) = item.text() else { return false };
-                                paste_entity
-                                    .update(cx, |this, cx| this.apply_paste(&raw, true, true, window, cx))
-                                    .unwrap_or(false)
-                            }),
+                        div()
+                            .rounded(radius::md())
+                            .bg(k.surface)
+                            .border_1()
+                            .border_color(k.white.opacity(0.18))
+                            .child(
+                                Textarea::new(&self.lyrics)
+                                    .appearance(false)
+                                    .h(px(220.))
+                                    .aria_label("Lyrics")
+                                    .on_paste(move |item, window, cx| {
+                                        let Some(raw) = item.text() else { return false };
+                                        paste_entity
+                                            .update(cx, |this, cx| this.apply_paste(&raw, true, true, window, cx))
+                                            .unwrap_or(false)
+                                    }),
+                            ),
                     )
                     .child(div().text_size(text::LABEL.size).text_color(k.text(TextStep::T500)).child("Sections auto-detected from labels or double blank lines.")),
             )
@@ -1859,7 +2152,10 @@ impl Render for ImportDialog {
                     .max_h(px(860.))
                     .overflow_hidden()
                     .rounded(radius::xl2())
-                    .bg(k.surface_elevated)
+                    .bg(k.surface_secondary)
+                    .border_1()
+                    .border_color(k.white.opacity(0.14))
+                    .shadow_2xl()
                     .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| cx.stop_propagation())
                     .child(
                         h_flex()
@@ -1869,7 +2165,7 @@ impl Render for ImportDialog {
                             .child(
                                 v_flex()
                                     .child(div().text_size(text::BASE.size).font_weight(FontWeight::SEMIBOLD).text_color(k.text_primary).child("Import Song"))
-                                    .child(div().mt_0p5().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child("Search online, upload song files, or paste a song from your clipboard")),
+                                    .child(div().mt_0p5().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child("Upload song files, paste from your clipboard, or search online")),
                             )
                             .child(Button::new(ids::CLOSE).cursor_pointer().ghost().small().icon(Icon::new(KairoIcon::X)).accessibility_label("Close").on_click(move |_, _, cx| close.update(cx, |this, cx| this.close(cx)))),
                     )
@@ -1881,6 +2177,9 @@ impl Render for ImportDialog {
                             .gap_2p5()
                             .px_5()
                             .py_3p5()
+                            .bg(k.surface_header)
+                            .border_t_1()
+                            .border_color(k.panel_border)
                             .child(Button::new("lyrics-import-cancel").cursor_pointer().label(if self.tab == Tab::Online { "Close" } else { "Cancel" }).on_click(move |_, _, cx| cancel.update(cx, |this, cx| this.close(cx))))
                             .children(confirm),
                     )
@@ -1896,6 +2195,7 @@ mod tests {
     #[test]
     fn file_sources_follow_the_sheet() {
         assert!(importable("Way Maker.RTF"));
+        assert!(importable("Alpha_Omega-1.pro"));
         assert!(!importable("song.docx"));
         assert_eq!(title_from_file_name("way_maker-live.txt"), "way maker live");
         assert_eq!(title_from_file_name(".txt"), "Untitled");

@@ -107,54 +107,62 @@ impl Render for SidebarDrag {
 }
 
 /// The resize handle at the sidebar's edge: drag to resize, double-click to
-/// put the default back.
+/// put the default back. Takes zero layout width so panels meet at a single
+/// crisp seam.
 pub fn handle(id: impl Into<ElementId>, container: Option<f32>, cx: &App) -> impl IntoElement {
     let k = *cx.kairo();
     div()
-        .id(id.into())
-        .test_support()
-        .role(Role::Splitter)
-        .aria_label("Resize sidebar")
         .flex_none()
-        .w_1p5()
+        .relative()
+        .w_0()
         .h_full()
-        .cursor_col_resize()
-        .bg(k.surface_secondary)
-        .hover(|s| s.bg(k.neutral(Step::S600)))
-        .on_drag(SidebarDrag, |d, _, _, cx| cx.new(|_| d.clone()))
-        .on_drag_move(move |event: &DragMoveEvent<SidebarDrag>, _, cx: &mut App| {
-            let x = f32::from(event.event.position.x);
-            let start = {
-                let width = PageSidebar::width(container, cx);
-                if !cx.has_global::<PageSidebar>() {
-                    cx.set_global(PageSidebar {
-                        preferred: DEFAULT,
-                        save: None,
-                        drag: None,
-                    });
-                }
-                *cx.global_mut::<PageSidebar>()
-                    .drag
-                    .get_or_insert((x, width))
-            };
-            PageSidebar::set(start.1 + x - start.0, container, cx);
-        })
-        .on_mouse_up(MouseButton::Left, |_, _, cx: &mut App| {
-            if cx.has_global::<PageSidebar>() {
-                cx.global_mut::<PageSidebar>().drag = None;
-            }
-        })
-        .on_drop(|_: &SidebarDrag, _, cx: &mut App| {
-            if cx.has_global::<PageSidebar>() {
-                cx.global_mut::<PageSidebar>().drag = None;
-            }
-        })
-        .on_click(move |e, _, cx| {
-            if e.click_count() == 2 {
-                PageSidebar::set(DEFAULT, container, cx);
-            }
-        })
-        .child(div().size_full().px(px(0.)))
+        .child(
+            div()
+                .id(id.into())
+                .test_support()
+                .role(Role::Splitter)
+                .aria_label("Resize sidebar")
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .left(px(-4.))
+                .w_2()
+                .cursor_col_resize()
+                .hover(move |s| s.bg(k.neutral(Step::S600).opacity(0.45)))
+                .on_drag(SidebarDrag, |d, _, _, cx| cx.new(|_| d.clone()))
+                .on_drag_move(move |event: &DragMoveEvent<SidebarDrag>, _, cx: &mut App| {
+                    let x = f32::from(event.event.position.x);
+                    let start = {
+                        let width = PageSidebar::width(container, cx);
+                        if !cx.has_global::<PageSidebar>() {
+                            cx.set_global(PageSidebar {
+                                preferred: DEFAULT,
+                                save: None,
+                                drag: None,
+                            });
+                        }
+                        *cx.global_mut::<PageSidebar>()
+                            .drag
+                            .get_or_insert((x, width))
+                    };
+                    PageSidebar::set(start.1 + x - start.0, container, cx);
+                })
+                .on_mouse_up(MouseButton::Left, |_, _, cx: &mut App| {
+                    if cx.has_global::<PageSidebar>() {
+                        cx.global_mut::<PageSidebar>().drag = None;
+                    }
+                })
+                .on_drop(|_: &SidebarDrag, _, cx: &mut App| {
+                    if cx.has_global::<PageSidebar>() {
+                        cx.global_mut::<PageSidebar>().drag = None;
+                    }
+                })
+                .on_click(move |e, _, cx| {
+                    if e.click_count() == 2 {
+                        PageSidebar::set(DEFAULT, container, cx);
+                    }
+                }),
+        )
 }
 
 #[cfg(test)]

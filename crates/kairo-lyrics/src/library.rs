@@ -10,7 +10,7 @@ use kairo_domain::{
     lyrics::{
         LyricsImportPreview, LyricsImportSource, LyricsSectionType, LyricsSong, LyricsSongSection,
         LyricsSource,
-        duplicate::find_duplicate,
+        duplicate::{DuplicateIndex, find_duplicate},
         section_json::{parse_section_lines, serialize_section_lines},
     },
 };
@@ -431,7 +431,9 @@ impl LyricsService {
     pub async fn preview_import(&self, source: LyricsImportSource) -> Result<LyricsImportPreview> {
         if !matches!(
             source,
-            LyricsImportSource::Usr { .. } | LyricsImportSource::Text { .. }
+            LyricsImportSource::Usr { .. }
+                | LyricsImportSource::Text { .. }
+                | LyricsImportSource::ProPresenter { .. }
         ) {
             return Err(LyricsError::PreviewSource);
         }
@@ -440,8 +442,126 @@ impl LyricsService {
         Ok(LyricsImportPreview { song, duplicate })
     }
 
+    /// Previews a batch of file imports loading the library once and checking
+    /// duplicates against an indexed snapshot.
+    pub async fn preview_imports(
+        &self,
+        sources: Vec<LyricsImportSource>,
+    ) -> Result<Vec<std::result::Result<LyricsImportPreview, String>>> {
+        let library = self.get_library().await?;
+        let now = now_ms();
+        let index = DuplicateIndex::new(&library);
+        let preview_one = |source: LyricsImportSource| {
+            if !matches!(
+                source,
+                LyricsImportSource::Usr { .. }
+                    | LyricsImportSource::Text { .. }
+                    | LyricsImportSource::ProPresenter { .. }
+            ) {
+                return Err(LyricsError::PreviewSource.to_string());
+            }
+            let song = parse_import(source, now).map_err(|e| e.to_string())?;
+            let duplicate = index.find(&song);
+            Ok(LyricsImportPreview { song, duplicate })
+        };
+        if sources.len() < 16 {
+            return Ok(sources.into_iter().map(preview_one).collect());
+        }
+        let threads = std::thread::available_parallelism()
+            .map(usize::from)
+            .unwrap_or(1)
+            .min(8);
+        let chunk_size = sources.len().div_ceil(threads).max(1);
+        let mut iter = sources.into_iter();
+        let mut chunks = Vec::with_capacity(threads);
+        loop {
+            let chunk: Vec<_> = iter.by_ref().take(chunk_size).collect();
+            if chunk.is_empty() {
+                break;
+            }
+            chunks.push(chunk);
+        }
+        let out = std::thread::scope(|s| {
+            let handles: Vec<_> = chunks
+                .into_iter()
+                .map(|chunk| {
+                    let index = &index;
+                    s.spawn(move || {
+                        chunk
+                            .into_iter()
+                            .map(|source| {
+                                if !matches!(
+                                    source,
+                                    LyricsImportSource::Usr { .. }
+                                        | LyricsImportSource::Text { .. }
+                                        | LyricsImportSource::ProPresenter { .. }
+                                ) {
+                                    return Err(LyricsError::PreviewSource.to_string());
+                                }
+                                let song =
+                                    parse_import(source, now).map_err(|e| e.to_string())?;
+                                let duplicate = index.find(&song);
+                                Ok(LyricsImportPreview { song, duplicate })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            let mut results = Vec::new();
+            for h in handles {
+                if let Ok(part) = h.join() {
+                    results.extend(part);
+                }
+            }
+            results
+        });
+        Ok(out)
+    }
+
     pub async fn import_song(&self, source: LyricsImportSource) -> Result<LyricsSong> {
         self.save_import(parse_import(source, now_ms())?).await
+    }
+
+    /// Saves a batch of song imports inside a single SQLite transaction.
+    pub async fn import_songs_batch(
+        &self,
+        sources: Vec<LyricsImportSource>,
+    ) -> Result<Vec<std::result::Result<LyricsSong, String>>> {
+        let now = now_ms();
+        let parsed: Vec<std::result::Result<LyricsSong, String>> = sources
+            .into_iter()
+            .map(|source| parse_import(source, now).map_err(|e| e.to_string()))
+            .collect();
+        let dir = self.songs_dir();
+        Ok(self
+            .db
+            .write(move |db| {
+                let tx = db.transaction()?;
+                let mut results = Vec::with_capacity(parsed.len());
+                let mut to_write = Vec::new();
+                for item in parsed {
+                    match item {
+                        Ok(song) => {
+                            if let Some(number) = &song.ccli_number
+                                && let Some(existing) = by_ccli(&tx, number)?
+                            {
+                                results.push(Ok(existing));
+                                continue;
+                            }
+                            put(&tx, &song, true)?;
+                            to_write.push(song.clone());
+                            results.push(Ok(song));
+                        }
+                        Err(e) => results.push(Err(e)),
+                    }
+                }
+                tx.commit()?;
+                for song in &to_write {
+                    write_song_file(&dir, song);
+                }
+                Ok(results)
+            })
+            .await?)
     }
 
     pub async fn import_open_lyrics(&self, xml: &str) -> Result<LyricsSong> {

@@ -126,6 +126,10 @@ pub struct ShellState {
     pub activated: Option<bool>,
     /// Enabled rendered outputs; `None` before settings load.
     pub outputs: Option<Vec<OutputReadiness>>,
+    /// Whether any Audience screen is enabled (`None` when none are configured).
+    pub audience_on: Option<bool>,
+    /// Whether any Stage screen is enabled (`None` when none are configured).
+    pub stage_on: Option<bool>,
     /// The house track, if one is live.
     pub house_track: Option<HouseTrack>,
     /// The operator's shortcut bindings (`display.shortcuts`).
@@ -204,6 +208,13 @@ pub enum ShellRequest {
     WindowFocused,
     /// Clear text and the dock background.
     ClearLive,
+    /// Turn all Audience (`stage = false`) or Stage (`stage = true`) screens on or off.
+    SetScreenGroupEnabled {
+        /// `false` for Audience screens, `true` for Stage screens.
+        stage: bool,
+        /// Target enabled state.
+        enabled: bool,
+    },
     /// The Account popover's Sign out.
     SignOut,
     /// The Account popover's Show tips again: replay the Operator tour.

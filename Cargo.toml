@@ -17,6 +17,7 @@ members = [
     "crates/kairo-orchestrator",
     "crates/kairo-output",
     "crates/kairo-documents",
+    "crates/kairo-imagine",
     "crates/kairo-audience",
     "crates/kairo-transfer",
     "crates/kairo-updater",
@@ -36,6 +37,7 @@ members = [
     "crates/ui-lyrics",
     "crates/ui-media",
     "crates/ui-documents",
+    "crates/ui-imagine",
     "crates/ui-theme",
     "crates/ui-screens",
     "crates/ui-settings",
@@ -59,7 +61,7 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-gpui-kit = { version = "=0.9.1", features = ["gpui-fast"] }
+gpui-kit = { version = "=0.10.0", features = ["gpui-fast"] }
 
 [patch.crates-io]
 # The published facade keeps legacy dependencies nonoptional. Re-export Fast

@@ -8,10 +8,9 @@
 use std::{sync::Arc, time::Duration};
 
 use gpui_kit::base::TestSupportExt;
-use gpui_kit::component::resizable::resize_handle;
 use gpui_kit::component::{h_flex, v_flex};
 use gpui_kit::{
-    AnyView, App, AppContext, Axis, Context, DragMoveEvent, Entity, EventEmitter, FocusHandle,
+    AnyView, App, AppContext, Context, DragMoveEvent, Entity, EventEmitter, FocusHandle,
     InteractiveElement, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, ParentElement,
     Pixels, Render, StatefulInteractiveElement, Styled, Subscription, Task, Window, div,
     prelude::FluentBuilder, px,
@@ -242,43 +241,43 @@ impl Render for OperatorWorkspace {
                                                 },
                                             ))
                                             .child(
-                                                resize_handle::<TranscriptResize, TranscriptResize>(
-                                                    "operator-transcript-handle",
-                                                    Axis::Horizontal,
-                                                )
-                                                .on_drag(TranscriptResize, |drag, _, _, cx| {
-                                                    cx.new(|_| *drag)
-                                                })
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(
-                                                        |this, event: &MouseDownEvent, window, cx| {
-                                                            this.edge_focus.focus(window, cx);
-                                                            this.press = Some((
-                                                                event.position.x,
-                                                                this.transcript_width,
-                                                            ));
+                                                div()
+                                                    .id("operator-transcript-handle")
+                                                    .size_full()
+                                                    .cursor_col_resize()
+                                                    .on_drag(TranscriptResize, |drag, _, _, cx| {
+                                                        cx.new(|_| *drag)
+                                                    })
+                                                    .on_mouse_down(
+                                                        MouseButton::Left,
+                                                        cx.listener(
+                                                            |this, event: &MouseDownEvent, window, cx| {
+                                                                this.edge_focus.focus(window, cx);
+                                                                this.press = Some((
+                                                                    event.position.x,
+                                                                    this.transcript_width,
+                                                                ));
+                                                            },
+                                                        ),
+                                                    )
+                                                    .on_drag_move(cx.listener(
+                                                        |this,
+                                                         event: &DragMoveEvent<TranscriptResize>,
+                                                         _,
+                                                         cx| {
+                                                            let Some((origin, start)) = this.press else {
+                                                                return;
+                                                            };
+                                                            let delta =
+                                                                f32::from(event.event.position.x - origin);
+                                                            let width = layout::resize_panel(
+                                                                PanelSide::Left,
+                                                                start,
+                                                                delta,
+                                                            );
+                                                            this.set_transcript_width(width, cx);
                                                         },
-                                                    ),
-                                                )
-                                                .on_drag_move(cx.listener(
-                                                    |this,
-                                                     event: &DragMoveEvent<TranscriptResize>,
-                                                     _,
-                                                     cx| {
-                                                        let Some((origin, start)) = this.press else {
-                                                            return;
-                                                        };
-                                                        let delta =
-                                                            f32::from(event.event.position.x - origin);
-                                                        let width = layout::resize_panel(
-                                                            PanelSide::Left,
-                                                            start,
-                                                            delta,
-                                                        );
-                                                        this.set_transcript_width(width, cx);
-                                                    },
-                                                )),
+                                                    )),
                                             ),
                                     ),
                             )

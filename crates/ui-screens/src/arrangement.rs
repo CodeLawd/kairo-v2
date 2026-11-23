@@ -7,7 +7,7 @@ use kairo_domain::displays::{describe_display, resolve_display};
 use kairo_domain::overlay::OverlayOutputKind;
 use kairo_ui_kit::{
     KairoThemeExt,
-    tokens::{TextStep, radius, text},
+    tokens::{TextStep, text},
 };
 
 /// OS display bounds scaled uniformly into the arrangement band. Negative
@@ -135,8 +135,11 @@ impl ScreensWindow {
                     .top(px(y))
                     .w(px(w))
                     .h(px(h))
-                    .rounded(radius::md())
-                    .bg(k.surface_display)
+                    .rounded(px(4.))
+                    .bg(k.surface_display.opacity(0.85))
+                    .border_1()
+                    .border_color(if selected { k.ink(0.42) } else { k.ink(0.18) })
+                    .shadow_sm()
                     .child(
                         Button::new(SharedString::from(format!(
                             "screens-display-{}",
@@ -157,11 +160,13 @@ impl ScreensWindow {
         }
         div()
             .w_full()
-            .h(px(185.))
+            .h(px(190.))
             .flex()
             .items_center()
             .justify_center()
             .bg(k.surface_stage)
+            .border_b_1()
+            .border_color(k.panel_border)
             .text_size(text::XS.size)
             .child(band)
             .into_any_element()

@@ -11,8 +11,9 @@ use super::genius::{BROWSER_USER_AGENT, Genius};
 use super::http::{Http, HttpError, HttpRequest, ManagedGateway};
 use super::lrclib::Lrclib;
 use super::normalize::{canonical_text, trim};
+use super::rank::{LyricMatch, fuzzy_find_lyric_match, fuzzy_query_coverage};
 use super::throttle::Throttle;
-use super::web_lyrics::{is_allowed_lyrics_url, scrape_lyrics_page};
+use super::web_lyrics::{is_allowed_lyrics_url, scrape_lyrics_for_review};
 use super::web_search::{WebSearch, WebSearchResult};
 use kairo_domain::lyrics::LyricsProvider;
 use regex::Regex;
@@ -528,44 +529,67 @@ impl SnippetResolver {
             .take(MAX_SCRAPE_PAGES)
             .collect();
         // The small, bounded set of pages is fetched together; results keep search order.
-        let genius = genius_urls.iter().map(|url| async move {
-            let (title, artist) = title_from_genius_url(url);
-            match self.genius.fetch_lyrics(url, Some(&title)).await {
-                Ok(lyrics) if matches_query(&lyrics, snippet) || title_matches_query(url, raw) => {
-                    Some(ProviderResult {
-                        id: format!("genius:{url}"),
-                        provider: LyricsProvider::Genius,
-                        title,
-                        artist,
-                        url: url.clone(),
-                        lyrics: Some(lyrics),
-                        ..ProviderResult::default()
-                    })
-                }
-                Ok(_) => None,
-                Err(_) => {
-                    tracing::warn!(url, "genius page failed");
-                    None
+        let query_words: Vec<String> = snippet
+            .split(' ')
+            .filter(|w| !w.is_empty())
+            .map(str::to_owned)
+            .collect();
+        let fuzzy_match_line = |lyrics: &str| match fuzzy_find_lyric_match(lyrics, snippet, &query_words) {
+            LyricMatch::Phrase(line) | LyricMatch::Words(line) => Some(line),
+            LyricMatch::None => None,
+        };
+        let genius = genius_urls.iter().map(|url| {
+            let query_words = &query_words;
+            async move {
+                let (title, artist) = title_from_genius_url(url);
+                match self.genius.fetch_lyrics(url, Some(&title)).await {
+                    Ok(lyrics)
+                        if matches_query(&lyrics, snippet)
+                            || title_matches_query(url, raw)
+                            || fuzzy_query_coverage(raw, &title, &artist, Some(&lyrics)) >= 0.65
+                            || !matches!(
+                                fuzzy_find_lyric_match(&lyrics, snippet, query_words),
+                                LyricMatch::None
+                            ) =>
+                    {
+                        Some(ProviderResult {
+                            id: format!("genius:{url}"),
+                            provider: LyricsProvider::Genius,
+                            title,
+                            artist,
+                            url: url.clone(),
+                            lyrics: Some(lyrics),
+                            ..ProviderResult::default()
+                        })
+                    }
+                    Ok(_) => None,
+                    Err(_) => {
+                        tracing::warn!(url, "genius page failed");
+                        None
+                    }
                 }
             }
         });
         let scraped = scrape_urls.iter().map(|url| async move {
-            match scrape_lyrics_page(&self.http, url).await {
+            match scrape_lyrics_for_review(&self.http, url).await {
                 Ok(page) => {
-                    let lyric_hit = matches_query(&page.lyrics, snippet);
+                    let exact_lyric = matches_query(&page.lyrics, snippet);
+                    let fuzzy_line = if exact_lyric {
+                        first_matching_line(&page.lyrics, snippet)
+                    } else {
+                        fuzzy_match_line(&page.lyrics)
+                    };
                     let title_hit = title_matches_query(&page.title, raw)
-                        || title_matches_query(&format!("{} {}", page.title, page.artist), raw);
-                    if !lyric_hit && !title_hit {
+                        || title_matches_query(&format!("{} {}", page.title, page.artist), raw)
+                        || fuzzy_query_coverage(raw, &page.title, &page.artist, Some(&page.lyrics))
+                            >= 0.65;
+                    if !exact_lyric && fuzzy_line.is_none() && !title_hit {
                         return None;
                     }
                     Some(ProviderResult {
                         id: format!("web:{url}"),
                         provider: LyricsProvider::Web,
-                        snippet: if lyric_hit {
-                            first_matching_line(&page.lyrics, snippet)
-                        } else {
-                            None
-                        },
+                        snippet: fuzzy_line,
                         title: page.title,
                         artist: page.artist,
                         url: page.url,
@@ -602,13 +626,22 @@ impl SnippetResolver {
                     let Some(lyrics) = hit.lyrics.clone() else {
                         continue;
                     };
-                    if !matches_query(&lyrics, snippet) && !title_matches_query(&hit.title, raw) {
+                    let exact = matches_query(&lyrics, snippet);
+                    let fuzzy_line = if exact {
+                        first_matching_line(&lyrics, snippet)
+                    } else {
+                        fuzzy_match_line(&lyrics)
+                    };
+                    if !exact
+                        && fuzzy_line.is_none()
+                        && !title_matches_query(&hit.title, raw)
+                        && fuzzy_query_coverage(raw, &hit.title, &hit.artist, Some(&lyrics)) < 0.65
+                    {
                         continue;
                     }
-                    let snippet_line = first_matching_line(&lyrics, snippet);
                     push(
                         ProviderResult {
-                            snippet: snippet_line,
+                            snippet: fuzzy_line,
                             ..hit
                         },
                         &mut found,

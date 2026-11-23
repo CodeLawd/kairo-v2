@@ -437,6 +437,42 @@ impl DocumentsService {
         self.list()
     }
 
+    /// A document from finished page images (Imagine's decks), in order.
+    /// Each page goes through the same checks as an import.
+    pub fn create_from_images(
+        &self,
+        name: &str,
+        pages: &[Vec<u8>],
+    ) -> Result<Vec<ProjectionDocument>> {
+        if pages.is_empty() {
+            return message("No pages were rendered.");
+        }
+        let name = normalize_document_name(name).unwrap_or_else(|_| "Imagine slides".into());
+        let id = uuid::Uuid::new_v4().to_string();
+        std::fs::create_dir_all(self.directory(&id)?)?;
+        self.pending().insert(
+            id.clone(),
+            ProjectionDocument {
+                id: id.clone(),
+                name,
+                format: DocumentFormat::Pdf,
+                pages: Vec::new(),
+                slide_size: None,
+                videos: None,
+                warnings: None,
+            },
+        );
+        let saved = pages
+            .iter()
+            .enumerate()
+            .try_for_each(|(i, png)| self.save_page(&id, i as f64, png))
+            .and_then(|_| self.finish(&id));
+        if saved.is_err() {
+            let _ = self.cancel(&id);
+        }
+        saved
+    }
+
     pub fn cancel(&self, id: &str) -> Result<()> {
         if self.pending().remove(id).is_none() {
             return Ok(());

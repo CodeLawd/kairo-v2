@@ -5,11 +5,11 @@ use gpui_kit::component::{Icon, v_flex};
 use gpui_kit::{
     AccessibleAction, AnyElement, App, ClickEvent, ElementId, Hsla, InteractiveElement,
     IntoElement, ParentElement, RenderOnce, Role, SharedString, StatefulInteractiveElement, Styled,
-    Window, div, prelude::FluentBuilder,
+    Window, div, linear_color_stop, linear_gradient, prelude::FluentBuilder,
 };
 use kairo_ui_kit::KairoIcon;
 use kairo_ui_kit::KairoThemeExt;
-use kairo_ui_kit::tokens::{Hue, TextStep, radius, text};
+use kairo_ui_kit::tokens::{Appearance, Hue, TextStep, radius, text};
 use std::rc::Rc;
 
 type Handler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
@@ -144,6 +144,29 @@ impl RenderOnce for ToolbarButton {
         } else {
             pill_bg
         };
+        let dark = k.appearance == Appearance::Dark;
+        let rim = match (self.tone, self.selected, dark) {
+            (Tone::Live, _, _) => k.live.opacity(0.35),
+            (_, true, true) => k.white.opacity(0.24),
+            (_, false, true) => k.white.opacity(0.14),
+            (_, true, false) => gpui_kit::black().opacity(0.16),
+            (_, false, false) => gpui_kit::black().opacity(0.09),
+        };
+        let hover_rim = if dark {
+            k.white.opacity(0.24)
+        } else {
+            gpui_kit::black().opacity(0.15)
+        };
+        let sheen_top = if dark {
+            k.white.opacity(0.10)
+        } else {
+            k.white.opacity(0.55)
+        };
+        let sheen_bottom = if dark {
+            k.white.opacity(0.0)
+        } else {
+            k.white.opacity(0.0)
+        };
         let group: SharedString = format!("tool-{}", self.id).into();
         v_flex()
             .id(self.id)
@@ -184,20 +207,37 @@ impl RenderOnce for ToolbarButton {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .h_7()
-                    .w_11()
+                    .h_8()
+                    .w_12()
                     .rounded_full()
+                    .overflow_hidden()
+                    .border_1()
+                    .border_color(rim)
                     .bg(pill_bg)
+                    .shadow_sm()
                     .text_color(pill_fg)
                     .when(interactive && self.tone != Tone::Live, |this| {
-                        this.group_hover(group, move |s| s.bg(k.surface_elevated))
+                        this.group_hover(group, move |s| {
+                            s.bg(k.surface_elevated).border_color(hover_rim)
+                        })
                     })
+                    .child(
+                        div()
+                            .absolute()
+                            .inset_0()
+                            .rounded_full()
+                            .bg(linear_gradient(
+                                180.,
+                                linear_color_stop(sheen_top, 0.0),
+                                linear_color_stop(sheen_bottom, 0.55),
+                            )),
+                    )
                     .child(self.icon)
                     .when_some(self.badge, |this, color| {
                         this.child(
                             div()
                                 .absolute()
-                                .top(gpui_kit::px(4.))
+                                .top(gpui_kit::px(5.))
                                 .right(gpui_kit::px(10.))
                                 .size_2()
                                 .rounded_full()
@@ -211,7 +251,7 @@ impl RenderOnce for ToolbarButton {
                 div()
                     .max_w_40()
                     .truncate()
-                    .text_size(text::MICRO.size)
+                    .text_size(text::LABEL.size)
                     .font_weight(gpui_kit::FontWeight::MEDIUM)
                     .line_height(gpui_kit::relative(1.))
                     .text_color(label_fg)
@@ -230,5 +270,7 @@ impl RenderOnce for ToolbarButton {
 
 /// A hued header icon (`text-[rgb(var(--hue))]`).
 pub fn hued(icon: KairoIcon, hue: Hue, cx: &App) -> Icon {
-    Icon::new(icon).size_4().text_color(cx.kairo().hue(hue))
+    Icon::new(icon)
+        .size(gpui_kit::px(18.))
+        .text_color(cx.kairo().hue(hue))
 }

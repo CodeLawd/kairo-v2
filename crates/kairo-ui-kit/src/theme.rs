@@ -52,6 +52,32 @@ impl KairoThemeExt for App {
     }
 }
 
+/// Whether Kairo's appearance follows the system's light or dark mode.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FollowSystem(pub bool);
+
+impl Global for FollowSystem {}
+
+/// Follows (or stops following) the system appearance.
+pub fn set_follow_system(on: bool, cx: &mut App) {
+    cx.set_global(FollowSystem(on));
+}
+
+/// Whether the appearance follows the system's.
+pub fn follows_system(cx: &App) -> bool {
+    cx.try_global::<FollowSystem>().is_some_and(|f| f.0)
+}
+
+/// Kairo's appearance for a system appearance.
+pub fn appearance_of(system: gpui_kit::WindowAppearance) -> Appearance {
+    match system {
+        gpui_kit::WindowAppearance::Light | gpui_kit::WindowAppearance::VibrantLight => {
+            Appearance::Light
+        }
+        _ => Appearance::Dark,
+    }
+}
+
 /// Installs fonts, icons and the theme. Call once, after `gpui_kit::init`.
 pub fn init(appearance: Appearance, cx: &mut App) {
     crate::fonts::register(cx);

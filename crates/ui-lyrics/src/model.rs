@@ -248,6 +248,8 @@ pub struct Lyrics {
     editing: Option<Editing>,
     pending_leave: Option<Leave>,
     import_open: bool,
+    import_tab: crate::import::Tab,
+    pending_import_paths: Vec<std::path::PathBuf>,
     translating: bool,
     translate_error: Option<String>,
     translate_language: String,
@@ -306,6 +308,8 @@ impl Lyrics {
             editing: None,
             pending_leave: None,
             import_open: false,
+            import_tab: crate::import::Tab::File,
+            pending_import_paths: Vec::new(),
             translating: false,
             translate_error: None,
             translate_language: "auto".into(),
@@ -2182,12 +2186,39 @@ impl Lyrics {
     // ─── Import ─────────────────────────────────────────────────────────────
 
     pub fn open_import(&mut self, cx: &mut Context<Self>) {
+        self.import_tab = crate::import::Tab::File;
         self.import_open = true;
         cx.notify();
     }
 
+    pub fn open_import_file(&mut self, cx: &mut Context<Self>) {
+        self.import_tab = crate::import::Tab::File;
+        self.import_open = true;
+        cx.notify();
+    }
+
+    pub fn import_dropped_files(
+        &mut self,
+        paths: Vec<std::path::PathBuf>,
+        cx: &mut Context<Self>,
+    ) {
+        self.import_tab = crate::import::Tab::File;
+        self.pending_import_paths = paths;
+        self.import_open = true;
+        cx.notify();
+    }
+
+    pub fn import_tab(&self) -> crate::import::Tab {
+        self.import_tab
+    }
+
+    pub fn take_pending_import_paths(&mut self) -> Vec<std::path::PathBuf> {
+        std::mem::take(&mut self.pending_import_paths)
+    }
+
     pub fn close_import(&mut self, cx: &mut Context<Self>) {
         self.import_open = false;
+        self.pending_import_paths.clear();
         cx.notify();
     }
 

@@ -106,7 +106,9 @@ impl AccountFlow {
                 // looks unfinished and would hold setup open every launch.
                 account.onboarding_known()
                     && should_offer_onboarding(account.onboarding(), self.dismissed),
-                should_offer_account_gate(account.session()),
+                // Not before the restored session loads: the default state is
+                // SignedOut and would flash the sign-in wall on launch.
+                account.session_known() && should_offer_account_gate(account.session()),
             )
         };
         if offer {

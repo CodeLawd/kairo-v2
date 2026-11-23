@@ -122,9 +122,15 @@ pub enum LyricsCall {
     Update(LyricsSong),
     /// `lyrics.import(source)`; answers [`LyricsAnswer::Song`].
     Import(LyricsImportSource),
+    /// Batched `lyrics.import(sources)` in a single transaction; answers
+    /// [`LyricsAnswer::ImportBatch`].
+    ImportBatch(Vec<LyricsImportSource>),
     /// `lyrics.previewFile(source)`: parsed, not saved, with the library
     /// duplicate; answers [`LyricsAnswer::ImportPreview`].
     PreviewFile(LyricsImportSource),
+    /// Batched `lyrics.previewFile(sources)` loading the library once; answers
+    /// [`LyricsAnswer::ImportPreviews`].
+    PreviewFiles(Vec<LyricsImportSource>),
     /// `lyrics.getSong(id)`; answers [`LyricsAnswer::Song`] (an error when gone).
     GetSong(String),
     /// `lyrics.translateSections`; answers [`LyricsAnswer::Sections`].
@@ -156,6 +162,8 @@ pub enum LyricsAnswer {
     Usage(Vec<SongUsageEntry>),
     Saved(Option<String>),
     ImportPreview(LyricsImportPreview),
+    ImportPreviews(Vec<Result<LyricsImportPreview, String>>),
+    ImportBatch(Vec<Result<LyricsSong, String>>),
     Sections(Vec<LyricsSongSection>),
     Files(Vec<SongFile>),
 }
@@ -166,8 +174,8 @@ pub struct SongFile {
     pub name: String,
     /// Stable per file (name, size, modified), so a re-drop replaces it.
     pub key: String,
-    /// The text; an error when the file could not be read.
-    pub content: Result<String, String>,
+    /// The raw file bytes; an error when the file could not be read.
+    pub content: Result<Vec<u8>, String>,
 }
 
 pub type Reply = Box<dyn FnOnce(Result<LyricsAnswer, String>) + Send>;

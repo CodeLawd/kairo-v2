@@ -13,14 +13,13 @@ use std::sync::Arc;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonCustomVariant, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
-use gpui_kit::component::resizable::resize_handle;
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::{
-    AnyElement, AnyView, App, AppContext, Axis, Context, DragMoveEvent, Entity, EventEmitter,
-    FocusHandle, Global, InteractiveElement, IntoElement, KeyDownEvent, MouseButton,
-    MouseDownEvent, ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement,
-    Styled, Subscription, Window, div, prelude::FluentBuilder, px,
+    AnyElement, AnyView, App, AppContext, Context, DragMoveEvent, Entity, EventEmitter,
+    FocusHandle, InteractiveElement, IntoElement, KeyDownEvent, MouseButton, MouseDownEvent,
+    ParentElement, Pixels, Render, SharedString, StatefulInteractiveElement, Styled, Subscription,
+    Window, div, prelude::FluentBuilder, px,
 };
 use kairo_core_gpui::preview::LivePreview;
 use kairo_domain::{
@@ -39,8 +38,7 @@ use crate::transport::{self, EMPTY_TIME, TransportKey};
 
 /// The rail's width, shared by every page that shows it (`liveRailWidth` in
 /// the app store), so a resize on one page lands on all of them.
-pub struct RailWidth(pub f32);
-impl Global for RailWidth {}
+pub use kairo_ui_kit::LiveRailWidth as RailWidth;
 
 /// The rail width: loaded from `ui-state` on first use.
 pub fn rail_width(ui_state: &dyn UiState, cx: &mut App) -> f32 {
@@ -373,7 +371,7 @@ impl LiveRail {
             .flex_shrink_0()
             .bg(k.neutral(Step::S900))
             .border_1()
-            .border_color(k.white.opacity(0.08))
+            .border_color(k.ink(0.08))
             .rounded_b(radius::md())
             .child(self.strip_button(
                 "clear-all".into(),
@@ -859,29 +857,30 @@ impl Render for LiveRail {
                         cx.stop_propagation();
                     }))
                     .child(
-                        resize_handle::<RailResize, RailResize>(
-                            "live-rail-handle",
-                            Axis::Horizontal,
-                        )
-                        .on_drag(RailResize, |drag, _, _, cx| cx.new(|_| *drag))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, event: &MouseDownEvent, window, cx| {
-                                this.edge_focus.focus(window, cx);
-                                this.press =
-                                    Some((event.position.x, rail_width(&*this.ui_state, cx)));
-                            }),
-                        )
-                        .on_drag_move(cx.listener(
-                            |this, event: &DragMoveEvent<RailResize>, _, cx| {
-                                let Some((origin, start)) = this.press else {
-                                    return;
-                                };
-                                let delta = f32::from(event.event.position.x - origin);
-                                let width = layout::resize_panel(PanelSide::Right, start, delta);
-                                set_rail_width(&*this.ui_state, width, cx);
-                            },
-                        )),
+                        div()
+                            .id("live-rail-handle")
+                            .size_full()
+                            .cursor_col_resize()
+                            .on_drag(RailResize, |drag, _, _, cx| cx.new(|_| *drag))
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(|this, event: &MouseDownEvent, window, cx| {
+                                    this.edge_focus.focus(window, cx);
+                                    this.press =
+                                        Some((event.position.x, rail_width(&*this.ui_state, cx)));
+                                }),
+                            )
+                            .on_drag_move(cx.listener(
+                                |this, event: &DragMoveEvent<RailResize>, _, cx| {
+                                    let Some((origin, start)) = this.press else {
+                                        return;
+                                    };
+                                    let delta = f32::from(event.event.position.x - origin);
+                                    let width =
+                                        layout::resize_panel(PanelSide::Right, start, delta);
+                                    set_rail_width(&*this.ui_state, width, cx);
+                                },
+                            )),
                     ),
             )
             .child(

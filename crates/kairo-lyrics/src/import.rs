@@ -4,6 +4,7 @@ use kairo_domain::{
     js::{is_whitespace, trim},
     lyrics::{
         LyricsImportSource, LyricsSectionType as Kind, LyricsSong, LyricsSongSection, LyricsSource,
+        section_edit::parse_marked_sections,
         slides::{DEFAULT_IMPORT_SLIDE_LINES, apply_import_slide_breaks, preserve_slide_breaks},
     },
 };
@@ -337,6 +338,42 @@ pub(crate) fn parse_import(
             );
             let text = text.replace("\r\n", "\n").replace('\r', "\n");
             song.sections = parse_sections(&text.split('\n').collect::<Vec<_>>());
+            Ok(song)
+        }
+        LyricsImportSource::ProPresenter {
+            title,
+            artist,
+            text,
+            copyright,
+            ccli_number,
+        } => {
+            let title = if trim(&title).is_empty() {
+                "Untitled"
+            } else {
+                &title
+            };
+            let mut song = song(
+                title,
+                &artist,
+                copyright.as_deref().unwrap_or(""),
+                LyricsSource::ProPresenter,
+                now,
+            );
+            song.ccli_number = ccli_number.as_deref().and_then(ccli);
+            song.sections = parse_marked_sections(&text)
+                .into_iter()
+                .filter_map(|m| {
+                    let lines = preserve_slide_breaks(&m.lines);
+                    (!lines.is_empty()).then_some(LyricsSongSection {
+                        kind: m.kind,
+                        label: m.label,
+                        lines,
+                        line_colors: None,
+                        hotkey: None,
+                        extra: Default::default(),
+                    })
+                })
+                .collect();
             Ok(song)
         }
         LyricsImportSource::Ccli { .. } => Err(LyricsError::LicensedImport),

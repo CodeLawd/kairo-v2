@@ -407,7 +407,7 @@ impl LibrarySection {
             .when(bg.is_none(), |this| {
                 this.hover(move |s| {
                     let fill = if banded {
-                        k.white.opacity(0.05)
+                        k.ink(0.05)
                     } else {
                         k.surface_tertiary
                     };

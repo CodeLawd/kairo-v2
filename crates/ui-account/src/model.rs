@@ -56,6 +56,9 @@ pub enum AccountChanged {
 pub struct Account {
     backend: Arc<dyn AccountBackend>,
     session: SessionSnapshot,
+    /// The initial session snapshot has arrived; before it, `session` is only
+    /// the default `SignedOut` and must not flash the sign-in wall.
+    session_known: bool,
     session_revision: u64,
     identity_revision: u64,
     pairing: DevicePairingState,
@@ -80,6 +83,7 @@ impl Account {
         Self {
             backend,
             session: signed_out(),
+            session_known: false,
             session_revision: 0,
             identity_revision: 0,
             pairing: idle_pairing(),
@@ -101,6 +105,10 @@ impl Account {
     /// The session.
     pub fn session(&self) -> &SessionSnapshot {
         &self.session
+    }
+    /// Whether the initial session snapshot has arrived.
+    pub fn session_known(&self) -> bool {
+        self.session_known
     }
     /// Generation used to reject async replies from an older session.
     pub fn session_revision(&self) -> u64 {
@@ -141,7 +149,11 @@ impl Account {
 
     /// `setSession`.
     pub fn set_session(&mut self, session: SessionSnapshot, cx: &mut Context<Self>) {
-        if self.session != session {
+        let first = !std::mem::replace(&mut self.session_known, true);
+        if first && self.session == session {
+            cx.emit(AccountChanged::Session);
+            cx.notify();
+        } else if self.session != session {
             let previous = self.session.user.as_ref().map(|u| u.id.as_str());
             let next = session.user.as_ref().map(|u| u.id.as_str());
             if (previous.is_some() && previous != next)

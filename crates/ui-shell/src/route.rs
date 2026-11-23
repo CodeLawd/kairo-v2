@@ -16,6 +16,8 @@ pub enum Route {
     Lyrics,
     /// Slides.
     Documents,
+    /// Imagine: AI images, kept as drafts until saved.
+    Imagine,
     /// Engage.
     Audience,
     /// Web.
@@ -59,7 +61,7 @@ impl Workspace {
 }
 
 /// The rail, in order.
-pub const WORKSPACES: [Workspace; 8] = [
+pub const WORKSPACES: [Workspace; 9] = [
     Workspace {
         route: Route::Operator,
         label: "Operator",
@@ -91,6 +93,14 @@ pub const WORKSPACES: [Workspace; 8] = [
         hint: None,
         icon: KairoIcon::PhPresentation,
         hue: Hue::Cyan,
+    },
+    Workspace {
+        route: Route::Imagine,
+        label: "Imagine",
+        rail: None,
+        hint: None,
+        icon: KairoIcon::PhBrain,
+        hue: Hue::Amber,
     },
     Workspace {
         route: Route::Audience,
@@ -134,6 +144,7 @@ impl Route {
             Route::Scripture => "scripture",
             Route::Lyrics => "lyrics",
             Route::Documents => "documents",
+            Route::Imagine => "imagine",
             Route::Audience => "audience",
             Route::Web => "web",
             Route::Teleprompter => "teleprompter",
@@ -164,6 +175,7 @@ impl Route {
             Route::Scripture => "078",
             Route::Lyrics => "080",
             Route::Documents => "085",
+            Route::Imagine => "imagine",
             Route::Audience => "090",
             Route::Web => "089",
             Route::Teleprompter => "teleprompter",
@@ -180,6 +192,7 @@ impl Route {
                 | Route::Scripture
                 | Route::Theme
                 | Route::Documents
+                | Route::Imagine
                 | Route::Web
                 | Route::Teleprompter
         )

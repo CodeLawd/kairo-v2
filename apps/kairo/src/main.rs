@@ -31,6 +31,7 @@ mod display_reporting;
 mod dock;
 mod documents;
 pub mod handlers;
+mod imagine;
 mod lyrics;
 mod media;
 mod motion;
@@ -200,11 +201,12 @@ fn open_operator_window(
     let display = read_shell_settings(&settings, &mut state);
     let theme = display.theme;
     apply_display_sizes(&display, cx);
+    kairo_ui_kit::theme::set_follow_system(theme == DisplayTheme::System, cx);
     kairo_ui_kit::set_appearance(
-        if theme == DisplayTheme::Light {
-            kairo_ui_kit::Appearance::Light
-        } else {
-            kairo_ui_kit::Appearance::Dark
+        match theme {
+            DisplayTheme::Light => kairo_ui_kit::Appearance::Light,
+            DisplayTheme::Dark => kairo_ui_kit::Appearance::Dark,
+            DisplayTheme::System => kairo_ui_kit::theme::appearance_of(cx.window_appearance()),
         },
         None,
         cx,
@@ -288,12 +290,23 @@ fn open_operator_window(
     let sidebar_state = ui_state.clone();
     let web_backend: Arc<dyn ui_web::WebBackend> =
         Arc::new(web::ServicesWeb::new(services.clone()));
+    let imagine_backend: Arc<dyn ui_imagine::ImagineBackend> =
+        Arc::new(imagine::ServicesImagine::new(services.clone()));
     let theme_backend: Arc<dyn ui_theme::ThemeBackend> =
         Arc::new(theme::ServicesTheme::new(services.clone()));
     let transfer_services = services.clone();
     let teleprompter_services = services.clone();
     let teleprompter_ui_state = ui_state.clone();
     let opened = gpui_kit::open_window(options, cx, move |window, cx| {
+        // "Match system" follows macOS switching between light and dark.
+        window
+            .observe_window_appearance(|window, cx| {
+                if kairo_ui_kit::theme::follows_system(cx) {
+                    let appearance = kairo_ui_kit::theme::appearance_of(window.appearance());
+                    kairo_ui_kit::set_appearance(appearance, Some(window), cx);
+                }
+            })
+            .detach();
         {
             use kairo_ui_kit::components::page_sidebar::{PageSidebar, STORAGE_KEY, saved_width};
             let store = sidebar_state.clone();
@@ -408,7 +421,156 @@ fn open_operator_window(
             p.set_media(Some(documents_media), cx);
         });
         shell.update(cx, |shell, cx| {
-            shell.set_workspace(ui_shell::Route::Documents, documents_page.into(), cx)
+            shell.set_workspace(
+                ui_shell::Route::Documents,
+                documents_page.clone().into(),
+                cx,
+            )
+        });
+        {
+            let lyrics_model = lyrics_page.read(cx).model().clone();
+            let scripture_model = scripture_page.read(cx).model().clone();
+            let docs_page = documents_page.clone();
+            let shell_weak = shell.downgrade();
+            shell.update(cx, |shell, _| {
+                shell.set_overlay_builder(
+                    ui_shell::Overlay::SongSearch,
+                    Box::new(move |_, window, cx| {
+                        let mut entries = Vec::new();
+                        for doc in docs_page.read(cx).documents() {
+                            let id = doc.id.clone();
+                            let page = docs_page.clone();
+                            let nav = shell_weak.clone();
+                            entries.push(ui_lyrics::SearchEntry {
+                                id: format!("doc:{id}"),
+                                scope: ui_lyrics::SearchScope::Slides,
+                                title: doc.name.clone(),
+                                subtitle: format!("{} slides", doc.pages.len()),
+                                on_open: std::rc::Rc::new(move |cx| {
+                                    page.update(cx, |p, cx| p.open_document(&id, cx));
+                                    let _ = nav.update(cx, |s, cx| {
+                                        s.close_overlay(cx);
+                                        s.navigate(ui_shell::Route::Documents, cx);
+                                    });
+                                }),
+                            });
+                        }
+                        for list in &lyrics_model.read(cx).setlists().lists {
+                            let id = list.id.clone();
+                            let model = lyrics_model.clone();
+                            let nav = shell_weak.clone();
+                            entries.push(ui_lyrics::SearchEntry {
+                                id: format!("setlist:{id}"),
+                                scope: ui_lyrics::SearchScope::Playlists,
+                                title: list.name.clone(),
+                                subtitle: format!(
+                                    "Lyrics playlist · {} songs",
+                                    list.song_ids.len()
+                                ),
+                                on_open: std::rc::Rc::new(move |cx| {
+                                    model.update(cx, |m, cx| m.select_setlist(id.clone(), cx));
+                                    let _ = nav.update(cx, |s, cx| {
+                                        s.close_overlay(cx);
+                                        s.navigate(ui_shell::Route::Lyrics, cx);
+                                    });
+                                }),
+                            });
+                        }
+                        for plan in scripture_model.read(cx).plans() {
+                            let id = plan.id.clone();
+                            let model = scripture_model.clone();
+                            let nav = shell_weak.clone();
+                            entries.push(ui_lyrics::SearchEntry {
+                                id: format!("plan:{id}"),
+                                scope: ui_lyrics::SearchScope::Playlists,
+                                title: plan.title.clone(),
+                                subtitle: "Scripture playlist".into(),
+                                on_open: std::rc::Rc::new(move |cx| {
+                                    model.update(cx, |m, cx| m.open_plan(&id, cx));
+                                    let _ = nav.update(cx, |s, cx| {
+                                        s.close_overlay(cx);
+                                        s.navigate(ui_shell::Route::Scripture, cx);
+                                    });
+                                }),
+                            });
+                        }
+                        for lib in &lyrics_model.read(cx).libraries().libraries {
+                            let id = lib.id.clone();
+                            let model = lyrics_model.clone();
+                            let nav = shell_weak.clone();
+                            entries.push(ui_lyrics::SearchEntry {
+                                id: format!("song-lib:{id}"),
+                                scope: ui_lyrics::SearchScope::Libraries,
+                                title: lib.name.clone(),
+                                subtitle: "Lyrics library".into(),
+                                on_open: std::rc::Rc::new(move |cx| {
+                                    model.update(cx, |m, cx| m.select_library(id.clone(), cx));
+                                    let _ = nav.update(cx, |s, cx| {
+                                        s.close_overlay(cx);
+                                        s.navigate(ui_shell::Route::Lyrics, cx);
+                                    });
+                                }),
+                            });
+                        }
+                        for lib in &scripture_model.read(cx).libraries().libraries {
+                            let id = lib.id.clone();
+                            let model = scripture_model.clone();
+                            let nav = shell_weak.clone();
+                            entries.push(ui_lyrics::SearchEntry {
+                                id: format!("scripture-lib:{id}"),
+                                scope: ui_lyrics::SearchScope::Libraries,
+                                title: lib.name.clone(),
+                                subtitle: "Scripture library".into(),
+                                on_open: std::rc::Rc::new(move |cx| {
+                                    model.update(cx, |m, cx| m.select_library(id.clone(), cx));
+                                    let _ = nav.update(cx, |s, cx| {
+                                        s.close_overlay(cx);
+                                        s.navigate(ui_shell::Route::Scripture, cx);
+                                    });
+                                }),
+                            });
+                        }
+                        let model = lyrics_model.clone();
+                        let finder = cx.new(|cx| {
+                            ui_lyrics::QuickOpen::new(model, window, cx).with_entries(entries, cx)
+                        });
+                        let close = shell_weak.clone();
+                        cx.subscribe(&finder, move |_, _: &ui_lyrics::QuickOpenEvent, cx| {
+                            let _ = close.update(cx, |s, cx| s.close_overlay(cx));
+                        })
+                        .detach();
+                        finder.into()
+                    }),
+                )
+            });
+        }
+        let imagine_page = cx.new(|cx| ui_imagine::ImaginePage::new(imagine_backend, window, cx));
+        {
+            // A deck saved from Imagine shows up in Slides at once.
+            let slides = documents_page.downgrade();
+            cx.subscribe(
+                &imagine_page,
+                move |_, event: &ui_imagine::ImagineEvent, cx| {
+                    let ui_imagine::ImagineEvent::SlidesSaved = event;
+                    let _ = slides.update(cx, |page, cx| page.refresh(cx));
+                },
+            )
+            .detach();
+        }
+        {
+            // Imagine opens on Templates each time it is picked from the rail.
+            let page = imagine_page.downgrade();
+            let last = std::cell::Cell::new(shell.read(cx).route());
+            cx.observe(&shell, move |shell, cx| {
+                let route = shell.read(cx).route();
+                if route != last.replace(route) && route == ui_shell::Route::Imagine {
+                    let _ = page.update(cx, |p, cx| p.show_templates(cx));
+                }
+            })
+            .detach();
+        }
+        shell.update(cx, |shell, cx| {
+            shell.set_workspace(ui_shell::Route::Imagine, imagine_page.into(), cx)
         });
         let audience_page = audience::install(audience_backend, &workspace, window, cx);
         shell.update(cx, |shell, cx| {

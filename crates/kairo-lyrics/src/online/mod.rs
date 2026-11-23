@@ -17,13 +17,16 @@ pub mod translate;
 pub mod web_lyrics;
 pub mod web_search;
 
-use cache::OnlineLyricsTextCache;
+use cache::{OnlineLyricsTextCache, TtlCache};
 use http::{BoxFuture, Http, ManagedGateway};
 use kairo_domain::lyrics::query::{parse_song_query, query_variants};
-use kairo_domain::lyrics::{LyricsOnlineResult, LyricsProvider, LyricsSongSection};
-use review::{OnlineLyricsPreparation, ReviewedLyrics};
+use kairo_domain::lyrics::{LyricsOnlineResult, LyricsProvider, LyricsReview, LyricsSongSection};
+use review::{OnlineLyricsPreparation, ReviewedLyrics, SongCandidate};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+const IDENTIFY_CACHE_TTL: Duration = Duration::from_secs(10 * 60);
 
 /// A provider hit before ranking. `lyrics` and `popularity` are ranking
 /// inputs and never leave this module.
@@ -93,6 +96,7 @@ pub struct OnlineLyrics {
     pub genius: Arc<genius::Genius>,
     resolver: resolver::SnippetResolver,
     glosses: glosses::GlossFinder,
+    identify_cache: TtlCache<Vec<SongCandidate>>,
     text_cache: OnlineLyricsTextCache,
     preparation: OnlineLyricsPreparation,
     /// No queue: obsolete searches cannot build a backlog of paid reviews.
@@ -121,14 +125,122 @@ impl OnlineLyrics {
             gateway,
             lrclib,
             genius,
+            identify_cache: TtlCache::new(),
             text_cache: OnlineLyricsTextCache::default(),
             preparation: OnlineLyricsPreparation::default(),
             prefetching: Arc::default(),
         })
     }
 
-    /// Every catalogue in parallel, then the web tier when they miss; one
-    /// ranked list. Fails only when every catalogue call failed.
+    async fn rescue_catalogues(
+        &self,
+        query: &str,
+        seen: &mut HashSet<String>,
+        gathered: &mut Vec<ProviderResult>,
+    ) -> Vec<SongCandidate> {
+        let key = query.to_lowercase();
+        let candidates = match self.identify_cache.get(&key) {
+            Some(cached) => cached,
+            None => {
+                let found = review::identify_song_candidates(self.gateway.as_ref(), query).await;
+                if !found.is_empty() {
+                    self.identify_cache
+                        .put(key, found.clone(), IDENTIFY_CACHE_TTL);
+                }
+                found
+            }
+        };
+        if candidates.is_empty() {
+            return candidates;
+        }
+        let mut calls: Vec<BoxFuture<'_, Result<Vec<ProviderResult>, String>>> = Vec::new();
+        for c in candidates.iter().take(2) {
+            let combined = if c.artist.is_empty() {
+                c.title.clone()
+            } else {
+                format!("{} {}", c.title, c.artist)
+            };
+            calls.push(Box::pin(async move { self.genius.search(&combined).await }));
+            if !c.artist.is_empty() {
+                calls.push(Box::pin(self.lrclib.search_structured(&c.title, &c.artist)));
+            } else {
+                calls.push(Box::pin(self.lrclib.search(&c.title)));
+            }
+        }
+        for outcome in futures_util::future::join_all(calls).await {
+            if let Ok(results) = outcome {
+                for r in results {
+                    if seen.insert(r.id.clone()) {
+                        gathered.push(r);
+                    }
+                }
+            }
+        }
+        candidates
+    }
+
+    /// LRCLIB requires every search word to appear in track/artist metadata,
+    /// so mixed lyric+artist queries (e.g. "Nara Ekele Tim Godfrey") or a
+    /// misspelled word return empty. Re-querying high-signal word windows and
+    /// verifying inline lyrics with fuzzy coverage recovers clean hits without
+    /// scraping blogs.
+    async fn subquery_lrclib_rescue(
+        &self,
+        query: &str,
+        already_tried: &[String],
+        seen: &mut HashSet<String>,
+        gathered: &mut Vec<ProviderResult>,
+    ) {
+        let canon = normalize::canonical_text(query);
+        let words: Vec<&str> = canon.split(' ').filter(|w| !w.is_empty()).collect();
+        if words.len() < 2 {
+            return;
+        }
+        let tried: HashSet<String> = already_tried.iter().map(|v| v.to_lowercase()).collect();
+        let mut subs: Vec<String> = Vec::new();
+        let mut push_sub = |s: String| {
+            let key = s.to_lowercase();
+            if s.chars().count() >= 4 && !tried.contains(&key) && !subs.contains(&s) {
+                subs.push(s);
+            }
+        };
+        if words.len() >= 3 {
+            // Trailing two words are most often the artist ("Tim Godfrey", "Solomon Lange").
+            push_sub(words[words.len() - 2..].join(" "));
+            let collapsed_lead = format!("{}{}", words[0], words[1]);
+            if collapsed_lead.chars().count() <= 14 {
+                push_sub(collapsed_lead);
+            }
+            push_sub(words[..2].join(" "));
+        }
+        if let Some(&first) = words.first() {
+            push_sub(first.to_owned());
+        }
+        if let Some(&last) = words.last() {
+            push_sub(last.to_owned());
+        }
+        subs.truncate(4);
+        if subs.is_empty() {
+            return;
+        }
+        let calls = subs.iter().map(|sub| self.lrclib.search(sub));
+        for outcome in futures_util::future::join_all(calls).await {
+            if let Ok(results) = outcome {
+                for r in results {
+                    if rank::fuzzy_query_coverage(query, &r.title, &r.artist, r.lyrics.as_deref())
+                        >= 0.70
+                        && seen.insert(r.id.clone())
+                    {
+                        gathered.push(r);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Every catalogue in parallel, query-rescued & fuzzy sub-query catalogue
+    /// retry on misses, then the web tier when they still miss; one ranked list.
+    /// Fails only when every initial catalogue call failed.
     pub async fn search_all(&self, query: &str) -> Result<Vec<LyricsOnlineResult>, String> {
         let q = normalize::trim(query);
         if q.encode_utf16().count() < rank::MIN_QUERY_LENGTH {
@@ -169,10 +281,30 @@ impl OnlineLyrics {
         if !failures.is_empty() {
             tracing::warn!(query = q, failures = ?&failures[..failures.len().min(3)], "lyrics provider failed");
         }
-        if rank::needs_web_resolution(q, &gathered) {
-            gathered.extend(self.resolver.resolve(q).await);
+        if rank::needs_web_resolution_fuzzy(q, &gathered) {
+            let rescued = self.rescue_catalogues(q, &mut seen, &mut gathered).await;
+            if rank::needs_web_resolution_fuzzy(q, &gathered) {
+                self.subquery_lrclib_rescue(q, &variants, &mut seen, &mut gathered)
+                    .await;
+            }
+            if rank::needs_web_resolution_fuzzy(q, &gathered) {
+                let mut web_hits = self.resolver.resolve(q).await;
+                if web_hits.is_empty()
+                    && let Some(top) = rescued.first()
+                {
+                    let alt = if top.artist.is_empty() {
+                        top.title.clone()
+                    } else {
+                        format!("{} {}", top.title, top.artist)
+                    };
+                    if normalize::canonical_text(&alt) != normalize::canonical_text(q) {
+                        web_hits = self.resolver.resolve(&alt).await;
+                    }
+                }
+                gathered.extend(web_hits);
+            }
         }
-        Ok(rank::rank_results(q, &gathered)
+        Ok(rank::rank_results_fuzzy(q, &gathered)
             .into_iter()
             .map(|r| {
                 if let Some(lyrics) = r.lyrics.as_deref().filter(|l| !l.is_empty()) {
@@ -205,7 +337,7 @@ impl OnlineLyrics {
         }
         match source.provider {
             LyricsProvider::Lrclib => self.lrclib.fetch_lyrics(&source.url).await,
-            LyricsProvider::Web => Ok(web_lyrics::scrape_lyrics_page(&self.http, &source.url)
+            LyricsProvider::Web => Ok(web_lyrics::scrape_lyrics_for_review(&self.http, &source.url)
                 .await?
                 .lyrics),
             LyricsProvider::Genius => {
@@ -226,8 +358,19 @@ impl OnlineLyrics {
         let owned = source.clone();
         let work: BoxFuture<'static, Result<ReviewedLyrics, String>> = Box::pin(async move {
             let text = this.fetch_text(&owned).await?;
-            review::review_online_lyrics(this.gateway.as_ref(), &text, &owned.title, &owned.artist)
-                .await
+            let mut reviewed = review::review_online_lyrics(
+                this.gateway.as_ref(),
+                &text,
+                &owned.title,
+                &owned.artist,
+            )
+            .await?;
+            if owned.provider == LyricsProvider::Web
+                && matches!(reviewed.review, LyricsReview::Unverified { .. })
+            {
+                reviewed.text = web_lyrics::fallback_structure(&reviewed.text);
+            }
+            Ok(reviewed)
         });
         let provider = source.provider.as_str();
         self.preparation

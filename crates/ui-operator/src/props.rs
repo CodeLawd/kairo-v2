@@ -1678,7 +1678,7 @@ impl PropsEditor {
                 .cursor(CursorStyle::OpenHand)
                 .when(is_selected, |d| d.border_2().border_color(k.accent[5]))
                 .when(!is_selected, |d| {
-                    d.hover(|s| s.border_1().border_color(k.white.opacity(0.5)))
+                    d.hover(|s| s.border_1().border_color(k.ink(0.5)))
                 })
                 .on_mouse_down(MouseButton::Left, move |e: &MouseDownEvent, window, cx| {
                     cx.stop_propagation();

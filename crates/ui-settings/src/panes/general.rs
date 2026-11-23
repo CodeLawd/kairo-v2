@@ -10,31 +10,36 @@ use crate::widgets;
 use crate::window::SettingsWindow;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::color_picker::ColorPicker;
 use gpui_kit::component::input::Input;
 use gpui_kit::component::slider::Slider;
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::{
     AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Role, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px, rgb,
+    StatefulInteractiveElement, Styled, Window, div, prelude::FluentBuilder, px, relative, rgb,
 };
 use kairo_domain::documents::SlideConverterState;
 use kairo_domain::settings::DisplayTheme;
 use kairo_domain::status::UpdateStatus;
 use kairo_domain::workspace::{MediaFolderMigration, WorkspaceInfo};
 use kairo_ui_kit::ControlSize;
-use kairo_ui_kit::tokens::{TextStep, radius, text};
+use kairo_ui_kit::tokens::{KairoColors, TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
 /// Element ids, for tests.
 pub mod ids {
-    /// Dark mode.
-    pub const DARK: &str = "settings-dark-mode";
+    /// A theme choice: `light`, `dark` or `system`.
+    pub fn theme(key: &str) -> String {
+        format!("settings-theme-{key}")
+    }
     /// Interface size.
     pub const FONT_SIZE: &str = "settings-font-size";
     /// Transcription size.
     pub const TRANSCRIPT_SIZE: &str = "settings-transcript-size";
     /// Gloss hex.
     pub const GLOSS: &str = "settings-gloss";
+    /// The gloss swatch, which opens a colour picker.
+    pub const GLOSS_PICKER: &str = "settings-gloss-picker";
     /// The folder path.
     pub const FOLDER: &str = "settings-workspace-folder";
     /// The workspace error.
@@ -233,9 +238,116 @@ impl SettingsWindow {
         cx.notify();
     }
 
+    /// Light, Dark and Match system, each as a small picture of the app
+    /// in that look.
+    fn render_theme_choice(&self, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let current = self.settings.display.theme;
+        let choices = [
+            (DisplayTheme::Light, "Light"),
+            (DisplayTheme::Dark, "Dark"),
+            (DisplayTheme::System, "Match system"),
+        ];
+        h_flex()
+            .id("settings-theme")
+            .role(Role::RadioGroup)
+            .aria_label("Theme")
+            .gap_3()
+            .children(choices.into_iter().map(|(theme, label)| {
+                let picked = current == theme;
+                let entity = cx.entity();
+                let picture = match theme {
+                    DisplayTheme::Light => theme_mock(&KairoColors::light()).into_any_element(),
+                    DisplayTheme::Dark => theme_mock(&KairoColors::dark()).into_any_element(),
+                    DisplayTheme::System => h_flex()
+                        .size_full()
+                        .child(
+                            div()
+                                .w_1_2()
+                                .h_full()
+                                .overflow_hidden()
+                                .child(theme_mock(&KairoColors::light())),
+                        )
+                        .child(
+                            div()
+                                .w_1_2()
+                                .h_full()
+                                .overflow_hidden()
+                                .child(theme_mock(&KairoColors::dark())),
+                        )
+                        .into_any_element(),
+                };
+                v_flex()
+                    .id(SharedString::from(ids::theme(theme.as_str())))
+                    .test_support()
+                    .role(Role::RadioButton)
+                    .aria_label(label)
+                    .aria_selected(picked)
+                    .flex_1()
+                    .min_w_0()
+                    .gap_2()
+                    .group(SharedString::from(format!("theme-{}", theme.as_str())))
+                    .on_click(move |_, window, cx| {
+                        entity.update(cx, |this, cx| this.set_theme(theme, window, cx))
+                    })
+                    .child(
+                        div()
+                            .w_full()
+                            .h(px(76.))
+                            .overflow_hidden()
+                            .rounded(radius::lg())
+                            .border_2()
+                            .border_color(if picked {
+                                k.control_accent
+                            } else {
+                                k.surface_border
+                            })
+                            .when(!picked, |d| {
+                                d.group_hover(
+                                    SharedString::from(format!("theme-{}", theme.as_str())),
+                                    |s| s.border_color(k.text(TextStep::T500)),
+                                )
+                            })
+                            .child(picture),
+                    )
+                    .child(
+                        h_flex()
+                            .justify_center()
+                            .gap_1p5()
+                            .text_size(text::XS.size)
+                            .text_color(if picked {
+                                k.text_primary
+                            } else {
+                                k.text(TextStep::T400)
+                            })
+                            .when(picked, |d| d.font_weight(gpui_kit::FontWeight::MEDIUM))
+                            .child(
+                                div()
+                                    .size(px(12.))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .rounded_full()
+                                    .border_1()
+                                    .border_color(if picked {
+                                        k.control_accent
+                                    } else {
+                                        k.surface_border
+                                    })
+                                    .when(picked, |d| {
+                                        d.child(
+                                            div().size(px(6.)).rounded_full().bg(k.control_accent),
+                                        )
+                                    }),
+                            )
+                            .child(label),
+                    )
+            }))
+            .into_any_element()
+    }
+
     pub(crate) fn render_general(&mut self, _: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
-        let dark = self.settings.display.theme == DisplayTheme::Dark;
         let entity = cx.entity();
         let size_row = |id: &'static str,
                         label: &'static str,
@@ -271,19 +383,14 @@ impl SettingsWindow {
             Some("Appearance"),
             None,
             vec![
-                widgets::row(
-                    "Dark mode",
-                    Some(if dark {
-                        "Dim room lighting"
-                    } else {
-                        "Bright rooms — easier to see during a service"
+                widgets::stacked(
+                    "Theme",
+                    Some(match self.settings.display.theme {
+                        DisplayTheme::Dark => "Dim room lighting",
+                        DisplayTheme::Light => "Bright rooms — easier to see during a service",
+                        DisplayTheme::System => "Follows your Mac's light or dark mode",
                     }),
-                    widgets::toggle(ids::DARK, "Dark mode", dark, {
-                        let entity = entity.clone();
-                        move |on, window, cx| {
-                            entity.update(cx, |this, cx| this.set_dark(on, window, cx))
-                        }
-                    }),
+                    self.render_theme_choice(cx),
                     cx,
                 ),
                 size_row(
@@ -322,14 +429,12 @@ impl SettingsWindow {
                         h_flex()
                             .gap_2()
                             .items_center()
+                            // Click the swatch to pick a colour, or type a hex.
                             .child(
-                                div()
-                                    .h_7()
-                                    .w_9()
-                                    .rounded(radius::base())
-                                    .border_1()
-                                    .border_color(k.surface_border)
-                                    .bg(rgb(gloss_rgb)),
+                                div().id(ids::GLOSS_PICKER).test_support().child(
+                                    ColorPicker::new(&self.gloss_picker)
+                                        .accessibility_label("Gloss color"),
+                                ),
                             )
                             .child(
                                 div()
@@ -738,4 +843,80 @@ impl SettingsWindow {
             cx,
         )
     }
+}
+
+/// A small picture of the app in one look: rail, a heading, a card and the
+/// accent, in that look's own colours.
+fn theme_mock(c: &KairoColors) -> gpui_kit::Div {
+    h_flex()
+        .size_full()
+        .bg(c.surface)
+        .child(
+            v_flex()
+                .w(px(16.))
+                .h_full()
+                .flex_none()
+                .pt_2()
+                .items_center()
+                .gap_1()
+                .bg(c.surface_rail)
+                .child(div().size(px(6.)).rounded_full().bg(c.control_accent))
+                .child(
+                    div()
+                        .size(px(6.))
+                        .rounded_full()
+                        .bg(c.text(TextStep::T500).opacity(0.5)),
+                ),
+        )
+        .child(
+            v_flex()
+                .flex_1()
+                .min_w_0()
+                .p_2()
+                .gap_1p5()
+                .child(
+                    div()
+                        .w(relative(0.55))
+                        .h(px(5.))
+                        .rounded_full()
+                        .bg(c.text_primary.opacity(0.85)),
+                )
+                .child(
+                    div()
+                        .w(relative(0.8))
+                        .h(px(4.))
+                        .rounded_full()
+                        .bg(c.text(TextStep::T500).opacity(0.6)),
+                )
+                .child(
+                    h_flex()
+                        .mt_0p5()
+                        .gap_1()
+                        .child(
+                            div()
+                                .flex_1()
+                                .h(px(20.))
+                                .rounded(px(3.))
+                                .bg(c.surface_secondary)
+                                .border_1()
+                                .border_color(c.surface_border),
+                        )
+                        .child(
+                            div()
+                                .flex_1()
+                                .h(px(20.))
+                                .rounded(px(3.))
+                                .bg(c.surface_secondary)
+                                .border_1()
+                                .border_color(c.surface_border),
+                        ),
+                )
+                .child(
+                    div()
+                        .w(px(22.))
+                        .h(px(5.))
+                        .rounded_full()
+                        .bg(c.control_accent),
+                ),
+        )
 }

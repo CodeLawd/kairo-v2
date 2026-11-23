@@ -437,6 +437,11 @@ impl DocumentsPage {
 
     // ─── Reads, for tests and the app ──────────────────────────────────────
 
+    /// Reads the library again (after Imagine adds a deck).
+    pub fn refresh(&mut self, cx: &mut Context<Self>) {
+        self.list(cx);
+    }
+
     pub fn documents(&self) -> &[ProjectionDocument] {
         &self.documents
     }
@@ -1945,7 +1950,7 @@ impl DocumentsPage {
             })
             .when(!active, |e| {
                 e.text_color(k.text(TextStep::T400))
-                    .hover(|s| s.bg(k.white.opacity(0.05)))
+                    .hover(|s| s.bg(k.ink(0.05)))
             })
             .on_drag(drag, |item, _, _, cx| cx.new(|_| item.clone()))
             .on_click(move |e, window, cx| {
@@ -2526,13 +2531,16 @@ impl DocumentsPage {
                                     .map(|i| {
                                         let page = cx.entity();
                                         let is_live = live == Some(i);
-                                        let border = if is_live {
+                                        // Like the Bible cards: the slide and a bar
+                                        // under it with its number, in one frame.
+                                        let frame = if is_live {
                                             k.live
                                         } else if picked == i {
-                                            k.control_accent
+                                            k.white
                                         } else {
-                                            gpui_kit::transparent_black()
+                                            k.ink(0.12)
                                         };
+                                        let marked = is_live || picked == i;
                                         v_flex()
                                             .id(SharedString::from(ids::slide(i)))
                                             .test_support()
@@ -2544,6 +2552,13 @@ impl DocumentsPage {
                                             ))
                                             .w(px(column))
                                             .flex_none()
+                                            .overflow_hidden()
+                                            .border(px(if marked { 1. } else { 0.5 }))
+                                            .border_color(frame)
+                                            .bg(gpui_kit::black())
+                                            .when(!marked, |d| {
+                                                d.hover(|s| s.border_color(k.ink(0.3)))
+                                            })
                                             .when(!busy, |d| {
                                                 d.cursor_pointer().on_click(move |_, _, cx| {
                                                     page.update(cx, |p, cx| p.push(i, cx))
@@ -2554,12 +2569,6 @@ impl DocumentsPage {
                                                     .w_full()
                                                     .h(px(thumb_h))
                                                     .overflow_hidden()
-                                                    .rounded(radius::lg())
-                                                    .border_2()
-                                                    .border_color(border)
-                                                    .when(!is_live && picked != i, |d| {
-                                                        d.hover(|s| s.border_color(k.neutral[6]))
-                                                    })
                                                     .bg(k.surface_display)
                                                     .child(
                                                         img(std::path::PathBuf::from(&pages[i]))
@@ -2569,19 +2578,48 @@ impl DocumentsPage {
                                             )
                                             .child(
                                                 h_flex()
-                                                    .mt_1p5()
-                                                    .px_0p5()
-                                                    .gap_1p5()
-                                                    .text_size(text::LABEL.size)
-                                                    .text_color(if is_live {
-                                                        k.live
-                                                    } else {
-                                                        k.text(TextStep::T500)
-                                                    })
-                                                    .child((i + 1).to_string())
-                                                    .when(has_video[i], |d| {
-                                                        d.child(Icon::new(KairoIcon::Film).size_3())
-                                                    }),
+                                                    .h(px(model::CAPTION))
+                                                    .px_3()
+                                                    .gap_2()
+                                                    .bg(k.surface_secondary)
+                                                    .text_size(text::SM.size)
+                                                    .text_color(k.text(TextStep::T200))
+                                                    .child(
+                                                        h_flex()
+                                                            .flex_1()
+                                                            .min_w_0()
+                                                            .gap_1p5()
+                                                            .font_weight(FontWeight::MEDIUM)
+                                                            .text_color(if is_live {
+                                                                k.live
+                                                            } else {
+                                                                k.text(TextStep::T200)
+                                                            })
+                                                            .child(if is_pdf {
+                                                                "Page"
+                                                            } else {
+                                                                "Slide"
+                                                            })
+                                                            .when(has_video[i], |d| {
+                                                                d.child(
+                                                                    Icon::new(KairoIcon::Film)
+                                                                        .size_3p5()
+                                                                        .text_color(
+                                                                            k.text(TextStep::T500),
+                                                                        ),
+                                                                )
+                                                            }),
+                                                    )
+                                                    .child(
+                                                        div()
+                                                            .flex_none()
+                                                            .text_color(if is_live {
+                                                                k.live
+                                                            } else {
+                                                                k.text(TextStep::T500)
+                                                            })
+                                                            .child((i + 1).to_string()),
+                                                    ),
                                             )
                                             .into_any_element()
                                     })
@@ -2633,7 +2671,7 @@ impl DocumentsPage {
                 .rounded(radius::md())
                 .cursor_pointer()
                 .when(chosen, |r| r.bg(k.white.opacity(0.08)))
-                .when(!chosen, |r| r.hover(|s| s.bg(k.white.opacity(0.05))))
+                .when(!chosen, |r| r.hover(|s| s.bg(k.ink(0.05))))
                 .on_click(move |_, _, cx| {
                     page.update(cx, |p, cx| p.choose_import_library(id.clone(), cx))
                 })

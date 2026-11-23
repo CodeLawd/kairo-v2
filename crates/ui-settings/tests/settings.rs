@@ -573,9 +573,19 @@ fn a_failed_read_shows_defaults_with_a_notice(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 fn general_saves_display_and_lyrics_and_live_controls_save_at_once(cx: &mut TestAppContext) {
     let opened = open(cx, None);
-    // Dark mode and privacy apply the moment they change.
-    click(cx, &opened, pane_ids::general::DARK);
+    // The theme and privacy apply the moment they change.
+    click(
+        cx,
+        &opened,
+        gpui_kit::SharedString::from(pane_ids::general::theme("light")),
+    );
     assert_eq!(sets(&opened, "display")[0]["theme"], "light");
+    click(
+        cx,
+        &opened,
+        gpui_kit::SharedString::from(pane_ids::general::theme("system")),
+    );
+    assert_eq!(sets(&opened, "display")[1]["theme"], "system");
     click(cx, &opened, pane_ids::general::SHARE);
     assert_eq!(sets(&opened, "usage")[0]["shareStats"], false);
 
@@ -595,7 +605,7 @@ fn general_saves_display_and_lyrics_and_live_controls_save_at_once(cx: &mut Test
     assert_eq!(sets(&opened, "lyrics")[0]["glossColor"], "#123456");
 
     click(cx, &opened, ids::save("general"));
-    assert_eq!(sets(&opened, "display").len(), 2);
+    assert_eq!(sets(&opened, "display").len(), 3);
     assert!(shows(cx, &opened, "settings-saved-general"));
 }
 

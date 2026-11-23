@@ -95,7 +95,6 @@ type ShapeGroup = (&'static str, Vec<(Tile, Option<Arc<RenderImage>>)>);
 
 const FRAME_PAD: (f32, f32, f32, f32) = (24.0, 64.0, 24.0, 24.0);
 const ASIDE_PX: f32 = 300.0;
-const SIDEBAR_PX: f32 = 208.0;
 
 fn kind_key(kind: OverlayContentKind) -> &'static str {
     match kind {
@@ -292,6 +291,11 @@ impl Render for ThemeEditor {
                 }
             }))
             .child(self.render_library(cx))
+            .child(kairo_ui_kit::components::page_sidebar::handle(
+                "theme-sidebar-resize",
+                None,
+                cx,
+            ))
             .child(self.render_main(window, cx))
             .child(self.render_aside(cx))
     }
@@ -366,9 +370,10 @@ impl ThemeEditor {
                     menu
                 })
         };
+        let sidebar_width = kairo_ui_kit::components::page_sidebar::PageSidebar::width(None, cx);
         v_flex()
             .flex_none()
-            .w(px(SIDEBAR_PX))
+            .w(px(sidebar_width))
             .h_full()
             .min_h_0()
             .bg(k.surface_secondary)
@@ -497,7 +502,9 @@ impl ThemeEditor {
                     .child(slide_picture(
                         &theme,
                         self.kind,
-                        SIDEBAR_PX - 12.0 - 2.0,
+                        kairo_ui_kit::components::page_sidebar::PageSidebar::width(None, cx)
+                            - 12.0
+                            - 2.0,
                         &k,
                         &self.thumbs,
                     )),

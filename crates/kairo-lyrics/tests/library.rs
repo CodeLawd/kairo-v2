@@ -397,3 +397,32 @@ fn failed_legacy_export_retries_without_deleting_the_library() {
         assert_eq!(service.sync_from_folder().await.unwrap().imported, 1.0);
     });
 }
+
+#[test]
+fn propresenter_import_preserves_source_ccli_and_slide_breaks() {
+    block_on(async {
+        let dir = tempfile::tempdir().unwrap();
+        let service = LyricsService::open(dir.path(), dir.path().to_owned(), settings(dir.path()))
+            .await
+            .unwrap();
+        let source = LyricsImportSource::ProPresenter {
+            title: "Alpha Omega".into(),
+            artist: "Author".into(),
+            text: "[Verse 1]\nAlpha Omega\n\nIwo ni mo f\u{2019}iyin fun o Baba\n\n[Chorus]\nHallelujah".into(),
+            copyright: Some("© 2024 Publisher".into()),
+            ccli_number: Some("7115744".into()),
+        };
+        let preview = service.preview_import(source.clone()).await.unwrap();
+        assert!(preview.duplicate.is_none());
+        let saved = service.import_song(source).await.unwrap();
+        assert_eq!(saved.source, Some(LyricsSource::ProPresenter));
+        assert_eq!(saved.ccli_number.as_deref(), Some("7115744"));
+        assert_eq!(saved.sections.len(), 2);
+        assert_eq!(saved.sections[0].kind, LyricsSectionType::Verse);
+        assert_eq!(
+            saved.sections[0].lines,
+            vec!["Alpha Omega", "", "Iwo ni mo f\u{2019}iyin fun o Baba"]
+        );
+        assert_eq!(saved.sections[1].kind, LyricsSectionType::Chorus);
+    });
+}

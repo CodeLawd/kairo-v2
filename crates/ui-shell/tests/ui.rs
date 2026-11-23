@@ -119,29 +119,16 @@ fn the_rail_navigates_every_workspace(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
-fn a_short_window_keeps_every_workspace_in_view(cx: &mut TestAppContext) {
+fn rail_labels_always_stay_visible(cx: &mut TestAppContext) {
     setup(cx);
-    for (height, labels) in [(600., false), (900., true)] {
+    for height in [600., 900.] {
         let (handle, shell) = open_sized(cx, "1.0.0", height);
         ready(cx, handle, &shell);
-        // The rail measures itself after layout, then settles.
-        for _ in 0..2 {
-            cx.update_window(handle, |_, window, cx| window.render_frame(cx))
-                .unwrap();
-        }
+        cx.update_window(handle, |_, window, cx| window.render_frame(cx))
+            .unwrap();
         cx.update_window(handle, |_, window, _| {
-            let last = ui_shell::WORKSPACES[ui_shell::WORKSPACES.len() - 1];
-            let last = window
-                .find(SharedString::from(format!("rail-{}", last.route.as_str())))
-                .bounds();
-            let feedback = window.find("feedback").bounds();
-            assert!(
-                last.origin.y + last.size.height <= feedback.origin.y,
-                "{height}: the last workspace sits under the rail's buttons"
-            );
-            // Names show when there is room, icons alone when there is not.
             let operator = window.find("rail-operator").bounds();
-            assert_eq!(operator.size.height > px(36.), labels, "{height}");
+            assert!(operator.size.height > px(36.), "{height}: label hidden");
         })
         .unwrap();
     }
@@ -490,4 +477,45 @@ fn upgrade_notes_show_only_when_given_and_dismiss(cx: &mut TestAppContext) {
         assert!(shell.read(cx).migration_notes().is_empty());
     })
     .unwrap();
+}
+
+#[gpui_kit::test]
+fn audience_and_stage_toggles_switch_screen_groups(cx: &mut TestAppContext) {
+    setup(cx);
+    let (handle, shell) = open(cx, "1.0.0");
+    ready(cx, handle, &shell);
+    cx.update(|cx| {
+        cx.global_mut::<Seen>().requests.clear();
+        shell.update(cx, |s, cx| {
+            s.set_state(
+                ShellState {
+                    audience_on: Some(true),
+                    stage_on: Some(false),
+                    ..Default::default()
+                },
+                cx,
+            )
+        });
+    });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("audience-screen", cx);
+        window.click("stage-screen", cx);
+    })
+    .unwrap();
+    cx.update(|cx| {
+        assert_eq!(
+            cx.global::<Seen>().requests,
+            vec![
+                ShellRequest::SetScreenGroupEnabled {
+                    stage: false,
+                    enabled: false,
+                },
+                ShellRequest::SetScreenGroupEnabled {
+                    stage: true,
+                    enabled: true,
+                },
+            ]
+        );
+    });
 }

@@ -19,10 +19,10 @@ use gpui_kit::component::{
     Disableable, Icon, Sizable, VirtualListScrollHandle, h_flex, v_flex, v_virtual_list,
 };
 use gpui_kit::{
-    AnyElement, AnyView, App, AppContext, Context, DragMoveEvent, Entity, FocusHandle, Focusable,
-    FontWeight, InteractiveElement, IntoElement, KeyDownEvent, ParentElement, Render, Role,
-    ScrollStrategy, SharedString, StatefulInteractiveElement, Styled, Subscription, Window,
-    deferred, div, prelude::FluentBuilder, px, size,
+    AnyElement, AnyView, App, AppContext, Context, DragMoveEvent, Entity, ExternalPaths,
+    FocusHandle, Focusable, FontWeight, InteractiveElement, IntoElement, KeyDownEvent,
+    ParentElement, Render, Role, ScrollStrategy, SharedString, StatefulInteractiveElement, Styled,
+    Subscription, Window, deferred, div, prelude::FluentBuilder, px, size,
 };
 use kairo_domain::collections::{LibrariesCommand, LibraryKind as DomainKind};
 use kairo_domain::lyrics::{LyricsOnlineResult, LyricsReview};
@@ -31,12 +31,12 @@ use kairo_ui_kit::components::{
     ConfirmRequest, LibraryDragItem, LibraryKind, LibraryRow, LibrarySection, LibrarySectionEvent,
     SelectionAction, SelectionBar, confirm, messages,
 };
-use kairo_ui_kit::tokens::{Hue, TextStep, radius, text};
+use kairo_ui_kit::tokens::{Hue, Step, TextStep, radius, text};
 use kairo_ui_kit::{KairoColors, KairoIcon, KairoThemeExt};
 
 use crate::backend::LyricsBackend;
 use crate::editor::{EditorEvent, SongEditor};
-use crate::import::{ImportDialog, ImportEvent};
+use crate::import::{ImportDialog, ImportEvent, Tab as ImportTab};
 use crate::model::{Lyrics, LyricsEvent, PickGesture};
 use crate::quick_open::{QuickOpen, section_block};
 use crate::rows::{self, Filter, ListFooter, ReviewNotice, Sort};
@@ -50,6 +50,7 @@ pub mod ids {
     pub const LIST: &str = "lyrics-song-list";
     pub const COUNT: &str = "lyrics-song-count";
     pub const OPTIONS: &str = "lyrics-list-options";
+    pub const UPLOAD_LYRICS: &str = "lyrics-upload";
     pub const NEW_SONG: &str = "lyrics-new";
     pub const QUERY: &str = "lyrics-query";
     pub const CLEAR_QUERY: &str = "lyrics-query-clear";
@@ -107,7 +108,7 @@ pub mod ids {
     }
 }
 
-const ROW_HEIGHT: f32 = 32.;
+const ROW_HEIGHT: f32 = 38.;
 
 /// `LyricsReviewNotice`, shared with quick open.
 pub(crate) fn review_notice_element(review: Option<&LyricsReview>, cx: &App) -> Option<AnyElement> {
@@ -388,9 +389,18 @@ impl LyricsWorkspace {
         if import && self.import.is_none() {
             let model = self.model.clone();
             let handle = self.import_focus.handle().clone();
+            let (tab, dropped) = self.model.update(cx, |m, _| {
+                (m.import_tab(), m.take_pending_import_paths())
+            });
             let dialog = cx.new(|cx| {
                 let mut dialog = ImportDialog::new(model, window, cx);
                 dialog.set_modal_focus(handle);
+                if tab != ImportTab::File {
+                    dialog.set_tab(tab, window, cx);
+                }
+                if !dropped.is_empty() {
+                    dialog.drop_paths(dropped, cx);
+                }
                 dialog
             });
             let sub = cx.subscribe(&dialog, |this, _, event: &ImportEvent, cx| match event {
@@ -804,7 +814,7 @@ impl LyricsWorkspace {
                         .text_size(text::MICRO.size)
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(k.text(TextStep::T500))
-                        .child(div().flex_1().child("Playlists"))
+                        .child(div().flex_1().child("PLAYLISTS"))
                         .when(section_drop, |d| {
                             d.child(div().text_color(k.text(TextStep::T300)).child(drop_label))
                         }),
@@ -812,6 +822,72 @@ impl LyricsWorkspace {
                 .children(rows)
                 .into_any_element(),
         )
+    }
+
+    fn render_upload(&self, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let click_model = self.model.clone();
+        let drop_model = self.model.clone();
+        div()
+            .flex_none()
+            .bg(k.surface_secondary)
+            .px_3()
+            .pt_3()
+            .child(
+                div()
+                    .id(ids::UPLOAD_LYRICS)
+                    .test_support()
+                    .role(Role::Button)
+                    .aria_label("Import lyrics")
+                    .flex()
+                    .items_center()
+                    .gap_3()
+                    .rounded(radius::lg())
+                    .bg(k.surface_tertiary)
+                    .px_3()
+                    .py_2p5()
+                    .cursor_pointer()
+                    .hover(|s| s.bg(k.surface_elevated))
+                    .drag_over::<ExternalPaths>(move |s, _, _, cx| s.bg(cx.kairo().tints.teal))
+                    .on_drop::<ExternalPaths>(move |paths, _, cx| {
+                        let list = paths.paths().to_vec();
+                        drop_model.update(cx, |m, cx| m.import_dropped_files(list, cx));
+                    })
+                    .on_click(move |_, _, cx| {
+                        click_model.update(cx, |m, cx| m.open_import_file(cx))
+                    })
+                    .child(
+                        div()
+                            .flex()
+                            .flex_none()
+                            .items_center()
+                            .justify_center()
+                            .size_8()
+                            .rounded(radius::md())
+                            .bg(k.accent(Step::S500))
+                            .text_color(k.on_accent)
+                            .child(Icon::new(KairoIcon::Upload).size_4()),
+                    )
+                    .child(
+                        v_flex()
+                            .min_w_0()
+                            .child(
+                                div()
+                                    .text_size(text::SM.size)
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .text_color(k.text_primary)
+                                    .child("Import lyrics"),
+                            )
+                            .child(
+                                div()
+                                    .truncate()
+                                    .text_size(text::LABEL.size)
+                                    .text_color(k.text(TextStep::T400))
+                                    .child("ProPresenter, USR, TXT or RTF"),
+                            ),
+                    ),
+            )
+            .into_any_element()
     }
 
     fn render_sources(&self, cx: &mut Context<Self>) -> AnyElement {
@@ -860,8 +936,10 @@ impl LyricsWorkspace {
             .gap_1()
             .px_1()
             .pt_2()
-            .pb_2()
+            .pb_2p5()
             .bg(k.surface_secondary)
+            .border_b_1()
+            .border_color(k.panel_border)
             .child(self.library.clone())
             .child(favorites_row)
             .children(self.render_playlists(cx))
@@ -967,7 +1045,9 @@ impl LyricsWorkspace {
             .gap_1()
             .pl_3()
             .pr_1()
-            .bg(k.surface_tertiary.opacity(0.5))
+            .bg(k.surface_header)
+            .border_b_1()
+            .border_color(k.panel_border)
             .text_size(text::LABEL.size)
             .text_color(k.text(TextStep::T400))
             .child(
@@ -1075,8 +1155,9 @@ impl LyricsWorkspace {
             .h(px(ROW_HEIGHT))
             .w_full()
             .gap_2()
-            .px_2()
-            .rounded(radius::md())
+            .px_3()
+            .border_b_1()
+            .border_color(k.panel_border.opacity(0.45))
             .map(|d| {
                 if picked {
                     d.bg(k.row_selected())
@@ -1104,34 +1185,33 @@ impl LyricsWorkspace {
                 let _ = window;
             })
             .context_menu(move |menu, _, _| song_menu(menu, &more_model, &menu_song, &entity))
-            .child(if in_setlist {
-                div()
-                    .w_4()
-                    .flex_none()
-                    .text_size(text::LABEL.size)
-                    .text_color(k.text(TextStep::T500))
-                    .child((row + 1).to_string())
-                    .into_any_element()
-            } else {
-                Icon::new(KairoIcon::Music2)
-                    .size_3()
-                    .text_color(if selected {
-                        k.text(TextStep::T300)
-                    } else {
-                        k.text(TextStep::T600)
-                    })
-                    .into_any_element()
+            .when(in_setlist, |d| {
+                d.child(
+                    div()
+                        .w_4()
+                        .flex_none()
+                        .text_size(text::LABEL.size)
+                        .text_color(k.text(TextStep::T500))
+                        .child((row + 1).to_string()),
+                )
             })
             .child(
                 h_flex()
                     .flex_1()
                     .min_w_0()
-                    .gap_1p5()
-                    .items_baseline()
+                    .gap_2()
+                    .items_center()
                     .child(
                         div()
+                            .flex_1()
+                            .min_w_0()
                             .truncate()
-                            .text_size(text::SM.size)
+                            .text_size(px(15.))
+                            .font_weight(if selected {
+                                FontWeight::MEDIUM
+                            } else {
+                                FontWeight::NORMAL
+                            })
                             .text_color(if selected {
                                 k.text_primary
                             } else {
@@ -1142,6 +1222,8 @@ impl LyricsWorkspace {
                     .when(!song.artist.is_empty(), |d| {
                         d.child(
                             div()
+                                .flex_none()
+                                .max_w(px(108.))
                                 .truncate()
                                 .text_size(text::LABEL.size)
                                 .text_color(k.text(TextStep::T500))
@@ -1380,7 +1462,7 @@ impl LyricsWorkspace {
                 px(kairo_ui_kit::components::page_sidebar::PageSidebar::width(
                     None, cx
                 )),
-                px(ROW_HEIGHT + 1.)
+                px(ROW_HEIGHT)
             );
             count
         ]);
@@ -1423,8 +1505,6 @@ impl LyricsWorkspace {
                     .id("lyrics-list-area")
                     .flex_1()
                     .min_h_0()
-                    .px_1p5()
-                    .py_1()
                     .track_focus(&self.list_focus)
                     .on_key_down(cx.listener(Self::list_key))
                     .when(self.drop_end && in_setlist, |d| d.bg(k.white.opacity(0.05)))
@@ -1512,7 +1592,8 @@ impl LyricsWorkspace {
             .min_h_0()
             .border_r_1()
             .border_color(k.surface_border)
-            .bg(k.surface_secondary.opacity(0.6))
+            .bg(k.surface)
+            .child(self.render_upload(cx))
             .child(self.render_sources(cx))
             .child(self.render_band(cx))
             .children(error.map(|e| {

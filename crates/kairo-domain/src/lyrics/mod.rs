@@ -10,6 +10,7 @@ pub mod duplicate;
 pub mod hotkeys;
 mod js_text;
 pub mod online_error;
+pub mod propresenter;
 pub mod query;
 pub mod reflow;
 pub mod reorder;
@@ -77,6 +78,16 @@ pub enum LyricsImportSource {
         content: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         filename: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    ProPresenter {
+        title: String,
+        artist: String,
+        text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        copyright: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ccli_number: Option<String>,
     },
     Online {
         provider: LyricsProvider,

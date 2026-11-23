@@ -117,6 +117,7 @@ pub struct MediaDockView {
     grid_bounds: Rc<std::cell::Cell<Bounds<Pixels>>>,
     resize_from: Option<(f32, f32)>,
     sidebar_from: Option<(f32, f32)>,
+    drop_over_playlist: Option<String>,
     marquee: Option<Marquee>,
     marquee_cleared_click: bool,
     preview: Option<(String, Entity<PreviewPlayer>)>,
@@ -220,6 +221,7 @@ impl MediaDockView {
             grid_bounds: Rc::new(std::cell::Cell::new(Bounds::default())),
             resize_from: None,
             sidebar_from: None,
+            drop_over_playlist: None,
             marquee: None,
             marquee_cleared_click: false,
             preview: None,
@@ -589,17 +591,60 @@ impl MediaDockView {
                         .into_any_element();
                 }
                 let active = matches!(m.selection(), Some(Selection::Playlist(id)) if *id == p.id);
+                let drop_over = self.drop_over_playlist.as_deref() == Some(p.id.as_str());
                 let (sel, ren, del) = (model.clone(), model.clone(), cx.entity());
                 let (id1, id2, id3, name) =
                     (p.id.clone(), p.id.clone(), p.id.clone(), p.name.clone());
+                let (over_id, drop_id, ext_id) = (p.id.clone(), p.id.clone(), p.id.clone());
+                let (drop_model, ext_model) = (model.clone(), model.clone());
                 let menu_model = model.clone();
                 row(
                     ids::playlist(&p.id).into(),
-                    KairoIcon::Layers,
+                    // Imagine's own playlist wears Imagine's mark.
+                    if p.name == kairo_domain::media::IMAGINE_PLAYLIST {
+                        KairoIcon::PhBrain
+                    } else {
+                        KairoIcon::PhotoStack
+                    },
                     p.name.clone(),
                     p.item_ids.len(),
                     active,
                 )
+                .when(drop_over, |d| {
+                    d.bg(k.accent(Step::S500).opacity(0.22))
+                        .border_1()
+                        .border_color(k.accent(Step::S400).opacity(0.75))
+                })
+                .can_drop(|dragged, _, _| dragged.is::<CardDrag>() || dragged.is::<ExternalPaths>())
+                .on_drag_move(
+                    cx.listener(move |this, event: &DragMoveEvent<CardDrag>, _, cx| {
+                        let inside = event.bounds.contains(&event.event.position);
+                        if inside {
+                            if this.drop_over_playlist.as_deref() != Some(over_id.as_str()) {
+                                this.drop_over_playlist = Some(over_id.clone());
+                                cx.notify();
+                            }
+                        } else if this.drop_over_playlist.as_deref() == Some(over_id.as_str()) {
+                            this.drop_over_playlist = None;
+                            cx.notify();
+                        }
+                    }),
+                )
+                .on_drop(cx.listener(move |this, drag: &CardDrag, _, cx| {
+                    this.drop_over_playlist = None;
+                    let (pid, item) = (drop_id.clone(), drag.id.clone());
+                    drop_model.update(cx, |m, cx| m.drop_item_on_playlist(pid, item, cx));
+                    cx.stop_propagation();
+                    cx.notify();
+                }))
+                .on_drop(cx.listener(move |this, paths: &ExternalPaths, _, cx| {
+                    this.drop_over_playlist = None;
+                    let pid = ext_id.clone();
+                    let files = paths.paths().to_vec();
+                    ext_model.update(cx, |m, cx| m.drop_files_on_playlist(pid, files, cx));
+                    cx.stop_propagation();
+                    cx.notify();
+                }))
                 .on_click(move |event, _, cx| {
                     if event.click_count() >= 2 {
                         ren.update(cx, |m, cx| m.begin_rename_playlist(id2.clone(), cx))
@@ -778,7 +823,11 @@ impl MediaDockView {
         let menu_playback = playback.clone();
         let drag = CardDrag {
             id: id.clone(),
-            label: item.name.clone().into(),
+            label: if picked && m.picked_count() > 1 {
+                format!("{} items", m.picked_count()).into()
+            } else {
+                item.name.clone().into()
+            },
         };
         let drop_model = self.model.clone();
         let drop_target = id.clone();
@@ -1019,7 +1068,7 @@ impl MediaDockView {
             .on_mouse_down(MouseButton::Left, cx.listener(Self::grid_mouse_down))
             .on_mouse_move(cx.listener(Self::grid_mouse_move))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::grid_mouse_up))
-            .drag_over::<ExternalPaths>(move |s, _, _, _| s.bg(k.white.opacity(0.04)))
+            .drag_over::<ExternalPaths>(move |s, _, _, _| s.bg(k.ink(0.04)))
             .on_drop(move |paths: &ExternalPaths, _, cx| {
                 let list = paths.paths().to_vec();
                 drop_model.update(cx, |m, cx| m.drop_files(list, cx));

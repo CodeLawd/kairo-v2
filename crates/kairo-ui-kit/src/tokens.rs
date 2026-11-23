@@ -316,33 +316,33 @@ impl KairoColors {
 
     /// `:root`.
     pub fn dark() -> Self {
-        let surface_border = rgb(63, 63, 70);
+        let surface_border = rgb(56, 61, 74);
         Self {
             appearance: Appearance::Dark,
             solid_chrome: false,
-            surface: rgb(24, 24, 27),
-            surface_secondary: rgb(30, 30, 33),
-            surface_tertiary: rgb(39, 39, 42),
-            surface_elevated: rgb(51, 51, 56),
-            surface_rail: rgb(33, 33, 36),
-            surface_header: rgb(33, 33, 36),
+            surface: rgb(18, 20, 24),
+            surface_secondary: rgb(30, 33, 40),
+            surface_tertiary: rgb(40, 44, 53),
+            surface_elevated: rgb(52, 57, 68),
+            surface_rail: rgb(28, 31, 38),
+            surface_header: rgb(25, 27, 33),
             surface_border,
-            surface_menu: rgb(39, 39, 42),
-            surface_menu_hover: rgb(51, 51, 56),
-            surface_menu_line: rgb(63, 63, 70),
-            surface_line: rgb(9, 9, 11),
-            panel_border: surface_border.opacity(0.75),
-            surface_stage: rgb(9, 9, 11),
+            surface_menu: rgb(36, 40, 48),
+            surface_menu_hover: rgb(49, 54, 65),
+            surface_menu_line: rgb(56, 61, 74),
+            surface_line: rgb(10, 11, 14),
+            panel_border: surface_border.opacity(0.85),
+            surface_stage: rgb(10, 11, 14),
             surface_display: rgb(82, 82, 91),
             surface_canvas: rgb(82, 82, 91),
-            sidebar_sources: rgb(30, 30, 33),
-            sidebar_list: rgb(30, 30, 33),
-            sidebar_band: rgb(30, 30, 33),
-            sidebar_pick_sources: rgb(39, 39, 42),
-            sidebar_pick_sources_line: rgb(39, 39, 42),
-            sidebar_pick_list: rgb(39, 39, 42),
-            sidebar_pick_list_line: rgb(39, 39, 42),
-            sidebar_field: rgb(33, 33, 36),
+            sidebar_sources: rgb(30, 33, 40),
+            sidebar_list: rgb(26, 29, 35),
+            sidebar_band: rgb(30, 33, 40),
+            sidebar_pick_sources: rgb(40, 44, 53),
+            sidebar_pick_sources_line: rgb(40, 44, 53),
+            sidebar_pick_list: rgb(40, 44, 53),
+            sidebar_pick_list_line: rgb(40, 44, 53),
+            sidebar_field: rgb(36, 40, 48),
             control_accent: rgb(10, 132, 255),
             accent: [
                 rgb(235, 244, 255),
@@ -499,7 +499,8 @@ impl KairoColors {
                 rgb(39, 39, 42),
                 rgb(63, 63, 70),
                 rgb(82, 82, 91),
-                rgb(63, 63, 70),
+                // The faintest step, as in dark: lighter than T500.
+                rgb(113, 113, 122),
             ],
             neutral: [
                 rgb(9, 9, 11),
@@ -520,14 +521,16 @@ impl KairoColors {
             danger_text: rgb(0xb9, 0x1c, 0x1c),
             danger_text_soft: rgb(0xb9, 0x1c, 0x1c),
             success_text: rgb(0x04, 0x78, 0x57),
-            warning_text: rgb(0xfd, 0xe0, 0x47),
+            // Pale yellow vanishes on light surfaces: amber-700.
+            warning_text: rgb(0xb4, 0x53, 0x09),
             checker_light: rgb(0x30, 0x30, 0x30),
             checker_dark: rgb(0x24, 0x24, 0x24),
             paper: rgb(0xf9, 0xfa, 0xfb),
-            favorite: rgb(0xfa, 0xcc, 0x15),
+            favorite: rgb(0xf5, 0x9e, 0x0b),
             sermon_mark: rgb(0xca, 0xd5, 0xe2),
             sermon_mark_active: rgb(0xb9, 0xd7, 0xff),
-            notice_text: rgb(0x2d, 0xd4, 0xbf),
+            // teal-700: teal-400 is too faint on light surfaces.
+            notice_text: rgb(0x0f, 0x76, 0x6e),
             splash_boot: rgb(113, 113, 122),
             white: rgb(255, 255, 255),
             traffic_close: rgb(0xff, 0x5f, 0x57),
@@ -579,6 +582,16 @@ impl KairoColors {
     /// One grey text step (`text-zinc-<step>`).
     pub fn text(&self, step: TextStep) -> Hsla {
         self.fg[step as usize]
+    }
+
+    /// A see-through tone for hover fills, hairlines and rims on themed
+    /// surfaces: white over dark ones, near-black over light ones. Use it
+    /// instead of `white.opacity(..)`, which disappears in light mode.
+    pub fn ink(&self, alpha: f32) -> Hsla {
+        match self.appearance {
+            Appearance::Dark => self.white.opacity(alpha),
+            Appearance::Light => self.text_primary.opacity(alpha * 0.8),
+        }
     }
 
     /// A tool's hue.
@@ -712,24 +725,24 @@ pub mod text {
         }
     }
 
-    /// 10px: rail labels, counts.
-    pub const MICRO: TextSize = ts(0.625, 0.6875);
-    /// 11px: field labels and sidebar headings.
-    pub const LABEL: TextSize = ts(0.6875, 1.0);
-    /// 12px (`text-xs`).
-    pub const XS: TextSize = ts(0.75, 1.0);
-    /// 13px (`text-sm`).
-    pub const SM: TextSize = ts(0.8125, 1.125);
-    /// 15px (`text-base`): body copy.
-    pub const BASE: TextSize = ts(0.9375, 1.375);
-    /// 17px (`text-lg`).
-    pub const LG: TextSize = ts(1.0625, 1.5);
-    /// 20px (`text-xl`): page headers.
-    pub const XL: TextSize = ts(1.25, 1.625);
-    /// 24px (`text-2xl`).
-    pub const XL2: TextSize = ts(1.5, 1.875);
-    /// 30px (`text-3xl`).
-    pub const XL3: TextSize = ts(1.875, 2.125);
+    /// 11px: rail labels, counts.
+    pub const MICRO: TextSize = ts(0.6875, 0.8125);
+    /// 12px: field labels and sidebar headings.
+    pub const LABEL: TextSize = ts(0.75, 1.0625);
+    /// 13px (`text-xs`).
+    pub const XS: TextSize = ts(0.8125, 1.125);
+    /// 14px (`text-sm`).
+    pub const SM: TextSize = ts(0.875, 1.25);
+    /// 16px (`text-base`): body copy.
+    pub const BASE: TextSize = ts(1.0, 1.5);
+    /// 18px (`text-lg`).
+    pub const LG: TextSize = ts(1.125, 1.625);
+    /// 21px (`text-xl`): page headers.
+    pub const XL: TextSize = ts(1.3125, 1.75);
+    /// 25px (`text-2xl`).
+    pub const XL2: TextSize = ts(1.5625, 2.0);
+    /// 31px (`text-3xl`).
+    pub const XL3: TextSize = ts(1.9375, 2.25);
 
     /// The interface font (`fontFamily.sans`).
     pub const FAMILY: &str = "Source Sans 3";
@@ -757,11 +770,11 @@ pub mod metrics {
     }
     /// `.app-header` height.
     pub fn header_height() -> Pixels {
-        px(60.)
+        px(68.)
     }
-    /// `.workspace-rail` width.
+    /// `.workspace-rail` width (wide enough to clear macOS traffic lights cleanly).
     pub fn rail_width() -> Pixels {
-        px(72.)
+        px(86.)
     }
     /// The macOS window-button corner the header reserves.
     pub fn traffic_light_corner() -> Pixels {
@@ -812,4 +825,57 @@ pub fn section_color(kind: SectionKind) -> Hsla {
 /// `SECTION_TEXT` (`#F9FAFB`): text on a section fill.
 pub fn section_text() -> Hsla {
     rgb(0xf9, 0xfa, 0xfb)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// WCAG contrast of two opaque colours.
+    fn contrast(a: Hsla, b: Hsla) -> f32 {
+        let lum = |c: Hsla| {
+            let c: Rgba = c.into();
+            let ch = |v: f32| {
+                if v <= 0.03928 {
+                    v / 12.92
+                } else {
+                    ((v + 0.055) / 1.055).powf(2.4)
+                }
+            };
+            0.2126 * ch(c.r) + 0.7152 * ch(c.g) + 0.0722 * ch(c.b)
+        };
+        let (x, y) = (lum(a), lum(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    #[test]
+    fn light_mode_text_reads_on_light_surfaces() {
+        let k = KairoColors::light();
+        for (name, c) in [
+            ("warning", k.warning_text),
+            ("notice", k.notice_text),
+            ("danger", k.danger_text),
+            ("success", k.success_text),
+            ("muted", k.text(TextStep::T500)),
+            ("faintest", k.text(TextStep::T600)),
+        ] {
+            let ratio = contrast(c, k.surface);
+            assert!(ratio >= 4.5, "{name} on the page: {ratio}");
+        }
+        // The faintest step stays lighter than muted, as in dark.
+        assert!(
+            contrast(k.text(TextStep::T600), k.surface)
+                < contrast(k.text(TextStep::T500), k.surface)
+        );
+    }
+
+    #[test]
+    fn ink_is_white_in_dark_and_dark_in_light() {
+        let dark = KairoColors::dark();
+        assert_eq!(dark.ink(0.1), dark.white.opacity(0.1));
+        assert!(
+            KairoColors::light().ink(0.1).l < 0.2,
+            "a dark tone on light surfaces"
+        );
+    }
 }

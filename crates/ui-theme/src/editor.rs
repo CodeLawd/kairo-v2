@@ -104,6 +104,7 @@ pub struct ThemeEditor {
     pub(crate) preview_view: Option<Entity<LivePreview>>,
     preview_rev: u64,
     preview_sent: Option<u64>,
+    pub(crate) font_preview: Option<(&'static str, String)>,
     pub(crate) shapes_open: bool,
     pub(crate) thumbs: RefCell<ThumbCache>,
     pub(crate) inspector: Option<AnyView>,
@@ -197,6 +198,7 @@ impl ThemeEditor {
             preview_view: None,
             preview_rev: 0,
             preview_sent: None,
+            font_preview: None,
             shapes_open: false,
             thumbs: RefCell::default(),
             inspector: None,
@@ -1051,12 +1053,27 @@ impl ThemeEditor {
             return;
         }
         if let Some(session) = &self.preview {
-            session.show(
-                self.draft.clone(),
-                model::sample(self.kind, self.long_sample),
-            );
+            let mut shown = self.draft.clone();
+            if let Some((layer, family)) = &self.font_preview {
+                shown = crate::panels::edit_layer(&shown, layer, |s| s.font_family = family.clone());
+            }
+            session.show(shown, model::sample(self.kind, self.long_sample));
             self.preview_sent = Some(self.preview_rev);
         }
+    }
+
+    /// Temporarily previews a font on `layer` without modifying undo history or saving.
+    pub fn preview_font(
+        &mut self,
+        preview: Option<(&'static str, String)>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.font_preview == preview {
+            return;
+        }
+        self.font_preview = preview;
+        self.preview_rev = self.preview_rev.wrapping_add(1);
+        cx.notify();
     }
 
     /// The frame's size in pixels as last drawn, for tests.

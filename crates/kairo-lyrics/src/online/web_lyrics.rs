@@ -60,6 +60,13 @@ static REMOVED: LazyLock<Selector> = LazyLock::new(|| {
         "script, style, noscript, nav, header, footer, aside, .comments, #comments, .sharedaddy, .jp-relatedposts",
     )
 });
+static REVIEW_REMOVED: LazyLock<Selector> = LazyLock::new(|| {
+    sel(
+        "script, style, noscript, nav, header, footer, aside, form, button, iframe, figure, figcaption, \
+         .comments, #comments, .sharedaddy, .jp-relatedposts, .related-posts, .yarpp-related, \
+         .post-tags, .post-meta, .author-box, .social-share, .newsletter, .ads, .advertisement",
+    )
+});
 pub(crate) static GLOSS_REMOVED: LazyLock<Selector> = LazyLock::new(|| {
     sel("script, style, noscript, nav, header, footer, aside, .comments, #comments")
 });
@@ -98,7 +105,12 @@ fn tidy_block(text: &str) -> String {
         .join("\n")
 }
 
-fn extract_lyric_body(document: &Html) -> String {
+fn extract_lyric_body_with(
+    document: &Html,
+    removed: &Selector,
+    boilerplate: fn(&str) -> bool,
+    filter_single_paragraph: bool,
+) -> String {
     let p = sel("p");
     for css in [
         ".post-body.entry-content",
@@ -109,23 +121,47 @@ fn extract_lyric_body(document: &Html) -> String {
         "article .content",
         "article",
     ] {
-        let Some(root) = first_kept(document, &sel(css), &REMOVED) else {
+        let Some(root) = first_kept(document, &sel(css), removed) else {
             continue;
         };
         // Paragraphs keep stanza breaks; <br> stays a real newline.
+        let mut total_paragraphs = 0usize;
         let paragraphs: Vec<String> = root
             .select(&p)
-            .filter(|e| !is_removed(*e, &REMOVED))
-            .map(|e| tidy_block(&kept_text(e, &REMOVED)))
-            .filter(|b| !b.is_empty() && !is_boilerplate(b))
+            .filter(|e| !is_removed(*e, removed))
+            .map(|e| tidy_block(&kept_text(e, removed)))
+            .filter(|b| !b.is_empty())
+            .inspect(|_| total_paragraphs += 1)
+            .filter_map(|b| {
+                if !filter_single_paragraph {
+                    return (!boilerplate(&b)).then_some(b);
+                }
+                // Filter line-by-line so a heading or trailing download CTA inside
+                // a <p> with <br> breaks never drops the song's first/last stanza.
+                let kept: Vec<&str> = b.lines().filter(|l| !boilerplate(l)).collect();
+                (!kept.is_empty()).then(|| kept.join("\n"))
+            })
             .collect();
-        if paragraphs.len() >= 2 {
+        if paragraphs.len() >= 2
+            || (filter_single_paragraph && total_paragraphs >= 2 && !paragraphs.is_empty())
+        {
             return paragraphs.join("\n\n");
         }
-        let text = kept_text(root, &REMOVED)
+        let text = kept_text(root, removed)
             .replace('\u{a0}', " ")
             .replace("\r\n", "\n")
             .replace('\r', "\n");
+        let text = if filter_single_paragraph {
+            let joined = text
+                .split('\n')
+                .map(|l| trim(&NBSP_SPACES.replace_all(l, " ")).to_owned())
+                .filter(|l| l.is_empty() || !boilerplate(l))
+                .collect::<Vec<_>>()
+                .join("\n");
+            BLANKS3.replace_all(&joined, "\n\n").into_owned()
+        } else {
+            text
+        };
         let text = trim(&text);
         if text.encode_utf16().count() > 80 {
             return text.to_owned();
@@ -157,11 +193,54 @@ fn is_boilerplate(line: &str) -> bool {
         || COMMENTS.is_match(&lower)
 }
 
-/// Title, artist and lyric body of an allowlisted page, given its HTML.
-pub fn parse_lyrics_page(url: &str, html: &str) -> Result<ScrapedLyricsPage, String> {
-    let document = Html::parse_document(html);
-    let heading = first_kept(
-        &document,
+static DOWNLOAD_CTA: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^download\b.+\b(by|mp3|audio|video|song|here|below)\b").unwrap()
+});
+static LYRIC_CREDIT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^lyrics?\s+(for\b.+by\b|extracted|transcribed|courtesy|submitted)").unwrap()
+});
+
+/// Stricter blog/MP3-site CTA filter used before AI review so ads, download
+/// prompts and social links are dropped up front.
+fn is_review_boilerplate(block: &str) -> bool {
+    if is_boilerplate(block) {
+        return true;
+    }
+    let lower = block.to_lowercase();
+    [
+        "download mp3",
+        "download audio",
+        "download song",
+        "download below",
+        "stream below",
+        "listen below",
+        "watch video",
+        "watch official",
+        "click here to download",
+        "join our whatsapp",
+        "join our telegram",
+        "follow us on",
+        "drop your comment",
+        "read also",
+        "also read",
+        "check out",
+        "tags:",
+        "filed under:",
+        "categories:",
+    ]
+    .iter()
+    .any(|p| lower.starts_with(p))
+        || DOWNLOAD_CTA.is_match(block)
+        || LYRIC_CREDIT.is_match(block)
+        || lower.contains("all rights reserved")
+        || lower.contains("download mp3 here")
+        || lower.contains("join our whatsapp")
+        || lower.contains("join our telegram")
+}
+
+fn extract_heading(document: &Html) -> String {
+    first_kept(
+        document,
         &sel("h1.entry-title, h1.post-title, article h1, .entry-header h1"),
         &REMOVED,
     )
@@ -181,9 +260,14 @@ pub fn parse_lyrics_page(url: &str, html: &str) -> Result<ScrapedLyricsPage, Str
             .next()
             .map(|t| trim(&t.text().collect::<String>()).to_owned())
             .unwrap_or_default()
-    });
-    let (title, artist) = parse_page_heading(&heading);
-    let body = extract_lyric_body(&document);
+    })
+}
+
+/// Title, artist and lyric body of an allowlisted page, given its HTML.
+pub fn parse_lyrics_page(url: &str, html: &str) -> Result<ScrapedLyricsPage, String> {
+    let document = Html::parse_document(html);
+    let (title, artist) = parse_page_heading(&extract_heading(&document));
+    let body = extract_lyric_body_with(&document, &REMOVED, is_boilerplate, false);
     if trim(&body).is_empty() {
         return Err("No lyrics found on that page.".into());
     }
@@ -204,6 +288,42 @@ pub fn parse_lyrics_page(url: &str, html: &str) -> Result<ScrapedLyricsPage, Str
     })
 }
 
+/// Extracts an allowlisted page for AI review: strips non-content widgets and
+/// MP3/blog CTAs, preserves bilingual hymn pairing, and avoids pre-slicing
+/// prose into fake `[Verse]` blocks before the reviewer sees it.
+pub fn parse_lyrics_for_review(url: &str, html: &str) -> Result<ScrapedLyricsPage, String> {
+    let document = Html::parse_document(html);
+    let (title, artist) = parse_page_heading(&extract_heading(&document));
+    let body = extract_lyric_body_with(&document, &REVIEW_REMOVED, is_review_boilerplate, true);
+    if trim(&body).is_empty() {
+        return Err("No lyrics found on that page.".into());
+    }
+    let lyrics = structure_bilingual_hymn(&body).unwrap_or(body);
+    tracing::info!(
+        url,
+        title,
+        artist,
+        chars = lyrics.len(),
+        "scraped lyrics page for review"
+    );
+    Ok(ScrapedLyricsPage {
+        title,
+        artist,
+        lyrics,
+        url: url.into(),
+    })
+}
+
+/// Formats raw web text when AI review is unavailable so unverified previews
+/// still display with sections.
+pub fn fallback_structure(raw: &str) -> String {
+    if raw.contains("[Verse") {
+        return raw.to_owned();
+    }
+    let cleaned = clean_scraped_lyrics(raw);
+    structure_bilingual_hymn(&cleaned).unwrap_or_else(|| structure_lyrics(&cleaned))
+}
+
 pub fn friendly_error(error: &HttpError) -> String {
     match error {
         HttpError::Timeout => "Timed out fetching lyrics page.".into(),
@@ -212,23 +332,36 @@ pub fn friendly_error(error: &HttpError) -> String {
     }
 }
 
-/// Fetches and parses an allowlisted page.
-pub async fn scrape_lyrics_page(
-    http: &Arc<dyn Http>,
-    url: &str,
-) -> Result<ScrapedLyricsPage, String> {
+async fn fetch_allowed_html(http: &Arc<dyn Http>, url: &str) -> Result<String, String> {
     if !is_allowed_lyrics_url(url) {
         return Err("Refusing to scrape a non-allowlisted lyrics host.".into());
     }
     let request = HttpRequest::get(url, REQUEST_TIMEOUT)
         .header("User-Agent", BROWSER_USER_AGENT)
         .header("Accept", "text/html");
-    let html = http
+    Ok(http
         .get(request, success)
         .await
         .map_err(|e| friendly_error(&e))?
-        .body;
+        .body)
+}
+
+/// Fetches and parses an allowlisted page.
+pub async fn scrape_lyrics_page(
+    http: &Arc<dyn Http>,
+    url: &str,
+) -> Result<ScrapedLyricsPage, String> {
+    let html = fetch_allowed_html(http, url).await?;
     parse_lyrics_page(url, &html)
+}
+
+/// Fetches an allowlisted page prepared for AI review.
+pub async fn scrape_lyrics_for_review(
+    http: &Arc<dyn Http>,
+    url: &str,
+) -> Result<ScrapedLyricsPage, String> {
+    let html = fetch_allowed_html(http, url).await?;
+    parse_lyrics_for_review(url, &html)
 }
 
 static NUMBERED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\d+\.\s*").unwrap());
@@ -528,5 +661,20 @@ mod tests {
         ));
         assert!(!is_allowed_lyrics_url("https://example.com/"));
         assert!(!is_allowed_lyrics_url("not a url"));
+    }
+
+    #[test]
+    fn review_scrape_drops_mp3_blog_cta_and_skips_fake_verse_chunking() {
+        let html = r#"<html><body><article>
+            <h1 class="entry-title">Ese Lyrics by Nathaniel Bassey | CeeNaija</h1>
+            <p>Download MP3 below and enjoy this powerful worship song.</p>
+            <p>Lyrics for Ese By Nathaniel Bassey<br>Ese ese ese o<br>Thank you Lord<br>Download Ese By Nathaniel Bassey</p>
+            <p>Join our WhatsApp channel for updates</p>
+            <div class="related-posts"><p>Another Song Lyrics</p></div>
+        </article></body></html>"#;
+        let page = parse_lyrics_for_review("https://www.ceenaija.com/ese/", html).unwrap();
+        assert_eq!(page.title, "Ese");
+        assert_eq!(page.artist, "Nathaniel Bassey");
+        assert_eq!(page.lyrics, "Ese ese ese o\nThank you Lord");
     }
 }

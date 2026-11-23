@@ -424,6 +424,277 @@ pub fn rank_results(query: &str, results: &[ProviderResult]) -> Vec<ProviderResu
         .collect()
 }
 
+/// Bounded Levenshtein distance (`<= max_dist`) over Unicode scalar values.
+fn edit_distance_within(a: &str, b: &str, max_dist: usize) -> bool {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    if a.len().abs_diff(b.len()) > max_dist {
+        return false;
+    }
+    if a == b {
+        return true;
+    }
+    let mut prev: Vec<usize> = (0..=b.len()).collect();
+    let mut curr = vec![0usize; b.len() + 1];
+    for (i, &ca) in a.iter().enumerate() {
+        curr[0] = i + 1;
+        let mut row_min = curr[0];
+        for (j, &cb) in b.iter().enumerate() {
+            let cost = usize::from(ca != cb);
+            let val = (prev[j + 1] + 1)
+                .min(curr[j] + 1)
+                .min(prev[j] + cost);
+            curr[j + 1] = val;
+            row_min = row_min.min(val);
+        }
+        if row_min > max_dist {
+            return false;
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[b.len()] <= max_dist
+}
+
+fn max_typos_for(len: usize) -> usize {
+    match len {
+        0..=3 => 0,
+        4..=5 => 1,
+        6..=11 => 2,
+        _ => 3,
+    }
+}
+
+/// Typo-tolerant match between a single canonical query token and a candidate token.
+pub(crate) fn fuzzy_word_matches(needle: &str, candidate: &str) -> bool {
+    if needle == candidate {
+        return true;
+    }
+    let n_len = needle.chars().count();
+    if n_len >= 4 && candidate.contains(needle) {
+        return true;
+    }
+    let max_dist = max_typos_for(n_len);
+    max_dist > 0 && edit_distance_within(needle, candidate, max_dist)
+}
+
+fn token_in_haystack(needle: &str, haystack_words: &[String]) -> bool {
+    haystack_words
+        .iter()
+        .any(|cand| fuzzy_word_matches(needle, cand))
+}
+
+/// Fraction of query words matched (exact, 1–3 char typo, or adjacent-word join
+/// like `"nara ekele"` ↔ `"narekele"`) across title, artist and lyrics.
+pub(crate) fn fuzzy_query_coverage(
+    query: &str,
+    title: &str,
+    artist: &str,
+    lyrics: Option<&str>,
+) -> f64 {
+    let q_words = words(&canonical_text(query));
+    if q_words.is_empty() {
+        return 0.0;
+    }
+    let mut haystack = words(&canonical_text(title));
+    haystack.extend(words(&canonical_text(artist)));
+    if let Some(body) = lyrics {
+        haystack.extend(words(&canonical_text(body)));
+    }
+    if haystack.is_empty() {
+        return 0.0;
+    }
+    // Also include adjacent haystack pairs joined ("ami" + "oluwa" → "amioluwa").
+    let pair_count = haystack.len().saturating_sub(1);
+    let mut joined_haystack = Vec::with_capacity(pair_count);
+    for pair in haystack.windows(2) {
+        if pair[0].len() + pair[1].len() <= 24 {
+            joined_haystack.push(format!("{}{}", pair[0], pair[1]));
+        }
+    }
+    let mut matched = vec![false; q_words.len()];
+    for (i, w) in q_words.iter().enumerate() {
+        if token_in_haystack(w, &haystack) || token_in_haystack(w, &joined_haystack) {
+            matched[i] = true;
+        }
+    }
+    // Check adjacent query pairs joined ("nara" + "ekele" → "naraekele" ↔ "narekele").
+    for i in 0..q_words.len().saturating_sub(1) {
+        if matched[i] && matched[i + 1] {
+            continue;
+        }
+        let joined = format!("{}{}", q_words[i], q_words[i + 1]);
+        if joined.chars().count() >= 5
+            && (token_in_haystack(&joined, &haystack)
+                || token_in_haystack(&joined, &joined_haystack))
+        {
+            matched[i] = true;
+            matched[i + 1] = true;
+        }
+    }
+    matched.iter().filter(|&&m| m).count() as f64 / q_words.len() as f64
+}
+
+/// Like [`find_lyric_match`], falling back to typo- and spacing-tolerant line
+/// matching (`"nara ekele"` ↔ `"Narekele mo"`, `"amzing grace"` ↔ `"Amazing grace"`).
+pub(crate) fn fuzzy_find_lyric_match(
+    lyrics: &str,
+    canonical_query: &str,
+    query_words: &[String],
+) -> LyricMatch {
+    let exact = find_lyric_match(lyrics, canonical_query, query_words);
+    if !matches!(exact, LyricMatch::None) || query_words.is_empty() {
+        return exact;
+    }
+    let lines: Vec<&str> = lyrics
+        .split('\n')
+        .map(trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    // Try collapsed phrase / adjacent joined pairs against each line first.
+    let collapsed = canonical_query.replace(' ', "");
+    if collapsed.chars().count() >= 5 {
+        for line in &lines {
+            let l_words = words(&canonical_text(line));
+            let l_collapsed = l_words.concat();
+            if fuzzy_word_matches(&collapsed, &l_collapsed)
+                || l_words
+                    .iter()
+                    .any(|w| fuzzy_word_matches(&collapsed, w))
+            {
+                return LyricMatch::Phrase((*line).to_owned());
+            }
+        }
+    }
+    for pair in query_words.windows(2) {
+        let joined = format!("{}{}", pair[0], pair[1]);
+        if joined.chars().count() < 5 {
+            continue;
+        }
+        for line in &lines {
+            let l_words = words(&canonical_text(line));
+            if l_words.iter().any(|w| fuzzy_word_matches(&joined, w)) {
+                return LyricMatch::Words((*line).to_owned());
+            }
+        }
+    }
+    let body_words = words(&canonical_text(lyrics));
+    let present: Vec<&String> = query_words
+        .iter()
+        .filter(|w| token_in_haystack(w, &body_words))
+        .collect();
+    if present.len() as f64 / query_words.len() as f64 >= WORD_MATCH_THRESHOLD {
+        let need = present.len().min(2);
+        if let Some(line) = lines.iter().find(|l| {
+            let lw = words(&canonical_text(l));
+            present.iter().filter(|w| token_in_haystack(w, &lw)).count() >= need
+        }) {
+            return LyricMatch::Words((*line).to_owned());
+        }
+    }
+    LyricMatch::None
+}
+
+/// Fuzzy-aware counterpart to [`needs_web_resolution`] for `OnlineLyrics::search_all`:
+/// skips web blog scraping when a catalogue already returned full lyrics whose
+/// title/artist/lyrics strongly fuzzy-match the user's query.
+pub(crate) fn needs_web_resolution_fuzzy(query: &str, gathered: &[ProviderResult]) -> bool {
+    if !needs_web_resolution(query, gathered) {
+        return false;
+    }
+    if gathered.is_empty() {
+        return true;
+    }
+    let canonical_query = canonical_text(query);
+    let query_words = words(&canonical_query);
+    !gathered.iter().any(|r| {
+        let Some(lyrics) = r.lyrics.as_deref().filter(|l| len16(l) >= 700) else {
+            return false;
+        };
+        let cov = fuzzy_query_coverage(query, &r.title, &r.artist, Some(lyrics));
+        if cov < 0.75 {
+            return false;
+        }
+        let title_cov = fuzzy_query_coverage(query, &r.title, "", None);
+        title_cov >= 0.75
+            || !matches!(
+                fuzzy_find_lyric_match(lyrics, &canonical_query, &query_words),
+                LyricMatch::None
+            )
+    })
+}
+
+/// Fuzzy-aware counterpart to [`rank_results`] for `OnlineLyrics::search_all`:
+/// adds typo- and spacing-tolerant lyric/title scoring while keeping
+/// [`rank_results`] exact for oracle parity.
+pub(crate) fn rank_results_fuzzy(query: &str, results: &[ProviderResult]) -> Vec<ProviderResult> {
+    let canonical_query = canonical_text(query);
+    let query_words = words(&canonical_query);
+    let parsed = parse_song_query(query);
+    let named_artists: Vec<String> = parsed
+        .pairs
+        .iter()
+        .map(|p| canonical_text(&p.artist))
+        .filter(|a| len16(a) >= 3)
+        .collect();
+    let (title_words, artist_words) = match parsed.pairs.first() {
+        Some(pair) => (
+            words(&canonical_text(&pair.title)),
+            words(&canonical_text(&pair.artist)),
+        ),
+        None => (query_words.clone(), query_words.clone()),
+    };
+    let profile = Profile {
+        named_artists,
+        title_words,
+        artist_words,
+    };
+    let mut ranks: Vec<(LyricsProvider, usize)> = Vec::new();
+    let mut scored: Vec<Scored> = results
+        .iter()
+        .map(|r| {
+            let rank = match ranks.iter_mut().find(|(p, _)| *p == r.provider) {
+                Some((_, n)) => {
+                    *n += 1;
+                    *n - 1
+                }
+                None => {
+                    ranks.push((r.provider, 1));
+                    0
+                }
+            };
+            let mut s = score_result(r, &canonical_query, &query_words, rank, &profile);
+            // Boost fuzzy lyric / title matches that exact substring matching missed.
+            if s.result.snippet.is_none()
+                && let Some(lyrics) = r.lyrics.as_deref().filter(|l| !l.is_empty())
+            {
+                match fuzzy_find_lyric_match(lyrics, &canonical_query, &query_words) {
+                    LyricMatch::Phrase(line) => {
+                        s.score += SCORE_LYRIC_PHRASE * 0.9;
+                        s.result.snippet = Some(line);
+                    }
+                    LyricMatch::Words(line) => {
+                        s.score += SCORE_LYRIC_WORDS * 0.9;
+                        s.result.snippet = Some(line);
+                    }
+                    LyricMatch::None => {}
+                }
+            }
+            let exact_title_cov = word_coverage(&core_title(&r.title), &profile.title_words);
+            let fuzzy_title_cov = fuzzy_query_coverage(query, &r.title, "", None);
+            if fuzzy_title_cov > exact_title_cov {
+                s.score += SCORE_TITLE_COVERAGE * 0.85 * (fuzzy_title_cov - exact_title_cov);
+            }
+            s
+        })
+        .collect();
+    sort_desc(&mut scored);
+    drop_weak(dedupe(scored))
+        .into_iter()
+        .take(MAX_RESULTS)
+        .map(|s| s.result)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -510,6 +781,48 @@ mod tests {
                 "Amioluwa",
                 "S",
                 Some("short")
+            )]
+        ));
+    }
+
+    #[test]
+    fn fuzzy_matching_handles_phonetic_spacing_and_typos() {
+        let nara_lyrics = format!(
+            "You've done so much for me\nNarekele mo\n{}",
+            "What shall I render to Jehovah\n".repeat(30)
+        );
+        // "Nara Ekele" ↔ "Narekele" + artist match
+        assert!(
+            fuzzy_query_coverage(
+                "Nara Ekele Tim Godfrey",
+                "Tim Godfrey ft Travis Greene - Nara",
+                "Tim Godfrey",
+                Some(&nara_lyrics)
+            ) >= 0.99
+        );
+        // Unrelated track by the same artist does NOT satisfy the query.
+        assert!(
+            fuzzy_query_coverage(
+                "Nagode Solomon Lange",
+                "You Are So Good",
+                "Solomon Lange",
+                Some("Jesus you're so good")
+            ) < 0.70
+        );
+        // Fuzzy lyric match finds the line even with a vowel/spacing difference.
+        assert!(matches!(
+            fuzzy_find_lyric_match(&nara_lyrics, "nara ekele", &["nara".into(), "ekele".into()]),
+            LyricMatch::Phrase(line) | LyricMatch::Words(line) if line == "Narekele mo"
+        ));
+        // Full-lyric fuzzy hit satisfies needs_web_resolution_fuzzy.
+        assert!(!needs_web_resolution_fuzzy(
+            "Nara Ekele Tim Godfrey",
+            &[result(
+                LyricsProvider::Lrclib,
+                "nara",
+                "Tim Godfrey ft Travis Greene - Nara",
+                "Tim Godfrey",
+                Some(&nara_lyrics)
             )]
         ));
     }

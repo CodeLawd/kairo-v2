@@ -360,13 +360,14 @@ mod tests {
 
     #[test]
     fn the_font_list_is_the_stacks_and_keeps_an_older_one() {
+        let base = kairo_scene::FONT_STACKS.len();
         let listed = kairo_scene::FONT_STACKS[2].1;
-        assert_eq!(font_options(listed).len(), 8);
+        assert_eq!(font_options(listed).len(), base);
         let old = "'Source Sans Pro', Arial, sans-serif";
         let options = font_options(old);
-        assert_eq!(options.len(), 9);
-        assert_eq!(options[8].label, "Source Sans Pro");
-        assert_eq!(options[8].value, old);
+        assert_eq!(options.len(), base + 1);
+        assert_eq!(options[base].label, "Source Sans Pro");
+        assert_eq!(options[base].value, old);
         assert_eq!(stack_label(""), "Default font");
     }
 

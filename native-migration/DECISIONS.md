@@ -1822,3 +1822,22 @@ Deviation (beyond Electron): follow-along and auto-clear run in the orchestrator
 Deviation (beyond Electron): spoken "continue", "carry on", "keep going" and "go on" resume the reading: the next verse while the main reading is newest, else back to where the main reading paused. "Next verse" still steps from the screen.
 Decision: a resume no rule places ("where we left off in the Gospel") is sent once to the model with the readings listed; only an answer inside a remembered chapter is kept, as an AI result behind the safety delay.
 Decision: quote and AI hits are suppressed inside any passage read in the last 15 minutes (the reading memory), not only the one on screen, so a paused main reading read aloud again after an aside is not taken for a quote; a model answer to a resume is exempt. Resume wording right after an aside goes to the main reading unless the verse is within three of the aside's ("continue to verse 29" after Romans 8:28 carries the aside on). Only resume wording bypasses the 5-minute repeat filter, so mentioning a verse again does not pull the screen back. Detector p99 with resume phrases in the replay: 228 µs release (budget 2 ms).
+
+## 2026-11-22 — Imagine (AI images)
+
+Decision (owner): Imagine, a new workspace on the rail, makes images with OpenAI. Access in v1 is the operator's own OpenAI API key. The key is kept in `SecureStore` as `openai-api-key`, not in settings, where `retire_provider_keys` would blank it. Calls go straight to api.openai.com.
+- This is a deliberate exception to the managed proxy.
+- A later subscription tier will route the same calls through `/v1/managed/request` (a new `ManagedProvider`), gated by licence. Operators who do not upgrade keep their own key.
+- `kairo_imagine::ImageTransport` is the seam, so adding the managed route needs no UI or store change.
+- Sign in with ChatGPT was rejected for now: it is in preview, commercial apps need the waitlist, and its docs list image generation as unsupported.
+
+Decision (owner): Imagine output is a draft until the operator saves it.
+- Generating and refining write only to `<userData>/imagine`. Image bytes are kept exactly as OpenAI returned them, written once and never overwritten. Each project's JSON is written after its files, so a failed or cancelled job leaves earlier versions as they were.
+- A refinement edits the selected version, or v1 ("From v1"), through `/v1/images/edits`.
+- Only Save to Media imports a copy into the media library, and it never goes live. Imagine has no live action.
+
+Decision (owner): Imagine's model choice.
+- "Fast" is `gpt-image-2.6-flare` (the default). "Best quality" is `gpt-image-2.6-sunburst`.
+- The model is chosen separately from Low/Medium/High quality, applies to both generate and refine, and is recorded on each version. Versions made before the choice existed load with no model.
+- The output size stays `1536x864` (16:9). OpenAI's reference names custom `WIDTHxHEIGHT` sizes only for other models, so confirm 2.6 accepts it with a live key.
+- Cost hints use earlier per-image prices, because 2.6 bills per token.
