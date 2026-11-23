@@ -1012,7 +1012,9 @@ fn dropping_media_onto_a_playlist_adds_single_and_picked_items(cx: &mut TestAppC
         m.pick("i2", PickGesture::Toggle, cx);
         m.drop_item_on_playlist("p2".into(), "i1".into(), cx);
     });
-    assert!(read(cx, &o, |m| m.library().playlists[0].item_ids.is_empty()));
+    assert!(read(cx, &o, |m| m.library().playlists[0]
+        .item_ids
+        .is_empty()));
     assert_eq!(
         read(cx, &o, |m| m.library().playlists[1].item_ids.clone()),
         vec!["i0", "i1", "i2"]

@@ -25,31 +25,61 @@ pub const FONT_STACKS: &[(&str, &str)] = &[
     // Sans-serif (0..9)
     ("Helvetica Neue", "'Helvetica Neue', Arial, sans-serif"),
     ("Inter", "Inter, system-ui, sans-serif"),
-    ("Source Sans 3", "'Source Sans 3', 'Helvetica Neue', sans-serif"),
+    (
+        "Source Sans 3",
+        "'Source Sans 3', 'Helvetica Neue', sans-serif",
+    ),
     ("Avenir Next", "'Avenir Next', Avenir, sans-serif"),
     ("Futura", "Futura, 'Trebuchet MS', sans-serif"),
-    ("Gill Sans", "'Gill Sans', 'Gill Sans MT', Calibri, sans-serif"),
+    (
+        "Gill Sans",
+        "'Gill Sans', 'Gill Sans MT', Calibri, sans-serif",
+    ),
     ("Optima", "Optima, Candara, 'Segoe UI', sans-serif"),
-    ("Trebuchet MS", "'Trebuchet MS', 'Lucida Grande', sans-serif"),
+    (
+        "Trebuchet MS",
+        "'Trebuchet MS', 'Lucida Grande', sans-serif",
+    ),
     ("Verdana", "Verdana, Geneva, sans-serif"),
     // Serif (9..16)
     ("Georgia", "Georgia, 'Times New Roman', serif"),
     ("Times New Roman", "'Times New Roman', Times, serif"),
     ("Palatino", "Palatino, 'Palatino Linotype', serif"),
-    ("Baskerville", "Baskerville, 'Baskerville Old Face', Georgia, serif"),
+    (
+        "Baskerville",
+        "Baskerville, 'Baskerville Old Face', Georgia, serif",
+    ),
     ("Didot", "Didot, 'Bodoni MT', 'Bodoni 72', Georgia, serif"),
     ("Rockwell", "Rockwell, 'Roboto Slab', Georgia, serif"),
-    ("American Typewriter", "'American Typewriter', 'Courier New', serif"),
+    (
+        "American Typewriter",
+        "'American Typewriter', 'Courier New', serif",
+    ),
     // Display (16..18)
-    ("Impact", "Impact, 'Arial Black', Haettenschweiler, sans-serif"),
-    ("Copperplate", "Copperplate, 'Copperplate Gothic Light', Georgia, serif"),
+    (
+        "Impact",
+        "Impact, 'Arial Black', Haettenschweiler, sans-serif",
+    ),
+    (
+        "Copperplate",
+        "Copperplate, 'Copperplate Gothic Light', Georgia, serif",
+    ),
     // Handwriting (18..24)
-    ("Snell Roundhand", "'Snell Roundhand', 'Segoe Script', 'Brush Script MT', cursive"),
+    (
+        "Snell Roundhand",
+        "'Snell Roundhand', 'Segoe Script', 'Brush Script MT', cursive",
+    ),
     ("Brush Script", "'Brush Script MT', 'Segoe Script', cursive"),
-    ("Bradley Hand", "'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive"),
+    (
+        "Bradley Hand",
+        "'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive",
+    ),
     ("Marker Felt", "'Marker Felt', 'Comic Sans MS', cursive"),
     ("Noteworthy", "Noteworthy, 'Segoe Print', cursive"),
-    ("Savoye", "'Savoye LET', 'Snell Roundhand', 'Segoe Script', cursive"),
+    (
+        "Savoye",
+        "'Savoye LET', 'Snell Roundhand', 'Segoe Script', cursive",
+    ),
     // Monospace (24..26)
     ("Courier", "'Courier New', Courier, monospace"),
     ("Menlo", "Menlo, Consolas, 'Courier New', monospace"),

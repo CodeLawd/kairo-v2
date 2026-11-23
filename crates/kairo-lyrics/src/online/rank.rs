@@ -441,9 +441,7 @@ fn edit_distance_within(a: &str, b: &str, max_dist: usize) -> bool {
         let mut row_min = curr[0];
         for (j, &cb) in b.iter().enumerate() {
             let cost = usize::from(ca != cb);
-            let val = (prev[j + 1] + 1)
-                .min(curr[j] + 1)
-                .min(prev[j] + cost);
+            let val = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
             curr[j + 1] = val;
             row_min = row_min.min(val);
         }
@@ -557,9 +555,7 @@ pub(crate) fn fuzzy_find_lyric_match(
             let l_words = words(&canonical_text(line));
             let l_collapsed = l_words.concat();
             if fuzzy_word_matches(&collapsed, &l_collapsed)
-                || l_words
-                    .iter()
-                    .any(|w| fuzzy_word_matches(&collapsed, w))
+                || l_words.iter().any(|w| fuzzy_word_matches(&collapsed, w))
             {
                 return LyricMatch::Phrase((*line).to_owned());
             }

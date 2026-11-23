@@ -848,17 +848,11 @@ impl ScreensWindow {
                             el.bg(k.surface_tertiary)
                                 .border_color(selected_rim)
                                 .shadow_sm()
-                                .child(
-                                    div()
-                                        .absolute()
-                                        .inset_0()
-                                        .rounded_lg()
-                                        .bg(linear_gradient(
-                                            180.,
-                                            linear_color_stop(sheen_top, 0.0),
-                                            linear_color_stop(k.white.opacity(0.0), 0.55),
-                                        )),
-                                )
+                                .child(div().absolute().inset_0().rounded_lg().bg(linear_gradient(
+                                    180.,
+                                    linear_color_stop(sheen_top, 0.0),
+                                    linear_color_stop(k.white.opacity(0.0), 0.55),
+                                )))
                         })
                         .when(!selected, |el| {
                             el.border_color(transparent_black())

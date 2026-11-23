@@ -2197,11 +2197,7 @@ impl Lyrics {
         cx.notify();
     }
 
-    pub fn import_dropped_files(
-        &mut self,
-        paths: Vec<std::path::PathBuf>,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn import_dropped_files(&mut self, paths: Vec<std::path::PathBuf>, cx: &mut Context<Self>) {
         self.import_tab = crate::import::Tab::File;
         self.pending_import_paths = paths;
         self.import_open = true;

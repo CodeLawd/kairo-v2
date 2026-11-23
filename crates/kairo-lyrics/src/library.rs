@@ -498,8 +498,7 @@ impl LyricsService {
                                 ) {
                                     return Err(LyricsError::PreviewSource.to_string());
                                 }
-                                let song =
-                                    parse_import(source, now).map_err(|e| e.to_string())?;
+                                let song = parse_import(source, now).map_err(|e| e.to_string())?;
                                 let duplicate = index.find(&song);
                                 Ok(LyricsImportPreview { song, duplicate })
                             })

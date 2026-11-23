@@ -812,10 +812,10 @@ fn files_queue_with_duplicates_and_only_add_saves(cx: &mut TestAppContext) {
         )]
     );
     assert!(
-        !core
-            .calls()
-            .iter()
-            .any(|c| matches!(c, LyricsCall::Import(_) | LyricsCall::ImportBatch(_) | LyricsCall::Update(_))),
+        !core.calls().iter().any(|c| matches!(
+            c,
+            LyricsCall::Import(_) | LyricsCall::ImportBatch(_) | LyricsCall::Update(_)
+        )),
         "nothing saved yet"
     );
     // Replace the library copy, keeping its id.

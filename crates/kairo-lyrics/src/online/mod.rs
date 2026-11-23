@@ -167,12 +167,15 @@ impl OnlineLyrics {
                 calls.push(Box::pin(self.lrclib.search(&c.title)));
             }
         }
-        for outcome in futures_util::future::join_all(calls).await {
-            if let Ok(results) = outcome {
-                for r in results {
-                    if seen.insert(r.id.clone()) {
-                        gathered.push(r);
-                    }
+        // A failed lookup only means fewer candidates.
+        for results in futures_util::future::join_all(calls)
+            .await
+            .into_iter()
+            .flatten()
+        {
+            for r in results {
+                if seen.insert(r.id.clone()) {
+                    gathered.push(r);
                 }
             }
         }
@@ -224,15 +227,17 @@ impl OnlineLyrics {
             return;
         }
         let calls = subs.iter().map(|sub| self.lrclib.search(sub));
-        for outcome in futures_util::future::join_all(calls).await {
-            if let Ok(results) = outcome {
-                for r in results {
-                    if rank::fuzzy_query_coverage(query, &r.title, &r.artist, r.lyrics.as_deref())
-                        >= 0.70
-                        && seen.insert(r.id.clone())
-                    {
-                        gathered.push(r);
-                    }
+        for results in futures_util::future::join_all(calls)
+            .await
+            .into_iter()
+            .flatten()
+        {
+            for r in results {
+                if rank::fuzzy_query_coverage(query, &r.title, &r.artist, r.lyrics.as_deref())
+                    >= 0.70
+                    && seen.insert(r.id.clone())
+                {
+                    gathered.push(r);
                 }
             }
         }
@@ -337,9 +342,12 @@ impl OnlineLyrics {
         }
         match source.provider {
             LyricsProvider::Lrclib => self.lrclib.fetch_lyrics(&source.url).await,
-            LyricsProvider::Web => Ok(web_lyrics::scrape_lyrics_for_review(&self.http, &source.url)
-                .await?
-                .lyrics),
+            LyricsProvider::Web => Ok(web_lyrics::scrape_lyrics_for_review(
+                &self.http,
+                &source.url,
+            )
+            .await?
+            .lyrics),
             LyricsProvider::Genius => {
                 self.genius
                     .fetch_lyrics(&source.url, Some(&source.title))

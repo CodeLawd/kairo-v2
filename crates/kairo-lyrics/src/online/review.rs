@@ -210,7 +210,8 @@ fn parse_kept_ids(value: &Value, line_count: usize) -> Option<Vec<usize>> {
             }
             kept.extend(start as usize..=end as usize);
         }
-    } else if let Some(ids) = value.get("keepLineIds").and_then(Value::as_array) {
+    } else {
+        let ids = value.get("keepLineIds").and_then(Value::as_array)?;
         for id in ids {
             let id = integer(id)?;
             if id < 0 || id as usize >= line_count {
@@ -218,8 +219,6 @@ fn parse_kept_ids(value: &Value, line_count: usize) -> Option<Vec<usize>> {
             }
             kept.push(id as usize);
         }
-    } else {
-        return None;
     }
     kept.sort_unstable();
     kept.dedup();
@@ -515,8 +514,10 @@ mod tests {
     use super::*;
     use crate::online::http::GatewayError;
 
+    type Reply = Box<dyn Fn(&ManagedRequest) -> Result<Value, GatewayError> + Send + Sync>;
+
     struct StubGateway {
-        reply: Box<dyn Fn(&ManagedRequest) -> Result<Value, GatewayError> + Send + Sync>,
+        reply: Reply,
         providers: Mutex<Vec<ManagedProvider>>,
     }
 
@@ -574,7 +575,12 @@ Join our WhatsApp channel for more gospel songs";
             }))
         });
         let reviewed = rt()
-            .block_on(review_online_lyrics(&gateway, page, "Ese", "Nathaniel Bassey"))
+            .block_on(review_online_lyrics(
+                &gateway,
+                page,
+                "Ese",
+                "Nathaniel Bassey",
+            ))
             .unwrap();
         assert_eq!(
             reviewed.text,

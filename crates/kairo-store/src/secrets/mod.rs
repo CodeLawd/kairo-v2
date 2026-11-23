@@ -249,14 +249,20 @@ impl<'a> SecureStore<'a> {
                     key
                 }
                 Ok(None) | Err(_) => {
-                    tracing::warn!(name, "[Secrets] data key missing from keychain; clearing unreadable secret");
+                    tracing::warn!(
+                        name,
+                        "[Secrets] data key missing from keychain; clearing unreadable secret"
+                    );
                     self.notice.store(true, Ordering::Relaxed);
                     let _ = remove(&path);
                     return None;
                 }
             },
             Err(SecretError::InvalidKey) => {
-                tracing::warn!(name, "[Secrets] data key in keychain is invalid; clearing unreadable secret");
+                tracing::warn!(
+                    name,
+                    "[Secrets] data key in keychain is invalid; clearing unreadable secret"
+                );
                 self.notice.store(true, Ordering::Relaxed);
                 let _ = remove(&path);
                 return None;

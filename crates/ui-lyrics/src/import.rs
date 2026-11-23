@@ -688,7 +688,9 @@ impl ImportDialog {
                             let handles: Vec<_> = parts
                                 .into_iter()
                                 .map(|p| {
-                                    s.spawn(move || p.into_iter().map(parse_one).collect::<Vec<_>>())
+                                    s.spawn(move || {
+                                        p.into_iter().map(parse_one).collect::<Vec<_>>()
+                                    })
                                 })
                                 .collect();
                             let mut out = Vec::with_capacity(chunk_len);
@@ -1636,7 +1638,11 @@ impl ImportDialog {
                                 .cursor_pointer()
                                 .ghost()
                                 .xsmall()
-                                .label(if expanded { "Hide details" } else { "Show details" })
+                                .label(if expanded {
+                                    "Hide details"
+                                } else {
+                                    "Show details"
+                                })
                                 .on_click(move |_, _, cx| {
                                     toggle.update(cx, |this, cx| {
                                         this.show_error_details = !this.show_error_details;
@@ -1649,7 +1655,10 @@ impl ImportDialog {
                     div()
                         .text_size(text::LABEL.size)
                         .text_color(k.text(TextStep::T400))
-                        .child(format!("{} — {reason}", rows::count_label(names.len(), "file")))
+                        .child(format!(
+                            "{} — {reason}",
+                            rows::count_label(names.len(), "file")
+                        ))
                 }))
                 .when(expanded, |el| {
                     let preview_limit = 50;
@@ -1974,9 +1983,7 @@ impl ImportDialog {
                                     "lyrics-import-queue",
                                     queue_len,
                                     cx.processor(|this, range: std::ops::Range<usize>, _, cx| {
-                                        range
-                                            .map(|i| this.render_queued_row(i, cx))
-                                            .collect()
+                                        range.map(|i| this.render_queued_row(i, cx)).collect()
                                     }),
                                 )
                                 .flex_1()

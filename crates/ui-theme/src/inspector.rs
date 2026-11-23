@@ -2781,12 +2781,7 @@ fn grid3(a: AnyElement, b: AnyElement, c: AnyElement) -> AnyElement {
 /// `CompactSelect`: a dropdown showing the current choice; a value not in
 /// the list shows as written.
 impl ThemeInspector {
-    fn font_picker(
-        &self,
-        layer: &'static str,
-        value: &str,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    fn font_picker(&self, layer: &'static str, value: &str, cx: &mut Context<Self>) -> AnyElement {
         let options = panels::font_options(value);
         let current = options
             .iter()
@@ -2851,22 +2846,17 @@ impl ThemeInspector {
                         .rounded(radius::md())
                         .cursor_pointer()
                         .when(same, |d| {
-                            d.bg(k.surface_tertiary)
-                                .text_color(k.text_primary)
+                            d.bg(k.surface_tertiary).text_color(k.text_primary)
                         })
                         .when(!same, |d| {
                             d.text_color(k.text(TextStep::T200))
-                                .hover(|s| {
-                                    s.bg(k.white.opacity(0.07))
-                                        .text_color(k.text_primary)
-                                })
+                                .hover(|s| s.bg(k.white.opacity(0.07)).text_color(k.text_primary))
                         })
                         .on_hover(move |hovered, _, cx| {
                             if *hovered {
                                 let s = hover_stack.clone();
-                                hover_editor.update(cx, |e, cx| {
-                                    e.preview_font(Some((layer, s)), cx)
-                                });
+                                hover_editor
+                                    .update(cx, |e, cx| e.preview_font(Some((layer, s)), cx));
                             }
                         })
                         .on_click(move |_, _, cx| {

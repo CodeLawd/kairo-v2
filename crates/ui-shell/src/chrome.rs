@@ -162,11 +162,7 @@ impl RenderOnce for ToolbarButton {
         } else {
             k.white.opacity(0.55)
         };
-        let sheen_bottom = if dark {
-            k.white.opacity(0.0)
-        } else {
-            k.white.opacity(0.0)
-        };
+        let sheen_bottom = k.white.opacity(0.0);
         let group: SharedString = format!("tool-{}", self.id).into();
         v_flex()
             .id(self.id)

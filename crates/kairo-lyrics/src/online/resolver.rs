@@ -534,10 +534,11 @@ impl SnippetResolver {
             .filter(|w| !w.is_empty())
             .map(str::to_owned)
             .collect();
-        let fuzzy_match_line = |lyrics: &str| match fuzzy_find_lyric_match(lyrics, snippet, &query_words) {
-            LyricMatch::Phrase(line) | LyricMatch::Words(line) => Some(line),
-            LyricMatch::None => None,
-        };
+        let fuzzy_match_line =
+            |lyrics: &str| match fuzzy_find_lyric_match(lyrics, snippet, &query_words) {
+                LyricMatch::Phrase(line) | LyricMatch::Words(line) => Some(line),
+                LyricMatch::None => None,
+            };
         let genius = genius_urls.iter().map(|url| {
             let query_words = &query_words;
             async move {
@@ -546,7 +547,8 @@ impl SnippetResolver {
                     Ok(lyrics)
                         if matches_query(&lyrics, snippet)
                             || title_matches_query(url, raw)
-                            || fuzzy_query_coverage(raw, &title, &artist, Some(&lyrics)) >= 0.65
+                            || fuzzy_query_coverage(raw, &title, &artist, Some(&lyrics))
+                                >= 0.65
                             || !matches!(
                                 fuzzy_find_lyric_match(&lyrics, snippet, query_words),
                                 LyricMatch::None

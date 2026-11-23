@@ -1055,7 +1055,8 @@ impl ThemeEditor {
         if let Some(session) = &self.preview {
             let mut shown = self.draft.clone();
             if let Some((layer, family)) = &self.font_preview {
-                shown = crate::panels::edit_layer(&shown, layer, |s| s.font_family = family.clone());
+                shown =
+                    crate::panels::edit_layer(&shown, layer, |s| s.font_family = family.clone());
             }
             session.show(shown, model::sample(self.kind, self.long_sample));
             self.preview_sent = Some(self.preview_rev);

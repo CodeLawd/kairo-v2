@@ -672,7 +672,12 @@ impl MediaDock {
     /// Drops a dragged card onto a playlist row. When viewing another playlist,
     /// moves the item(s) out of the current playlist into the target; when
     /// viewing All backgrounds, adds them to the target.
-    pub fn drop_item_on_playlist(&mut self, playlist: String, item: String, cx: &mut Context<Self>) {
+    pub fn drop_item_on_playlist(
+        &mut self,
+        playlist: String,
+        item: String,
+        cx: &mut Context<Self>,
+    ) {
         self.drag.over = None;
         let source_playlist = self.playlist_id();
         if source_playlist.as_deref() == Some(playlist.as_str()) {
@@ -682,11 +687,7 @@ impl MediaDock {
             return;
         };
         let multi = self.picks.contains(&item) && self.picked_count() > 1;
-        let moving: Vec<String> = if multi {
-            self.picked_ids()
-        } else {
-            vec![item]
-        };
+        let moving: Vec<String> = if multi { self.picked_ids() } else { vec![item] };
         let mut target_ids = target.item_ids.clone();
         for id in &moving {
             if !target_ids.contains(id) {

@@ -1118,7 +1118,11 @@ fn gate_waits_for_initial_session_before_opening(cx: &mut TestAppContext) {
     });
     cx.run_until_parked();
     assert!(!flow.read_with(cx, |f, _| f.gate_open()));
-    cx.update(|cx| account.update(cx, |a, cx| a.set_session(ui_account::model::signed_out(), cx)));
+    cx.update(|cx| {
+        account.update(cx, |a, cx| {
+            a.set_session(ui_account::model::signed_out(), cx)
+        })
+    });
     cx.run_until_parked();
     assert!(flow.read_with(cx, |f, _| f.gate_open()));
 }

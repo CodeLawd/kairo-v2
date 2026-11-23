@@ -1,12 +1,14 @@
 //! Live smoke test against the real sources. Non-blocking: ignored by
 //! default, needs the network. `cargo test -p kairo-lyrics --test online_live -- --ignored`
 
+use kairo_domain::cloud::ManagedRequest;
 use kairo_lyrics::online::http::{BoxFuture, GatewayError, Http, ManagedGateway, ReqwestHttp};
 use kairo_lyrics::online::{
-    OnlineLyrics, OnlineSource, genius::Genius, lrclib::Lrclib,
+    OnlineLyrics, OnlineSource,
+    genius::Genius,
+    lrclib::Lrclib,
     web_lyrics::{scrape_lyrics_for_review, scrape_lyrics_page},
 };
-use kairo_domain::cloud::ManagedRequest;
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -124,9 +126,18 @@ async fn live_multilingual_queries() {
 async fn live_web_scrape_audit() {
     let http: Arc<dyn Http> = Arc::new(ReqwestHttp::default());
     let urls = [
-        ("Hausa-blogspot", "https://moseskogis.blogspot.com/2012/04/nagode-lyrics-solomon-lange.html"),
-        ("Hausa-gospelsongs", "https://gospelsongs.com.ng/na-gode-lyrics-solomon-lange/"),
-        ("Yoruba-hymn", "https://yorubahymns.blogspot.com/2015/04/ija-dopin-ogun-si-tan.html"),
+        (
+            "Hausa-blogspot",
+            "https://moseskogis.blogspot.com/2012/04/nagode-lyrics-solomon-lange.html",
+        ),
+        (
+            "Hausa-gospelsongs",
+            "https://gospelsongs.com.ng/na-gode-lyrics-solomon-lange/",
+        ),
+        (
+            "Yoruba-hymn",
+            "https://yorubahymns.blogspot.com/2015/04/ija-dopin-ogun-si-tan.html",
+        ),
     ];
     for (label, url) in urls {
         eprintln!("\n=== [{label}] {url} ===");

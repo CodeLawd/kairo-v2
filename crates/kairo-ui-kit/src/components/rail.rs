@@ -123,17 +123,13 @@ impl RenderOnce for RailItem {
                         .border_color(active_rim)
                         .shadow_sm()
                         .text_color(hue)
-                        .child(
-                            div()
-                                .absolute()
-                                .inset_0()
-                                .rounded(radius::lg())
-                                .bg(linear_gradient(
-                                    180.,
-                                    linear_color_stop(sheen_top, 0.0),
-                                    linear_color_stop(k.white.opacity(0.0), 0.55),
-                                )),
-                        )
+                        .child(div().absolute().inset_0().rounded(radius::lg()).bg(
+                            linear_gradient(
+                                180.,
+                                linear_color_stop(sheen_top, 0.0),
+                                linear_color_stop(k.white.opacity(0.0), 0.55),
+                            ),
+                        ))
                 } else {
                     this.border_color(transparent_black())
                         .text_color(k.text(TextStep::T500))

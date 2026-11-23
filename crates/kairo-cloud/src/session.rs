@@ -448,7 +448,8 @@ impl CloudSession {
         // Let an in-flight rotation finish persisting its new refresh token so
         // the next launch does not replay a revoked token.
         if let Some(mut rx) = inflight {
-            let _ = tokio::time::timeout(Duration::from_secs(5), rx.wait_for(Option::is_some)).await;
+            let _ =
+                tokio::time::timeout(Duration::from_secs(5), rx.wait_for(Option::is_some)).await;
         }
     }
 

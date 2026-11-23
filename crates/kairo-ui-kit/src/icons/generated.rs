@@ -817,7 +817,9 @@ impl KairoIcon {
             (KairoIcon::PhBrain, false) => include_bytes!("../../assets/icons/ph_brain.svg"),
             (KairoIcon::PhBrain, true) => include_bytes!("../../assets/icons/ph_brain-fill.svg"),
             (KairoIcon::PhotoStack, false) => include_bytes!("../../assets/icons/photo_stack.svg"),
-            (KairoIcon::PhotoStack, true) => include_bytes!("../../assets/icons/photo_stack-fill.svg"),
+            (KairoIcon::PhotoStack, true) => {
+                include_bytes!("../../assets/icons/photo_stack-fill.svg")
+            }
             (KairoIcon::PhBroadcast, false) => {
                 include_bytes!("../../assets/icons/ph_broadcast.svg")
             }

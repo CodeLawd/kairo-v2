@@ -678,8 +678,8 @@ impl QuickOpen {
                 self.importing.as_deref() == Some(r.id.as_str()),
             ),
         };
-        let first_web = index == self.hits.len() + self.matched_entries.len()
-            && matches!(row, Row::Online(_));
+        let first_web =
+            index == self.hits.len() + self.matched_entries.len() && matches!(row, Row::Online(_));
         let web_count = self.online.len();
         let row_h = if snippet.is_some() {
             ROW_TALL
@@ -739,16 +739,13 @@ impl QuickOpen {
                                 .text_color(k.accent(kairo_ui_kit::tokens::Step::S400))
                                 .child("FROM THE WEB"),
                         )
-                        .child(
-                            div()
-                                .text_size(text::MICRO.size)
-                                .text_color(tag_fg)
-                                .child(if web_count == 1 {
-                                    "1 match".to_owned()
-                                } else {
-                                    format!("{web_count} matches")
-                                }),
-                        ),
+                        .child(div().text_size(text::MICRO.size).text_color(tag_fg).child(
+                            if web_count == 1 {
+                                "1 match".to_owned()
+                            } else {
+                                format!("{web_count} matches")
+                            },
+                        )),
                 )
             })
             .child(
@@ -1523,7 +1520,8 @@ impl Render for QuickOpen {
                                     if active {
                                         el.text_color(accent_fg)
                                     } else {
-                                        el.text_color(muted_fg).hover(move |s| s.text_color(hover_fg))
+                                        el.text_color(muted_fg)
+                                            .hover(move |s| s.text_color(hover_fg))
                                     }
                                 })
                                 .on_click(move |_, _, cx| {

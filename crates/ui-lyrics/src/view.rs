@@ -389,9 +389,9 @@ impl LyricsWorkspace {
         if import && self.import.is_none() {
             let model = self.model.clone();
             let handle = self.import_focus.handle().clone();
-            let (tab, dropped) = self.model.update(cx, |m, _| {
-                (m.import_tab(), m.take_pending_import_paths())
-            });
+            let (tab, dropped) = self
+                .model
+                .update(cx, |m, _| (m.import_tab(), m.take_pending_import_paths()));
             let dialog = cx.new(|cx| {
                 let mut dialog = ImportDialog::new(model, window, cx);
                 dialog.set_modal_focus(handle);
