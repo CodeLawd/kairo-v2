@@ -588,11 +588,7 @@ impl Shell {
             )
             .when_some(self.audio.clone(), |popover, (view, opened)| {
                 popover
-                    .on_open_change(move |open, window, cx| {
-                        if *open {
-                            opened(window, cx);
-                        }
-                    })
+                    .on_open_change(move |open, window, cx| opened(*open, window, cx))
                     .content(move |_, _, cx| {
                         let k = *cx.kairo();
                         div()

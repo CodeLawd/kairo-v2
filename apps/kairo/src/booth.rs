@@ -22,22 +22,19 @@ use kairo_output::program::OnScreens;
 use serde_json::Value;
 use ui_operator::booth::BoothBackend;
 use ui_operator::booth::backend::{
-    BoothAnswer, BoothCall, BoothFeed, BoothSnapshot, DeviceLabels, FeedSink, InputLevel,
-    LegacyNugget, Licence, Listening, OnScreensLayer, Reply,
+    BoothAnswer, BoothCall, BoothFeed, BoothSnapshot, DeviceLabels, FeedSink, InputLevel, Licence,
+    Listening, OnScreensLayer, Reply,
 };
-use ui_operator::booth::text::{NUGGET_STORAGE_KEY, legacy_nuggets_value, parse_legacy_nuggets};
-use ui_operator::layout::UiState;
 
 use crate::services::{ApplicationServices, SettingsChanged};
 
 pub struct ServicesBooth {
     services: Arc<ApplicationServices>,
-    ui_state: Arc<dyn UiState>,
 }
 
 impl ServicesBooth {
-    pub fn new(services: Arc<ApplicationServices>, ui_state: Arc<dyn UiState>) -> Self {
-        Self { services, ui_state }
+    pub fn new(services: Arc<ApplicationServices>) -> Self {
+        Self { services }
     }
 
     fn settings(&self) -> Option<AppSettings> {
@@ -122,7 +119,6 @@ impl BoothBackend for ServicesBooth {
                 .watch::<ServiceSnapshot>()
                 .latest()
                 .map(|s| (*s).clone()),
-            legacy_nuggets: parse_legacy_nuggets(self.ui_state.get(NUGGET_STORAGE_KEY).as_ref()),
             default_translation: settings
                 .as_ref()
                 .map(|s| s.scripture.default_translation.clone())
@@ -295,11 +291,6 @@ impl BoothBackend for ServicesBooth {
             }
         });
     }
-
-    fn save_legacy_nuggets(&self, nuggets: &[LegacyNugget]) {
-        self.ui_state
-            .set(NUGGET_STORAGE_KEY, legacy_nuggets_value(nuggets));
-    }
 }
 
 async fn run(
@@ -314,12 +305,18 @@ async fn run(
             services.orchestrator.approve_suggestion(&id).await;
             done
         }
+        BoothCall::RefreshLicence => {
+            if let Err(error) = services.licensing.refresh().await {
+                tracing::warn!(%error, "[Licence] refresh failed");
+            }
+            done
+        }
         BoothCall::Dismiss(id) => {
             services.orchestrator.dismiss_suggestion(&id).await;
             done
         }
         BoothCall::Register(suggestion) => {
-            services.scripture.receive_suggestion(suggestion);
+            services.orchestrator.register_suggestion(suggestion).await;
             done
         }
         BoothCall::PresentDirectly(suggestion) => {

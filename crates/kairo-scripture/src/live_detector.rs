@@ -50,6 +50,11 @@ rule!(CHAPTER, r"\bchapter\s+\d+\b");
 rule!(VERSE, r"\bverses?\s+\d+\b");
 rule!(RANGE_LEAD, r"^(?:to|through|thru|and|-)\s*");
 rule!(CONTINUATION, r"^(?:to|through|thru|and|-)\s*\d+\b");
+// "and 10" or "and then I'll read 9", once a whole range was cited.
+rule!(
+    ADDED_VERSE,
+    r"(?i)^(?:and|also|plus)\s+(?:then\s+)?(?:(?:i(?u:['’])ll|i\s+will|we(?u:['’])ll|we\s+will|let(?u:['’])s)\s+(?:read|do)\s+)?(?:verses?\s+)?(\d+)\b"
+);
 rule!(NUMBER_FIRST, r"^\d+\b");
 rule!(
     BARE_FRAGMENT,
@@ -139,6 +144,9 @@ struct Context {
     awaiting_verse: bool,
     verse_start: Option<f64>,
     awaiting_range_end: bool,
+    /// The last citation was a whole range (or a verse added after one), so
+    /// "and 10" adds a verse instead of ending a range.
+    range_closed: bool,
     quote_text: String,
     quote_verses: Option<Vec<ChapterVerseTokens>>,
 }
@@ -153,6 +161,7 @@ impl Context {
             awaiting_verse: true,
             verse_start: None,
             awaiting_range_end: false,
+            range_closed: false,
             quote_text: String::new(),
             quote_verses: None,
         }
@@ -903,6 +912,8 @@ impl LiveCitationDetector {
         if let Some(last) = references.last()
             && let Some(context) = &mut self.context
         {
+            let added = context.range_closed && ADDED_VERSE.is_match(&text);
+            context.range_closed = last.verse_end.is_some() || added;
             context.verse_start = Some(last.verse_start);
             context.awaiting_range_end = RANGE_PENDING.is_match(&text);
             context.awaiting_verse = true;
@@ -1007,6 +1018,20 @@ impl LiveCitationDetector {
 }
 
 fn fragments(context: &mut Context, text: &str, now: u64, interim: bool) -> Vec<ExplicitCitation> {
+    // "Verses 3 to 5, and then 9 and 10": 9 and 10 are verses of their own,
+    // not a new end for the range.
+    if context.range_closed
+        && let Some(added) = ADDED_VERSE.captures(text)
+    {
+        context.updated = now;
+        let verse = string_to_number(&added[1]);
+        return vec![ExplicitCitation::placed(
+            context.book,
+            context.chapter,
+            verse,
+            None,
+        )];
+    }
     let continuation = context.verse_start.filter(|_| {
         CONTINUATION.is_match(text) || (context.awaiting_range_end && NUMBER_FIRST.is_match(text))
     });

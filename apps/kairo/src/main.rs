@@ -265,10 +265,8 @@ fn open_operator_window(
         screens::ServicesScreens::new(services.clone(), ui_state.clone()),
     );
     let settings_ui_state = ui_state.clone();
-    let booth_backend: Arc<dyn ui_operator::BoothBackend> = Arc::new(booth::ServicesBooth::new(
-        services.clone(),
-        ui_state.clone(),
-    ));
+    let booth_backend: Arc<dyn ui_operator::BoothBackend> =
+        Arc::new(booth::ServicesBooth::new(services.clone()));
     let media_backend: Arc<dyn ui_media::MediaBackend> = Arc::new(media::ServicesMedia::new(
         services.clone(),
         ui_state.clone(),
@@ -1267,7 +1265,9 @@ fn install_audio_rail(
     shell.update(cx, |shell, cx| {
         shell.set_audio(
             rail.into(),
-            std::rc::Rc::new(move |_, cx| opened.update(cx, |r, cx| r.opened(cx))),
+            std::rc::Rc::new(move |open, _, cx| {
+                opened.update(cx, |r, cx| if open { r.opened(cx) } else { r.closed(cx) })
+            }),
             cx,
         )
     });

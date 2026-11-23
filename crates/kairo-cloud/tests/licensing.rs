@@ -411,3 +411,71 @@ async fn native_activation_verifies_live_server_signature() {
     assert!(vault.read("license-snapshot").is_none());
     session.stop().await;
 }
+
+#[test]
+fn only_a_local_server_with_a_changed_key_is_relearned() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use kairo_cloud::licensing::relearned_local_key;
+    use kairo_domain::{cloud::LicenseLeaseClaims, json::to_js_string};
+    use ring::signature::{Ed25519KeyPair, KeyPair as _};
+
+    let now = 1_700_000_000.0;
+    let pem_of = |key: &Ed25519KeyPair| {
+        let mut der = vec![0x30, 0x2a, 0x30, 5, 6, 3, 0x2b, 0x65, 0x70, 3, 0x21, 0];
+        der.extend(key.public_key().as_ref());
+        format!(
+            "-----BEGIN PUBLIC KEY-----\n{}\n-----END PUBLIC KEY-----\n",
+            STANDARD.encode(der)
+        )
+    };
+    let old = Ed25519KeyPair::from_seed_unchecked(&[11; 32]).unwrap();
+    let new = Ed25519KeyPair::from_seed_unchecked(&[22; 32]).unwrap();
+    let claims = LicenseLeaseClaims {
+        org_id: "church".into(),
+        device_id: "booth".into(),
+        features: vec![LicensedFeature::Transcription],
+        issued_at: now,
+        refresh_after: now + 86_400.0,
+        expires_at: now + 14.0 * 86_400.0,
+        license_expires_at: None,
+    };
+    let lease = SignedLicenseLease {
+        claims: claims.clone(),
+        raw_claims: None,
+        signature: STANDARD.encode(new.sign(to_js_string(&claims).unwrap().as_bytes()).as_ref()),
+        public_key: pem_of(&new),
+    };
+    // The key pinned earlier no longer matches what the server signs with.
+    assert!(!valid_license_lease(
+        Some(&lease),
+        Some(&pem_of(&old)),
+        "church",
+        "booth",
+        None,
+        now
+    ));
+    let relearn = |api: &str, compiled: Option<&str>, lease: &SignedLicenseLease| {
+        relearned_local_key(api, compiled, Some(lease), "church", "booth", now).map(str::to_owned)
+    };
+    assert_eq!(
+        relearn("http://localhost:3000", None, &lease),
+        Some(pem_of(&new))
+    );
+    assert_eq!(
+        relearn("http://127.0.0.1:3000", None, &lease),
+        Some(pem_of(&new))
+    );
+    // Never for a deployed server, or when the build carries its own key.
+    assert_eq!(
+        relearn("https://api.kairopresenter.com", None, &lease),
+        None
+    );
+    assert_eq!(
+        relearn("http://localhost:3000", Some("compiled"), &lease),
+        None
+    );
+    // Never for a lease that doesn't verify with its own key.
+    let mut forged = lease.clone();
+    forged.claims.device_id = "other".into();
+    assert_eq!(relearn("http://localhost:3000", None, &forged), None);
+}

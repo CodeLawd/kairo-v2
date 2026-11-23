@@ -1,6 +1,6 @@
 //! The booth (`Operator.tsx` second half, `OperatorQueueSearch.tsx`,
 //! `ServicePanel.tsx`, `BoothToolbox.tsx`, `ProgramPanels.tsx`): live
-//! transcript and nuggets, detected verses with auto-present and follow
+//! transcript, detected verses with auto-present and follow
 //! along, the staged queue, the sermon list, service records, and the
 //! program panels (timers, messages, props, video input, program sound).
 //!
@@ -45,7 +45,7 @@ use kairo_domain::transcript::TranscriptResult;
 
 pub use backend::{
     BoothAnswer, BoothBackend, BoothCall, BoothFeed, BoothSnapshot, DeviceLabels, InputLevel,
-    LegacyNugget, Licence, Listening, OnScreensLayer,
+    Licence, Listening, OnScreensLayer,
 };
 use text::{Highlight, MAX_SEGMENTS, manual_suggestion, projected_ids, strip_ipc_prefix};
 
@@ -152,13 +152,11 @@ pub struct Booth {
     // Transcript.
     pub(crate) segments: Vec<Segment>,
     pub(crate) interim: String,
-    pub(crate) legacy_nuggets: Vec<LegacyNugget>,
     pub(crate) services: ServiceSnapshot,
     pub(crate) services_loaded: bool,
     pub(crate) service_error: String,
     pub(crate) pipeline_busy: bool,
     pub(crate) key_prompt_open: bool,
-    pub(crate) nuggets_open: bool,
     pub(crate) level: InputLevel,
     // Detections.
     pub(crate) suggestions: Vec<ScriptureSuggestion>,
@@ -213,7 +211,6 @@ impl Booth {
             backend: backend.clone(),
             segments: Vec::new(),
             interim: String::new(),
-            legacy_nuggets: snapshot.legacy_nuggets,
             services: ServiceSnapshot {
                 active_id: None,
                 services: Vec::new(),
@@ -223,7 +220,6 @@ impl Booth {
             service_error: String::new(),
             pipeline_busy: false,
             key_prompt_open: false,
-            nuggets_open: false,
             level: InputLevel::default(),
             suggestions: Vec::new(),
             selected: None,
@@ -363,21 +359,6 @@ impl Booth {
     pub fn active_service(&self) -> Option<&ServiceRecord> {
         let id = self.services.active_id.as_deref()?;
         self.services.services.iter().find(|s| s.id == id)
-    }
-    /// The service's nuggets, or the legacy list when none is open.
-    pub fn nuggets(&self) -> Vec<(String, String, f64)> {
-        match self.active_service() {
-            Some(service) => service
-                .nuggets
-                .iter()
-                .map(|n| (n.id.clone(), n.text.clone(), n.captured_at))
-                .collect(),
-            None => self
-                .legacy_nuggets
-                .iter()
-                .map(|n| (n.id.clone(), n.text.clone(), n.captured_at))
-                .collect(),
-        }
     }
     /// A service is open and not ended: live speech is shown.
     fn service_open(&self) -> bool {
@@ -718,6 +699,15 @@ impl Booth {
             return;
         }
         self.suggestions = merge_scripture_suggestion(&self.suggestions, &incoming);
+        // A verse added to a passage ("and then 9 and 10") renames the row.
+        if let Some(passage) = incoming.passage_id.as_deref() {
+            for item in &mut self.suggestions {
+                if item.passage_id.as_deref() == Some(passage) {
+                    item.passage_reference = incoming.passage_reference.clone();
+                    item.passage_length = incoming.passage_length;
+                }
+            }
+        }
     }
 
     /// Called by the detected view after a frame paints a new card: closes
@@ -1054,11 +1044,10 @@ impl Booth {
                     adjacent.translation.clone(),
                 );
                 suggestion.passage_id = Some(group.id.clone());
-                suggestion.passage_reference = Some(group.reference.clone());
+                suggestion.passage_reference = Some(adjacent_title(&group, &adjacent));
                 suggestion.passage_index = Some(passage_index);
                 suggestion.passage_length = Some(length);
                 suggestion.preloaded_next = Some(direction == Direction::Next);
-                let group_id = group.id.clone();
                 this.call(
                     BoothCall::Register(suggestion.clone()),
                     cx,
@@ -1068,13 +1057,7 @@ impl Booth {
                             tracing::error!(%error, "[Operator] preload register failed");
                             return;
                         }
-                        for item in &mut this.suggestions {
-                            if item.passage_id.as_deref() == Some(&group_id) {
-                                item.passage_length = Some(length);
-                            }
-                        }
-                        this.suggestions =
-                            merge_scripture_suggestion(&this.suggestions, &suggestion);
+                        this.insert_suggestion(suggestion.clone());
                         this.selected = Some(suggestion.id.clone());
                     },
                 );
@@ -1343,6 +1326,11 @@ impl Booth {
             return;
         }
         self.key_prompt_open = true;
+        // Activated but no transcription: the server may have gained its key
+        // since the last fetch. A usable licence closes the prompt and starts.
+        if self.licence.activated {
+            self.call(BoothCall::RefreshLicence, cx, |_, _, _| {});
+        }
         cx.emit(BoothEvent::OpenActivation {
             title: "Set up live transcription".into(),
             description: if self.licence.activated {
@@ -1418,80 +1406,6 @@ impl Booth {
         }
     }
 
-    /// `toggleNugget`: saves a transcript line as a quote.
-    pub fn save_nugget(&mut self, segment_id: &str, cx: &mut Context<Self>) {
-        if self.active_service().is_none() {
-            self.service_error = "Start transcription to save this nugget.".into();
-            cx.notify();
-            return;
-        }
-        let Some(segment) = self.segments.iter().find(|s| s.id == segment_id) else {
-            return;
-        };
-        let command = ServiceCommand::Nugget {
-            text: segment.text.clone(),
-            source_ids: vec![segment.id.clone()],
-        };
-        self.service_command(command, cx);
-    }
-
-    /// `removeNugget`.
-    pub fn remove_nugget(&mut self, nugget_id: &str, cx: &mut Context<Self>) {
-        match self.active_service().map(|s| s.id.clone()) {
-            None => {
-                self.legacy_nuggets.retain(|n| n.id != nugget_id);
-                self.backend.save_legacy_nuggets(&self.legacy_nuggets);
-                cx.notify();
-            }
-            Some(service_id) => self.service_command(
-                ServiceCommand::RemoveNugget {
-                    service_id,
-                    nugget_id: nugget_id.into(),
-                },
-                cx,
-            ),
-        }
-    }
-
-    /// `exportNuggets`.
-    pub fn export_nuggets(&mut self, cx: &mut Context<Self>) {
-        let nuggets: Vec<(String, f64)> = self
-            .nuggets()
-            .into_iter()
-            .map(|(_, text, at)| (text, at))
-            .collect();
-        if nuggets.is_empty() {
-            return;
-        }
-        let body = text::nuggets_export(&nuggets, format_local_date_time);
-        let date = chrono::Utc::now().format("%Y-%m-%d");
-        self.program_call(
-            BoothCall::Export {
-                file_name: format!("kairo-message-nuggets-{date}.txt"),
-                body,
-            },
-            cx,
-        );
-    }
-
-    /// A `services.command` whose snapshot replaces the records.
-    pub(crate) fn service_command(&mut self, command: ServiceCommand, cx: &mut Context<Self>) {
-        self.call(
-            BoothCall::Service(command),
-            cx,
-            |this, result, _| match result {
-                Ok(BoothAnswer::Services(snapshot)) => this.set_services(snapshot),
-                Ok(_) => {}
-                Err(error) => this.service_error = error,
-            },
-        );
-    }
-
-    pub fn toggle_nuggets(&mut self, cx: &mut Context<Self>) {
-        self.nuggets_open = !self.nuggets_open;
-        cx.notify();
-    }
-
     pub fn restore_session(&mut self, cx: &mut Context<Self>) {
         self.fire(BoothCall::RestoreSession, cx);
     }
@@ -1527,7 +1441,7 @@ impl Booth {
         typing: bool,
         cx: &mut Context<Self>,
     ) -> bool {
-        if typing || modifiers.repeat || self.key_prompt_open || self.nuggets_open {
+        if typing || modifiers.repeat || self.key_prompt_open {
             return false;
         }
         let dom = text::dom_key(key);
@@ -1627,6 +1541,31 @@ pub(crate) fn now_ms() -> f64 {
 }
 
 /// `toLocaleString()`.
+/// The row's title once a preloaded verse joins it: "Ecclesiastes 11:1-3".
+fn adjacent_title(group: &ScriptureSuggestionGroup, adjacent: &ScriptureResult) -> String {
+    let verses: Vec<&kairo_domain::scripture::ScriptureVerse> = group
+        .suggestions
+        .iter()
+        .flat_map(|s| s.verses.iter())
+        .chain(adjacent.verses.iter())
+        .collect();
+    match verses.first() {
+        Some(first)
+            if verses
+                .iter()
+                .all(|v| v.book == first.book && v.chapter == first.chapter) =>
+        {
+            let numbers: Vec<f64> = verses.iter().map(|v| v.verse).collect();
+            kairo_domain::scripture::live_progress::verse_list_reference(
+                &first.book,
+                first.chapter,
+                &numbers,
+            )
+        }
+        _ => group.reference.clone(),
+    }
+}
+
 pub(crate) fn format_local_date_time(ms: f64) -> String {
     use chrono::TimeZone;
     chrono::Local

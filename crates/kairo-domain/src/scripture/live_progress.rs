@@ -79,6 +79,39 @@ pub struct PassageFollowUpdate {
     pub next_suggestion_id: Option<String>,
 }
 
+/// "Leviticus 26:3-5, 9-10": a passage's verses, runs joined with a dash.
+pub fn verse_list_reference(book: &str, chapter: f64, verses: &[f64]) -> String {
+    let mut sorted = verses.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    sorted.dedup();
+    let mut runs: Vec<(f64, f64)> = Vec::new();
+    for verse in sorted {
+        match runs.last_mut() {
+            Some((_, end)) if verse == *end + 1.0 => *end = verse,
+            _ => runs.push((verse, verse)),
+        }
+    }
+    let runs: Vec<String> = runs
+        .into_iter()
+        .map(|(start, end)| {
+            if start == end {
+                js::number_to_string(start)
+            } else {
+                format!(
+                    "{}-{}",
+                    js::number_to_string(start),
+                    js::number_to_string(end)
+                )
+            }
+        })
+        .collect();
+    format!(
+        "{book} {}:{}",
+        js::number_to_string(chapter),
+        runs.join(", ")
+    )
+}
+
 /// Marks a suggestion sent. The suggestions are returned unchanged: sending a
 /// standalone verse keeps its card visible.
 pub fn apply_operator_suggestion_sent(

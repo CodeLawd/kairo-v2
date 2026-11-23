@@ -20,7 +20,7 @@ use kairo_domain::prop_geometry::PropCorner;
 use kairo_domain::serde_util::Extra;
 use kairo_ui_kit::components::NumberFieldChanged;
 use ui_operator::booth::backend::{
-    BoothAnswer, BoothCall, BoothSnapshot, FeedSink, LegacyNugget, Listening, Reply,
+    BoothAnswer, BoothCall, BoothSnapshot, FeedSink, Listening, Reply,
 };
 use ui_operator::booth::{BoothBackend, BoothViews};
 use ui_operator::props::{self, PropsEditor, PropsEvent, Tool, frame_of, ids};
@@ -58,7 +58,6 @@ impl BoothBackend for Core {
     fn save_presentation(&self, p: PresentationSettings) {
         self.0.lock().unwrap().saved.push(p);
     }
-    fn save_legacy_nuggets(&self, _: &[LegacyNugget]) {}
 }
 
 fn prop(id: &str, name: &str) -> ProgramProp {

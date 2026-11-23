@@ -31,6 +31,7 @@ use kairo_domain::overlay::{
 use kairo_domain::overlay_content::format_overlay_verse_text;
 use kairo_domain::overlay_outputs::output_theme_for;
 use kairo_domain::program::ProgramSlideInfo;
+use kairo_domain::scripture::live_progress::verse_list_reference;
 use kairo_domain::scripture::live_progress::{
     PassageFollowState, passage_read_through, tokenize, update_passage_follow_strict,
 };
@@ -182,7 +183,14 @@ fn opening_heard(verse: &str, text: &str) -> bool {
 struct Following {
     state: PassageFollowState,
     cards: Vec<ScriptureSuggestion>,
+    /// When the passage went up: verses announced just after it ("and then
+    /// 9 and 10") join it.
+    since: std::time::Instant,
 }
+
+/// How long after a passage goes up a later verse of it joins it rather
+/// than going up on its own.
+const JOIN_WINDOW: Duration = Duration::from_secs(30);
 
 impl Following {
     fn current(&self) -> Option<&ScriptureVerse> {
@@ -270,6 +278,10 @@ struct Inner {
 /// A spoken "next verse" this soon after a verse went live asks for the verse
 /// already showing.
 const NEXT_ALREADY_SHOWN: Duration = Duration::from_secs(4);
+/// How long follow-along waits, once a verse has been read, before the next
+/// verse goes up: the congregation finishes reading, and a reader who goes
+/// back over the last words does not see the screen jump.
+const FOLLOW_STEP_HOLD: Duration = Duration::from_millis(1500);
 
 /// Detection lookups in flight at once.
 const DETECTION_LOOKUPS: usize = 2;
@@ -953,6 +965,34 @@ impl Orchestrator {
         }
     }
 
+    /// A verse the operator added to a row (its ‹ and › buttons). It joins
+    /// the passage being followed, so reading on into it moves the screen
+    /// there instead of clearing at the passage's old end.
+    pub async fn register_suggestion(&self, suggestion: ScriptureSuggestion) {
+        self.inner
+            .services
+            .scripture
+            .receive_suggestion(suggestion.clone());
+        if suggestion.retracted == Some(true) {
+            return;
+        }
+        let mut state = self.inner.state.lock().await;
+        if let Some(following) = state.follow.as_mut()
+            && suggestion.passage_id.as_deref() == Some(following.state.passage_id.as_str())
+        {
+            if !following
+                .cards
+                .iter()
+                .any(|c| c.passage_index == suggestion.passage_index)
+            {
+                following.cards.push(suggestion.clone());
+            }
+            // The passage goes on: its old last verse no longer ends it.
+            Self::cancel_auto_clear(&mut state);
+        }
+        state.put_pending(suggestion);
+    }
+
     pub async fn dismiss_suggestion(&self, id: &str) {
         let mut state = self.inner.state.lock().await;
         self.dismiss_locked(&mut state, id);
@@ -1225,6 +1265,39 @@ impl Orchestrator {
             let ranged = reference
                 .verse_end
                 .is_some_and(|e| e > reference.verse_start);
+            // "Verses 3 to 5, and then 9": a later verse of the passage being
+            // read joins it after its verses and waits its turn, instead of
+            // jumping the screen ahead.
+            let joined = state.follow.as_ref().and_then(|following| {
+                let held: Vec<&ScriptureVerse> = following
+                    .cards
+                    .iter()
+                    .filter(|c| c.translation == translation)
+                    .filter_map(|c| c.verses.first())
+                    .collect();
+                let same_place = following.since.elapsed() < JOIN_WINDOW
+                    && !held.is_empty()
+                    && held.len() == following.cards.len()
+                    && held
+                        .iter()
+                        .all(|v| v.book == reference.book && v.chapter == reference.chapter);
+                let after = held.iter().all(|v| v.verse < reference.verse_start);
+                (same_place && after).then(|| {
+                    let mut numbers: Vec<f64> = held.iter().map(|v| v.verse).collect();
+                    numbers.extend(verses.iter().map(|v| v.verse));
+                    let next = following
+                        .cards
+                        .iter()
+                        .map(|c| c.passage_index.unwrap_or(0.0))
+                        .fold(f64::NEG_INFINITY, f64::max)
+                        + 1.0;
+                    (
+                        following.state.passage_id.clone(),
+                        next,
+                        verse_list_reference(&reference.book, reference.chapter, &numbers),
+                    )
+                })
+            });
             let passage_id = format!(
                 "{}-{}-{}-{}-{}-{}",
                 reference
@@ -1256,7 +1329,12 @@ impl Orchestrator {
                     number_to_string(reference.verse_start)
                 )
             };
+            let (passage_id, passage_reference, first_index) = match &joined {
+                Some((id, next, title)) => (id.clone(), title.clone(), *next),
+                None => (passage_id, passage_reference, 0.0),
+            };
             let count = verses.len();
+            let total = first_index as usize + count;
             for (index, verse) in verses.iter().enumerate() {
                 let Value::Object(fields) = json!({
                     "id": format!("{}-{}", now_ms(), random_suffix()),
@@ -1273,8 +1351,8 @@ impl Orchestrator {
                     "triggerText": reference.source_text,
                     "passageId": passage_id,
                     "passageReference": passage_reference,
-                    "passageIndex": index,
-                    "passageLength": count,
+                    "passageIndex": first_index + index as f64,
+                    "passageLength": total,
                     "planId": plan_entry.as_ref().map(|e| e.plan_id.clone()),
                     "planItemId": plan_entry.as_ref().map(|e| e.plan_item_id.clone()),
                     "planMatch": plan_entry.as_ref().map(|_| if reference.detection_type == DetectionType::Quote { "quote" } else { "reference" }),
@@ -1284,6 +1362,12 @@ impl Orchestrator {
                 };
                 let suggestion = crate::suggestion::from_fields(fields);
                 state.put_pending(suggestion.clone());
+                if joined.is_some()
+                    && let Some(following) = state.follow.as_mut()
+                {
+                    following.cards.push(suggestion.clone());
+                    Self::cancel_auto_clear(&mut state);
+                }
                 state.suggestion_refs.insert(
                     suggestion.id.clone(),
                     (reference.book.clone(), reference.chapter, verse.verse),
@@ -1302,6 +1386,7 @@ impl Orchestrator {
                 self.note_follow_up(&suggestion);
                 if cfg.auto_mode
                     && index == 0
+                    && joined.is_none()
                     && (count == 1 || cfg.auto_present_passages)
                     && can_auto_present(&reference)
                     && self
@@ -1487,6 +1572,7 @@ impl Orchestrator {
             _ => {
                 self.prefetch_chapter(state, suggestion);
                 Following {
+                    since: std::time::Instant::now(),
                     state: fresh(),
                     cards: state
                         .pending
@@ -1666,9 +1752,7 @@ impl Orchestrator {
             }
             self.publish_follow(&state);
             drop(state);
-            self.note_follow_step();
-            let this = self.clone();
-            tokio::spawn(async move { this.present_scripture(card, None).await });
+            self.present_after_hold(card);
             return;
         };
         // Follow-along off: the operator moves the screen, so the reading
@@ -1688,9 +1772,35 @@ impl Orchestrator {
         Self::cancel_auto(&mut state, &card.id);
         state.take_pending(&card.id);
         drop(state);
-        self.note_follow_step();
-        let this = self.clone();
-        tokio::spawn(async move { this.present_scripture(card, None).await });
+        self.present_after_hold(card);
+    }
+
+    /// Follow-along moved on to `card`: it goes up after [`FOLLOW_STEP_HOLD`],
+    /// unless the operator put something else up, or the reading moved,
+    /// meanwhile.
+    fn present_after_hold(&self, card: ScriptureSuggestion) {
+        let weak = Arc::downgrade(&self.inner);
+        tokio::spawn(async move {
+            tokio::time::sleep(FOLLOW_STEP_HOLD).await;
+            let Some(inner) = weak.upgrade() else { return };
+            let this = Orchestrator { inner };
+            let still = this
+                .inner
+                .state
+                .lock()
+                .await
+                .follow
+                .as_ref()
+                .is_some_and(|f| {
+                    Some(f.state.passage_id.as_str()) == card.passage_id.as_deref()
+                        && Some(f.state.current_index) == card.passage_index
+                });
+            if !still {
+                return;
+            }
+            this.note_follow_step();
+            this.present_scripture(card, None).await;
+        });
     }
 
     /// Once the passage on screen has been read through, scripture clears

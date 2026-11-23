@@ -584,6 +584,12 @@ impl Harness {
     }
 }
 
+/// Follow-along's pause before the next verse goes up.
+async fn hold() {
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    settle().await;
+}
+
 async fn settle() {
     for _ in 0..20 {
         tokio::task::yield_now().await;
@@ -868,6 +874,11 @@ async fn with_no_booth_a_read_passage_advances_then_clears() {
     assert_eq!(h.engine_log.take().len(), 1, "the first verse goes up");
     h.say(READ[0].3).await;
     settle().await;
+    assert!(
+        h.engine_log.take().is_empty(),
+        "the next verse waits a moment"
+    );
+    hold().await;
     assert_eq!(
         h.engine_log.take(),
         [format!(
@@ -903,14 +914,14 @@ async fn reading_on_past_the_detected_verse_is_followed() {
     settle().await;
     assert!(h.engine_log.take().is_empty(), "the end of the passage");
     h.say("And they were both righteous before God").await;
-    settle().await;
+    hold().await;
     assert_eq!(
         h.engine_log.take(),
         [format!("ShowSlide screen Luke 1:6 (KJV) | {}", READ[3].3)],
         "its opening words carry the screen on"
     );
     h.say(&format!("{} {}", READ[3].3, READ[4].3)).await;
-    settle().await;
+    hold().await;
     assert_eq!(
         h.engine_log.take(),
         [format!("ShowSlide screen Luke 1:7 (KJV) | {}", READ[4].3)]
@@ -943,7 +954,7 @@ async fn let_us_continue_after_an_aside_resumes_where_the_reading_stopped() {
     h.say("Let's read Luke chapter 1 verses 5 to 7.").await;
     settle().await;
     h.say(READ[2].3).await;
-    settle().await;
+    hold().await;
     assert_eq!(
         h.engine_log.take().last().unwrap(),
         &format!("ShowSlide screen Luke 1:6 (KJV) | {}", READ[3].3)
@@ -1260,4 +1271,67 @@ async fn engine_calls_match_the_typescript_orchestrator() {
         assert_eq!(found, expected, "{scenario}");
     }
     eprintln!("{} orchestrator scenarios matched", scenarios.len());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_verse_the_operator_adds_to_the_row_is_followed_into() {
+    let h = harness(true);
+    let mut progress = h.orchestrator.subscribe_follow_progress();
+    h.orchestrator.start_from_ui(following(true)).await.unwrap();
+    h.say("Let's read Luke chapter 1 verse 5.").await;
+    settle().await;
+    h.engine_log.take();
+    let mut passage = None;
+    while let Ok(p) = progress.try_recv() {
+        passage = p.map(|p| p.passage_id).or(passage);
+    }
+    let added: ScriptureSuggestion = serde_json::from_value(json!({
+        "id": "operator-adjacent-6",
+        "reference": "Luke 1:6",
+        "verses": [{ "book": "Luke", "chapter": 1, "verse": 6, "text": READ[3].3 }],
+        "translation": "KJV",
+        "confidence": 1,
+        "source": "manual",
+        "triggerText": "",
+        "passageId": passage.unwrap(),
+        "passageIndex": 1,
+        "passageLength": 2,
+    }))
+    .unwrap();
+    h.orchestrator.register_suggestion(added).await;
+    h.say(READ[2].3).await;
+    hold().await;
+    assert_eq!(
+        h.engine_log.take(),
+        [format!("ShowSlide screen Luke 1:6 (KJV) | {}", READ[3].3)],
+        "the added verse is next, so the passage does not end and clear"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn verses_announced_after_the_passage_wait_their_turn() {
+    let h = harness(true);
+    h.orchestrator.start_from_ui(following(true)).await.unwrap();
+    h.say("Let's read Luke chapter 1 verses 5 to 6.").await;
+    settle().await;
+    assert_eq!(h.engine_log.take().len(), 1, "verse 5 goes up");
+    h.say("and then I'll read 9").await;
+    settle().await;
+    assert!(
+        h.engine_log.take().is_empty(),
+        "verse 9 joins the passage instead of jumping the screen"
+    );
+    h.say(READ[2].3).await;
+    hold().await;
+    assert_eq!(
+        h.engine_log.take(),
+        [format!("ShowSlide screen Luke 1:6 (KJV) | {}", READ[3].3)]
+    );
+    h.say(READ[3].3).await;
+    hold().await;
+    assert_eq!(
+        h.engine_log.take(),
+        ["ShowSlide screen Luke 1:9 (KJV) | Luke 1:9 text"],
+        "after verse 6 comes the announced verse 9"
+    );
 }

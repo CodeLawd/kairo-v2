@@ -124,6 +124,9 @@ impl ServicesSettings {
     }
 }
 
+/// What the meters say when macOS blocks the microphone.
+const MICROPHONE_OFF: &str = "Kairo can't hear this input: microphone access is off. Allow it in System Settings › Privacy & Security › Microphone.";
+
 impl SettingsBackend for ServicesSettings {
     fn settings(&self) -> Reply<Result<AppSettings, String>> {
         self.blocking(|services| {
@@ -192,6 +195,12 @@ impl SettingsBackend for ServicesSettings {
         device_id: String,
     ) -> Reply<Result<(MeterHandle, UnboundedReceiver<MeterEvent>), String>> {
         try_on_runtime(&self.services, async move {
+            // Without microphone access macOS hands the capture silence, so a
+            // live input would look dead. Ask (once), or say how to allow it.
+            if !kairo_stt::permission::ensure_microphone_access().await {
+                tracing::warn!(device = %device_id, "[Audio] microphone access is off; not metering");
+                return Err(MICROPHONE_OFF.to_owned());
+            }
             tokio::task::spawn_blocking(move || {
                 let (tx, rx) = unbounded();
                 let handle = kairo_stt::capture::start_capture(&device_id, move |event| {

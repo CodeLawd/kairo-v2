@@ -36,6 +36,20 @@ impl gpui_kit::Global for LiveRailWidth {}
 
 /// Registers fonts, key bindings and the theme. Call once, after
 /// `gpui_kit::init`.
+/// How full a level meter is, 0 to 1, on a decibel scale from -60 dBFS
+/// (empty) to 0 dBFS (full). A linear RMS scale leaves speech and music
+/// (RMS around 0.02 to 0.1) in the first segment or two, so a working input
+/// looked silent.
+pub fn meter_fill(rms: f64) -> f64 {
+    const FLOOR_DB: f64 = -60.0;
+    // Silence, and NaN from a broken buffer, read as empty.
+    if rms.is_nan() || rms <= 0.0 {
+        return 0.0;
+    }
+    let db = 20.0 * rms.min(1.0).log10();
+    ((db - FLOOR_DB) / -FLOOR_DB).clamp(0.0, 1.0)
+}
+
 pub fn init(appearance: Appearance, cx: &mut gpui_kit::App) {
     components::code_field::init(cx);
     theme::init(appearance, cx);

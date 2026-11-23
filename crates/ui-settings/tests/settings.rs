@@ -662,6 +662,18 @@ fn the_meter_runs_only_while_audio_is_open(cx: &mut TestAppContext) {
     .unwrap();
     draw(cx, &opened);
     assert!(shows(cx, &opened, pane_ids::audio::LIVE));
+    // The segments are drawn, not collapsed to nothing.
+    let first = format!("{}-0", pane_ids::audio::METER);
+    let height = cx
+        .update_window(opened.handle, |_, window, _| {
+            window
+                .find(gpui_kit::SharedString::from(first))
+                .bounds()
+                .size
+                .height
+        })
+        .unwrap();
+    assert!(height > px(0.), "a meter segment has height");
 
     // Picking another input restarts the meter on it.
     click(cx, &opened, pane_ids::audio::input(1));
@@ -859,4 +871,44 @@ fn escape_and_the_red_light_ask_to_close(cx: &mut TestAppContext) {
     );
     click(cx, &opened, close);
     assert_eq!(*opened.events.lock().unwrap(), vec![SettingsEvent::Close]);
+}
+
+#[gpui_kit::test]
+fn the_audio_popover_meters_the_input_while_open(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+        gpui_kit::init(cx);
+        kairo_ui_kit::init(kairo_ui_kit::Appearance::Dark, cx);
+    });
+    let fake = Arc::new(Fake::default());
+    let backend: Arc<dyn SettingsBackend> = fake.clone();
+    let (_window, rail) = cx.update(|cx| {
+        let rail = cx.new(|_| ui_settings::AudioRail::new(backend));
+        let view = rail.clone();
+        let handle =
+            gpui_kit::open_window(WindowOptions::default(), cx, move |_, _| view).expect("open");
+        (handle, rail)
+    });
+    // Opening meters the selected input, though Kairo isn't listening.
+    cx.update(|cx| rail.update(cx, |r, cx| r.opened(cx)));
+    cx.run_until_parked();
+    assert_eq!(fake.calls.lock().unwrap().meters.len(), 1);
+    assert_eq!(*fake.meter_alive.lock().unwrap(), 1);
+    let tx = fake.meter_tx.lock().unwrap().clone().expect("a meter");
+    tx.unbounded_send(MeterEvent::Level(AudioLevel {
+        rms: 0.05,
+        peak: 0.1,
+        clipping: false,
+        timestamp: 1.0,
+    }))
+    .unwrap();
+    cx.run_until_parked();
+    assert_eq!(
+        cx.read(|cx| rail.read(cx).preview_level()),
+        Some(0.05),
+        "the level reaches the popover"
+    );
+    // Closing stops the capture.
+    cx.update(|cx| rail.update(cx, |r, cx| r.closed(cx)));
+    cx.run_until_parked();
+    assert_eq!(*fake.meter_alive.lock().unwrap(), 0);
 }

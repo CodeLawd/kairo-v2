@@ -20,14 +20,6 @@ use kairo_domain::{
     transcript::TranscriptResult,
 };
 
-/// A nugget saved before service records existed (`kairo-message-nuggets`).
-#[derive(Clone, Debug, PartialEq)]
-pub struct LegacyNugget {
-    pub id: String,
-    pub text: String,
-    pub captured_at: f64,
-}
-
 /// The input level (`useAppStore.audioLevel`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct InputLevel {
@@ -50,7 +42,6 @@ pub struct BoothSnapshot {
     pub resilience: Option<ResilienceStatus>,
     /// `None` until the service records have loaded.
     pub services: Option<ServiceSnapshot>,
-    pub legacy_nuggets: Vec<LegacyNugget>,
     pub default_translation: String,
     pub shortcuts: ShortcutBindings,
     pub automation: ScriptureAutomation,
@@ -146,6 +137,9 @@ pub enum BoothCall {
     },
     /// `orchestrator.stop`.
     StopListening,
+    /// Fetches the licence again, for provider keys added on the server
+    /// since the last fetch; the result arrives as [`BoothFeed::Licence`].
+    RefreshLicence,
     /// `services.command`; answers [`BoothAnswer::Services`].
     Service(ServiceCommand),
     /// `resilience.restoreSession`.
@@ -221,6 +215,4 @@ pub trait BoothBackend: Send + Sync + 'static {
     fn mark_rendered(&self, correlation_id: &str);
     /// `useDraftPresentation`'s save.
     fn save_presentation(&self, presentation: PresentationSettings);
-    /// Keeps the legacy nugget list (`localStorage` in Electron).
-    fn save_legacy_nuggets(&self, nuggets: &[LegacyNugget]);
 }

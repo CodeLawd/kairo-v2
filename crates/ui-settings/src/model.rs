@@ -268,10 +268,12 @@ pub enum Segment {
     Clip,
 }
 
+pub use kairo_ui_kit::meter_fill;
+
 /// The meter's segments: lit up to the RMS, amber from 14, red from 17.
 pub fn meter_segments(level: Option<&AudioLevel>, active: bool) -> [Segment; METER_SEGMENTS] {
     let rms = if active {
-        level.map_or(0.0, |l| l.rms.min(1.0))
+        level.map_or(0.0, |l| meter_fill(l.rms))
     } else {
         0.0
     };
@@ -294,7 +296,7 @@ pub fn meter_percent(level: Option<&AudioLevel>, active: bool) -> u32 {
     if !active {
         return 0;
     }
-    (level.map_or(0.0, |l| l.rms.min(1.0)) * 100.0).round() as u32
+    (level.map_or(0.0, |l| meter_fill(l.rms)) * 100.0).round() as u32
 }
 
 /// `resolveCaptureDeviceId`: the saved id while that input is present,
@@ -1002,10 +1004,14 @@ mod tests {
         assert_eq!(full[12], Segment::Ok);
         assert_eq!(full[13], Segment::Warn);
         assert_eq!(full[16], Segment::Clip);
-        let half = meter_segments(Some(&level(0.5)), true);
-        assert_eq!(half.iter().filter(|s| **s != Segment::Off).count(), 9);
-        assert_eq!(meter_percent(Some(&level(0.456)), true), 46);
+        // Speech (about -26 dBFS) fills over half the meter, not one segment.
+        let speech = meter_segments(Some(&level(0.05)), true);
+        assert_eq!(speech.iter().filter(|s| **s != Segment::Off).count(), 10);
+        assert_eq!(meter_percent(Some(&level(0.1)), true), 67);
         assert_eq!(meter_percent(None, true), 0);
+        assert_eq!(meter_fill(0.001), 0.0, "-60 dBFS is the floor");
+        assert_eq!(meter_fill(0.0), 0.0);
+        assert_eq!(meter_fill(f64::NAN), 0.0);
     }
 
     #[test]

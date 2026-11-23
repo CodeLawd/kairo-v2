@@ -335,3 +335,23 @@ fn narration_with_resume_wording_never_asks_the_model() {
     service.say(120, "We continue to trust him.");
     assert!(service.0.take_unresolved().is_none());
 }
+
+/// "Verses 3 to 5, and then 9 and 10" adds verses after the range; it does
+/// not stretch the range to 10 (heard in a service as Leviticus 26:3-10).
+#[test]
+fn verses_added_after_a_range_do_not_stretch_it() {
+    let mut service = Service::new();
+    let mut heard = Vec::new();
+    for (at, text) in [
+        (0, "Leviticus chapter twenty six"),
+        (2, "I'll read verse three to five"),
+        (4, "and then I'll read nine"),
+        (6, "and ten."),
+    ] {
+        heard.extend(refs(service.say(at, text)));
+    }
+    assert_eq!(
+        heard,
+        ["Leviticus 26:3-5", "Leviticus 26:9", "Leviticus 26:10"]
+    );
+}

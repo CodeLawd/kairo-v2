@@ -1539,3 +1539,17 @@ fn a_playlist_verse_keeps_its_own_reference_line() {
         "a blank line falls back"
     );
 }
+
+#[test]
+fn a_passage_with_added_verses_is_titled_with_its_runs() {
+    use kairo_domain::scripture::live_progress::verse_list_reference;
+    assert_eq!(
+        verse_list_reference("Leviticus", 26.0, &[3.0, 4.0, 5.0, 9.0, 10.0]),
+        "Leviticus 26:3-5, 9-10"
+    );
+    assert_eq!(
+        verse_list_reference("Ecclesiastes", 11.0, &[2.0, 1.0, 3.0, 3.0]),
+        "Ecclesiastes 11:1-3"
+    );
+    assert_eq!(verse_list_reference("John", 3.0, &[16.0]), "John 3:16");
+}

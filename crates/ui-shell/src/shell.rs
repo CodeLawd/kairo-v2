@@ -155,7 +155,8 @@ pub struct Shell {
 pub type ScreenThemesOpened = std::rc::Rc<dyn Fn(bool, &mut gpui_kit::Window, &mut gpui_kit::App)>;
 
 /// Called when the Audio popover opens.
-pub type AudioOpened = std::rc::Rc<dyn Fn(&mut gpui_kit::Window, &mut gpui_kit::App)>;
+/// Called when the audio popover opens (`true`) or closes (`false`).
+pub type AudioOpened = std::rc::Rc<dyn Fn(bool, &mut gpui_kit::Window, &mut gpui_kit::App)>;
 
 impl EventEmitter<ShellRequest> for Shell {}
 

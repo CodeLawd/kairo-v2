@@ -1,5 +1,5 @@
 //! The live transcript column (`Operator.tsx`, left column): the input
-//! meter, saved nuggets, the reconnect notice, highlighted speech, the
+//! meter, the reconnect notice, highlighted speech, the
 //! empty states and the session bar.
 
 use std::hash::{Hash, Hasher};
@@ -8,27 +8,25 @@ use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonCustomVariant, ButtonVariants};
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::{
-    AnyElement, App, AppContext, ClipboardItem, Context, Entity, FontWeight, Hsla,
-    InteractiveElement, IntoElement, ParentElement, Render, SharedString,
-    StatefulInteractiveElement, Styled, StyledText, Subscription, TextRun as GpuiRun, Window, div,
-    prelude::FluentBuilder, px, relative,
+    AnyElement, App, AppContext, Context, Entity, FontWeight, Hsla, InteractiveElement,
+    IntoElement, ParentElement, Render, SharedString, StatefulInteractiveElement, Styled,
+    StyledText, Subscription, TextRun as GpuiRun, Window, div, prelude::FluentBuilder, px,
+    relative,
 };
 use kairo_ui_kit::coach::coach_anchor;
 use kairo_ui_kit::motion::LISTENING;
 use kairo_ui_kit::tokens::{Step, TextStep, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
+use super::Booth;
 use super::service::ServicePanel;
 use super::text::{TextRun, build_runs};
-use super::{Booth, format_local_time};
 use crate::scroll::{Edge, PinnedScroll};
 
 /// Element ids, for tests.
 pub mod ids {
     pub const START: &str = "transcript-start";
     pub const LISTEN: &str = "transcript-listen";
-    pub const NUGGETS: &str = "transcript-nuggets";
-    pub const NUGGETS_EXPORT: &str = "nuggets-export";
     pub const RECONNECTING: &str = "transcript-reconnecting";
     pub const LISTEN_STATE: &str = "transcript-listen-state";
     pub const LISTENING: &str = "transcript-listening";
@@ -39,7 +37,7 @@ const METER_BARS: usize = 12;
 
 /// Which meter segments light, as the audio panel's level strip draws them.
 pub fn meter_lit(active: bool, rms: f64) -> [bool; METER_BARS] {
-    let value = rms.clamp(0.0, 1.0);
+    let value = kairo_ui_kit::meter_fill(rms);
     std::array::from_fn(|i| active && value >= (i as f64 + 0.5) / METER_BARS as f64)
 }
 
@@ -71,9 +69,7 @@ impl TranscriptPanel {
         let booth = self.booth.read(cx);
         let level = booth.level;
         let lit = meter_lit(booth.transcribing, level.rms);
-        let percent = (level.rms.clamp(0.0, 1.0) * 100.0).round() as u32;
-        let count = booth.nuggets().len();
-        let open = booth.nuggets_open;
+        let percent = (kairo_ui_kit::meter_fill(level.rms) * 100.0).round() as u32;
         let state = booth.transcribing.then(|| booth.listen_state());
         let meter = h_flex()
             .id(ids::METER)
@@ -158,175 +154,10 @@ impl TranscriptPanel {
                         )
                     }),
             )
-            .child(
-                Button::new(ids::NUGGETS)
-                    .cursor_pointer()
-                    .custom(if open {
-                        ButtonCustomVariant::new(cx)
-                            .color(k.tints.amber)
-                            .foreground(k.warning_text)
-                            .hover(k.tints.amber)
-                            .active(k.tints.amber)
-                    } else {
-                        ButtonCustomVariant::new(cx)
-                            .foreground(k.text(TextStep::T500))
-                            .hover(k.surface_tertiary)
-                            .active(k.surface_tertiary)
-                    })
-                    // Solid fill: the custom variant paints its colour at 20%.
-                    .when(open, |b| b.bg(k.tints.amber))
-                    .xsmall()
-                    .icon(Icon::new(KairoIcon::BookmarkSimple).size(px(11.)))
-                    .when(count > 0, |b| b.label(count.to_string()))
-                    .accessibility_label(format!("Saved message nuggets: {count}"))
-                    .tooltip(format!("Saved quotes ({count})"))
-                    .on_click(cx.listener(|this, _, _, cx| {
-                        this.booth.update(cx, |b, cx| b.toggle_nuggets(cx))
-                    })),
-            )
             .into_any_element()
     }
 
-    fn nuggets_popover(&self, cx: &mut Context<Self>) -> AnyElement {
-        let k = *cx.kairo();
-        let booth = self.booth.read(cx);
-        let nuggets = booth.nuggets();
-        let title = if booth.active_service().is_some() {
-            "This service\u{2019}s nuggets"
-        } else {
-            "Legacy nuggets"
-        };
-        let mut list = v_flex()
-            .id("nuggets-list")
-            .max_h(px(288.))
-            .overflow_y_scroll()
-            .p_2();
-        if nuggets.is_empty() {
-            list = list.child(
-                div()
-                    .px_2()
-                    .py_5()
-                    .text_center()
-                    .text_size(text::LABEL.size)
-                    .text_color(k.text(TextStep::T500))
-                    .child("Bookmark a transcript line to save a quote for after service."),
-            );
-        }
-        for (id, body, at) in nuggets.iter().cloned() {
-            let copy = body.clone();
-            let remove = id.clone();
-            list = list.child(
-                h_flex()
-                    .id(SharedString::from(format!("nugget-{id}")))
-                    .group("nugget")
-                    .gap_2()
-                    .rounded_md()
-                    .px_2()
-                    .py_2()
-                    .hover(|s| s.bg(k.surface_tertiary))
-                    .child(
-                        v_flex()
-                            .min_w_0()
-                            .flex_1()
-                            .child(
-                                div()
-                                    .text_size(text::LABEL.size)
-                                    .text_color(k.text(TextStep::T300))
-                                    .child(body),
-                            )
-                            .child(
-                                div()
-                                    .mt_1()
-                                    .text_size(px(9.))
-                                    .text_color(k.text(TextStep::T600))
-                                    .child(format_local_time(at, false)),
-                            ),
-                    )
-                    .child(
-                        h_flex()
-                            .self_start()
-                            .child(
-                                Button::new(SharedString::from(format!("nugget-copy-{id}")))
-                                    .cursor_pointer()
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(KairoIcon::Copy).size(px(11.)))
-                                    .accessibility_label("Copy nugget")
-                                    .tooltip("Copy nugget")
-                                    .on_click(move |_, _, cx| {
-                                        cx.write_to_clipboard(ClipboardItem::new_string(
-                                            copy.clone(),
-                                        ))
-                                    }),
-                            )
-                            .child(
-                                Button::new(SharedString::from(format!("nugget-remove-{id}")))
-                                    .cursor_pointer()
-                                    .ghost()
-                                    .xsmall()
-                                    .icon(Icon::new(KairoIcon::X).size(px(11.)))
-                                    .accessibility_label("Remove nugget")
-                                    .tooltip("Remove nugget")
-                                    .on_click(cx.listener(move |this, _, _, cx| {
-                                        let id = remove.clone();
-                                        this.booth.update(cx, |b, cx| b.remove_nugget(&id, cx))
-                                    })),
-                            ),
-                    ),
-            );
-        }
-        v_flex()
-            .id("nuggets-popover")
-            .test_support()
-            .aria_label(title)
-            .absolute()
-            .left_2()
-            .right_2()
-            .top(px(50.))
-            .rounded_lg()
-            .bg(k.neutral(Step::S950))
-            .shadow_2xl()
-            .overflow_hidden()
-            .occlude()
-            .child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .px_3()
-                    .py_2()
-                    .child(
-                        div()
-                            .text_size(text::LABEL.size)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(k.text(TextStep::T200))
-                            .child(title),
-                    )
-                    .child(
-                        Button::new(ids::NUGGETS_EXPORT)
-                            .cursor_pointer()
-                            .ghost()
-                            .xsmall()
-                            .icon(Icon::new(KairoIcon::Download).size(px(11.)))
-                            .label("Export")
-                            .disabled(nuggets.is_empty())
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.booth.update(cx, |b, cx| b.export_nuggets(cx))
-                            })),
-                    ),
-            )
-            .child(list)
-            .into_any_element()
-    }
-
-    fn segment(
-        &self,
-        index: usize,
-        last: bool,
-        saved: bool,
-        can_save: bool,
-        segment: &super::Segment,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
+    fn segment(&self, last: bool, segment: &super::Segment, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
         let base = if last {
             k.text_primary
@@ -334,59 +165,11 @@ impl TranscriptPanel {
             k.text(TextStep::T500)
         };
         let (string, runs) = styled_runs(&build_runs(&segment.text, &segment.highlights), base, &k);
-        let id = segment.id.clone();
         div()
             .id(SharedString::from(format!("segment-{}", segment.id)))
-            .group("segment")
-            .relative()
             .rounded_md()
             .py_1()
-            .pr_5()
-            .when(saved, |s| s.bg(k.tints.amber))
             .child(StyledText::new(string).with_runs(runs))
-            .child(
-                div()
-                    .absolute()
-                    .right(px(-4.))
-                    .top(px(6.))
-                    .when(!saved, |s| {
-                        s.opacity(0.).group_hover("segment", |s| s.opacity(1.))
-                    })
-                    .child(
-                        Button::new(SharedString::from(format!(
-                            "segment-save-{index}-{}",
-                            segment.id
-                        )))
-                        .cursor_pointer()
-                        .custom(
-                            ButtonCustomVariant::new(cx)
-                                .foreground(if saved {
-                                    k.warning_text
-                                } else {
-                                    k.text(TextStep::T500)
-                                })
-                                .hover(k.tints.amber)
-                                .active(k.tints.amber),
-                        )
-                        .xsmall()
-                        .icon(Icon::new(KairoIcon::BookmarkSimple).size(px(13.)))
-                        .disabled(saved || !can_save)
-                        .accessibility_label(if saved {
-                            "Nugget saved"
-                        } else {
-                            "Save as message nugget"
-                        })
-                        .tooltip(if saved {
-                            "Nugget saved"
-                        } else {
-                            "Save this message nugget"
-                        })
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            let id = id.clone();
-                            this.booth.update(cx, |b, cx| b.save_nugget(&id, cx))
-                        })),
-                    ),
-            )
             .into_any_element()
     }
 
@@ -631,8 +414,6 @@ impl Render for TranscriptPanel {
         let booth = self.booth.read(cx);
         let segments = booth.segments.clone();
         let interim = booth.interim.clone();
-        let nuggets: Vec<String> = booth.nuggets().into_iter().map(|n| n.1).collect();
-        let can_save = booth.active_service().is_some();
         let idle = booth.transcript_idle();
         // Only while listening: stopping also reports "disconnected".
         let state = booth.listen_state();
@@ -642,7 +423,6 @@ impl Render for TranscriptPanel {
         } else {
             (k.tints.amber, k.warning_text)
         };
-        let nuggets_open = booth.nuggets_open;
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         for s in &segments {
             s.id.hash(&mut hasher);
@@ -653,16 +433,7 @@ impl Render for TranscriptPanel {
         let rows: Vec<AnyElement> = segments
             .iter()
             .enumerate()
-            .map(|(i, s)| {
-                self.segment(
-                    i,
-                    i + 1 == count,
-                    nuggets.contains(&s.text),
-                    can_save,
-                    s,
-                    cx,
-                )
-            })
+            .map(|(i, s)| self.segment(i + 1 == count, s, cx))
             .collect();
         let empty = self.empty(cx);
         v_flex()
@@ -728,6 +499,5 @@ impl Render for TranscriptPanel {
                     .children(empty),
             )
             .when(!idle, |this| this.child(self.session_bar(cx)))
-            .when(nuggets_open, |this| this.child(self.nuggets_popover(cx)))
     }
 }

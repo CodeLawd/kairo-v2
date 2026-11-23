@@ -1,6 +1,6 @@
 //! UI integration tests for the booth (prompt 077), driven by a scripted
 //! core: suggestion cards and the paint trace, the clicker, auto-present,
-//! retranslation, recovery, nuggets, the activation prompt, the queue, the
+//! retranslation, recovery, the activation prompt, the queue, the
 //! service records and the program panels.
 
 use std::sync::{Arc, Mutex};
@@ -22,8 +22,7 @@ use kairo_domain::status::ResilienceStatus;
 use kairo_domain::transcript::TranscriptResult;
 use serde_json::json;
 use ui_operator::booth::backend::{
-    BoothAnswer, BoothCall, BoothFeed, BoothSnapshot, FeedSink, LegacyNugget, Licence, Listening,
-    Reply,
+    BoothAnswer, BoothCall, BoothFeed, BoothSnapshot, FeedSink, Licence, Listening, Reply,
 };
 use ui_operator::booth::text::manual_suggestion;
 use ui_operator::booth::{Booth, BoothBackend, BoothEvent, BoothViews, ToolTab, detected, queue};
@@ -38,7 +37,6 @@ struct State {
     calls: Vec<BoothCall>,
     marks: Vec<String>,
     sink: Option<FeedSink>,
-    legacy_saved: Vec<Vec<LegacyNugget>>,
     presentation_saved: usize,
     /// Answers by call; `None` keeps the request waiting.
     script: Option<Script>,
@@ -100,9 +98,6 @@ impl BoothBackend for Core {
     }
     fn save_presentation(&self, _: PresentationSettings) {
         self.0.lock().unwrap().presentation_saved += 1;
-    }
-    fn save_legacy_nuggets(&self, nuggets: &[LegacyNugget]) {
-        self.0.lock().unwrap().legacy_saved.push(nuggets.to_vec());
     }
 }
 
@@ -632,53 +627,6 @@ fn an_interrupted_microphone_warns_and_listening_shows_when_well(cx: &mut TestAp
 }
 
 #[gpui_kit::test]
-fn legacy_nuggets_show_without_a_service_and_save_on_removal(cx: &mut TestAppContext) {
-    let mut snapshot = base();
-    snapshot.services = Some(no_service());
-    snapshot.legacy_nuggets = vec![
-        LegacyNugget {
-            id: "n1".into(),
-            text: "Grace upon grace".into(),
-            captured_at: 1.0,
-        },
-        LegacyNugget {
-            id: "n2".into(),
-            text: "Be still".into(),
-            captured_at: 2.0,
-        },
-    ];
-    let core = Core::new(snapshot);
-    let opened = open(cx, core.clone());
-    assert_eq!(cx.read(|cx| opened.booth().read(cx).nuggets().len()), 2);
-    click(cx, &opened, ui_operator::booth::transcript::ids::NUGGETS);
-    assert!(exists(cx, &opened, "nuggets-popover"));
-    click(cx, &opened, "nugget-remove-n1");
-    let saved = core.0.lock().unwrap().legacy_saved.clone();
-    assert_eq!(saved.last().map(|n| n.len()), Some(1));
-    // Export writes the dated file.
-    click(
-        cx,
-        &opened,
-        ui_operator::booth::transcript::ids::NUGGETS_EXPORT,
-    );
-    assert!(core.calls().iter().any(|c| matches!(c,
-        BoothCall::Export { file_name, body } if file_name.starts_with("kairo-message-nuggets-") && body.contains("Be still"))));
-}
-
-#[gpui_kit::test]
-fn saving_a_nugget_needs_a_service(cx: &mut TestAppContext) {
-    let mut snapshot = base();
-    snapshot.services = Some(no_service());
-    let core = Core::new(snapshot);
-    let opened = open(cx, core.clone());
-    cx.update(|cx| opened.booth().update(cx, |b, cx| b.save_nugget("x", cx)));
-    assert_eq!(
-        cx.read(|cx| opened.booth().read(cx).service_error().to_owned()),
-        "Start transcription to save this nugget."
-    );
-}
-
-#[gpui_kit::test]
 fn listening_without_transcription_asks_for_activation_then_starts(cx: &mut TestAppContext) {
     let mut snapshot = base();
     snapshot.services = Some(no_service());
@@ -724,6 +672,22 @@ fn listening_without_transcription_asks_for_activation_then_starts(cx: &mut Test
         "a service opens before listening: {calls:?}"
     );
     assert!(cx.read(|cx| opened.booth().read(cx).transcribing()));
+}
+
+#[gpui_kit::test]
+fn an_activated_computer_without_transcription_fetches_the_licence_again(cx: &mut TestAppContext) {
+    let mut snapshot = base();
+    snapshot.services = Some(no_service());
+    let core = Core::new(snapshot);
+    let opened = open(cx, core.clone());
+    core.push(BoothFeed::Licence(Licence {
+        activated: true,
+        deepgram: false,
+    }));
+    draw(cx, &opened);
+    assert!(!core.calls().contains(&BoothCall::RefreshLicence));
+    click(cx, &opened, ui_operator::booth::transcript::ids::START);
+    assert!(core.calls().contains(&BoothCall::RefreshLicence));
 }
 
 #[gpui_kit::test]

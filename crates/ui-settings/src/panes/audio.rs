@@ -305,12 +305,21 @@ impl SettingsWindow {
             .gap(px(2.))
             .children((0..METER_SEGMENTS).map(|i| {
                 let color = match segments[i] {
-                    Segment::Off => k.surface_elevated,
+                    Segment::Off => k.ink(0.1),
                     Segment::Ok => k.hue(kairo_ui_kit::Hue::Green),
                     Segment::Warn => k.hue(kairo_ui_kit::Hue::Amber),
                     Segment::Clip => k.destructive,
                 };
-                div().min_w_0().flex_1().rounded_sm().bg(color)
+                // Full height: the row centres its children, and a segment
+                // with no height of its own drew nothing at all.
+                div()
+                    .id(SharedString::from(format!("{}-{i}", ids::METER)))
+                    .test_support()
+                    .min_w_0()
+                    .flex_1()
+                    .h_full()
+                    .rounded_sm()
+                    .bg(color)
             }));
         let input = v_flex()
             .gap_2()

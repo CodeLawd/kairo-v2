@@ -3,8 +3,9 @@
 //! from, and a way into Audio settings. It reads and writes the same
 //! `audio` settings section as Settings → Audio.
 
-use crate::backend::{InputDevice, SettingsBackend};
-use crate::model::{meter_percent, resolve_input};
+use crate::backend::{InputDevice, MeterEvent, MeterHandle, SettingsBackend};
+use crate::model::{meter_fill, meter_percent, resolve_input};
+use futures_util::StreamExt;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::{Icon, h_flex, v_flex};
 use gpui_kit::{
@@ -51,6 +52,17 @@ pub struct AudioRail {
     section: Value,
     level: Option<(AudioLevel, Instant)>,
     _load: Option<Task<()>>,
+    /// While the popover is open and Kairo isn't listening, the selected
+    /// input is metered on its own so the operator can see it is live.
+    preview: Option<Preview>,
+}
+
+struct Preview {
+    device: String,
+    level: Option<AudioLevel>,
+    error: Option<String>,
+    _meter: Option<MeterHandle>,
+    _task: Task<()>,
 }
 
 impl EventEmitter<OpenAudioSettings> for AudioRail {}
@@ -64,6 +76,7 @@ impl AudioRail {
             section: Value::Object(Default::default()),
             level: None,
             _load: None,
+            preview: None,
         }
     }
 
@@ -79,9 +92,90 @@ impl AudioRail {
                 if let Ok(section) = section {
                     this.section = section;
                 }
+                if !this.listening() {
+                    this.start_preview(cx);
+                }
                 cx.notify();
             });
         }));
+    }
+
+    /// The previewed input's latest RMS, while the popover meters it.
+    pub fn preview_level(&self) -> Option<f64> {
+        self.preview.as_ref()?.level.as_ref().map(|l| l.rms)
+    }
+
+    /// The popover closed: stop metering on its behalf.
+    pub fn closed(&mut self, cx: &mut Context<Self>) {
+        if self.preview.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    /// The input the capture uses: the saved one while present, else the default.
+    fn selected(&self) -> String {
+        let saved = self.saved();
+        match &self.devices {
+            Some(devices) => {
+                let devices: Vec<_> = devices.iter().map(|d| d.device.clone()).collect();
+                resolve_input(&devices, &saved)
+            }
+            None => saved,
+        }
+    }
+
+    /// Meters the selected input while the popover is open.
+    fn start_preview(&mut self, cx: &mut Context<Self>) {
+        let device = self.selected();
+        if self.preview.as_ref().is_some_and(|p| p.device == device) {
+            return;
+        }
+        let request = self.backend.start_meter(device.clone());
+        let task = cx.spawn(async move |this, cx| {
+            let (handle, mut events) = match request.await {
+                Ok(started) => started,
+                Err(error) => {
+                    let _ = this.update(cx, |this, cx| {
+                        if let Some(p) = &mut this.preview {
+                            p.error = Some(error);
+                        }
+                        cx.notify();
+                    });
+                    return;
+                }
+            };
+            let kept = this.update(cx, |this, _| match &mut this.preview {
+                Some(p) => {
+                    p._meter = Some(handle);
+                    true
+                }
+                None => false,
+            });
+            if !matches!(kept, Ok(true)) {
+                return;
+            }
+            while let Some(event) = events.next().await {
+                let alive = this.update(cx, |this, cx| {
+                    if let Some(p) = &mut this.preview {
+                        match event {
+                            MeterEvent::Level(level) => p.level = Some(level),
+                            MeterEvent::Error(error) => p.error = Some(error),
+                        }
+                    }
+                    cx.notify();
+                });
+                if alive.is_err() {
+                    break;
+                }
+            }
+        });
+        self.preview = Some(Preview {
+            device,
+            level: None,
+            error: None,
+            _meter: None,
+            _task: task,
+        });
     }
 
     /// The capture's latest level (published only while Kairo listens).
@@ -109,6 +203,9 @@ impl AudioRail {
     pub fn pick(&mut self, id: String, cx: &mut Context<Self>) {
         if let Value::Object(map) = &mut self.section {
             map.insert("deviceId".into(), Value::String(id));
+        }
+        if self.preview.is_some() {
+            self.start_preview(cx);
         }
         let save = self.backend.set_section("audio", self.section.clone());
         cx.spawn(async move |_, _| {
@@ -138,14 +235,22 @@ impl Render for AudioRail {
             // Notice when the levels stop.
             window.request_animation_frame();
         }
-        let level = self.level.as_ref().map(|(l, _)| l);
-        let rms = if listening {
-            level.map_or(0.0, |l| l.rms.clamp(0.0, 1.0))
+        // Kairo's own capture while listening; else the popover's preview.
+        let previewing = !listening && self.preview.is_some();
+        let preview_error = self.preview.as_ref().and_then(|p| p.error.clone());
+        let level = if listening {
+            self.level.as_ref().map(|(l, _)| l)
+        } else {
+            self.preview.as_ref().and_then(|p| p.level.as_ref())
+        };
+        let metered = listening || previewing;
+        let rms = if metered {
+            level.map_or(0.0, |l| meter_fill(l.rms))
         } else {
             0.0
         };
-        let clipping = listening && level.is_some_and(|l| l.clipping);
-        let percent = meter_percent(level, listening);
+        let clipping = metered && level.is_some_and(|l| l.clipping);
+        let percent = meter_percent(level, metered);
         let saved = self.saved();
         let devices: Vec<_> = self
             .devices
@@ -254,12 +359,27 @@ impl Render for AudioRail {
                     })),
             )
             .when(!listening, |d| {
+                let (note, warn) = match (&preview_error, previewing) {
+                    (Some(error), _) => (error.clone(), true),
+                    (None, true) => (
+                        "Not listening yet. This is the input as Kairo hears it.".to_owned(),
+                        false,
+                    ),
+                    (None, false) => (
+                        "The level shows while Kairo is listening.".to_owned(),
+                        false,
+                    ),
+                };
                 d.child(
                     div()
                         .mt_2()
                         .text_size(px(11.))
-                        .text_color(k.text(TextStep::T500))
-                        .child("The level shows while Kairo is listening."),
+                        .text_color(if warn {
+                            k.warning_text
+                        } else {
+                            k.text(TextStep::T500)
+                        })
+                        .child(note),
                 )
             });
         let list = match &self.devices {

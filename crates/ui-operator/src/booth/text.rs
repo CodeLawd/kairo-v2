@@ -1,14 +1,11 @@
 //! Pure helpers the booth views share: transcript highlighting, card states,
-//! verse labels, timer text, nuggets and key names. Ported from
+//! verse labels, timer text and key names. Ported from
 //! `Operator.tsx`, `ProgramPanels.tsx` and `OperatorToolbar.tsx`.
 
 use std::collections::HashSet;
 
 use kairo_domain::program::format_clock;
 use kairo_domain::scripture::{PlanMatch, ScriptureSuggestion, ScriptureVerse, SuggestionSource};
-use serde_json::Value;
-
-use crate::booth::backend::LegacyNugget;
 
 /// `TRIGGER_PHRASES`: words that usually lead into a reading.
 pub const TRIGGER_PHRASES: [&str; 9] = [
@@ -22,9 +19,6 @@ pub const TRIGGER_PHRASES: [&str; 9] = [
     "chapter",
     "verse",
 ];
-
-/// `NUGGET_STORAGE_KEY`.
-pub const NUGGET_STORAGE_KEY: &str = "kairo-message-nuggets";
 
 /// The transcript keeps its last 50 segments.
 pub const MAX_SEGMENTS: usize = 50;
@@ -330,50 +324,6 @@ pub fn split_slide(slide: &str) -> (String, String) {
     ("Projected".into(), slide.to_owned())
 }
 
-/// `storedNuggets`: the legacy list, keeping only well-formed entries.
-pub fn parse_legacy_nuggets(value: Option<&Value>) -> Vec<LegacyNugget> {
-    let parsed = match value {
-        // `localStorage` held a JSON string.
-        Some(Value::String(text)) => serde_json::from_str::<Value>(text).ok(),
-        Some(other) => Some(other.clone()),
-        None => None,
-    };
-    let Some(Value::Array(items)) = parsed else {
-        return Vec::new();
-    };
-    items
-        .iter()
-        .filter_map(|item| {
-            Some(LegacyNugget {
-                id: item.get("id")?.as_str()?.to_owned(),
-                text: item.get("text")?.as_str()?.to_owned(),
-                captured_at: item.get("capturedAt")?.as_f64()?,
-            })
-        })
-        .collect()
-}
-
-/// The legacy list as `localStorage` held it (a JSON string).
-pub fn legacy_nuggets_value(nuggets: &[LegacyNugget]) -> Value {
-    let items: Vec<Value> = nuggets
-        .iter()
-        .map(|n| serde_json::json!({ "id": n.id, "text": n.text, "capturedAt": n.captured_at }))
-        .collect();
-    Value::String(Value::Array(items).to_string())
-}
-
-/// `exportNuggets`'s body: numbered quotes with when each was captured.
-pub fn nuggets_export(nuggets: &[(String, f64)], format_time: impl Fn(f64) -> String) -> String {
-    nuggets
-        .iter()
-        .enumerate()
-        .map(|(index, (text, at))| {
-            format!("{}. {}\nCaptured {}", index + 1, text, format_time(*at))
-        })
-        .collect::<Vec<_>>()
-        .join("\n\n")
-}
-
 /// `pad2`.
 pub fn pad2(value: i64) -> String {
     format!("{value:02}")
@@ -664,25 +614,6 @@ mod tests {
             split_slide("Amazing grace\nhow sweet"),
             ("Projected".into(), "Amazing grace\nhow sweet".into())
         );
-    }
-
-    #[test]
-    fn legacy_nuggets_round_trip_and_drop_bad_rows() {
-        let stored = Value::String(
-            r#"[{"id":"a","text":"Grace","capturedAt":5},{"id":1,"text":"x","capturedAt":1},"junk"]"#.into(),
-        );
-        let nuggets = parse_legacy_nuggets(Some(&stored));
-        assert_eq!(nuggets.len(), 1);
-        assert_eq!(
-            parse_legacy_nuggets(Some(&legacy_nuggets_value(&nuggets))),
-            nuggets
-        );
-        assert!(parse_legacy_nuggets(Some(&Value::String("not json".into()))).is_empty());
-        assert!(parse_legacy_nuggets(None).is_empty());
-        let body = nuggets_export(&[("Grace".into(), 5.0), ("Hope".into(), 6.0)], |_| {
-            "then".into()
-        });
-        assert_eq!(body, "1. Grace\nCaptured then\n\n2. Hope\nCaptured then");
     }
 
     #[test]

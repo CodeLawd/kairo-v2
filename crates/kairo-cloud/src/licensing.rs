@@ -96,6 +96,51 @@ pub fn valid_license_lease(
     lease_problem(lease, trusted_key, org_id, device_id, feature, now).is_none()
 }
 
+/// The key to trust in place of the pinned one when a local development
+/// server was restarted with a new signing key: the lease must verify with
+/// its own key, and only a build that talks to localhost with no key compiled
+/// in re-learns. A deployed server's key is never replaced this way.
+pub fn relearned_local_key<'a>(
+    api_url: &str,
+    compiled_key: Option<&str>,
+    lease: Option<&'a SignedLicenseLease>,
+    org_id: &str,
+    device_id: &str,
+    now: f64,
+) -> Option<&'a str> {
+    let lease = lease?;
+    let local = api_url.contains("://localhost") || api_url.contains("://127.0.0.1");
+    if !local || compiled_key.is_some_and(|key| !key.is_empty()) {
+        return None;
+    }
+    lease_problem(
+        Some(lease),
+        Some(&lease.public_key),
+        org_id,
+        device_id,
+        None,
+        now,
+    )
+    .is_none()
+    .then_some(lease.public_key.as_str())
+}
+
+/// A short, public fingerprint of a key for logs.
+fn key_hint(key: Option<&str>) -> String {
+    let key: String = key
+        .unwrap_or("")
+        .lines()
+        .filter(|line| !line.starts_with("-----"))
+        .collect();
+    key.chars()
+        .rev()
+        .take(12)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect()
+}
+
 /// The first rule `lease` breaks, named for logs. `None` when it verifies.
 /// Every rejection reads the same in the UI, so support needs the reason.
 fn lease_problem(
@@ -762,36 +807,61 @@ impl LicensingService {
         let now = now_seconds();
         let mut writes = Vec::new();
         if snapshot.activated {
-            let key = state.trusted_key.as_deref().or_else(|| {
+            let pinned = state.trusted_key.clone();
+            let mut key = pinned.clone().or_else(|| {
                 snapshot
                     .lease
                     .as_ref()
-                    .map(|lease| lease.public_key.as_str())
+                    .map(|lease| lease.public_key.clone())
             });
             if let Some(problem) = lease_problem(
                 snapshot.lease.as_ref(),
-                key,
+                key.as_deref(),
                 &context.org_id,
                 self.0.session.device_id(),
                 None,
                 now,
             ) {
-                let lease = snapshot.lease.as_ref().map(|lease| &lease.claims);
-                tracing::warn!(
-                    problem,
-                    org = context.org_id.as_str(),
-                    device = self.0.session.device_id(),
-                    lease_org = lease.map(|c| c.org_id.as_str()).unwrap_or(""),
-                    lease_device = lease.map(|c| c.device_id.as_str()).unwrap_or(""),
-                    "[Licence] activation lease rejected"
+                let relearned = relearned_local_key(
+                    API_URL,
+                    LICENSE_PUBLIC_KEY,
+                    snapshot.lease.as_ref(),
+                    &context.org_id,
+                    self.0.session.device_id(),
+                    now,
                 );
-                return Err(ApiError::new("The activation lease could not be verified."));
+                match relearned {
+                    Some(new) if pinned.is_some() => {
+                        tracing::warn!(
+                            old = key_hint(key.as_deref()),
+                            new = key_hint(Some(new)),
+                            "[Licence] the local server's signing key changed; trusting the new key"
+                        );
+                        key = Some(new.to_owned());
+                        writes.push((trusted_key_name(), new.to_owned()));
+                        state.trusted_key = Some(new.to_owned());
+                    }
+                    _ => {
+                        let lease = snapshot.lease.as_ref();
+                        tracing::warn!(
+                            problem,
+                            org = context.org_id.as_str(),
+                            device = self.0.session.device_id(),
+                            lease_org = lease.map(|l| l.claims.org_id.as_str()).unwrap_or(""),
+                            lease_device = lease.map(|l| l.claims.device_id.as_str()).unwrap_or(""),
+                            trusted_key = key_hint(key.as_deref()),
+                            lease_key = key_hint(lease.map(|l| l.public_key.as_str())),
+                            "[Licence] activation lease rejected"
+                        );
+                        return Err(ApiError::new("The activation lease could not be verified."));
+                    }
+                }
             }
             if state.trusted_key.is_none()
                 && let Some(key) = key
             {
-                writes.push((trusted_key_name(), key.to_owned()));
-                state.trusted_key = Some(key.to_owned());
+                writes.push((trusted_key_name(), key.clone()));
+                state.trusted_key = Some(key);
             }
         }
         state.highest_time = now;
