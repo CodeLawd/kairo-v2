@@ -54,7 +54,7 @@ flags=()
 while IFS= read -r flag; do flags+=("$flag"); done < <(ffmpeg_configure_flags)
 toolchain=(--arch=x86_64 --target-os=mingw32
   --extra-cflags="-I$vpx_prefix/include"
-  --extra-ldflags="-L$vpx_prefix/lib -static-libgcc"
+  --extra-ldflags="-L$work/static-libs -L$vpx_prefix/lib -static-libgcc"
   --extra-libs="-Wl,-Bstatic -lwinpthread -Wl,-Bdynamic")
 if [[ -n "$cross" ]]; then
   toolchain+=(--enable-cross-compile --cross-prefix="$cross")
@@ -65,6 +65,12 @@ if [[ -f "$prefix/.kairo-stamp" ]] && [[ "$(cat "$prefix/.kairo-stamp")" == "$st
   note "FFmpeg $FFMPEG_VERSION (x64) already built at $prefix"
   exit 0
 fi
+
+# Prefer the static zlib archive when FFmpeg's configure probe adds -lz.
+zlib_archive="$("${cross}gcc" -print-file-name=libz.a)"
+[[ -f "$zlib_archive" ]] || die "MinGW's static zlib archive is missing"
+mkdir -p "$work/static-libs"
+cp "$zlib_archive" "$work/static-libs/libz.a"
 
 download "$FFMPEG_URL" "$tarball" "$FFMPEG_SHA256"
 download "$LIBVPX_URL" "$vpx_tarball" "$LIBVPX_SHA256"
