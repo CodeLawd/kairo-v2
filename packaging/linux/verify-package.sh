@@ -96,7 +96,12 @@ check_app() { # check_app FOLDER LABEL
     esac
     ldd_out="$(env -u LD_LIBRARY_PATH ldd "$elf" 2>&1 || true)"
     if grep 'not found' <<<"$ldd_out" >/dev/null; then
-      fail "$label: $rel has unresolved libraries:"$'\n'"$(grep 'not found' <<<"$ldd_out")"
+      # electron-builder adds these optional GTK tray shims to every AppImage.
+      # Kairo's executables are checked independently and do not load them.
+      case "$label:$rel" in
+        AppImage:usr/lib/libappindicator.so.1|AppImage:usr/lib/libappindicator3.so.1) ;;
+        *) fail "$label: $rel has unresolved libraries:"$'\n'"$(grep 'not found' <<<"$ldd_out")" ;;
+      esac
     fi
     while IFS= read -r line; do
       case "$line" in
