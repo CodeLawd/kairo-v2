@@ -47,6 +47,11 @@ deb:
   # binaries plus DEB_RUNTIME_DEPENDS (config.sh). Electron's libnss3 was
   # Chromium's and is not needed.
   depends: []
+  # Ubuntu 24.04 can install the OSS ALSA shim for Electron's unversioned
+  # libasound2 dependency. Native needs the real ALSA provider.
+  fpm:
+    - --conflicts
+    - liboss4-salsa-asound2
 publish:
   - provider: github
     owner: CodeLawd
