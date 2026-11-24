@@ -54,7 +54,8 @@ flags=()
 while IFS= read -r flag; do flags+=("$flag"); done < <(ffmpeg_configure_flags)
 toolchain=(--arch=x86_64 --target-os=mingw32
   --extra-cflags="-I$vpx_prefix/include"
-  --extra-ldflags="-L$vpx_prefix/lib -static")
+  --extra-ldflags="-L$vpx_prefix/lib -static-libgcc"
+  --extra-libs="-Wl,-Bstatic -lwinpthread -Wl,-Bdynamic")
 if [[ -n "$cross" ]]; then
   toolchain+=(--enable-cross-compile --cross-prefix="$cross")
 fi
