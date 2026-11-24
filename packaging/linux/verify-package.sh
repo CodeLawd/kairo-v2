@@ -99,7 +99,9 @@ check_app() { # check_app FOLDER LABEL
       # electron-builder adds these optional GTK tray shims to every AppImage.
       # Kairo's executables are checked independently and do not load them.
       case "$label:$rel" in
-        AppImage:usr/lib/libappindicator.so.1|AppImage:usr/lib/libappindicator3.so.1) ;;
+        AppImage:usr/lib/libappindicator.so.1|AppImage:usr/lib/libappindicator3.so.1|\
+        AppImage:usr/lib/libindicator.so.7|AppImage:usr/lib/libindicator3.so.7|\
+        AppImage:usr/lib/libdbusmenu-gtk.so.4|AppImage:usr/lib/libdbusmenu-gtk3.so.4) ;;
         *) fail "$label: $rel has unresolved libraries:"$'\n'"$(grep 'not found' <<<"$ldd_out")" ;;
       esac
     fi

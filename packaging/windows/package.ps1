@@ -81,6 +81,8 @@ $env:FFMPEG_DIR = $ffmpeg
 $env:CARGO_TARGET_DIR = $cargoTarget
 # No VC++ redistributable: the C runtime is linked into the executables.
 $env:RUSTFLAGS = '-C target-feature=+crt-static'
+# FFmpeg's bindgen runs in a host build script, outside the target RUSTFLAGS.
+$env:LINK = "$env:LINK /STACK:8388608".Trim()
 Push-Location $repo
 try {
   Invoke-Checked 'cargo build' { cargo build --release --locked --target $target -p kairo -p kairo-engine }
