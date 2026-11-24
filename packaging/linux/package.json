@@ -1,6 +1,7 @@
 {
   "name": "kairo-presenter",
   "productName": "Kairo",
+  "desktopName": "Kairo.desktop",
   "version": "0.0.0",
   "description": "Kairo — scripture, lyrics, and presentation for churches",
   "homepage": "https://github.com/CodeLawd/kairo-presenter",
