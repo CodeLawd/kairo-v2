@@ -62,7 +62,7 @@ if [[ -n "$electron_deb" ]]; then
 fi
 
 # 2. The native deb, from apt, with only its own Depends.
-install_flags=(-y -qq --no-install-recommends)
+install_flags=(-y --no-install-recommends)
 if [[ -n "$electron_deb" ]]; then
   old_version="$(dpkg-query -W -f='${Version}' kairo-presenter)"
   if ! dpkg --compare-versions "$version" gt "$old_version"; then
@@ -71,7 +71,7 @@ if [[ -n "$electron_deb" ]]; then
     install_flags+=(--allow-downgrades)
   fi
 fi
-apt-get install "${install_flags[@]}" "$deb" >/dev/null
+apt-get install "${install_flags[@]}" "$deb"
 [[ "$(dpkg-query -W -f='${Version}' kairo-presenter)" == "$version" ]] || fail "kairo-presenter is not at $version"
 [[ ! -e /opt/Kairo/resources/app.asar ]] || fail "Electron files remain after the upgrade (app.asar)"
 [[ -z "$electron_deb" || -f "$data/kairo-install-test-marker.txt" ]] || fail "the upgrade removed the user's data"
@@ -92,7 +92,7 @@ ok "installed $version$([[ -n "$electron_deb" ]] && echo ' over Electron, user d
 apt-get install -y -qq --no-install-recommends xvfb xauth mesa-vulkan-drivers libgl1-mesa-dri \
   shared-mime-info xdg-utils procps >/dev/null
 update-mime-database /usr/share/mime >/dev/null 2>&1 || true
-touch "$user_home/service.kairo"
+printf '{}\n' >"$user_home/service.kairo"
 mime="$(env HOME="$user_home" XDG_CONFIG_HOME="$user_config" xdg-mime query filetype "$user_home/service.kairo")"
 [[ "$mime" == application/x-kairo ]] || fail "*.kairo is '$mime', expected application/x-kairo"
 ok "*.kairo is application/x-kairo"

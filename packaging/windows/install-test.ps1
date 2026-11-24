@@ -49,7 +49,8 @@ function Install([string]$Setup) {
   if ($process.ExitCode -ne 0) { Fail "$(Split-Path -Leaf $Setup) exited with $($process.ExitCode)" }
 }
 function InstallLocation {
-  (Get-ItemProperty -Path $installKey -Name InstallLocation -ErrorAction SilentlyContinue).InstallLocation
+  $key = Get-Item -Path $installKey -ErrorAction SilentlyContinue
+  if ($key) { $key.GetValue('InstallLocation') }
 }
 function LinkAppId([string]$Link) {
   $shell = New-Object -ComObject Shell.Application
