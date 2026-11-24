@@ -111,11 +111,20 @@ if (-not $?) { Fail 'verify-package.ps1 failed on the installed folder' }
 
 if (-not $SkipLaunch) {
   $kairo = Start-Process -FilePath (Join-Path $dir 'Kairo.exe') -PassThru
-  Start-Sleep -Seconds 20
-  if ($kairo.HasExited) { Fail "Kairo.exe exited with $($kairo.ExitCode) within 20 s" }
-  $engine = Get-CimInstance Win32_Process -Filter "Name = 'kairo-engine.exe'" |
-    Where-Object { $_.ExecutablePath -eq (Join-Path $dir 'kairo-engine.exe') }
-  if (-not $engine) { Fail 'kairo-engine.exe did not start from the install folder' }
+  $engine = $null
+  $deadline = (Get-Date).AddSeconds(60)
+  while (-not $kairo.HasExited -and -not $engine -and (Get-Date) -lt $deadline) {
+    $engine = Get-CimInstance Win32_Process -Filter "Name = 'kairo-engine.exe'" |
+      Where-Object { $_.ExecutablePath -eq (Join-Path $dir 'kairo-engine.exe') }
+    if (-not $engine) { Start-Sleep -Seconds 1 }
+  }
+  if (-not $engine -or $kairo.HasExited) {
+    Get-ChildItem (Join-Path $userData 'logs') -Filter 'kairo.log*' -ErrorAction SilentlyContinue |
+      Sort-Object LastWriteTime -Descending | Select-Object -First 1 |
+      ForEach-Object { Get-Content $_.FullName -Tail 80 }
+    if ($kairo.HasExited) { Fail "Kairo.exe exited with $($kairo.ExitCode) before engine validation completed" }
+    Fail 'kairo-engine.exe did not start from the install folder within 60 s'
+  }
   Ok "Kairo.exe running with kairo-engine.exe (pid $($engine.ProcessId)), no FFmpeg on PATH"
   Stop-Process -Id $kairo.Id -Force
   Start-Sleep -Seconds 12

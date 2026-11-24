@@ -90,10 +90,11 @@ ok "installed $version$([[ -n "$electron_deb" ]] && echo ' over Electron, user d
 
 # Test-only tools: X server, software Vulkan/OpenGL, MIME lookup, ps.
 apt-get install -y -qq --no-install-recommends xvfb xauth mesa-vulkan-drivers libgl1-mesa-dri \
-  shared-mime-info xdg-utils procps >/dev/null
-update-mime-database /usr/share/mime >/dev/null 2>&1 || true
+  shared-mime-info libglib2.0-bin procps >/dev/null
+update-mime-database /usr/share/mime >/dev/null
 printf '{}\n' >"$user_home/service.kairo"
-mime="$(env HOME="$user_home" XDG_CONFIG_HOME="$user_config" xdg-mime query filetype "$user_home/service.kairo")"
+mime="$(env HOME="$user_home" XDG_CONFIG_HOME="$user_config" gio info -a standard::content-type "$user_home/service.kairo" |
+  sed -n 's/^ *standard::content-type: //p')"
 [[ "$mime" == application/x-kairo ]] || fail "*.kairo is '$mime', expected application/x-kairo"
 ok "*.kairo is application/x-kairo"
 
