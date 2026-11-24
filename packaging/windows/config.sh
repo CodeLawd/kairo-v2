@@ -17,7 +17,7 @@ FFMPEG_HWACCELS="h264_d3d11va,h264_d3d11va2,hevc_d3d11va,hevc_d3d11va2,vp9_d3d11
 # build-ffmpeg.sh adds. Written verbatim into the shipped source notice.
 ffmpeg_configure_flags() {
   ffmpeg_common_flags
-  printf '%s\n' --enable-d3d11va --enable-w32threads
+  printf '%s\n' --enable-d3d11va --disable-pthreads --enable-w32threads
 }
 
 # PDFium for Windows x64 (pdfium.dll links the C runtime statically).
