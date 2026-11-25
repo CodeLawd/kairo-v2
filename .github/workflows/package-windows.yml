@@ -888,7 +888,7 @@ jobs:
           ws2_32.dll setsockopt
           ws2_32.dll shutdown
           '@
-          foreach ($line in $imports -split "\`n") {
+          foreach ($line in $imports -split '\r?\n') {
             $dll, $symbol = $line.Trim() -split " ",2
             if (-not $symbol) { continue }
             $handle = [IntPtr]::Zero
