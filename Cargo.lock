@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "check-lib-coverage"
-version = "2.0.0"
+version = "2.0.1"
 
 [[package]]
 name = "chrono"
@@ -2153,7 +2153,7 @@ version = "0.1.0"
 
 [[package]]
 name = "embed-changelog"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "serde_json",
 ]
@@ -3190,7 +3190,7 @@ dependencies = [
 
 [[package]]
 name = "golden-capture"
-version = "2.0.0"
+version = "2.0.1"
 
 [[package]]
 name = "gpu-allocator"
@@ -4923,7 +4923,7 @@ dependencies = [
 
 [[package]]
 name = "kairo"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "block2 0.6.2",
  "chrono",
@@ -4980,7 +4980,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-audience"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
@@ -5005,7 +5005,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-audio"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "cpal",
  "ffmpeg-next",
@@ -5020,7 +5020,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-camera"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "block2 0.6.2",
  "cpal",
@@ -5038,7 +5038,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-cloud"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -5063,7 +5063,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-compositor"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "bytemuck",
  "kairo-engine-proto",
@@ -5077,7 +5077,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-core"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-lite",
  "futures-util",
@@ -5095,7 +5095,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-core-gpui"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "gpui-kit",
@@ -5113,7 +5113,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-documents"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.2",
@@ -5155,7 +5155,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-domain"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "chrono",
  "kairo-oracle",
@@ -5170,7 +5170,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-engine"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "block2 0.6.2",
  "chrono",
@@ -5211,7 +5211,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-engine-proto"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "libc",
  "memmap2",
@@ -5222,7 +5222,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-imagine"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
@@ -5244,7 +5244,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-lyrics"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-lite",
  "futures-util",
@@ -5272,7 +5272,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-media"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "arboard",
  "async-channel",
@@ -5297,7 +5297,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-native-sys"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "cc",
  "png 0.18.1",
@@ -5306,7 +5306,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-net"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "reqwest",
  "rustls",
@@ -5322,7 +5322,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-oracle"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "proptest",
  "serde",
@@ -5331,7 +5331,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-orchestrator"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-util",
  "kairo-core",
@@ -5369,7 +5369,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-release"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "kairo-updater",
@@ -5384,7 +5384,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-scene"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "avif-decode",
  "base64 0.22.1",
@@ -5404,7 +5404,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-scripture"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "fancy-regex",
  "flate2",
@@ -5434,7 +5434,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-sinks"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "kairo-audio",
  "kairo-compositor",
@@ -5456,7 +5456,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-store"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -5495,7 +5495,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-stt"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "block2 0.6.2",
  "cpal",
@@ -5522,7 +5522,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-transfer"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "chrono",
  "kairo-core",
@@ -5542,7 +5542,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-ui-kit"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "gpui-kit",
  "image",
@@ -5552,7 +5552,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-updater"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
@@ -5573,7 +5573,7 @@ dependencies = [
 
 [[package]]
 name = "kairo-video"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "ffmpeg-next",
  "kairo-compositor",
@@ -9718,7 +9718,7 @@ checksum = "199905e6153d6405f9728fe44daace35f8f837bbf830bb6e85fbd5828709a886"
 
 [[package]]
 name = "soak"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-util",
  "kairo-core",
@@ -10699,7 +10699,7 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "ts-oracle"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "kairo-oracle",
 ]
@@ -10750,7 +10750,7 @@ dependencies = [
 
 [[package]]
 name = "ui-account"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "gpui-kit",
  "kairo-domain",
@@ -10760,7 +10760,7 @@ dependencies = [
 
 [[package]]
 name = "ui-audience"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -10775,7 +10775,7 @@ dependencies = [
 
 [[package]]
 name = "ui-capture"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10787,7 +10787,7 @@ dependencies = [
 
 [[package]]
 name = "ui-documents"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10800,7 +10800,7 @@ dependencies = [
 
 [[package]]
 name = "ui-imagine"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10811,7 +10811,7 @@ dependencies = [
 
 [[package]]
 name = "ui-lyrics"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "chrono",
  "feruca",
@@ -10827,7 +10827,7 @@ dependencies = [
 
 [[package]]
 name = "ui-media"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10841,7 +10841,7 @@ dependencies = [
 
 [[package]]
 name = "ui-operator"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "chrono",
  "futures-channel",
@@ -10860,7 +10860,7 @@ dependencies = [
 
 [[package]]
 name = "ui-screens"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10878,7 +10878,7 @@ dependencies = [
 
 [[package]]
 name = "ui-scripture"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10892,7 +10892,7 @@ dependencies = [
 
 [[package]]
 name = "ui-settings"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10907,7 +10907,7 @@ dependencies = [
 
 [[package]]
 name = "ui-shell"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "gpui-kit",
  "kairo-core",
@@ -10921,7 +10921,7 @@ dependencies = [
 
 [[package]]
 name = "ui-theme"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -10938,7 +10938,7 @@ dependencies = [
 
 [[package]]
 name = "ui-transfer"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "chrono",
  "futures-channel",
@@ -10950,7 +10950,7 @@ dependencies = [
 
 [[package]]
 name = "ui-web"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "block2 0.6.2",
  "futures-channel",
