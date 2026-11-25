@@ -172,6 +172,7 @@ jobs:
         run: |
           deb="$(ls dist/kairo-presenter_*_amd64.deb | head -1)"
           appimage="$(ls dist/Kairo-*.AppImage | head -1)"
+          chmod +x "$appimage"
           version="$(basename "$deb" | sed 's/^kairo-presenter_\(.*\)_amd64\.deb$/\1/')"
           extra=()
           if [ "${{ matrix.electron }}" = true ]; then

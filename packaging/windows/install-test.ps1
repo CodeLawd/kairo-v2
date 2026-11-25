@@ -110,7 +110,12 @@ Ok ".kairo opens with Kairo ($progId)"
 if (-not $?) { Fail 'verify-package.ps1 failed on the installed folder' }
 
 if (-not $SkipLaunch) {
-  $kairo = Start-Process -FilePath (Join-Path $dir 'Kairo.exe') -PassThru
+  $diagnostics = Join-Path ([System.IO.Path]::GetTempPath()) "kairo-install-test-$PID"
+  New-Item -ItemType Directory -Force -Path $diagnostics | Out-Null
+  $stdout = Join-Path $diagnostics 'stdout.log'
+  $stderr = Join-Path $diagnostics 'stderr.log'
+  $kairo = Start-Process -FilePath (Join-Path $dir 'Kairo.exe') -WorkingDirectory $dir `
+    -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru
   $engine = $null
   $deadline = (Get-Date).AddSeconds(60)
   while (-not $kairo.HasExited -and -not $engine -and (Get-Date) -lt $deadline) {
@@ -119,6 +124,7 @@ if (-not $SkipLaunch) {
     if (-not $engine) { Start-Sleep -Seconds 1 }
   }
   if (-not $engine -or $kairo.HasExited) {
+    Get-Content $stdout, $stderr -Tail 80
     Get-ChildItem (Join-Path $userData 'logs') -Filter 'kairo.log*' -ErrorAction SilentlyContinue |
       Sort-Object LastWriteTime -Descending | Select-Object -First 1 |
       ForEach-Object { Get-Content $_.FullName -Tail 80 }
