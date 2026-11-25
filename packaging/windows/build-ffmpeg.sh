@@ -44,9 +44,6 @@ if [[ -z "$cross" ]]; then
     *) die "run this in an MSYS2 UCRT64 shell (MSYSTEM=UCRT64); MSYSTEM is '${MSYSTEM:-unset}'" ;;
   esac
 fi
-for tool in "${cross}gcc" make nasm pkg-config "${cross}dlltool" "${cross}objdump"; do
-  command -v "$tool" >/dev/null || die "missing $tool"
-done
 
 vpx_flags=()
 while IFS= read -r flag; do vpx_flags+=("$flag"); done < <(libvpx_configure_flags)
@@ -65,6 +62,10 @@ if [[ -f "$prefix/.kairo-stamp" ]] && [[ "$(cat "$prefix/.kairo-stamp")" == "$st
   note "FFmpeg $FFMPEG_VERSION (x64) already built at $prefix"
   exit 0
 fi
+
+for tool in "${cross}gcc" make nasm pkg-config "${cross}dlltool" "${cross}objdump"; do
+  command -v "$tool" >/dev/null || die "missing $tool"
+done
 
 # Prefer the static zlib archive when FFmpeg's configure probe adds -lz.
 zlib_archive="$("${cross}gcc" -print-file-name=libz.a)"

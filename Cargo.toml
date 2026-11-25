@@ -142,3 +142,12 @@ opt-level = 3
 
 [profile.dev.package.bindgen]
 opt-level = 3
+
+# Keep release builds fast while preserving runtime speed (perf budgets) and
+# shrinking packaged binaries: strip symbol tables for faster signing/packaging/
+# uploads, and keep LTO off so CI does not spend 5-10 min in link-time codegen.
+[profile.release]
+debug = false
+strip = "symbols"
+lto = false
+codegen-units = 16

@@ -50,6 +50,11 @@ on:
         required: false
         type: boolean
         default: false
+      full_checks:
+        description: Run full workspace CI checks (fmt, clippy, tests, perf) in addition to bridge contract checks
+        required: false
+        type: boolean
+        default: false
       fail_job:
         description: Dry run only — fail this platform on purpose
         required: false
@@ -74,6 +79,8 @@ jobs:
   prepare:
     name: Version, changelog and target
     runs-on: ubuntu-24.04
+    env:
+      CARGO_INCREMENTAL: "0"
     outputs:
       version: ${{ steps.check.outputs.version }}
       test: ${{ steps.check.outputs.test }}
@@ -108,15 +115,11 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config >/dev/null
           packaging/ci/install-toolchain.sh --profile minimal
 
-      - name: Cache Cargo downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+          shared-key: release-tool
+          cache-on-failure: true
 
       - name: Version, sequence and changelog
         id: check
@@ -141,6 +144,16 @@ jobs:
       - name: DeckLink helper matches its sources
         run: target/debug/kairo-release decklink
 
+      - name: Upload release tool binary
+        # Name deliberately does not match `kairo-*` so publish's platform
+        # artifact download never mixes it into `dist/`.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-tool-bin
+          path: target/debug/kairo-release
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Refuse to overwrite a published release
         # A draft from an earlier attempt may be replaced; a published release never.
         env:
@@ -161,6 +174,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       ref: ${{ inputs.release_tag }}
+      mode: ${{ inputs.full_checks && 'full' || 'bridge-only' }}
 
   macos:
     name: macOS
@@ -208,25 +222,14 @@ jobs:
         with:
           ref: ${{ inputs.release_tag }}
 
-      - name: Select Rust toolchain
-        # The release tool reads feeds with kairo-updater, whose dependencies
-        # link D-Bus (the keyring) on Linux.
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq libdbus-1-dev pkg-config >/dev/null
-          packaging/ci/install-toolchain.sh --profile minimal
-
-      - name: Cache Cargo downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Download release tool binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+          name: release-tool-bin
+          path: bin
 
-      - name: Release tool
-        run: cargo build --locked -q -p kairo-release
+      - name: Make release tool executable
+        run: chmod +x bin/kairo-release
 
       # No `merge-multiple`: each platform's files land in dist/<artifact>/
       # and are staged explicitly, so nothing is silently overwritten.
@@ -252,15 +255,15 @@ jobs:
       - name: macOS update metadata (arm64 + x64)
         # What one dual-arch electron-builder run writes: one latest-mac.yml
         # listing both architectures, plus minimumSystemVersion for macOS 13.
-        run: target/debug/kairo-release mac-feed --dir stage --version "$VERSION" --release-date "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+        run: bin/kairo-release mac-feed --dir stage --version "$VERSION" --release-date "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
 
       - name: Verify complete release (no partial releases)
-        run: target/debug/kairo-release verify --dir stage --version "$VERSION"
+        run: bin/kairo-release verify --dir stage --version "$VERSION"
 
       - name: SHA-256 manifest
         run: |
-          target/debug/kairo-release sha256sums --dir stage
-          target/debug/kairo-release verify --dir stage --version "$VERSION"
+          bin/kairo-release sha256sums --dir stage
+          bin/kairo-release verify --dir stage --version "$VERSION"
 
       - name: Release notes
         env:
@@ -268,7 +271,7 @@ jobs:
         run: |
           args=(notes --version "$VERSION")
           [ "$INTERNAL" = true ] && args+=(--internal)
-          target/debug/kairo-release "${args[@]}" > notes.md
+          bin/kairo-release "${args[@]}" > notes.md
           cat notes.md
 
       - name: Publish draft release

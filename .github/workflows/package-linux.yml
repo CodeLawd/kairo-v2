@@ -48,6 +48,7 @@ jobs:
       KAIRO_AUDIENCE_API_URL: ${{ vars.PROD_AUDIENCE_API_URL }}
       KAIRO_LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
       CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-C linker=clang -C link-arg=-fuse-ld=lld"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -68,14 +69,19 @@ jobs:
           echo "endpoints: $KAIRO_API_URL / $KAIRO_WEB_URL"
 
       - name: Free disk space
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        run: |
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          wait
 
       - name: Build dependencies
         # Build-time only. No FFmpeg development package: FFmpeg is built from
         # source below, and a system one must not leak into the link.
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc g++ clang make nasm pkg-config patchelf dpkg-dev \
+          sudo apt-get install -y gcc g++ clang lld make nasm pkg-config patchelf dpkg-dev \
             libva-dev libfontconfig-dev libwayland-dev libwebkit2gtk-4.1-dev libgtk-3-dev \
             libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev \
             libvulkan-dev libavahi-client3
@@ -91,6 +97,8 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: packaging/linux/package-lock.json
 
       - name: Cache the FFmpeg build
         # build-ffmpeg.sh skips a build whose stamp matches (pins and flags), so
@@ -118,15 +126,17 @@ jobs:
 
       - name: Decode tests against the bundled FFmpeg
         # Posters, preview, playback and audio decode through the FFmpeg that
-        # ships, by runpath. The distribution's ffmpeg command only makes the
-        # test fixtures; it is installed after packaging, so it cannot leak in.
+        # ships, via LD_LIBRARY_PATH. Reuses the release target dir and RUSTFLAGS
+        # from the Package step so no dependencies are recompiled. The distribution's
+        # ffmpeg command only makes the test fixtures; it is installed after
+        # packaging, so it cannot leak in.
         run: |
           sudo apt-get install -y ffmpeg mesa-vulkan-drivers
           ffmpeg_dir="$RUNNER_TEMP/package/ffmpeg-x64"
           FFMPEG_DIR="$ffmpeg_dir" PKG_CONFIG_PATH="$ffmpeg_dir/lib/pkgconfig" \
-            RUSTFLAGS="-C link-arg=-Wl,-rpath,$ffmpeg_dir/lib" \
-            CARGO_TARGET_DIR="$RUNNER_TEMP/target-ffmpeg-tests" \
-            cargo test --locked -p kairo-media -p kairo-video -p kairo-audio --no-fail-fast
+            LD_LIBRARY_PATH="$ffmpeg_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+            CARGO_TARGET_DIR="$RUNNER_TEMP/package/target" \
+            cargo test --release --locked -p kairo-media -p kairo-video -p kairo-audio --no-fail-fast
 
       - name: Upload artifacts (workflow storage only)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

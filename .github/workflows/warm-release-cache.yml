@@ -1,0 +1,215 @@
+name: Warm release caches
+
+# Populates GitHub Actions caches on `main` for the release packaging jobs
+# (`package-{macos,linux,windows}.yml`). GitHub Actions isolates caches across
+# sibling tag refs (v2.0.1 -> v2.0.2), so caches saved on `main` are what
+# brand-new release tags inherit.
+#
+# Builds only FFmpeg and the release Cargo dependencies into the exact same
+# `CARGO_TARGET_DIR`, `shared-key`, `RUSTFLAGS`, and `ffmpeg-*` cache keys used
+# by the packaging workflows. Never signs, packages, uploads, or publishes.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Cargo.lock
+      - Cargo.toml
+      - packaging/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warm-release-cache
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: Warm macOS ${{ matrix.arch }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    env:
+      # Dummy https URLs so release-mode build_config.rs compiles without
+      # needing the `release` environment or secrets; nothing is uploaded.
+      KAIRO_API_URL: https://api.example.com
+      KAIRO_WEB_URL: https://example.com
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build tools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            brew list --versions pkgconf nasm >/dev/null || brew install pkgconf nasm
+          else
+            brew list --versions pkgconf >/dev/null || brew install pkgconf
+          fi
+
+      - name: Select Rust toolchain
+        run: |
+          packaging/ci/install-toolchain.sh --profile minimal
+          rustup target add ${{ matrix.arch == 'arm64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
+
+      - name: Cache the FFmpeg build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/package/ffmpeg-${{ matrix.arch }}
+          key: ffmpeg-macos-${{ matrix.arch }}-${{ hashFiles('packaging/common.sh', 'packaging/macos/build-ffmpeg.sh', 'packaging/macos/config.sh') }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/package/target
+        with:
+          shared-key: package-macos-${{ matrix.arch }}
+          cache-on-failure: true
+
+      - name: Warm FFmpeg and release dependencies
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/package"
+          arch="${{ matrix.arch }}"
+          mkdir -p "$work"
+          packaging/macos/build-ffmpeg.sh "$arch" "$work"
+          source packaging/macos/config.sh
+          target="$(rust_target_for "$arch")"
+          ffmpeg="$work/ffmpeg-$arch"
+          export FFMPEG_DIR="$ffmpeg"
+          export PKG_CONFIG_PATH="$ffmpeg/lib/pkgconfig"
+          export PKG_CONFIG_LIBDIR="$ffmpeg/lib/pkgconfig"
+          export MACOSX_DEPLOYMENT_TARGET="$KAIRO_MIN_MACOS"
+          export CARGO_TARGET_DIR="$work/target"
+          cargo build --release --locked --target "$target" -p kairo -p kairo-engine
+
+  linux:
+    name: Warm Linux x64
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      KAIRO_API_URL: https://api.example.com
+      KAIRO_WEB_URL: https://example.com
+      CARGO_INCREMENTAL: "0"
+      RUSTFLAGS: "-C linker=clang -C link-arg=-fuse-ld=lld"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          wait
+
+      - name: Build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc g++ clang lld make nasm pkg-config \
+            libva-dev libfontconfig-dev libwayland-dev libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libxkbcommon-x11-dev libx11-xcb-dev libssl-dev libzstd-dev libasound2-dev \
+            libvulkan-dev libavahi-client3 >/dev/null
+          if dpkg -l | grep -E '^ii +libav(codec|format|util)-dev' ; then
+            echo "::error::a system FFmpeg development package is installed"; exit 1
+          fi
+
+      - name: Select Rust toolchain
+        shell: bash
+        run: packaging/ci/install-toolchain.sh --profile minimal
+
+      - name: Cache the FFmpeg build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/package/ffmpeg-x64
+          key: ffmpeg-linux-x64-ubuntu-22.04-${{ hashFiles('packaging/common.sh', 'packaging/linux/build-ffmpeg.sh', 'packaging/linux/config.sh') }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/package/target
+        with:
+          shared-key: package-linux-x64
+          cache-on-failure: true
+
+      - name: Warm FFmpeg and release dependencies
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/package"
+          mkdir -p "$work"
+          packaging/linux/build-ffmpeg.sh "$work"
+          ffmpeg="$work/ffmpeg-x64"
+          export FFMPEG_DIR="$ffmpeg"
+          export PKG_CONFIG_PATH="$ffmpeg/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+          export CARGO_TARGET_DIR="$work/target"
+          cargo build --release --locked -p kairo -p kairo-engine
+
+  windows:
+    name: Warm Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 120
+    env:
+      KAIRO_API_URL: https://api.example.com
+      KAIRO_WEB_URL: https://example.com
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Rust toolchain
+        shell: bash
+        run: packaging/ci/install-toolchain.sh --profile minimal --target x86_64-pc-windows-msvc
+
+      - name: nasm
+        run: |
+          choco install nasm -y --no-progress
+          'C:\Program Files\NASM' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Cache the FFmpeg build
+        id: ffmpeg-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/package/ffmpeg-x64
+          key: ffmpeg-windows-x64-${{ hashFiles('packaging/common.sh', 'packaging/windows/build-ffmpeg.sh', 'packaging/windows/config.sh') }}
+
+      - name: MSYS2 UCRT64 build tools
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        shell: cmd
+        run: C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-pkgconf make diffutils perl"
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/package/target
+        with:
+          shared-key: package-windows-x64
+          cache-on-failure: true
+
+      - name: Warm FFmpeg (LGPL, from source)
+        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail {0}
+        env:
+          MSYSTEM: UCRT64
+          CHERE_INVOKING: "1"
+        run: |
+          work="$(cygpath -u "$RUNNER_TEMP")/package"
+          packaging/windows/build-ffmpeg.sh "$work"
+
+      - name: Warm release dependencies
+        shell: pwsh
+        run: |
+          $work = Join-Path $env:RUNNER_TEMP 'package'
+          $env:FFMPEG_DIR = Join-Path $work 'ffmpeg-x64'
+          $env:CARGO_TARGET_DIR = Join-Path $work 'target'
+          $env:RUSTFLAGS = '-C target-feature=+crt-static'
+          $env:LINK = "$env:LINK /STACK:8388608".Trim()
+          cargo build --release --locked --target x86_64-pc-windows-msvc -p kairo -p kairo-engine
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

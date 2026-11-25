@@ -2,6 +2,11 @@ name: CI
 
 on:
   push:
+    # Run on all branches, not on tag pushes: release tags are checked by
+    # release-native.yml, so `kairo-release prepare` pushing main + tag won't
+    # trigger a duplicate CI run.
+    branches:
+      - "**"
   pull_request:
   workflow_dispatch:
   # The release workflow runs these checks on the tag it releases (prompt 104).
@@ -12,6 +17,11 @@ on:
         type: string
         required: false
         default: ""
+      mode:
+        description: Check scope (full, or bridge-only for fast tag releases)
+        type: string
+        required: false
+        default: full
 
 permissions:
   contents: read
@@ -67,6 +77,7 @@ jobs:
 
   workspace:
     name: Workspace (${{ matrix.os }})
+    if: inputs.mode != 'bridge-only'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -91,16 +102,22 @@ jobs:
 
       - name: Free disk space
         if: runner.os == 'Linux'
-        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        run: |
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          wait
 
       - name: Install GPUI system dependencies
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc g++ clang nasm libfontconfig-dev libwayland-dev \
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc g++ clang lld nasm libfontconfig-dev libwayland-dev \
             libwebkit2gtk-4.1-dev libxkbcommon-x11-dev libx11-xcb-dev \
             libssl-dev libzstd-dev libasound2-dev vulkan-validationlayers libvulkan1 \
-            mesa-vulkan-drivers libva-drm2
+            mesa-vulkan-drivers libva-drm2 >/dev/null
+          echo "RUSTFLAGS=-C linker=clang -C link-arg=-fuse-ld=lld" >> "$GITHUB_ENV"
 
       # FFmpeg 9 shared libraries (DECISIONS: kairo-media links FFmpeg).
       # `ffmpeg-sys-next` reads `FFMPEG_DIR`; tests need the DLLs/.so files
@@ -140,9 +157,36 @@ jobs:
           "FFMPEG_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Join-Path $dir 'bin' | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
+      - name: Configure fast linker (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (Get-Command lld-link -ErrorAction SilentlyContinue) {
+            'RUSTFLAGS=-C linker=lld-link' | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+
       - name: Select workspace Rust toolchain
         shell: bash
         run: packaging/ci/install-toolchain.sh --profile minimal --component rustfmt --component clippy
+
+      - name: Install cargo-nextest
+        shell: bash
+        run: |
+          if command -v cargo-nextest >/dev/null 2>&1; then
+            exit 0
+          fi
+          case "${{ runner.os }}" in
+            Linux)   target=linux ;;
+            macOS)   target=mac ;;
+            Windows) target=windows-tar ;;
+          esac
+          mkdir -p "$HOME/.cargo/bin"
+          curl -fsSL --retry 3 "https://get.nexte.st/latest/$target" | tar -xz -C "$HOME/.cargo/bin"
+          if command -v cygpath >/dev/null 2>&1; then
+            cygpath -w "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          else
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          fi
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -161,10 +205,17 @@ jobs:
         # Compositor goldens run on lavapipe (Linux) and WARP (Windows) and
         # must not skip there. Hosted macOS runners may have no GPU; the
         # self-hosted Mac has one, and its own timing.
+        shell: bash
         env:
           KAIRO_REQUIRE_GPU: ${{ (runner.os != 'macOS' || runner.environment == 'self-hosted') && '1' || '' }}
           KAIRO_PERF_HOSTED: ${{ (runner.os != 'Linux' && runner.environment == 'github-hosted') && '1' || '0' }}
-        run: cargo test --locked --workspace ${{ runner.os == 'Windows' && '--exclude soak' || '' }} --no-fail-fast
+        run: |
+          exclude=()
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            exclude=(--exclude soak)
+          fi
+          cargo nextest run --locked --workspace "${exclude[@]}" --no-fail-fast
+          cargo test --doc --locked --workspace "${exclude[@]}"
 
   performance:
     # Prompt 107: budgets from 06-testing-performance-strategy.md, asserted as
@@ -172,6 +223,7 @@ jobs:
     # baseline machine class; other runners run the same tests unoptimised
     # with four times the budget inside the workspace job.
     name: Performance budgets (macos-15)
+    if: inputs.mode != 'bridge-only'
     runs-on: macos-15
     env:
       KAIRO_PERF_STRICT: "1"

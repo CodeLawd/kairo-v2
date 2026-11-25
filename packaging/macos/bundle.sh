@@ -82,8 +82,29 @@ helper="$repo/native/decklink/prebuilt/decklink-helper"
 [[ -f "$helper" ]] || die "missing $helper (prompt 062)"
 # The committed helper must match its sources and be universal, as
 # prepare-mac-natives.mjs required of the Electron release (prompt 104).
-(cd "$repo" && CARGO_TARGET_DIR="$work/target-tools" cargo run --locked -q -p kairo-release -- decklink) ||
-  die "the prebuilt DeckLink helper does not match its sources"
+# Check the hash and Mach-O slices directly instead of compiling kairo-release.
+decklink_stamp="$repo/native/decklink/prebuilt/SOURCE_SHA256"
+[[ -f "$decklink_stamp" ]] || die "missing $decklink_stamp"
+decklink_expected="$(tr -d '[:space:]' <"$decklink_stamp")"
+decklink_actual="$(
+  for f in \
+    native/decklink/helper.cpp \
+    native/decklink/compatibility.h \
+    native/decklink/sdk-compatibility.h \
+    native/decklink/frame-input.h \
+    native/decklink/uyvy.h \
+    native/gpu-frames/ring.h \
+    native/decklink/build.mjs; do
+    [[ -f "$repo/$f" ]] || die "missing DeckLink source $f"
+    printf '%s' "$f"
+    perl -pe 's/\r\n/\n/g' "$repo/$f"
+  done | shasum -a 256 | awk '{print $1}'
+)"
+[[ "$decklink_actual" == "$decklink_expected" ]] ||
+  die "the prebuilt DeckLink helper does not match its sources (expected $decklink_expected, got $decklink_actual)"
+decklink_archs="$(lipo -archs "$helper")"
+[[ " $decklink_archs " == *" arm64 "* && " $decklink_archs " == *" x86_64 "* ]] ||
+  die "the prebuilt DeckLink helper is not universal ($decklink_archs)"
 lipo "$helper" -thin "$arch" -output "$contents/Resources/decklink/decklink-helper"
 chmod 755 "$contents/Resources/decklink/decklink-helper"
 

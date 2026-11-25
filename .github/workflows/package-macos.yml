@@ -53,7 +53,9 @@ jobs:
           - arch: arm64
             runner: macos-15
           - arch: x86_64
-            runner: macos-15-intel
+            # Cross-compile x86_64 on Apple Silicon (much faster than macos-15-intel);
+            # build-ffmpeg.sh, bundle.sh, and verify-package.sh are cross-compile safe.
+            runner: macos-15
     env:
       KAIRO_API_URL: ${{ vars.PROD_API_URL }}
       KAIRO_WEB_URL: ${{ vars.PROD_WEB_URL }}
@@ -84,11 +86,16 @@ jobs:
 
       - name: Build tools
         # Build-time tools only; nothing from Homebrew is bundled. nasm
-        # assembles FFmpeg's x86 code.
+        # assembles FFmpeg's and libvpx's x86_64 code.
         # Already installed on the self-hosted Mac: left as it is.
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
-        run: brew list --versions pkgconf nasm >/dev/null || brew install pkgconf nasm
+        run: |
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            brew list --versions pkgconf nasm >/dev/null || brew install pkgconf nasm
+          else
+            brew list --versions pkgconf >/dev/null || brew install pkgconf
+          fi
 
       - name: Select Rust toolchain
         run: |

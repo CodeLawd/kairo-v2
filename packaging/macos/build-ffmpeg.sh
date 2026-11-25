@@ -37,7 +37,9 @@ toolchain=(--arch="$arch" --target-os=darwin --cc="clang -arch $arch"
   --extra-ldflags="-mmacosx-version-min=${KAIRO_MIN_MACOS} -L$vpx_prefix/lib")
 host="$(uname -m)"
 if [[ "$host" != "$arch" ]]; then
-  toolchain+=(--enable-cross-compile)
+  # Without --pkg-config, FFmpeg disables pkg-config under --enable-cross-compile
+  # when no --cross-prefix is set, breaking the --enable-libvpx probe.
+  toolchain+=(--enable-cross-compile --pkg-config=pkg-config)
 fi
 if [[ "$arch" == x86_64 ]] && ! command -v nasm >/dev/null; then
   die "x86_64 FFmpeg and libvpx need nasm for their assembly (brew install nasm; a build tool, not shipped)"

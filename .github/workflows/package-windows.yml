@@ -84,19 +84,23 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-
-      - name: MSYS2 UCRT64 build tools
-        # Build tools only; nothing from MSYS2 is bundled.
-        shell: cmd
-        run: C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-pkgconf make diffutils perl"
+          cache: npm
+          cache-dependency-path: packaging/windows/package-lock.json
 
       - name: Cache the FFmpeg build
         # build-ffmpeg.sh skips a build whose stamp matches (pins and flags), so
         # a restored prefix saves the from-source build. The key covers the same inputs.
+        id: ffmpeg-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/package/ffmpeg-x64
           key: ffmpeg-windows-x64-${{ hashFiles('packaging/common.sh', 'packaging/windows/build-ffmpeg.sh', 'packaging/windows/config.sh') }}
+
+      - name: MSYS2 UCRT64 build tools
+        # Build tools only (for building FFmpeg from source); nothing from MSYS2 is bundled.
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        shell: cmd
+        run: C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-nasm mingw-w64-ucrt-x86_64-pkgconf make diffutils perl"
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
