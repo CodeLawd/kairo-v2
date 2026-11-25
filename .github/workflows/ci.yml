@@ -27,16 +27,10 @@ env:
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
   CARGO_INCREMENTAL: "0"
 
-# Apple-silicon macOS jobs run on the project's own Mac (a self-hosted runner
-# labelled `kairo-mac`): GitHub's macos-15 runners were often unavailable
-# ("not acquired"). This repository is public, so pull requests, which can
-# come from forks, never reach that machine; they run on macos-15-intel.
-# See packaging/ci/SELF_HOSTED_MAC.md.
-
 jobs:
   bridge-contract:
     name: Electron bridge validation (${{ matrix.os }})
-    runs-on: ${{ matrix.os == 'macos-15' && (github.event_name == 'pull_request' && 'macos-15-intel' || fromJSON('["self-hosted","macOS","ARM64","kairo-mac"]')) || matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -73,7 +67,7 @@ jobs:
 
   workspace:
     name: Workspace (${{ matrix.os }})
-    runs-on: ${{ matrix.os == 'macos-15' && (github.event_name == 'pull_request' && 'macos-15-intel' || fromJSON('["self-hosted","macOS","ARM64","kairo-mac"]')) || matrix.os }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -153,16 +147,11 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Cache Cargo downloads
-        if: runner.environment == 'github-hosted'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+          shared-key: ci-workspace-${{ matrix.os }}
+          cache-on-failure: true
 
       - name: Lint workspace
         # The soak driver uses POSIX signals and process inspection.
@@ -183,7 +172,7 @@ jobs:
     # baseline machine class; other runners run the same tests unoptimised
     # with four times the budget inside the workspace job.
     name: Performance budgets (macos-15)
-    runs-on: ${{ github.event_name == 'pull_request' && 'macos-15-intel' || fromJSON('["self-hosted","macOS","ARM64","kairo-mac"]') }}
+    runs-on: macos-15
     env:
       KAIRO_PERF_STRICT: "1"
       # Release builds refuse to compile without https API URLs; these tests
@@ -210,16 +199,11 @@ jobs:
         shell: bash
         run: packaging/ci/install-toolchain.sh --profile minimal
 
-      - name: Restore Cargo downloads
-        if: runner.environment == 'github-hosted'
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+          shared-key: ci-perf-macos-15
+          cache-on-failure: true
 
       - name: Slide raster, scripture search and detector budgets
         env:

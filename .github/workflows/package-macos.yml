@@ -50,12 +50,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # The project's own Mac (packaging/ci/SELF_HOSTED_MAC.md). This
-          # workflow runs only from release-native.yml or by hand, never for
-          # a pull request. Its build goes to the job's temp folder, which
-          # the runner removes after the job.
           - arch: arm64
-            runner: [self-hosted, macOS, ARM64, kairo-mac]
+            runner: macos-15
           - arch: x86_64
             runner: macos-15-intel
     env:
@@ -64,6 +60,7 @@ jobs:
       KAIRO_AUDIENCE_API_URL: ${{ vars.PROD_AUDIENCE_API_URL }}
       KAIRO_LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
       CARGO_INCREMENTAL: "0"
+      CARGO_TARGET_DIR: ${{ runner.temp }}/package/target
 
     steps:
       - name: Checkout
@@ -107,16 +104,11 @@ jobs:
           path: ${{ runner.temp }}/package/ffmpeg-${{ matrix.arch }}
           key: ffmpeg-macos-${{ matrix.arch }}-${{ hashFiles('packaging/common.sh', 'packaging/macos/build-ffmpeg.sh', 'packaging/macos/config.sh') }}
 
-      - name: Cache Cargo downloads
-        if: runner.environment == 'github-hosted'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+          shared-key: package-macos-${{ matrix.arch }}
+          cache-on-failure: true
 
       - name: Import signing certificate
         env:

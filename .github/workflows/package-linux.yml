@@ -48,6 +48,7 @@ jobs:
       KAIRO_AUDIENCE_API_URL: ${{ vars.PROD_AUDIENCE_API_URL }}
       KAIRO_LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
       CARGO_INCREMENTAL: "0"
+      CARGO_TARGET_DIR: ${{ runner.temp }}/package/target
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -100,15 +101,11 @@ jobs:
           path: ${{ runner.temp }}/package/ffmpeg-x64
           key: ffmpeg-linux-x64-ubuntu-22.04-${{ hashFiles('packaging/common.sh', 'packaging/linux/build-ffmpeg.sh', 'packaging/linux/config.sh') }}
 
-      - name: Cache Cargo downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          path: |
-            ~/.cargo/registry/index
-            ~/.cargo/registry/cache
-            ~/.cargo/git/db
-          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+          shared-key: package-linux-x64
+          cache-on-failure: true
 
       - name: FFmpeg (LGPL, from source) and pinned inputs
         run: |
