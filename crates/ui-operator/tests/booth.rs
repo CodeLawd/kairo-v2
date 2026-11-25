@@ -401,6 +401,44 @@ fn after_a_card_press_the_clicker_presents_each_step(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
+fn clicking_a_detected_card_presents_it_without_triggering_on_action_buttons(
+    cx: &mut TestAppContext,
+) {
+    let core = Core::new(base());
+    let opened = open(cx, core.clone());
+    core.push(BoothFeed::Suggestion(detection(
+        "s1",
+        "John 3:16",
+        "For God so loved the world",
+    )));
+    draw(cx, &opened);
+
+    let group_id = cx.read(|cx| opened.booth().read(cx).groups()[0].id.clone());
+
+    // Action buttons inside the card do not present the verse.
+    click(cx, &opened, &detected::ids::queue(&group_id));
+    assert!(
+        !core
+            .calls()
+            .iter()
+            .any(|c| matches!(c, BoothCall::Approve(_))),
+        "queueing a card must not present it"
+    );
+
+    // Clicking the card itself presents the verse directly.
+    click(cx, &opened, &detected::ids::row(&group_id));
+    let approved: Vec<String> = core
+        .calls()
+        .into_iter()
+        .filter_map(|c| match c {
+            BoothCall::Approve(id) => Some(id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(approved, vec!["s1".to_string()]);
+}
+
+#[gpui_kit::test]
 fn shortcuts_stand_down_while_the_operator_types(cx: &mut TestAppContext) {
     let core = Core::new(base());
     let opened = open(cx, core.clone());

@@ -300,8 +300,19 @@ fn send(cx: &mut TestAppContext, o: &Opened, text: &str) {
 #[gpui_kit::test]
 fn a_bad_key_stays_on_connect_and_a_good_one_opens_the_gallery(cx: &mut TestAppContext) {
     let o = open(cx, State::default());
-    assert!(exists(cx, &o, ids::CONNECT));
+    // First-time visitors meet Imagine before being asked for an API key.
+    assert!(exists(cx, &o, ids::INTRO_CONTINUE));
+    assert!(!exists(cx, &o, ids::CONNECT));
     assert!(!exists(cx, &o, ids::PROMPT));
+
+    click(cx, &o, ids::INTRO_CONTINUE);
+    assert!(exists(cx, &o, ids::CONNECT));
+    assert!(exists(cx, &o, ids::INTRO_BACK));
+
+    // Back returns to the introduction.
+    click(cx, &o, ids::INTRO_BACK);
+    assert!(exists(cx, &o, ids::INTRO_CONTINUE));
+    click(cx, &o, ids::INTRO_CONTINUE);
 
     act(cx, &o, |p, w, cx| p.set_key("bad", w, cx));
     click(cx, &o, ids::CONNECT);
@@ -314,6 +325,7 @@ fn a_bad_key_stays_on_connect_and_a_good_one_opens_the_gallery(cx: &mut TestAppC
     assert!(exists(cx, &o, ids::PROMPT));
     assert!(exists(cx, &o, &ids::template("worship")));
 
+    // Disconnecting returns straight to the Connect card.
     click(cx, &o, ids::DISCONNECT);
     assert!(exists(cx, &o, ids::CONNECT));
 }

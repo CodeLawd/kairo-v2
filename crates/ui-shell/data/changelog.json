@@ -1,5 +1,26 @@
 [
   {
+    "date": "2026-11-25",
+    "highlights": [
+      {
+        "body": "Opening Imagine for the first time now shows what it can create before asking you to connect your OpenAI account.",
+        "icon": "media",
+        "title": "A warmer welcome to Imagine"
+      },
+      {
+        "body": "Click anywhere on a detected scripture card in the Operator view to send it straight to the live screen.",
+        "icon": "scripture",
+        "title": "One-click live scripture"
+      }
+    ],
+    "notes": [
+      "Opening Imagine for the first time now introduces what it can create with visual examples, followed by a cleaner OpenAI connection card.",
+      "Detected scripture cards in the Operator view are now clickable across the whole card to push directly to the live screen."
+    ],
+    "title": "Faster live scripture and a warmer Imagine welcome",
+    "version": "2.0.1"
+  },
+  {
     "date": "2026-11-20",
     "highlights": [
       {

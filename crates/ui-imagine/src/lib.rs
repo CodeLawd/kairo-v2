@@ -3,6 +3,7 @@
 //! the operator asks. Nothing here goes live.
 
 pub mod backend;
+pub mod intro;
 pub mod loader;
 pub mod view;
 

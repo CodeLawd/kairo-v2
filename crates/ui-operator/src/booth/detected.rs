@@ -59,11 +59,7 @@ pub mod ids {
     pub fn row(group: &str) -> String {
         format!("detected-row-{group}")
     }
-    /// `detected-present-<suggestion id>`: the row's Present.
-    pub fn present(id: &str) -> String {
-        format!("detected-present-{id}")
-    }
-    /// `detected-text-<suggestion id>`: the verse text (presents it).
+    /// `detected-text-<suggestion id>`: the verse text inside the row.
     pub fn verse_text(id: &str) -> String {
         format!("detected-text-{id}")
     }
@@ -405,7 +401,7 @@ impl DetectedPanel {
             .or_else(|| group.suggestions.iter().find(|s| flags(s).1))
             .or_else(|| group.suggestions.first())?
             .clone();
-        let (shown_live, _, state) = flags(&shown);
+        let (_, _, state) = flags(&shown);
         let passage = group.suggestions.len() > 1;
         let source = detection_source(&shown);
         let gid = group.id.clone();
@@ -505,27 +501,7 @@ impl DetectedPanel {
             .gap_0p5()
             .opacity(0.)
             .group_hover("detected-row", |s| s.opacity(1.))
-            .when(!shown_live, |this| {
-                let id = shown.id.clone();
-                this.child(
-                    super::widgets::primary_button(
-                        SharedString::from(ids::present(&shown.id)),
-                        "Present",
-                        cx,
-                    )
-                    .xsmall()
-                    .mr_1()
-                    .icon(Icon::new(KairoIcon::Play).size(px(10.)))
-                    .accessibility_label(format!(
-                        "Present {} {}",
-                        shown.reference, shown.translation
-                    ))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        let id = id.clone();
-                        this.booth.update(cx, |b, cx| b.approve(&id, cx))
-                    })),
-                )
-            })
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .child({
                 let gid = gid.clone();
                 icon_button(
@@ -641,10 +617,12 @@ impl DetectedPanel {
                         .on_mouse_down(
                             MouseButton::Left,
                             cx.listener(|this, _, _, cx| {
+                                cx.stop_propagation();
                                 this.booth.update(cx, |b, _| b.cards_in_control = true)
                             }),
                         )
                         .on_click(cx.listener(move |this, _, _, cx| {
+                            cx.stop_propagation();
                             let id = id.clone();
                             this.booth.update(cx, |b, cx| b.approve(&id, cx))
                         }))
@@ -652,7 +630,6 @@ impl DetectedPanel {
                 }))
         });
 
-        let text_id = shown.id.clone();
         let verse_text = shown
             .verses
             .first()
@@ -696,10 +673,17 @@ impl DetectedPanel {
             }
             None => verse_text.clone().into_any_element(),
         };
+        let card_id = shown.id.clone();
         let card = v_flex()
             .id(SharedString::from(ids::row(&group.id)))
             .test_support()
             .group("detected-row")
+            .role(gpui_kit::Role::Button)
+            .aria_label(format!(
+                "Present {} {}",
+                shown.reference, shown.translation
+            ))
+            .cursor_pointer()
             .relative()
             .w_full()
             .min_w_0()
@@ -713,6 +697,18 @@ impl DetectedPanel {
                     s.bg(k.surface_tertiary).hover(|s| s.bg(k.surface_elevated))
                 }
             })
+            .when(!passage, |s| {
+                s.on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, _, cx| {
+                        this.booth.update(cx, |b, _| b.cards_in_control = true)
+                    }),
+                )
+            })
+            .on_click(cx.listener(move |this, _, _, cx| {
+                let id = card_id.clone();
+                this.booth.update(cx, |b, cx| b.approve(&id, cx))
+            }))
             .child(
                 h_flex()
                     .w_full()
@@ -735,7 +731,12 @@ impl DetectedPanel {
                                     .unwrap_or_else(|| shown.reference.clone()),
                             ),
                     )
-                    .child(translation_button)
+                    .child(
+                        div()
+                            .flex_shrink_0()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .child(translation_button),
+                    )
                     .when_some(shown.requested_translation.clone(), |this, asked| {
                         this.child(
                             div()
@@ -758,26 +759,15 @@ impl DetectedPanel {
                 div()
                     .id(SharedString::from(ids::verse_text(&shown.id)))
                     .test_support()
-                    .role(gpui_kit::Role::Button)
-                    .aria_label(format!("Present {}", shown.reference))
-                    .tooltip(super::widgets::tip(format!("Present {}", shown.reference)))
                     .mt_1p5()
                     .w_full()
-                    .cursor_pointer()
                     .text_size(text::BASE.size)
                     .line_height(text::BASE.line_height)
                     .line_clamp(3)
                     .text_color(fg(k.text(TextStep::T400)))
-                    .hover(|s| s.text_color(fg(k.text(TextStep::T200))))
-                    .when(!passage, |s| {
-                        s.on_mouse_down(MouseButton::Left, cx.listener(|this, _, _, cx| {
-                            this.booth.update(cx, |b, _| b.cards_in_control = true)
-                        }))
+                    .group_hover("detected-row", move |s| {
+                        s.text_color(fg(k.text(TextStep::T200)))
                     })
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        let id = text_id.clone();
-                        this.booth.update(cx, |b, cx| b.approve(&id, cx))
-                    }))
                     .child(verse_body),
             );
         Some(if fresh {

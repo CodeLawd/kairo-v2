@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
-use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
+use gpui_kit::component::input::{InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::component::{Disableable, Icon, Selectable, Sizable, h_flex, v_flex};
 use gpui_kit::{
     AnyElement, AppContext, Context, Entity, FocusHandle, Focusable, FontWeight,
@@ -16,12 +16,13 @@ use gpui_kit::{
 };
 use kairo_imagine::estimate_usd;
 use kairo_ui_kit::tokens::{Hue, TextStep, radius, text};
-use kairo_ui_kit::{ControlSize, KairoIcon, KairoThemeExt};
+use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
 use crate::backend::{
     Action, Attachment, ImageModel, ImagineAnswer, ImagineBackend, ImagineCall, ImagineFeed,
     Project, Quality, Slide,
 };
+use crate::intro::IntroState;
 use crate::loader;
 
 /// The page's content column, centred in wider windows: four cards across.
@@ -52,13 +53,15 @@ const GAP: f32 = 12.;
 const MIN_CARD: f32 = 180.;
 /// Cards per row when there is room.
 const COLUMNS: usize = 4;
-const KEYS_URL: &str = "https://platform.openai.com/api-keys";
+pub(crate) const KEYS_URL: &str = "https://platform.openai.com/api-keys";
 const NEW_PROMPT: &str = "Describe an image or slides to create";
 const REFINE_PROMPT: &str = "Ask for a change, or something new";
 
 /// Element ids, for tests.
 pub mod ids {
     pub const PAGE: &str = "imagine-page";
+    pub const INTRO_CONTINUE: &str = "imagine-intro-continue";
+    pub const INTRO_BACK: &str = "imagine-intro-back";
     pub const CONNECT: &str = "imagine-connect";
     pub const KEY: &str = "imagine-key";
     pub const GET_KEY: &str = "imagine-get-key";
@@ -337,6 +340,7 @@ pub struct ImaginePage {
     loaded: bool,
     connected: bool,
     connecting: bool,
+    intro: IntroState,
     notice: Option<String>,
     projects: Vec<Project>,
     tab: Tab,
@@ -481,6 +485,7 @@ impl ImaginePage {
             loaded: false,
             connected: false,
             connecting: false,
+            intro: IntroState::new(),
             notice: None,
             projects: Vec::new(),
             tab: Tab::Templates,
@@ -696,11 +701,24 @@ impl ImaginePage {
         cx.notify();
     }
 
+    pub(crate) fn open_connect(&mut self, cx: &mut Context<Self>) {
+        self.intro.show_connect();
+        cx.notify();
+    }
+
+    pub(crate) fn open_welcome(&mut self, cx: &mut Context<Self>) {
+        self.error = None;
+        self.intro.show_welcome();
+        cx.notify();
+    }
+
     fn disconnect(&mut self, cx: &mut Context<Self>) {
         for job in std::mem::take(&mut self.jobs) {
             self.backend
                 .call(ImagineCall::Cancel(job.id), Box::new(|_| {}));
         }
+        // Returning operators already know what Imagine is: go straight to the key card.
+        self.intro.show_connect();
         let call = ask(&self.backend, ImagineCall::Disconnect);
         cx.spawn(async move |this, cx| {
             let answer = call.await;
@@ -1076,82 +1094,8 @@ impl ImaginePage {
     // ─── Rendering ─────────────────────────────────────────────────────────
 
     fn render_connect(&self, cx: &mut Context<Self>) -> AnyElement {
-        let k = *cx.kairo();
-        let (connect, link) = (cx.entity(), cx.entity());
-        v_flex()
-            .size_full()
-            .items_center()
-            .justify_center()
-            .child(
-                v_flex()
-                    .w(px(440.))
-                    .gap_3()
-                    .p_6()
-                    .rounded(radius::xl())
-                    .bg(k.surface_secondary)
-                    .border_1()
-                    .border_color(k.surface_border)
-                    .child(Icon::new(KairoIcon::Key).size_6().text_color(k.hue(Hue::Pink)))
-                    .child(
-                        div()
-                            .text_size(text::LG.size)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child("Connect your OpenAI account"),
-                    )
-                    .child(
-                        div()
-                            .text_size(text::XS.size)
-                            .text_color(k.text(TextStep::T500))
-                            .child(
-                                "Imagine makes images with your own OpenAI API key, so usage is billed \
-                                 to your OpenAI account. The key stays in this computer's keychain and \
-                                 is only sent to OpenAI.",
-                            ),
-                    )
-                    .child(
-                        Input::new(&self.key)
-                            .kairo_size()
-                            .id(ids::KEY)
-                            .aria_label("OpenAI API key")
-                            .mask_toggle()
-                            .disabled(self.connecting),
-                    )
-                    .children(self.notice.clone().map(|n| {
-                        div()
-                            .text_size(text::LABEL.size)
-                            .text_color(k.warning_text)
-                            .child(n)
-                    }))
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .justify_between()
-                            .child(
-                                Button::new(ids::GET_KEY)
-                                    .cursor_pointer()
-                                    .small()
-                                    .ghost()
-                                    .icon(Icon::new(KairoIcon::ExternalLink))
-                                    .label("Get an API key")
-                                    .on_click(move |_, _, cx| {
-                                        let _ = link.read(cx);
-                                        cx.open_url(KEYS_URL)
-                                    }),
-                            )
-                            .child(
-                                Button::new(ids::CONNECT)
-                                    .cursor_pointer()
-                                    .small()
-                                    .primary()
-                                    .label(if self.connecting { "Checking…" } else { "Connect" })
-                                    .disabled(self.connecting)
-                                    .on_click(move |_, window, cx| {
-                                        connect.update(cx, |p, cx| p.connect(window, cx))
-                                    }),
-                            ),
-                    ),
-            )
-            .into_any_element()
+        self.intro
+            .render(&self.key, self.connecting, self.notice.as_deref(), cx)
     }
 
     /// Pill tabs: the picked one sits on a soft fill. "My creations"
@@ -3468,7 +3412,8 @@ impl Render for ImaginePage {
             .saved_flash
             .as_ref()
             .is_some_and(|(_, at)| at.elapsed().as_secs_f32() < SAVE_FLASH_SECS);
-        if (!self.jobs.is_empty() || flashing) && !cx.reduced_motion() {
+        let intro_animating = self.loaded && !self.connected && self.intro.animating();
+        if (!self.jobs.is_empty() || flashing || intro_animating) && !cx.reduced_motion() {
             window.request_animation_frame();
         }
         if std::mem::take(&mut self.scroll_chat) {
@@ -3550,8 +3495,10 @@ impl Render for ImaginePage {
                 v_flex()
                     .size_full()
                     .min_h_0()
-                    // The slide preview needs the whole window beside the chat.
-                    .when(self.canvas.is_none(), |d| d.max_w(px(MAX_W)))
+                    // The slide preview and first-run wash span the whole window.
+                    .when(self.canvas.is_none() && self.connected, |d| {
+                        d.max_w(px(MAX_W))
+                    })
                     .mx_auto()
                     .children(banner)
                     .child(div().flex_1().min_h_0().child(body)),
