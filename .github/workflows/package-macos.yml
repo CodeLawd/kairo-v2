@@ -60,7 +60,6 @@ jobs:
       KAIRO_AUDIENCE_API_URL: ${{ vars.PROD_AUDIENCE_API_URL }}
       KAIRO_LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
       CARGO_INCREMENTAL: "0"
-      CARGO_TARGET_DIR: ${{ runner.temp }}/package/target
 
     steps:
       - name: Checkout
@@ -106,6 +105,8 @@ jobs:
 
       - name: Cache Rust build
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/package/target
         with:
           shared-key: package-macos-${{ matrix.arch }}
           cache-on-failure: true
