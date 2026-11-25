@@ -20,7 +20,7 @@ jobs:
           if ($installer.ExitCode) { throw "Installer exited with $($installer.ExitCode)" }
           $dir = Join-Path $env:LOCALAPPDATA 'Programs/Kairo'
           $exe = Join-Path $dir 'Kairo.exe'
-          $mt = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kitsin\*d\mt.exe" |
+          $mt = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\bin\*d\mt.exe" |
             Sort-Object FullName -Descending | Select-Object -First 1
           @'
           <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
