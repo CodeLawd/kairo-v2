@@ -31,6 +31,9 @@ name: Release (native)
 # notarization, PROD_API_URL, PROD_WEB_URL, …), inherited unchanged.
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -72,7 +75,7 @@ permissions:
 
 concurrency:
   # One release per tag at a time; never cancel a running publish.
-  group: release-native-${{ inputs.release_tag }}
+  group: release-native-${{ inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -84,14 +87,24 @@ jobs:
     outputs:
       version: ${{ steps.check.outputs.version }}
       test: ${{ steps.check.outputs.test }}
+      release_tag: ${{ steps.validate.outputs.release_tag }}
+      target_repo: ${{ steps.validate.outputs.target_repo }}
     steps:
       - name: Validate inputs
+        id: validate
         env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
           TARGET_REPO: ${{ inputs.target_repo }}
-          FAIL_JOB: ${{ inputs.fail_job }}
+          FAIL_JOB: ${{ inputs.fail_job || 'none' }}
           OWN_REPO: ${{ github.repository }}
         run: |
+          if [ -z "$TARGET_REPO" ]; then
+            if [[ "$RELEASE_TAG" == *-test.* ]]; then
+              TARGET_REPO="$OWN_REPO"
+            else
+              TARGET_REPO="CodeLawd/kairo-presenter"
+            fi
+          fi
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-test\.[0-9]+)?$ ]] ||
             { echo "::error::release_tag must look like v2.0.0 (or v2.0.0-test.1 for a dry run)"; exit 1; }
           if [[ "$RELEASE_TAG" == *-test.* && "$TARGET_REPO" != "$OWN_REPO" ]]; then
@@ -102,11 +115,13 @@ jobs:
           fi
           [[ "${{ github.ref }}" == "refs/tags/$RELEASE_TAG" ]] ||
             { echo "::error::run this workflow on the tag itself (--ref $RELEASE_TAG), not on ${{ github.ref }}"; exit 1; }
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "target_repo=$TARGET_REPO" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ steps.validate.outputs.release_tag }}
 
       - name: Select Rust toolchain
         # The release tool reads feeds with kairo-updater, whose dependencies
@@ -125,8 +140,8 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          SKIP_CHANGELOG: ${{ inputs.skip_changelog }}
+          RELEASE_TAG: ${{ steps.validate.outputs.release_tag }}
+          SKIP_CHANGELOG: ${{ inputs.skip_changelog || false }}
         run: |
           # The release repository is public; the latest release is Electron's
           # until cutover. Native versions must sort above it (DECISIONS 104).
@@ -158,8 +173,8 @@ jobs:
         # A draft from an earlier attempt may be replaced; a published release never.
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          TARGET_REPO: ${{ inputs.target_repo }}
+          RELEASE_TAG: ${{ steps.validate.outputs.release_tag }}
+          TARGET_REPO: ${{ steps.validate.outputs.target_repo }}
         run: |
           # Drafts are invisible to this token on another repository, so only a
           # published release can show up here.
@@ -173,7 +188,7 @@ jobs:
     needs: prepare
     uses: ./.github/workflows/ci.yml
     with:
-      ref: ${{ inputs.release_tag }}
+      ref: ${{ needs.prepare.outputs.release_tag }}
       mode: ${{ inputs.full_checks && 'full' || 'bridge-only' }}
 
   macos:
@@ -182,8 +197,8 @@ jobs:
     uses: ./.github/workflows/package-macos.yml
     secrets: inherit
     with:
-      ref: ${{ inputs.release_tag }}
-      fail_for_test: ${{ inputs.fail_job }}
+      ref: ${{ needs.prepare.outputs.release_tag }}
+      fail_for_test: ${{ inputs.fail_job || 'none' }}
 
   windows:
     name: Windows
@@ -191,8 +206,8 @@ jobs:
     uses: ./.github/workflows/package-windows.yml
     secrets: inherit
     with:
-      ref: ${{ inputs.release_tag }}
-      fail_for_test: ${{ inputs.fail_job }}
+      ref: ${{ needs.prepare.outputs.release_tag }}
+      fail_for_test: ${{ inputs.fail_job || 'none' }}
 
   linux:
     name: Linux
@@ -200,8 +215,8 @@ jobs:
     uses: ./.github/workflows/package-linux.yml
     secrets: inherit
     with:
-      ref: ${{ inputs.release_tag }}
-      fail_for_test: ${{ inputs.fail_job }}
+      ref: ${{ needs.prepare.outputs.release_tag }}
+      fail_for_test: ${{ inputs.fail_job || 'none' }}
 
   publish:
     name: Publish draft release
@@ -214,13 +229,13 @@ jobs:
       contents: write # only for a dry run into this repository
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
-      RELEASE_TAG: ${{ inputs.release_tag }}
-      TARGET_REPO: ${{ inputs.target_repo }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+      TARGET_REPO: ${{ needs.prepare.outputs.target_repo }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ needs.prepare.outputs.release_tag }}
 
       - name: Download release tool binary
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -278,7 +293,7 @@ jobs:
         env:
           # This repository: the workflow's own token. The release repository:
           # a token scoped to it alone.
-          GH_TOKEN: ${{ inputs.target_repo == github.repository && github.token || secrets.KAIRO_PRESENTER_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ needs.prepare.outputs.target_repo == github.repository && github.token || secrets.KAIRO_PRESENTER_RELEASE_TOKEN }}
         run: |
           [ -n "$GH_TOKEN" ] || { echo "::error::KAIRO_PRESENTER_RELEASE_TOKEN is not set in the release environment"; exit 1; }
           latest_before="$(gh api "repos/$TARGET_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
