@@ -224,10 +224,11 @@ pub fn notice(id: impl Into<ElementId>, message: impl Into<SharedString>, cx: &A
         .text_color(k.text(TextStep::T300))
         .child(
             Icon::new(KairoIcon::AlertTriangle)
+                .flex_shrink_0()
                 .size(px(14.))
                 .text_color(k.hue(kairo_ui_kit::Hue::Amber)),
         )
-        .child(message.into())
+        .child(div().flex_1().min_w_0().child(message.into()))
         .into_any_element()
 }
 

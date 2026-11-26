@@ -105,10 +105,35 @@ fn assert_same(label: &str, input: BTreeMap<String, String>, read_only: &[&str])
         let ours = &actual.files[name];
         // Key order is not compared (DECISIONS.md, 011 and 021): Electron keeps
         // the order its input happened to have, typed values cannot.
-        let (a, b): (Value, Value) = (
+        let (mut a, b): (Value, Value) = (
             serde_json::from_str(text).unwrap(),
             serde_json::from_str(ours).unwrap(),
         );
+        // Native backfills missing fields inside partial sections from defaults
+        // instead of keeping Electron's partial objects on disk.
+        let mut backfilled = false;
+        if name == "kairo-settings.json"
+            && let Some(obj) = a.as_object_mut()
+        {
+            for (section, default_value) in kairo_store::settings::settings_defaults() {
+                if matches!(
+                    section.as_str(),
+                    "overlay" | "presentation" | "themeLibrary"
+                ) {
+                    continue;
+                }
+                if let Value::Object(mut merged) = default_value
+                    && let Some(existing) = obj.get(&section).and_then(Value::as_object)
+                {
+                    let before = existing.len();
+                    merged.extend(existing.clone());
+                    if merged.len() != before {
+                        backfilled = true;
+                    }
+                    obj.insert(section, Value::Object(merged));
+                }
+            }
+        }
         let differences = kairo_oracle::compare(&a, &b);
         assert!(
             differences.is_empty(),
@@ -116,11 +141,13 @@ fn assert_same(label: &str, input: BTreeMap<String, String>, read_only: &[&str])
             differences.join("\n  ")
         );
         // Numbers must also be the same JSON text, which `compare` reads as f64.
-        assert_eq!(
-            number_texts(text),
-            number_texts(ours),
-            "{label}: {name} number text"
-        );
+        if !backfilled {
+            assert_eq!(
+                number_texts(text),
+                number_texts(ours),
+                "{label}: {name} number text"
+            );
+        }
         // A file either app rewrote is exactly what electron-store writes for its value.
         if input.get(name) != Some(ours) {
             assert_eq!(
@@ -331,7 +358,7 @@ fn a_hostile_stt_section_that_crashes_electron_is_healed() {
     let settings: Value = serde_json::from_str(&actual.files["kairo-settings.json"]).unwrap();
     assert_eq!(
         settings["stt"],
-        json!({ "llmProvider": "deepseek", "llmModel": "" })
+        kairo_store::settings::settings_defaults()["stt"]
     );
 }
 

@@ -203,6 +203,54 @@ fn the_renderer_never_sees_secrets() {
     assert!(typed.secrets_configured.deepgram);
 }
 
+#[test]
+fn for_renderer_heals_partial_sections_from_older_builds() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("kairo-settings.json"),
+        serde_json::json!({
+            "web": {
+                "bookmarks": [{"id": "b1", "name": "Docs", "url": "https://example.com"}]
+            },
+            "capture": { "codec": "hevc" },
+            "documents": { "slideshowSec": 15 },
+            "display": { "theme": "light" },
+            "media": { "folder": "/tmp/media" }
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let store = open(dir.path());
+    let mut ids = ids();
+    let mut ctx = LaunchContext {
+        now_ms: 1.0,
+        new_id: &mut ids,
+    };
+    let all = store.for_renderer(&no_secrets(), &mut ctx);
+    let typed: kairo_domain::settings::SettingsWithSecretsStatus =
+        serde_json::from_value(all).unwrap();
+    assert!(!typed.settings.web.show_pointer);
+    assert_eq!(typed.settings.web.bookmarks.len(), 1);
+    assert_eq!(typed.settings.web.bookmarks[0].url, "https://example.com");
+    assert_eq!(typed.settings.documents.slideshow_sec, 15.0);
+    assert!(typed.settings.documents.slideshow_loop);
+    assert_eq!(typed.settings.media.folder, "/tmp/media");
+    assert!(typed.settings.media.playlists.is_empty());
+    assert_eq!(
+        store.get_for_renderer("web", &mut ctx)["showPointer"],
+        json!(false)
+    );
+    // Repaired on disk too, so direct typed section reads succeed.
+    let web: kairo_domain::web::WebSettings = store.section("web").unwrap();
+    assert!(!web.show_pointer);
+    store.flush().unwrap();
+    let on_disk: Value = serde_json::from_str(
+        &std::fs::read_to_string(dir.path().join("kairo-settings.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(on_disk["web"]["showPointer"], json!(false));
+}
+
 struct Packs(Result<bool, String>);
 impl PostOpenServices for Packs {
     fn bible_pack_installed(&self, _: &str) -> Result<bool, String> {

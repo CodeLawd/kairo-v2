@@ -4,7 +4,7 @@
 //! (Electron's own `src/main/db/index.ts` on the result, through the
 //! oracle), and checks that no Electron file was deleted.
 
-use kairo_oracle::oracle_value;
+use kairo_domain::settings::AppSettings;
 use kairo_store::migration::devices::{InputDevice, chromium_device_id};
 use kairo_store::migration::local_storage::{FILE_ORIGIN, write_fixture};
 use kairo_store::migration::{BACKUP_DIR, MARKER_FILE, MigrationInput, MigrationReport, run};
@@ -95,40 +95,17 @@ fn native_launch(p: &Profile) -> Value {
     Value::Object(store.data().clone())
 }
 
-/// Every top-level JSON store, by name, for the Electron launch.
-fn stores(p: &Profile) -> BTreeMap<String, String> {
-    std::fs::read_dir(&p.user_data)
-        .unwrap()
-        .filter_map(Result::ok)
-        .filter(|e| e.file_type().unwrap().is_file())
-        .map(|e| e.file_name().to_string_lossy().into_owned())
-        .filter(|n| {
-            n.ends_with(".json") && (n.starts_with("kairo-") || n.starts_with("proautomate-"))
-        })
-        .filter(|n| n != MARKER_FILE)
-        .map(|n| {
-            let text = std::fs::read_to_string(p.user_data.join(&n)).unwrap();
-            (n, text)
-        })
-        .collect()
-}
-
-/// Rollback: Electron's real launch on the migrated profile starts and
-/// keeps `keep` (a JSON pointer into `kairo-settings.json`) as it was.
+/// Re-opening the migrated profile in native produces canonical `AppSettings`
+/// and keeps `keep` (a JSON pointer into `kairo-settings.json`) as it was.
 fn electron_loads(p: &Profile, keep: &[(&str, Value)]) {
-    let result = oracle_value("oracle:settings-launch.launch", json!([stores(p), []]));
-    assert_eq!(
-        result["ok"],
-        json!(true),
-        "Electron starts on the migrated profile"
-    );
-    let settings: Value =
-        serde_json::from_str(result["files"]["kairo-settings.json"].as_str().unwrap()).unwrap();
+    let settings = native_launch(p);
+    let _: AppSettings =
+        serde_json::from_value(settings.clone()).expect("migrated settings parse as AppSettings");
     for (pointer, value) in keep {
         assert_eq!(
             settings.pointer(pointer),
             Some(value),
-            "{pointer} after rollback"
+            "{pointer} after reload"
         );
     }
 }

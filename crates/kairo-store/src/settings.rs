@@ -613,6 +613,23 @@ fn repair(store: &mut JsonStore, migrations: &mut JsonStore, ctx: &mut LaunchCon
     let retired = retire_pro_presenter_settings(Some(&Value::Object(store.data().clone())));
     store.replace(retired);
 
+    // Backfill missing fields in partial sections from older builds so every
+    // section on disk matches the canonical Rust schema. Sections with their
+    // own normalisers below (`overlay`, `presentation`, `themeLibrary`) are
+    // handled directly so legacy migration rules stay intact.
+    for (section, default_value) in settings_defaults() {
+        if matches!(
+            section.as_str(),
+            "overlay" | "presentation" | "themeLibrary"
+        ) {
+            continue;
+        }
+        if let Value::Object(mut merged) = default_value {
+            merged.extend(spread(store.get(&section)));
+            store.set(&section, Value::Object(merged));
+        }
+    }
+
     let mut overlay = normalize_overlay_settings(store.get("overlay"));
     store
         .set_as("overlay", &overlay)

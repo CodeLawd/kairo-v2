@@ -48,12 +48,39 @@ fn decrypt_cbc(
 #[cfg(target_os = "macos")]
 fn platform_decrypt(_: &Path, app_name: &str, blob: &[u8]) -> Result<DataKey, SecretError> {
     let ciphertext = blob.strip_prefix(b"v10").ok_or(SecretError::InvalidKey)?;
-    let service = format!("{app_name} Safe Storage");
-    let password = keyring::Entry::new(&service, app_name)
-        .and_then(|entry| entry.get_secret())
-        .map(Zeroizing::new)
-        .map_err(|_| SecretError::Keychain)?;
-    decrypt_cbc(ciphertext, &password, 1003)
+    let app_service = format!("{app_name} Safe Storage");
+    let app_key_account = format!("{app_name} Key");
+    // Electron/Chromium on macOS stores the OSCrypt password under either
+    // `<App> Safe Storage` (`<App>` or `<App> Key`) or `Chromium Safe Storage`.
+    let candidates = [
+        (app_service.as_str(), app_name),
+        (app_service.as_str(), app_key_account.as_str()),
+        ("Chromium Safe Storage", "Chromium Key"),
+        ("Chromium Safe Storage", "Chromium"),
+    ];
+    let mut saw_keychain_error = false;
+    let mut saw_wrong_key = false;
+    for (service, account) in candidates {
+        match keyring::Entry::new(service, account).and_then(|entry| entry.get_secret()) {
+            Ok(password) => {
+                let password = Zeroizing::new(password);
+                match decrypt_cbc(ciphertext, &password, 1003) {
+                    Ok(key) => return Ok(key),
+                    Err(_) => saw_wrong_key = true,
+                }
+            }
+            Err(keyring::Error::NoEntry) => {}
+            Err(error) => {
+                tracing::warn!(service, account, %error, "[Secrets] Electron Safe Storage lookup failed");
+                saw_keychain_error = true;
+            }
+        }
+    }
+    if saw_keychain_error && !saw_wrong_key {
+        Err(SecretError::Keychain)
+    } else {
+        Err(SecretError::InvalidKey)
+    }
 }
 
 #[cfg(target_os = "linux")]
