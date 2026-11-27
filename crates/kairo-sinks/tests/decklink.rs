@@ -52,13 +52,16 @@ fn uses_the_bundled_helper_when_packaged_and_the_local_build_in_development() {
     let repo = Path::new("/repo");
     let bundled = exe.join("../Resources/decklink/decklink-helper");
     assert_eq!(helper_path(exe, Some(repo), |p| p == bundled), bundled);
+    // The engine in its own app inside Kairo.app reaches the outer Resources.
+    let nested = exe.join("../../../../Resources/decklink/decklink-helper");
+    assert_eq!(helper_path(exe, Some(repo), |p| p == nested), nested);
     let built = repo.join("native/decklink/build/decklink-helper");
     assert_eq!(helper_path(exe, Some(repo), |p| p == built), built);
     let committed = repo.join("native/decklink/prebuilt/decklink-helper");
     assert_eq!(helper_path(exe, Some(repo), |p| p == committed), committed);
     // None exists: the last candidate, reported as "not included".
     assert_eq!(helper_path(exe, Some(repo), |_| false), committed);
-    assert_eq!(helper_path(exe, None, |_| false), bundled);
+    assert_eq!(helper_path(exe, None, |_| false), nested);
 }
 
 // ─── inventory ──────────────────────────────────────────────────────────────
