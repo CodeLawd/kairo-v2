@@ -1,5 +1,41 @@
 [
   {
+    "date": "2026-11-27",
+    "highlights": [
+      {
+        "body": "Ask Imagine for a moving background and it makes the picture, then sets it gently in motion with a slow camera move, light rays, dust, bokeh, haze or depth. It plays on screen without video files.",
+        "icon": "media",
+        "title": "Motion backgrounds"
+      },
+      {
+        "body": "Free animated colour loops, drawn by Kairo, sit with the Imagine templates. One click adds one to Media.",
+        "icon": "theme",
+        "title": "Motion loops"
+      },
+      {
+        "body": "A tidier rail with a More menu and an account menu, a Screens menu with Looks, smooth animations throughout, and the Inter typeface.",
+        "icon": "tip",
+        "title": "A calmer, livelier app"
+      },
+      {
+        "body": "On Windows, Kairo no longer opens a terminal window beside the app, and the engine no longer reports itself unresponsive after the computer sleeps.",
+        "icon": "speed",
+        "title": "Steadier on Windows"
+      }
+    ],
+    "notes": [
+      "Imagine can save a picture to Media with motion: slow zoom, drift, pan, light rays, dust, bokeh, haze, or depth (parallax, which makes one more image).",
+      "The Media Inspector has a Motion section for images, and its Save button stays in view.",
+      "The rail moves Theme and other tools into a More menu, and the account, audio and feedback into an avatar menu.",
+      "Screen Themes are now called Looks, under a new Screens menu with Audience and Stage shortcuts.",
+      "The Theme Editor adds text, pen drawing and shapes, and Delete removes elements, images and videos.",
+      "Dialogs, popovers and workspaces now animate, respecting reduced motion.",
+      "Windows: no terminal window on launch, and no false engine-unresponsive warning after sleep."
+    ],
+    "title": "Motion backgrounds and a refreshed app",
+    "version": "2.1.0"
+  },
+  {
     "date": "2026-11-25",
     "highlights": [
       {
