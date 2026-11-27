@@ -8,13 +8,15 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use gpui_kit::base::TestSupportExt;
-use gpui_kit::component::button::Button;
+use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::{
-    AnyElement, Context, FontWeight, InteractiveElement, IntoElement, ParentElement, Render, Role,
-    SharedString, StatefulInteractiveElement, Styled, Task, Window, div, px,
+    AnyElement, AppContext, Context, Entity, FontWeight, InteractiveElement, IntoElement,
+    ParentElement, Render, Role, SharedString, StatefulInteractiveElement, Styled, Subscription,
+    Task, Window, div, px,
 };
 use kairo_domain::overlay::{CustomOverlayTheme, OverlayContentKind, OverlayOutput};
 use kairo_domain::overlay_outputs::is_rendered_kind;
@@ -35,10 +37,16 @@ pub mod ids {
     pub const STATUS: &str = "theme-picker-status";
     pub const ALERT: &str = "theme-picker-alert";
     pub const EMPTY: &str = "theme-picker-empty";
+    pub const SEARCH: &str = "theme-picker-search";
     pub fn apply(id: &str) -> String {
         format!("theme-picker-apply-{id}")
     }
 }
+
+/// A list row's picture width.
+const THUMB_W: f32 = 64.0;
+/// More themes than this and a search field appears.
+const SEARCH_FROM: usize = 6;
 
 /// The failure message (`ThemePicker`'s catch).
 pub const APPLY_FAILED: &str = "Theme could not be applied. Try again.";
@@ -52,6 +60,8 @@ pub struct ThemePicker {
     error: Option<String>,
     applied: Option<String>,
     thumbs: RefCell<ThumbCache>,
+    search: Option<Entity<InputState>>,
+    _search_sub: Option<Subscription>,
     _feed: Task<()>,
     _listening: Listening,
 }
@@ -89,6 +99,8 @@ impl ThemePicker {
             error: None,
             applied: None,
             thumbs: RefCell::default(),
+            search: None,
+            _search_sub: None,
             _feed: feed,
             _listening: listening,
         }
@@ -213,7 +225,9 @@ impl ThemePicker {
         cx.notify();
     }
 
-    fn render_tile(
+    /// One theme as a list row: a small picture, its name, a check when the
+    /// screen uses it. Rows stay compact so a long library still scans.
+    fn render_row(
         &self,
         entry: &CustomOverlayTheme,
         selected: bool,
@@ -224,56 +238,85 @@ impl ThemePicker {
         let this = cx.entity();
         let id = entry.id.clone();
         let theme = crate::model::normalized(&entry.theme);
-        div()
+        h_flex()
             .id(SharedString::from(ids::apply(&entry.id)))
             .test_support()
             .role(Role::Button)
             .aria_label(format!("Apply {}", entry.name))
             .aria_selected(selected)
-            .w(px(162.))
-            .overflow_hidden()
+            .w_full()
+            .items_center()
+            .gap_3()
+            .p_1p5()
             .rounded(radius::md())
-            .border_1()
-            .border_color(if selected { k.white } else { k.surface_border })
+            .when(selected, |d| d.bg(k.ink(0.08)))
             // Disabled: a press from assistive technology does nothing, as the pointer does.
             .when(disabled, |d| d.opacity(0.5).on_click(|_, _, _| {}))
             .when(!disabled, |d| {
                 d.cursor_pointer()
-                    .hover(|s| s.border_color(k.text(TextStep::T400)))
+                    .hover(|s| s.bg(k.ink(0.05)))
                     .on_click(move |_, _, cx| {
                         let id = id.clone();
                         this.update(cx, |t, cx| t.apply(&id, cx))
                     })
             })
-            .child(crate::view::slide_picture(
-                &theme,
-                entry.kind,
-                160.0,
-                &k,
-                &self.thumbs,
-            ))
             .child(
-                h_flex()
-                    .gap_1()
-                    .px_2()
-                    .py_1p5()
-                    .bg(k.surface_tertiary)
-                    .text_size(text::XS.size)
-                    .child(
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .truncate()
-                            .child(entry.name.clone()),
-                    )
-                    .when(selected, |d| d.child(Icon::new(KairoIcon::Check).size_3())),
+                div()
+                    .flex_none()
+                    .rounded(radius::sm())
+                    .overflow_hidden()
+                    .border_1()
+                    .border_color(if selected { k.ink(0.5) } else { k.ink(0.1) })
+                    .child(crate::view::slide_picture(
+                        &theme,
+                        entry.kind,
+                        THUMB_W,
+                        &k,
+                        &self.thumbs,
+                    )),
             )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .truncate()
+                    .text_size(text::SM.size)
+                    .text_color(if selected {
+                        k.text_primary
+                    } else {
+                        k.text(TextStep::T200)
+                    })
+                    .child(entry.name.clone()),
+            )
+            .when(selected, |d| {
+                d.child(
+                    Icon::new(KairoIcon::Check)
+                        .size_4()
+                        .flex_none()
+                        .text_color(k.accent(kairo_ui_kit::tokens::Step::S400)),
+                )
+            })
             .into_any_element()
+    }
+
+    /// The search field, made on first use (it needs a window).
+    fn search(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Entity<InputState> {
+        if let Some(search) = &self.search {
+            return search.clone();
+        }
+        let search = cx.new(|cx| InputState::new(window, cx).placeholder("Search themes"));
+        self._search_sub = Some(cx.subscribe(&search, |_, _, e: &InputEvent, cx| {
+            if matches!(e, InputEvent::Change) {
+                cx.notify();
+            }
+        }));
+        self.search = Some(search.clone());
+        search
     }
 }
 
 impl Render for ThemePicker {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let k = *cx.kairo();
         let this = cx.entity();
         let kind_word = match self.kind {
@@ -292,6 +335,16 @@ impl Render for ThemePicker {
                 .cloned()
                 .collect();
         let saving = self.saving;
+        let searchable = entries.len() > SEARCH_FROM;
+        let search = searchable.then(|| self.search(window, cx));
+        let query = search
+            .as_ref()
+            .map(|s| s.read(cx).value().trim().to_lowercase())
+            .unwrap_or_default();
+        let shown: Vec<&CustomOverlayTheme> = entries
+            .iter()
+            .filter(|e| query.is_empty() || e.name.to_lowercase().contains(&query))
+            .collect();
 
         let screen_select = {
             let this = this.clone();
@@ -299,15 +352,16 @@ impl Render for ThemePicker {
             let options = outputs.clone();
             Button::new(ids::SCREEN)
                 .cursor_pointer()
+                .ghost()
                 .small()
-                .w_full()
                 .dropdown_caret(true)
                 .accessibility_label("Theme screen")
+                .tooltip("The screen or feed these looks apply to")
                 .label(
                     screen
                         .as_ref()
                         .map(|s| s.name.clone())
-                        .unwrap_or_else(|| "No screens configured".into()),
+                        .unwrap_or_else(|| "No screens".into()),
                 )
                 .disabled(saving || outputs.is_empty())
                 .popover_trigger()
@@ -344,83 +398,95 @@ impl Render for ThemePicker {
                     this.update(cx, |t, cx| t.set_kind(kind, cx))
                 })
         };
-        let note = match &screen {
-            Some(s) => format!("Changes only {}’s {kind_word} theme.", s.name),
-            None => "Add a screen or feed in Screens to choose its theme.".into(),
-        };
-        let tiles: Vec<AnyElement> = entries
+        let rows: Vec<AnyElement> = shown
             .iter()
             .map(|e| {
                 let selected = screen
                     .as_ref()
                     .is_some_and(|s| output_uses_theme(s, &e.id, e.kind));
-                self.render_tile(e, selected, saving || screen.is_none(), cx)
+                self.render_row(e, selected, saving || screen.is_none(), cx)
             })
             .collect();
         let muted = k.text(TextStep::T400);
+        let empty = if entries.is_empty() {
+            Some(format!(
+                "No saved {kind_word} themes yet. Create one in the Theme Editor."
+            ))
+        } else if shown.is_empty() {
+            Some(format!("No themes match “{query}”."))
+        } else {
+            None
+        };
         v_flex()
             .id(ids::ROOT)
             .test_support()
             .role(Role::Dialog)
-            .aria_label("Screen Themes")
-            .w(px(360.))
-            .gap_2()
-            .child(
-                div()
-                    .text_size(text::SM.size)
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child("Screen Themes"),
-            )
-            .child(
-                v_flex()
-                    .gap_1()
-                    .child(
-                        div()
-                            .text_size(text::XS.size)
-                            .text_color(muted)
-                            .child("Screen or feed"),
-                    )
-                    .child(screen_select),
-            )
-            .child(kinds)
-            .child(div().text_size(text::XS.size).text_color(muted).child(note))
+            .aria_label("Looks")
+            .w(px(320.))
+            .gap_2p5()
             .child(
                 h_flex()
-                    .id("theme-picker-grid")
-                    .flex_wrap()
+                    .items_center()
+                    .justify_between()
                     .gap_2()
-                    .p_0p5()
-                    .max_h(px(360.))
-                    .overflow_y_scroll()
-                    .children(tiles),
+                    .child(
+                        div()
+                            .text_size(text::SM.size)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("Looks"),
+                    )
+                    .child(div().min_w_0().max_w(px(180.)).child(screen_select)),
             )
-            .when(entries.is_empty(), |d| {
+            .child(kinds)
+            .when(screen.is_none(), |d| {
                 d.child(
                     div()
-                        .id(ids::EMPTY)
-                        .test_support()
-                        .py_6()
-                        .text_center()
                         .text_size(text::XS.size)
                         .text_color(muted)
-                        .child(format!(
-                            "No saved {kind_word} themes yet. Create one in the Theme Editor."
-                        )),
+                        .child("Add a screen or feed in Screens to choose its look."),
                 )
             })
+            .children(search.map(|s| {
+                Input::new(&s)
+                    .id(ids::SEARCH)
+                    .small()
+                    .cleanable(true)
+                    .prefix(Icon::new(KairoIcon::Search).size_3p5().text_color(muted))
+                    .aria_label("Search themes")
+            }))
             .child(
+                v_flex()
+                    .id("theme-picker-list")
+                    .gap_0p5()
+                    .max_h(px(320.))
+                    .overflow_y_scroll()
+                    .children(rows),
+            )
+            .children(empty.map(|text_| {
                 div()
-                    .id(ids::STATUS)
+                    .id(ids::EMPTY)
                     .test_support()
-                    .role(Role::Status)
+                    .py_4()
+                    .text_center()
                     .text_size(text::XS.size)
                     .text_color(muted)
-                    .child(if saving {
-                        "Applying theme…".to_owned()
-                    } else {
-                        self.applied.clone().unwrap_or_default()
-                    }),
-            )
+                    .child(text_)
+            }))
+            .when(saving || self.applied.is_some(), |d| {
+                d.child(
+                    div()
+                        .id(ids::STATUS)
+                        .test_support()
+                        .role(Role::Status)
+                        .text_size(text::XS.size)
+                        .text_color(muted)
+                        .child(if saving {
+                            "Applying…".to_owned()
+                        } else {
+                            self.applied.clone().unwrap_or_default()
+                        }),
+                )
+            })
             .children(self.error.clone().map(|e| {
                 div()
                     .id(ids::ALERT)

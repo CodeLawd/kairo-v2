@@ -18,9 +18,9 @@ use kairo_ui_kit::motion::LISTENING;
 use kairo_ui_kit::tokens::{Step, TextStep, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
-use super::Booth;
 use super::service::ServicePanel;
 use super::text::{TextRun, build_runs};
+use super::{Booth, ListenState};
 use crate::scroll::{Edge, PinnedScroll};
 
 /// Element ids, for tests.
@@ -31,6 +31,8 @@ pub mod ids {
     pub const LISTEN_STATE: &str = "transcript-listen-state";
     pub const LISTENING: &str = "transcript-listening";
     pub const METER: &str = "transcript-meter";
+    /// Retry now, on the connection notice.
+    pub const RETRY: &str = "transcript-retry";
 }
 
 const METER_BARS: usize = 12;
@@ -71,6 +73,9 @@ impl TranscriptPanel {
         let lit = meter_lit(booth.transcribing, level.rms);
         let percent = (kairo_ui_kit::meter_fill(level.rms) * 100.0).round() as u32;
         let state = booth.transcribing.then(|| booth.listen_state());
+        // Five rising bars, like a signal meter: each covers two of the
+        // level steps; amber at the top, red when the input clips.
+        const BARS: usize = METER_BARS / 2;
         let meter = h_flex()
             .id(ids::METER)
             .test_support()
@@ -84,25 +89,23 @@ impl TranscriptPanel {
             } else {
                 format!("Input level {percent}%")
             }))
-            .w(px(78.))
-            .h(px(6.))
+            .h(px(12.))
             .flex_shrink_0()
+            .items_end()
             .gap(px(2.))
-            .children((0..METER_BARS).map(|i| {
-                // Green, amber near the top, red when the input clips.
+            .children((0..BARS).map(|i| {
                 let on = if level.clipping {
                     k.destructive
-                } else if i >= METER_BARS - 2 {
+                } else if i == BARS - 1 {
                     k.hue(kairo_ui_kit::Hue::Amber)
                 } else {
                     k.hue(kairo_ui_kit::Hue::Green)
                 };
                 div()
-                    .min_w_0()
-                    .flex_1()
-                    .h_full()
-                    .rounded(px(1.))
-                    .bg(if lit[i] { on } else { k.surface_elevated })
+                    .w(px(3.))
+                    .h(px(4. + i as f32 * 2.))
+                    .rounded_full()
+                    .bg(if lit[i * 2] { on } else { k.ink(0.14) })
             }));
         h_flex()
             .relative()
@@ -112,48 +115,48 @@ impl TranscriptPanel {
             .justify_between()
             .gap_2()
             .pl_4()
-            .pr_2p5()
+            .pr_3()
             .child(
-                h_flex()
-                    .min_w_0()
-                    .items_center()
-                    .gap_2p5()
-                    .child(
-                        div()
-                            .truncate()
-                            .text_size(text::XS.size)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(k.text(TextStep::T200))
-                            .child("Transcript"),
-                    )
-                    .child(meter)
-                    .when_some(state, |this, state| {
-                        // A dot beside the words, never colour alone.
-                        let dot = if state.is_critical() {
-                            k.danger_text
-                        } else if state.notice().is_some() {
-                            k.warning_text
-                        } else {
-                            k.success_text
-                        };
-                        this.child(
-                            h_flex()
-                                .id(ids::LISTEN_STATE)
-                                .test_support()
-                                .min_w_0()
-                                .items_center()
-                                .gap_1p5()
-                                .child(div().size(px(6.)).flex_shrink_0().rounded_full().bg(dot))
-                                .child(
-                                    div()
-                                        .truncate()
-                                        .text_size(text::LABEL.size)
-                                        .text_color(k.text(TextStep::T400))
-                                        .child(state.label()),
-                                ),
-                        )
-                    }),
+                div()
+                    .truncate()
+                    .text_size(text::SM.size)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(k.text_primary)
+                    .child("Transcript"),
             )
+            .when_some(state, |this, state| {
+                // The meter and the words together in one pill, tinted by how
+                // the connection is doing: never colour alone.
+                let ink = if state.is_critical() {
+                    k.danger_text
+                } else if state.notice().is_some() {
+                    k.warning_text
+                } else {
+                    k.success_text
+                };
+                this.child(
+                    h_flex()
+                        .id(ids::LISTEN_STATE)
+                        .test_support()
+                        .min_w_0()
+                        .h_6()
+                        .items_center()
+                        .gap_2()
+                        .pl_2p5()
+                        .pr_3()
+                        .rounded_full()
+                        .bg(ink.opacity(0.12))
+                        .child(meter)
+                        .child(
+                            div()
+                                .truncate()
+                                .text_size(text::LABEL.size)
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(ink)
+                                .child(state.label()),
+                        ),
+                )
+            })
             .into_any_element()
     }
 
@@ -289,8 +292,8 @@ impl TranscriptPanel {
             .h_12()
             .flex_shrink_0()
             .items_center()
-            .gap_1()
-            .px_2()
+            .gap_2()
+            .px_2p5()
             .border_t_1()
             .border_color(k.surface_line)
             .child(
@@ -317,11 +320,11 @@ impl TranscriptPanel {
                             .small()
                             .icon(
                                 Icon::new(if transcribing {
-                                    KairoIcon::Pause
+                                    KairoIcon::Pause.fill()
                                 } else {
-                                    KairoIcon::Play
+                                    KairoIcon::Play.fill()
                                 })
-                                .size(px(12.)),
+                                .size_3p5(),
                             )
                             .label(label)
                             .tooltip(if transcribing {
@@ -445,29 +448,69 @@ impl Render for TranscriptPanel {
             .border_color(k.surface_line)
             .child(self.header(cx))
             .when_some(notice, |this, (notice, detail)| {
+                // A status, not a button: the words say what is happening and
+                // what Kairo is doing about it. Retry now is the one action,
+                // where retrying can help.
+                let retry = matches!(
+                    state,
+                    ListenState::Stopped | ListenState::Reconnecting | ListenState::MicInterrupted
+                );
+                let busy = self.booth.read(cx).pipeline_busy;
                 this.child(
                     h_flex()
                         .id(ids::RECONNECTING)
                         .test_support()
+                        .role(gpui_kit::Role::Status)
                         .flex_shrink_0()
-                        .flex_wrap()
                         .items_center()
-                        .gap_1p5()
+                        .gap_2p5()
+                        .mx_3()
+                        .mb_2()
                         .px_3()
                         .py_2()
+                        .rounded(kairo_ui_kit::tokens::radius::lg())
                         .bg(tint)
-                        .text_size(text::LABEL.size)
-                        .text_color(ink)
-                        .child(notice)
                         .child(
-                            div()
-                                .rounded_sm()
-                                .px_1p5()
-                                .py_0p5()
-                                .bg(tint)
-                                .text_size(px(9.))
-                                .child(detail),
-                        ),
+                            Icon::new(if state.is_critical() {
+                                KairoIcon::AlertCircle
+                            } else {
+                                KairoIcon::AlertTriangle
+                            })
+                            .size_4()
+                            .flex_none()
+                            .text_color(ink),
+                        )
+                        .child(
+                            v_flex()
+                                .min_w_0()
+                                .flex_1()
+                                .child(
+                                    div()
+                                        .text_size(text::XS.size)
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(ink)
+                                        .child(notice),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(text::LABEL.size)
+                                        .text_color(k.text(TextStep::T400))
+                                        .child(detail),
+                                ),
+                        )
+                        .when(retry, |this| {
+                            this.child(
+                                Button::new(ids::RETRY)
+                                    .cursor_pointer()
+                                    .ghost()
+                                    .xsmall()
+                                    .label(if busy { "Retrying…" } else { "Retry now" })
+                                    .disabled(busy)
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.booth.update(cx, |b, cx| b.retry_listening(cx))
+                                    })),
+                            )
+                        }),
                 )
             })
             .child(

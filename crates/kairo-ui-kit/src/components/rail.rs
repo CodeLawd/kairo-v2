@@ -9,11 +9,12 @@ use crate::tokens::{Appearance, Hue, TextStep, radius, text};
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::{Icon, v_flex};
 use gpui_kit::{
-    App, ClickEvent, ElementId, InteractiveElement, IntoElement, ParentElement, RenderOnce, Role,
-    SharedString, StatefulInteractiveElement, Styled, Window, div, linear_color_stop,
-    linear_gradient, prelude::FluentBuilder, px, transparent_black,
+    AnimationExt, App, ClickEvent, ElementId, InteractiveElement, IntoElement, ParentElement,
+    RenderOnce, Role, SharedString, SpringAnimation, StatefulInteractiveElement, Styled, Window,
+    div, linear_color_stop, linear_gradient, prelude::FluentBuilder, px, transparent_black,
 };
 use std::rc::Rc;
+use std::sync::Arc;
 
 type Handler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
@@ -79,11 +80,24 @@ impl RailItem {
     }
 }
 
+/// A rail item can open a popover (the More menu): "selected" is "its
+/// popover is open", the lifted look `open` gives.
+impl gpui_kit::component::Selectable for RailItem {
+    fn selected(mut self, selected: bool) -> Self {
+        self.open = selected;
+        self
+    }
+    fn is_selected(&self) -> bool {
+        self.open
+    }
+}
+
 impl RenderOnce for RailItem {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
         let k = *cx.kairo();
         let hue = k.hue(self.hue);
         let lifted = self.active || self.open;
+        let lift_id = ElementId::NamedChild(Arc::new(self.id.clone()), "lift".into());
         let dark = k.appearance == Appearance::Dark;
         let active_rim = if dark {
             k.white.opacity(0.16)
@@ -117,31 +131,55 @@ impl RenderOnce for RailItem {
             .border_1()
             .px_0p5()
             .py_1()
-            .map(|this| {
-                if lifted {
-                    this.bg(k.surface_tertiary)
-                        .border_color(active_rim)
-                        .shadow_sm()
+            .text_color(if lifted { hue } else { k.text(TextStep::T500) })
+            .border_color(transparent_black())
+            .when(!lifted, |this| {
+                this.hover(move |s| {
+                    s.bg(k.surface_tertiary.opacity(0.75))
+                        .border_color(hover_rim)
                         .text_color(hue)
-                        .child(div().absolute().inset_0().rounded(radius::lg()).bg(
-                            linear_gradient(
+                })
+            })
+            // The lifted tile is a layer under the mark that springs in and
+            // out, so the highlight glides from the old item to the new one.
+            .child(
+                div()
+                    .absolute()
+                    .inset_0()
+                    .rounded(radius::lg())
+                    .bg(k.surface_tertiary)
+                    .border_1()
+                    .border_color(active_rim)
+                    .shadow_sm()
+                    .child(
+                        div()
+                            .absolute()
+                            .inset_0()
+                            .rounded(radius::lg())
+                            .bg(linear_gradient(
                                 180.,
                                 linear_color_stop(sheen_top, 0.0),
                                 linear_color_stop(k.white.opacity(0.0), 0.55),
-                            ),
-                        ))
-                } else {
-                    this.border_color(transparent_black())
-                        .text_color(k.text(TextStep::T500))
-                        .hover(move |s| {
-                            s.bg(k.surface_tertiary.opacity(0.75))
-                                .border_color(hover_rim)
-                                .text_color(hue)
-                        })
-                }
-            })
+                            )),
+                    )
+                    .map(|layer| {
+                        if cx.reduced_motion() {
+                            layer
+                                .opacity(if lifted { 1.0 } else { 0.0 })
+                                .into_any_element()
+                        } else {
+                            layer
+                                .with_spring(
+                                    lift_id,
+                                    SpringAnimation::new(crate::motion::SPRING_SOFT).to(lifted),
+                                    |layer, phase| layer.opacity(phase.0.clamp(0.0, 1.0)),
+                                )
+                                .into_any_element()
+                        }
+                    }),
+            )
             .focus_visible(move |s| s.border_2().border_color(hue.opacity(0.6)))
-            .child(Icon::new(self.icon.fill()).size_5())
+            .child(Icon::new(self.icon.fill()).size_6())
             .when(!self.compact, |this| {
                 this.child(
                     div()

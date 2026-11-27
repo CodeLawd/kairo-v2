@@ -700,6 +700,7 @@ impl Teleprompter {
             StageOperation::Play => self.set_playing(true, window, cx),
             StageOperation::Pause => self.set_playing(false, window, cx),
             StageOperation::Scroll { lines } => {
+                self.sync_offset();
                 self.scroll_preview(self.offset + lines as f32 * self.line_px())
             }
             StageOperation::Seek { anchor } => {
@@ -733,6 +734,13 @@ impl Teleprompter {
 
     fn guide_px(&self) -> f32 {
         f32::from(self.preview_scroll.bounds().size.height) * GUIDE
+    }
+
+    /// Takes the preview's real position: a mouse wheel moves the view
+    /// without telling us, and writing the stale `offset` back made it jump.
+    fn sync_offset(&mut self) {
+        let max = f32::from(self.preview_scroll.max_offset().y).max(0.0);
+        self.offset = f32::from(-self.preview_scroll.offset().y).clamp(0.0, max);
     }
 
     fn scroll_preview(&mut self, offset: f32) {
@@ -787,6 +795,8 @@ impl Teleprompter {
             .last_tick
             .map_or(0.0, |last| now.duration_since(last).as_secs_f32());
         self.last_tick = Some(now);
+        // Playing on from wherever the operator scrolled to.
+        self.sync_offset();
         let max = f32::from(self.preview_scroll.max_offset().y).max(0.0);
         let rate = self.lines_scale().unwrap_or(self.line_px()) * self.layout.speed as f32;
         self.scroll_preview(self.offset + rate * elapsed);
@@ -801,6 +811,7 @@ impl Teleprompter {
     }
 
     fn toggle_play(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.sync_offset();
         if !self.playing
             && f32::from(self.preview_scroll.max_offset().y) > 0.0
             && self.offset >= f32::from(self.preview_scroll.max_offset().y)

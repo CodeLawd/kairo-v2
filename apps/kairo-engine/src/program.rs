@@ -302,11 +302,16 @@ impl Shell {
                     let theme = slide.theme.value().unwrap_or(Value::Null);
                     let bg = theme.get("background").cloned().unwrap_or(Value::Null);
                     let plan = visuals::background(&bg, (FRAME_WIDTH as u32, self.frame_height));
-                    vec![Op::Keyed {
-                        slot: Slot::Background,
-                        content: plan.content.map(|c| (c, plan.key)),
-                        ms: 0,
-                    }]
+                    // A still whose motion changed is a new picture to compose.
+                    if plan.image.is_some() && self.background_key.as_deref() != Some(&plan.key) {
+                        vec![self.background(slide, 0, 0)]
+                    } else {
+                        vec![Op::Keyed {
+                            slot: Slot::Background,
+                            content: plan.content.map(|c| (c, plan.key)),
+                            ms: 0,
+                        }]
+                    }
                 }
                 None => vec![],
             },
@@ -1341,6 +1346,31 @@ mod tests {
         let second = shell.command(&slide_command(theme2.clone()), &a, &state_with(theme2));
         assert!(!shell.is_current(Slot::Background, old));
         assert!(shell.is_current(Slot::Background, second.visuals[0].generation));
+    }
+
+    #[test]
+    fn a_patch_that_changes_a_stills_motion_composes_it_again() {
+        let mut shell = Shell::new("o", 1080);
+        let theme = json!({"background": {"type": "image", "mediaPath": "/a.png", "opacity": 1}});
+        let state = state_with(theme.clone());
+        shell.command(&slide_command(theme), &state_with(json!({})), &state);
+        let moving = state_with(
+            json!({"background": {"type": "image", "mediaPath": "/a.png",
+            "opacity": 1, "motion": {"camera": "zoom", "atmosphere": "dust"}}}),
+        );
+        let planned = shell.command(
+            &Command::PatchBackground {
+                output: "o".into(),
+                playback: Json::from_value(
+                    &json!({"motion": {"camera": "zoom", "atmosphere": "dust"}}),
+                ),
+                filter: String::new(),
+            },
+            &state,
+            &moving,
+        );
+        assert_eq!(planned.visuals.len(), 1, "the moving picture is composed");
+        assert!(planned.visuals[0].key.starts_with("IMG:/a.png:{"));
     }
 
     #[test]

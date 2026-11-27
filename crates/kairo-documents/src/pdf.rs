@@ -44,6 +44,7 @@ fn candidate_dirs() -> Vec<PathBuf> {
         .and_then(|p| p.parent().map(Path::to_path_buf))
     {
         dirs.push(exe_dir.join("../Frameworks"));
+        dirs.push(exe_dir.join("../../../../Frameworks"));
         dirs.push(exe_dir);
     }
     // A development build has no bundle: use the workspace's fetched copy,

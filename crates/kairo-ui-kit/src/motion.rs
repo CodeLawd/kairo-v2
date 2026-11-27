@@ -12,7 +12,10 @@
 
 use crate::theme::KairoThemeExt;
 use gpui_kit::base::Easing;
-use gpui_kit::{Animation, AnimationExt, App, ElementId, IntoElement, Styled, px, relative};
+use gpui_kit::{
+    Animation, AnimationExt, App, ElementId, IntoElement, SpringConfig, Styled, px, relative,
+    sampled_easing,
+};
 use std::time::Duration;
 
 /// One keyframe's values. Defaults are the element at rest.
@@ -665,6 +668,128 @@ where
             id,
             Animation::new(Duration::from_millis(SPRING_IN.duration_ms)),
             move |el, delta| el.opacity(curve.sample(delta).clamp(0.0, 1.0)),
+        )
+        .into_any_element()
+}
+
+/// A quick spring with a hint of overshoot (damping ratio ≈ 0.8): menus,
+/// panels and dialogs land rather than appear. Settles in about 0.25 s.
+pub const SPRING_POP: SpringConfig = SpringConfig::new(520.0, 36.0, 1.0);
+
+/// A calmer spring for a highlight moving between items (the rail's
+/// current workspace, a step coming on).
+pub const SPRING_SOFT: SpringConfig = SpringConfig::new(300.0, 30.0, 1.0);
+
+/// How far a popover or panel travels as it lands.
+pub const POP_DISTANCE: f32 = 8.0;
+
+/// How far a dialog rises as it lands.
+pub const DIALOG_DISTANCE: f32 = 14.0;
+
+/// How long a closing overlay takes to fade.
+pub const EXIT_MS: u64 = 140;
+
+/// Where an entering surface comes from: the side of its trigger it opens
+/// away from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum From {
+    /// It rises (a dialog, a page).
+    Below,
+    /// It drops (a menu under a toolbar button).
+    Above,
+    /// It slides out from its leading edge (a menu beside the rail).
+    Leading,
+}
+
+impl From {
+    fn offset(self, distance: f32) -> (f32, f32) {
+        match self {
+            From::Below => (0.0, distance),
+            From::Above => (0.0, -distance),
+            From::Leading => (-distance, 0.0),
+        }
+    }
+}
+
+/// The spring's progress as an easing, and how long it runs.
+fn spring(config: SpringConfig) -> Animation {
+    let (duration, ease) = sampled_easing(config, 0.002);
+    Animation::new(duration).with_easing(ease)
+}
+
+/// Fade early, travel on the spring: GPUI has no group opacity, so a panel
+/// that stays see-through for long shows its own shadow through it.
+fn fade(progress: f32) -> f32 {
+    (progress * 2.2).clamp(0.0, 1.0)
+}
+
+/// A popover, menu or panel landing: it fades in while travelling
+/// [`POP_DISTANCE`] from `from` on [`SPRING_POP`]. The element becomes
+/// `relative`, so use it on in-flow elements only. Reduced motion shows it at
+/// rest at once.
+pub fn pop_in<E>(element: E, id: impl Into<ElementId>, from: From, cx: &App) -> gpui_kit::AnyElement
+where
+    E: IntoElement + Styled + 'static,
+{
+    travel_in(element, id, from, POP_DISTANCE, cx)
+}
+
+/// [`pop_in`] with a chosen distance.
+pub fn travel_in<E>(
+    element: E,
+    id: impl Into<ElementId>,
+    from: From,
+    distance: f32,
+    cx: &App,
+) -> gpui_kit::AnyElement
+where
+    E: IntoElement + Styled + 'static,
+{
+    if cx.reduced_motion() {
+        return element.into_any_element();
+    }
+    let (dx, dy) = from.offset(distance);
+    element
+        .with_animation(id, spring(SPRING_POP), move |el, p| {
+            el.opacity(fade(p))
+                .relative()
+                .left(px(dx * (1.0 - p)))
+                .top(px(dy * (1.0 - p)))
+        })
+        .into_any_element()
+}
+
+/// A dialog landing inside a full-window layer: the layer's top edge moves,
+/// so absolutely placed children rise with it. For an `absolute().inset_0()`
+/// element that holds the dialog.
+pub fn rise_in<E>(element: E, id: impl Into<ElementId>, cx: &App) -> gpui_kit::AnyElement
+where
+    E: IntoElement + Styled + 'static,
+{
+    if cx.reduced_motion() {
+        return element.into_any_element();
+    }
+    element
+        .with_animation(id, spring(SPRING_POP), move |el, p| {
+            el.opacity(fade(p)).top(px(DIALOG_DISTANCE * (1.0 - p)))
+        })
+        .into_any_element()
+}
+
+/// A layer leaving: it fades out over [`EXIT_MS`]. Opacity only, so absolute
+/// layers keep their place. The caller keeps it mounted that long.
+pub fn fade_out<E>(element: E, id: impl Into<ElementId>, cx: &App) -> gpui_kit::AnyElement
+where
+    E: IntoElement + Styled + 'static,
+{
+    if cx.reduced_motion() {
+        return element.opacity(0.0).into_any_element();
+    }
+    element
+        .with_animation(
+            id,
+            Animation::new(Duration::from_millis(EXIT_MS)),
+            move |el, t| el.opacity(1.0 - OUT_EXPO.sample(t)),
         )
         .into_any_element()
 }

@@ -40,7 +40,10 @@ pub fn enabled(os: &str, flag: Option<&str>) -> bool {
 /// committed prebuilt helper. The first that exists wins; the provider says
 /// "not included in this build" if none does.
 pub fn helper_path(exe_dir: &Path, repo: Option<&Path>, exists: impl Fn(&Path) -> bool) -> PathBuf {
-    let mut candidates = vec![exe_dir.join("../Resources/decklink/decklink-helper")];
+    let mut candidates = vec![
+        exe_dir.join("../Resources/decklink/decklink-helper"),
+        exe_dir.join("../../../../Resources/decklink/decklink-helper"),
+    ];
     if let Some(repo) = repo {
         candidates.push(repo.join("native/decklink/build/decklink-helper"));
         candidates.push(repo.join("native/decklink/prebuilt/decklink-helper"));
@@ -97,9 +100,19 @@ struct Ran {
     stderr: String,
 }
 
+/// The helper is a console program: on Windows it must not open a terminal.
+fn no_window(command: &mut Command) -> &mut Command {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    command
+}
+
 /// Runs the helper with a deadline; killed if it overruns.
 fn run(helper: &Path, args: &[&str], timeout: Duration) -> Result<Ran, String> {
-    let mut child = Command::new(helper)
+    let mut child = no_window(&mut Command::new(helper))
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -373,7 +386,10 @@ impl Provider for DeckLinkProvider {
             Some(_) => args.extend(["--play-shm", port_id, mode_id, &name]),
             None => args.extend(["--play", port_id, mode_id]),
         }
-        let playback = Playback::spawn(Command::new(&self.helper).args(&args), STARTUP_TIMEOUT)?;
+        let playback = Playback::spawn(
+            no_window(&mut Command::new(&self.helper)).args(&args),
+            STARTUP_TIMEOUT,
+        )?;
         let ring = match (ring, playback.ring_status()) {
             (Some(ring), Some(Ok(()))) => Some(ring),
             (Some(_), status) => {

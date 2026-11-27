@@ -389,11 +389,26 @@ async fn run(
             services.orchestrator.stop().await;
             done
         }
-        BoothCall::Service(command) => services
-            .records
-            .command(command)
-            .await
-            .map(BoothAnswer::Services),
+        BoothCall::Service(command) => {
+            let ended = matches!(
+                command,
+                kairo_domain::services::ServiceCommand::End { .. }
+                    | kairo_domain::services::ServiceCommand::Discard
+            );
+            let answer = services.records.command(command).await?;
+            if ended {
+                // The service closed cleanly: nothing to restore on the next
+                // launch, so the crash-recovery snapshot goes too.
+                if let Err(error) = services
+                    .core
+                    .call(kairo_core::resilience::DiscardRecovery)
+                    .await
+                {
+                    tracing::warn!(%error, "[Booth] could not clear session recovery");
+                }
+            }
+            Ok(BoothAnswer::Services(answer))
+        }
         BoothCall::RestoreSession => {
             let active = services
                 .core

@@ -885,3 +885,46 @@ fn the_preview_follows_the_outputs_videos(cx: &mut TestAppContext) {
     advance(cx, &o, 400);
     assert_eq!(read(cx, &o, |p| p.clips_shown()), [false]);
 }
+
+#[gpui_kit::test]
+fn the_shell_s_next_and_previous_page_slides_without_focus(cx: &mut TestAppContext) {
+    use kairo_domain::settings::ShortcutCommand;
+    let core = Core::new(vec![doc("a", "Talk", 3)]);
+    let o = open(cx, core.clone());
+    click(cx, &o, &ids::document("a"));
+    // What the shell sends when the clicker's key lands outside the page.
+    act(cx, &o, |p, _, cx| {
+        assert!(p.clicker(ShortcutCommand::Next, cx));
+    });
+    act(cx, &o, |p, _, cx| {
+        assert!(p.clicker(ShortcutCommand::Next, cx));
+    });
+    act(cx, &o, |p, _, cx| {
+        assert!(p.clicker(ShortcutCommand::Previous, cx));
+    });
+    assert_eq!(core.pushes(), [1, 2, 1]);
+    act(cx, &o, |p, _, cx| {
+        assert!(
+            !p.clicker(ShortcutCommand::Clear, cx),
+            "only Next and Previous"
+        );
+    });
+}
+
+#[gpui_kit::test]
+fn a_live_deck_steps_from_another_screen_and_owns_the_key_at_its_ends(cx: &mut TestAppContext) {
+    let core = Core::new(vec![doc("a", "Talk", 3), doc("b", "Other", 2)]);
+    let o = open(cx, core.clone());
+    // Nothing live: the key stays with the open screen.
+    act(cx, &o, |p, _, cx| assert!(!p.step_live(1, cx)));
+    click(cx, &o, &ids::document("a"));
+    press(cx, &o, "pagedown");
+    assert_eq!(core.pushes(), [1]);
+    // The operator opens another deck here; the live one still steps.
+    click(cx, &o, &ids::document("b"));
+    act(cx, &o, |p, _, cx| assert!(p.step_live(1, cx)));
+    assert_eq!(core.pushes(), [1, 2]);
+    // At the end the key is still the deck's, and nothing moves.
+    act(cx, &o, |p, _, cx| assert!(p.step_live(1, cx)));
+    assert_eq!(core.pushes(), [1, 2]);
+}

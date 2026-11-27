@@ -170,8 +170,13 @@ impl Inner {
                     });
                 }
             };
-            let plan = work::plan(&transport, current.as_ref(), &asked, &thought).await?;
+            let mut plan = work::plan(&transport, current.as_ref(), &asked, &thought).await?;
             let mut action = plan.action;
+            // When the operator plainly asked for movement and the assistant
+            // only planned a picture, the picture still moves.
+            if plan.motion.is_none() && matches!(action, Action::Image | Action::EditImage) {
+                plan.motion = kairo_imagine::motion::motion_hint(&message).map(str::to_owned);
+            }
             // Inside an image, "make an image" means change it.
             if action == Action::Image && current.as_ref().is_some_and(|p| p.kind == Kind::Image) {
                 action = Action::EditImage;
@@ -216,8 +221,24 @@ impl Inner {
                 slides: Vec::new(),
             };
             let deck_plan = plan.deck.as_ref().unwrap_or(&empty);
-            match (action, &project, &from) {
-                (Action::Ask, _, _) => Ok(ImagineAnswer::Reply(plan.reply)),
+            let answer = match (action, &project, &from) {
+                (Action::Ask, _, _) => Ok(ImagineAnswer::Reply(plan.reply.clone())),
+                (Action::Motion, Some(p), Some(from)) => {
+                    let motion = plan.motion.clone().unwrap_or_else(|| "dust".into());
+                    match self
+                        .save_to_media(p.clone(), from.clone(), Some(motion.clone()))
+                        .await
+                    {
+                        Ok(ImagineAnswer::Project(project)) => Ok(ImagineAnswer::Moved {
+                            reply: plan.reply.clone(),
+                            motion,
+                            project,
+                            made: false,
+                        }),
+                        Ok(other) => Ok(other),
+                        Err(e) => Err(ImagineError::Media(e)),
+                    }
+                }
                 (Action::EditImage, Some(p), Some(from)) => {
                     work::refine(store, &transport, p, from, &message, &prompt, reply, look)
                         .await
@@ -252,6 +273,32 @@ impl Inner {
                             .map(ImagineAnswer::Project)
                     }
                 }
+            }?;
+            // A picture asked for moving is saved to Media moving straight away.
+            match (answer, plan.motion.clone()) {
+                (ImagineAnswer::Project(made), Some(motion))
+                    if matches!(action, Action::Image | Action::EditImage) =>
+                {
+                    let saved = self
+                        .save_to_media(made.id.clone(), made.selected.clone(), Some(motion.clone()))
+                        .await;
+                    Ok(match saved {
+                        Ok(ImagineAnswer::Project(project)) => ImagineAnswer::Moved {
+                            reply: plan.reply,
+                            motion,
+                            project,
+                            made: true,
+                        },
+                        // The picture is made either way; Save to Media can be tried again.
+                        other => {
+                            if let Err(error) = other {
+                                tracing::warn!(%error, "[Imagine] saving the moving version failed");
+                            }
+                            ImagineAnswer::Project(made)
+                        }
+                    })
+                }
+                (answer, _) => Ok(answer),
             }
         };
         // Dropping `work` on cancel drops the request; nothing was recorded.
@@ -386,8 +433,12 @@ impl Inner {
         self: &Arc<Self>,
         project: String,
         version: String,
+        motion: Option<String>,
     ) -> Result<ImagineAnswer, String> {
-        let (source, name) = {
+        let preset = motion
+            .as_deref()
+            .and_then(kairo_imagine::motion::MotionPreset::by_key);
+        let (source, name, look) = {
             let store = lock(self.store()?);
             let p = store.get(&project).map_err(|e| e.to_string())?;
             let index = p
@@ -395,9 +446,62 @@ impl Inner {
                 .iter()
                 .position(|v| v.id == version)
                 .ok_or_else(|| ImagineError::Missing.to_string())?;
-            let file = store.file_path(&p.versions[index].file);
-            (file, media_name(&p.title, index + 1))
+            let v = &p.versions[index];
+            let look = work::Look {
+                model: v.model.unwrap_or_default(),
+                quality: v.quality,
+            };
+            (
+                store.file_path(&v.file),
+                media_name(&p.title, index + 1),
+                look,
+            )
         };
+        let bytes = std::fs::read(&source).map_err(|e| e.to_string())?;
+        // Parallax: one more request cuts the foreground out on transparency.
+        let mut layers = Vec::new();
+        if preset.is_some_and(|p| p.depth) {
+            let key = self
+                .key()
+                .await
+                .ok_or_else(|| ImagineError::NotConnected.to_string())?;
+            let transport = OwnKeyTransport::new(key);
+            let layer = work::depth_layer(self.store()?, &transport, &project, &version, look)
+                .await
+                .map_err(|e| e.to_string())?;
+            layers.push(layer.to_string_lossy().into_owned());
+        }
+        self.import(&name, &bytes, preset.map(|p| p.value(&layers)), &version)
+            .await?;
+        let marked = lock(self.store()?).mark_saved(&project, &version);
+        marked
+            .map(ImagineAnswer::Project)
+            .map_err(|e| e.to_string())
+    }
+
+    /// A motion loop: drawn here, no image request, saved moving.
+    async fn save_loop(self: &Arc<Self>, key: String) -> Result<ImagineAnswer, String> {
+        use kairo_imagine::motion::{MotionLoop, MotionPreset, render_loop};
+        let l = MotionLoop::by_key(&key).ok_or_else(|| ImagineError::Missing.to_string())?;
+        let bytes = tokio::task::spawn_blocking(move || render_loop(&l, (1920, 1080)))
+            .await
+            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())?;
+        let motion = MotionPreset::by_key(l.preset).map(|p| p.value(&[]));
+        self.import(&format!("{} loop.png", l.title), &bytes, motion, &key)
+            .await?;
+        Ok(ImagineAnswer::Done)
+    }
+
+    /// Imports `bytes` as `name` into Imagine's playlist (made the first
+    /// time), then gives the new item its `motion`. Never goes live.
+    async fn import(
+        self: &Arc<Self>,
+        name: &str,
+        bytes: &[u8],
+        motion: Option<serde_json::Value>,
+        tag: &str,
+    ) -> Result<(), String> {
         let actions = self.services.actions();
         let no_folder = lock(&self.services.media).library().folder.is_empty();
         if no_folder && actions.choose_media_folder().await?.folder.is_empty() {
@@ -405,13 +509,13 @@ impl Inner {
         }
         // The media library names items after their file, so import a copy
         // with a readable name.
-        let staging = std::env::temp_dir().join(format!("kairo-imagine-{}", uuid_suffix(&version)));
+        let staging = std::env::temp_dir().join(format!("kairo-imagine-{}", uuid_suffix(tag)));
         std::fs::create_dir_all(&staging).map_err(|e| e.to_string())?;
         let copy = staging.join(name);
-        std::fs::copy(&source, &copy).map_err(|e| e.to_string())?;
+        std::fs::write(&copy, bytes).map_err(|e| e.to_string())?;
         // Into Imagine's own playlist, made the first time, so saved
         // pictures are easy to find in the Media dock.
-        let playlist = {
+        let (playlist, before) = {
             let mut media = lock(&self.services.media);
             let find = |l: &kairo_domain::media::MediaLibrary| {
                 l.playlists
@@ -419,18 +523,27 @@ impl Inner {
                     .find(|p| p.name == kairo_domain::media::IMAGINE_PLAYLIST)
                     .map(|p| p.id.clone())
             };
-            match find(&media.library()) {
+            let library = media.library();
+            let before: std::collections::HashSet<String> =
+                library.items.iter().map(|i| i.id.clone()).collect();
+            let playlist = match find(&library) {
                 Some(id) => Some(id),
                 None => find(&media.create_playlist(kairo_domain::media::IMAGINE_PLAYLIST)),
-            }
+            };
+            (playlist, before)
         };
         let imported = actions.import_media_files(playlist, vec![copy]).await;
         let _ = std::fs::remove_dir_all(&staging);
-        imported?;
-        let marked = lock(self.store()?).mark_saved(&project, &version);
-        marked
-            .map(ImagineAnswer::Project)
-            .map_err(|e| e.to_string())
+        let library = imported?;
+        if let Some(motion) = motion {
+            let new = library.items.iter().find(|i| !before.contains(&i.id));
+            if let Some(item) = new {
+                let mut patch = serde_json::Map::new();
+                patch.insert("motion".into(), motion);
+                actions.set_media_playback(&item.id, &patch, true)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -497,9 +610,12 @@ impl ImagineBackend for ServicesImagine {
                         .map(ImagineAnswer::Project)
                         .map_err(|e| e.to_string())
                 }),
-                ImagineCall::SaveToMedia { project, version } => {
-                    inner.save_to_media(project, version).await
-                }
+                ImagineCall::SaveToMedia {
+                    project,
+                    version,
+                    motion,
+                } => inner.save_to_media(project, version, motion).await,
+                ImagineCall::SaveLoop(key) => inner.save_loop(key).await,
                 ImagineCall::Delete(project) => inner.store().and_then(|s| {
                     lock(s)
                         .delete(&project)

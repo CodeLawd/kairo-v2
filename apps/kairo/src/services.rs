@@ -1699,6 +1699,17 @@ impl ApplicationServices {
                         .await;
                     services.orchestrator.clear_overlay().await;
                 }
+                SetCapture(record) => {
+                    let handlers = crate::handlers::Handlers(services.clone());
+                    let outcome = if record {
+                        handlers.start_capture().await
+                    } else {
+                        handlers.stop_capture().await
+                    };
+                    if let Err(error) = outcome {
+                        tracing::error!(%error, record, "[Shell] capture from the Screens menu failed");
+                    }
+                }
                 SetScreenGroupEnabled { stage, enabled } => {
                     let edit = ui_screens::model::Edit::Group { stage, enabled };
                     if let Err(error) = crate::screens::persist(&services, edit).await {

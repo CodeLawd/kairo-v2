@@ -8,14 +8,22 @@ use crate::js;
 use crate::normalize::{as_object, clamp_num, safe_bool, safe_color, safe_enum, safe_string};
 use crate::overlay::{
     MediaFit, OverlayBox, OverlayElement, OverlayElementKind, OverlayElementStroke,
+    OverlayTextAlign,
 };
 use crate::overlay_boxes::{ELEMENT_BOX_MIN, clamp_overlay_box, overlay_box};
 use crate::overlay_shapes::overlay_shape;
 use crate::serde_util::Extra;
 use serde_json::Value;
 
-/// `OVERLAY_ELEMENT_KINDS`.
-pub const OVERLAY_ELEMENT_KINDS: &[OverlayElementKind] = OverlayElementKind::ALL;
+/// `OVERLAY_ELEMENT_KINDS`: the kinds Electron themes know. Text and Path
+/// are native only, so a theme opened in Electron loses them.
+pub const OVERLAY_ELEMENT_KINDS: &[OverlayElementKind] = &[
+    OverlayElementKind::Rectangle,
+    OverlayElementKind::Ellipse,
+    OverlayElementKind::Shape,
+    OverlayElementKind::Image,
+    OverlayElementKind::Video,
+];
 
 /// `MAX_OVERLAY_ELEMENTS`: each element is a layer on every output.
 pub const MAX_OVERLAY_ELEMENTS: usize = 40;
@@ -38,8 +46,22 @@ pub fn overlay_element_label(kind: OverlayElementKind, shape: Option<&str>) -> &
         OverlayElementKind::Ellipse => "Ellipse",
         OverlayElementKind::Image => "Image",
         OverlayElementKind::Video => "Video",
+        OverlayElementKind::Text => "Text",
+        OverlayElementKind::Path => "Path",
     }
 }
+
+/// Whether `el` is drawn as a line only: a line shape or an open pen path.
+pub fn element_is_line(el: &OverlayElement) -> bool {
+    is_line_element(el.kind, el.shape.as_deref())
+        || (el.kind == OverlayElementKind::Path && !el.path_closed())
+}
+
+/// A new text element's words.
+pub const TEXT_PLACEHOLDER: &str = "Your text";
+/// A new text element's size, in pixels on a 1080-high frame.
+pub const TEXT_DEFAULT_SIZE_PX: f64 = 72.0;
+pub const TEXT_DEFAULT_WEIGHT: f64 = 600.0;
 
 fn default_box() -> OverlayBox {
     overlay_box(40.0, 32.22, 20.0, 35.56)
@@ -49,6 +71,9 @@ fn default_line_box() -> OverlayBox {
 }
 fn default_media_box() -> OverlayBox {
     overlay_box(35.0, 32.5, 30.0, 35.0)
+}
+fn default_text_box() -> OverlayBox {
+    overlay_box(25.0, 40.0, 50.0, 20.0)
 }
 
 /// `createOverlayElement(kind, mediaPath, id, shape)`.
@@ -69,6 +94,8 @@ pub fn create_overlay_element(
         },
         frame: if is_media_element(kind) {
             default_media_box()
+        } else if kind == OverlayElementKind::Text {
+            default_text_box()
         } else if line {
             default_line_box()
         } else {
@@ -95,6 +122,12 @@ pub fn create_overlay_element(
         brightness: 1.0,
         contrast: 1.0,
         blur_px: 0.0,
+        text: (kind == OverlayElementKind::Text).then(|| TEXT_PLACEHOLDER.to_owned()),
+        font_family: None,
+        font_size_px: (kind == OverlayElementKind::Text).then_some(TEXT_DEFAULT_SIZE_PX),
+        font_weight: (kind == OverlayElementKind::Text).then_some(TEXT_DEFAULT_WEIGHT),
+        text_align: (kind == OverlayElementKind::Text).then_some(OverlayTextAlign::Center),
+        path: None,
         extra: Extra::new(),
     }
 }
@@ -123,7 +156,21 @@ pub fn normalize_overlay_element(raw: Option<&Value>) -> Option<OverlayElement> 
     if kind == OverlayElementKind::Shape && overlay_shape(shape.as_deref()).is_none() {
         return None;
     }
+    // A pen path without its points draws nothing.
+    let path = (kind == OverlayElementKind::Path)
+        .then(|| safe_string(r.get("path"), ""))
+        .filter(|p| !js::trim(p).is_empty());
+    if kind == OverlayElementKind::Path && path.is_none() {
+        return None;
+    }
     let d = create_overlay_element(kind, None, id, shape.as_deref());
+    let is_text = kind == OverlayElementKind::Text;
+    let font_family = match r.get("fontFamily") {
+        Some(Value::String(f)) if is_text && !js::trim(f).is_empty() => {
+            Some(js::trim(f).to_owned())
+        }
+        _ => None,
+    };
     let b = as_object(r.get("box"));
     let s = as_object(r.get("stroke"));
     let media_path = match r.get("mediaPath") {
@@ -166,6 +213,14 @@ pub fn normalize_overlay_element(raw: Option<&Value>) -> Option<OverlayElement> 
         brightness: clamp_num(r.get("brightness"), 0.25, 1.75, d.brightness),
         contrast: clamp_num(r.get("contrast"), 0.25, 1.75, d.contrast),
         blur_px: clamp_num(r.get("blurPx"), 0.0, 40.0, d.blur_px),
+        text: is_text.then(|| safe_string(r.get("text"), TEXT_PLACEHOLDER)),
+        font_family,
+        font_size_px: is_text
+            .then(|| clamp_num(r.get("fontSizePx"), 8.0, 400.0, TEXT_DEFAULT_SIZE_PX)),
+        font_weight: is_text
+            .then(|| clamp_num(r.get("fontWeight"), 100.0, 900.0, TEXT_DEFAULT_WEIGHT)),
+        text_align: is_text.then(|| safe_enum(r.get("textAlign"), OverlayTextAlign::Center)),
+        path,
         ..d
     })
 }

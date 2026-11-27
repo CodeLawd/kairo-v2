@@ -68,7 +68,7 @@ fn the_top_bar_and_rail_are_named_and_pressable(cx: &mut TestAppContext) {
 
     // Every rail button, in rail order, and the current one is selected.
     let rail: Vec<_> = [
-        "Operator", "Bible", "Lyrics", "Slides", "Engage", "Web", "Theme",
+        "Operator", "Bible", "Lyrics", "Slides", "Engage", "Web", "More",
     ]
     .iter()
     .map(|name| {
@@ -82,7 +82,7 @@ fn the_top_bar_and_rail_are_named_and_pressable(cx: &mut TestAppContext) {
     assert_eq!(rail[0].selected, Some(true));
     assert!(rail[1..].iter().all(|n| n.selected != Some(true)));
 
-    for route in [Route::Scripture, Route::Lyrics, Route::Theme] {
+    for route in [Route::Scripture, Route::Lyrics, Route::Imagine] {
         cx.update(|cx| shell.update(cx, |s, cx| s.navigate(route, cx)));
         let t = tree(cx, handle);
         t.assert_accessible();
@@ -95,8 +95,15 @@ fn the_top_bar_and_rail_are_named_and_pressable(cx: &mut TestAppContext) {
         assert_eq!(selected.len(), 1, "{route:?}: {selected:?}");
     }
 
+    // A workspace from the More menu selects the More button.
+    cx.update(|cx| shell.update(cx, |s, cx| s.navigate(Route::Theme, cx)));
+    let t = tree(cx, handle);
+    assert_eq!(t.named("More").selected, Some(true));
+    cx.update(|cx| shell.update(cx, |s, cx| s.navigate(Route::Operator, cx)));
+    let t = tree(cx, handle);
+
     // The footer's popover buttons open from VoiceOver as well as the mouse.
-    for name in ["Feedback", "Audio", "Account", "Settings"] {
+    for name in ["More", "Account"] {
         assert!(t.named(name).pressable(), "{name}");
     }
 }
@@ -104,7 +111,7 @@ fn the_top_bar_and_rail_are_named_and_pressable(cx: &mut TestAppContext) {
 #[gpui_kit::test]
 fn rail_popovers_still_open_with_the_mouse(cx: &mut TestAppContext) {
     let (handle, _) = open(cx);
-    for button in ["audio", "account", "feedback"] {
+    for button in ["rail-apps", "account"] {
         assert!(tree(cx, handle).with_role("Dialog").is_empty());
         cx.update_window(handle, |_, window, cx| window.click(button, cx))
             .unwrap();
@@ -131,11 +138,8 @@ fn the_quit_question_holds_focus_and_gives_it_back(cx: &mut TestAppContext) {
     let t = tree(cx, handle);
     assert_eq!(t.named("Quit Kairo?").role, "AlertDialog");
     assert!(t.focus_within("Quit Kairo?"), "focus moved into the dialog");
-    // DESIGN.md: Keep Kairo open receives initial focus.
-    assert_eq!(
-        t.focused().and_then(|n| n.label.as_deref()),
-        Some("Keep Kairo open")
-    );
+    // Cancel receives initial focus: a stray Return must not quit mid-service.
+    assert_eq!(t.focused().and_then(|n| n.label.as_deref()), Some("Cancel"));
     for _ in 0..6 {
         cx.update_window(handle, |_, window, cx| window.press("tab", cx))
             .unwrap();

@@ -109,8 +109,64 @@ pub struct MediaPlayback {
     pub saturation: f64,
     pub brightness: f64,
     pub contrast: f64,
+    /// A still's motion (Kairo native only; Electron never wrote it).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub motion: Option<MediaMotion>,
     #[serde(flatten)]
     pub extra: Extra,
+}
+
+/// Camera moves a still can make.
+pub const MOTION_CAMERAS: &[&str] = &["zoom", "drift", "pan"];
+/// Atmospheres the engine draws over a still.
+pub const MOTION_ATMOSPHERES: &[&str] = &["dust", "bokeh", "rays", "haze"];
+/// Parallax layers a still can carry, at most.
+pub const MAX_MOTION_LAYERS: usize = 3;
+
+/// A still that moves: a slow camera move, an atmosphere drawn over it, and
+/// transparent layers in front of it that drift further (parallax).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct MediaMotion {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub atmosphere: Option<String>,
+    /// Absolute paths of transparent pictures, back to front.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub layers: Vec<String>,
+}
+
+impl MediaMotion {
+    pub fn is_still(&self) -> bool {
+        self.camera.is_none() && self.atmosphere.is_none() && self.layers.is_empty()
+    }
+}
+
+/// Keeps only the moves, atmospheres and layers Kairo knows; `None` when
+/// nothing moves.
+pub fn normalize_media_motion(raw: Option<&serde_json::Value>) -> Option<MediaMotion> {
+    let raw = raw?;
+    let pick = |key: &str, known: &[&str]| {
+        raw.get(key)
+            .and_then(serde_json::Value::as_str)
+            .filter(|v| known.contains(v))
+            .map(str::to_owned)
+    };
+    let motion = MediaMotion {
+        camera: pick("camera", MOTION_CAMERAS),
+        atmosphere: pick("atmosphere", MOTION_ATMOSPHERES),
+        layers: raw
+            .get("layers")
+            .and_then(serde_json::Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(serde_json::Value::as_str)
+            .filter(|p| !p.trim().is_empty())
+            .take(MAX_MOTION_LAYERS)
+            .map(str::to_owned)
+            .collect(),
+    };
+    (!motion.is_still()).then_some(motion)
 }
 
 /// The playlist Imagine saves its pictures into, made on first save.
@@ -167,6 +223,7 @@ impl Default for MediaPlayback {
             saturation: 1.0,
             brightness: 1.0,
             contrast: 1.0,
+            motion: None,
             extra: Extra::new(),
         }
     }
@@ -198,6 +255,7 @@ pub fn normalize_media_playback(raw: &serde_json::Value) -> MediaPlayback {
         saturation: clamp("saturation", 0.0, 2.0, 1.0),
         brightness: clamp("brightness", 0.25, 1.75, 1.0),
         contrast: clamp("contrast", 0.25, 1.75, 1.0),
+        motion: normalize_media_motion(raw.get("motion")),
         extra: Extra::new(),
     }
 }
@@ -212,6 +270,7 @@ pub fn is_default_media_playback(playback: &MediaPlayback) -> bool {
         && playback.saturation == 1.0
         && playback.brightness == 1.0
         && playback.contrast == 1.0
+        && playback.motion.is_none()
 }
 
 pub fn normalize_playback_map(raw: &serde_json::Value) -> BTreeMap<String, MediaPlayback> {
@@ -258,6 +317,14 @@ pub fn apply_playback_to_background(
     background.saturation = Some(playback.saturation);
     background.brightness = Some(playback.brightness);
     background.contrast = Some(playback.contrast);
+    // Native only: the engine reads it from the background as sent.
+    background.extra.remove("motion");
+    if let (false, Some(motion)) = (video, &playback.motion) {
+        background.extra.insert(
+            "motion".into(),
+            serde_json::to_value(motion).unwrap_or_default(),
+        );
+    }
     background
 }
 
@@ -402,4 +469,28 @@ pub fn track_file_name(raw: &str, extension: &str) -> String {
         })
         .collect();
     crate::js::trim(&clean).into()
+}
+
+#[cfg(test)]
+mod motion_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn motion_keeps_known_moves_and_survives_a_round_trip() {
+        let p = normalize_media_playback(&json!({"motion": {
+            "camera": "drift", "atmosphere": "fireworks", "layers": ["/a.png", "", "/b.png"]
+        }}));
+        let m = p.motion.clone().unwrap();
+        assert_eq!(m.camera.as_deref(), Some("drift"));
+        assert_eq!(m.atmosphere, None);
+        assert_eq!(m.layers, ["/a.png", "/b.png"]);
+        assert!(!is_default_media_playback(&p));
+        let again = normalize_media_playback(&serde_json::to_value(&p).unwrap());
+        assert_eq!(again.motion, p.motion);
+        assert_eq!(
+            normalize_media_playback(&json!({"motion": {"camera": "spin"}})).motion,
+            None
+        );
+    }
 }

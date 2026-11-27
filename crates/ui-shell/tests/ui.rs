@@ -102,7 +102,7 @@ fn the_rail_navigates_every_workspace(cx: &mut TestAppContext) {
     ready(cx, handle, &shell);
     cx.update_window(handle, |_, window, cx| {
         assert_eq!(window.find("app-workspace").label(), Some("Operator"));
-        for w in ui_shell::WORKSPACES {
+        for w in ui_shell::WORKSPACES.iter().filter(|w| !w.route.in_apps()) {
             window.click(SharedString::from(format!("rail-{}", w.route.as_str())), cx);
             window.render_frame(cx);
             assert_eq!(window.find("app-workspace").label(), Some(w.label));
@@ -286,7 +286,9 @@ fn workspace_commands_never_fire_in_a_text_field(cx: &mut TestAppContext) {
     });
     cx.update_window(handle, |_, window, cx| {
         window.render_frame(cx);
-        window.click("feedback", cx);
+        window.click("account", cx);
+        window.render_frame(cx);
+        window.click("account-feedback", cx);
         window.render_frame(cx);
     })
     .unwrap();
@@ -518,4 +520,107 @@ fn audience_and_stage_toggles_switch_screen_groups(cx: &mut TestAppContext) {
             ]
         );
     });
+}
+
+struct ThemesBody;
+
+impl gpui_kit::Render for ThemesBody {
+    fn render(
+        &mut self,
+        _: &mut Window,
+        _: &mut gpui_kit::Context<Self>,
+    ) -> impl gpui_kit::IntoElement {
+        use gpui_kit::base::TestSupportExt;
+        use gpui_kit::{InteractiveElement, ParentElement, Styled};
+        gpui_kit::div()
+            .id("themes-body")
+            .test_support()
+            .w(px(200.))
+            .h(px(100.))
+            .child("Looks body")
+    }
+}
+
+#[gpui_kit::test]
+fn the_looks_button_opens_its_popover(cx: &mut TestAppContext) {
+    setup(cx);
+    let (handle, shell) = open(cx, "1.0.0");
+    ready(cx, handle, &shell);
+    cx.update(|cx| {
+        let body = cx.new(|_| ThemesBody);
+        shell.update(cx, |s, cx| {
+            s.set_screen_themes(body.into(), std::rc::Rc::new(|_, _, _| {}), cx)
+        });
+    });
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("screen-themes", cx);
+        window.render_frame(cx);
+    })
+    .unwrap();
+    cx.run_until_parked();
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        assert!(shell.read(cx).screen_themes_open(), "state not open");
+        assert!(window.try_find("themes-body").is_some(), "body not drawn");
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
+fn more_is_as_wide_as_the_workspaces_above_it(cx: &mut TestAppContext) {
+    setup(cx);
+    let (handle, shell) = open(cx, "1.0.0");
+    ready(cx, handle, &shell);
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        let more = window.find("rail-apps").bounds();
+        let operator = window.find("rail-operator").bounds();
+        assert_eq!(more.size.width, operator.size.width);
+        assert_eq!(more.origin.x, operator.origin.x);
+    })
+    .unwrap();
+}
+
+#[gpui_kit::test]
+fn more_opens_screens_and_view_keys_switch_workspaces(cx: &mut TestAppContext) {
+    setup(cx);
+    let (handle, shell) = open(cx, "1.0.0");
+    ready(cx, handle, &shell);
+    cx.update_window(handle, |_, window, cx| {
+        window.render_frame(cx);
+        window.click("rail-apps", cx);
+        window.render_frame(cx);
+        window.click("apps-screens", cx);
+        window.render_frame(cx);
+    })
+    .unwrap();
+    cx.update(|cx| assert_eq!(shell.read(cx).overlay(), Some(Overlay::Screens)));
+    dispatch(
+        cx,
+        handle,
+        ui_shell::keymap::OpenWorkspace(ui_shell::keymap::RouteValue(Route::Lyrics)),
+    );
+    cx.update(|cx| assert_eq!(shell.read(cx).route(), Route::Lyrics));
+}
+
+#[gpui_kit::test]
+fn always_quit_stops_asking_except_while_recording(cx: &mut TestAppContext) {
+    setup(cx);
+    let (handle, shell) = open(cx, "1.0.0");
+    ready(cx, handle, &shell);
+    dispatch(cx, handle, Quit);
+    cx.update_window(handle, |_, window, cx| {
+        window.click("always-quit", cx);
+        window.render_frame(cx);
+    })
+    .unwrap();
+    cx.update(|cx| assert!(!shell.read(cx).quit_open()));
+    // The next request goes through without the question.
+    let allowed = cx
+        .update_window(handle, |_, window, cx| {
+            shell.update(cx, |s, cx| s.request_quit(window, cx))
+        })
+        .unwrap();
+    assert!(allowed);
 }

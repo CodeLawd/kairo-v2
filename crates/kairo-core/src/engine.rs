@@ -259,12 +259,7 @@ impl EngineHandle {
         let accepted = match &command {
             Command::Shutdown => true,
             Command::StageTransport { output, .. } => {
-                mirror.link.is_some()
-                    && mirror.surface(output).is_some_and(|surface| {
-                        !surface.state.parked
-                            && surface_composes(surface)
-                            && surface.state.stage.is_some()
-                    })
+                mirror.link.is_some() && mirror.surface(output).is_some_and(takes_transport)
             }
             Command::ControlDisplay { native_id } => {
                 mirror.control_display = Some(*native_id);
@@ -540,6 +535,17 @@ fn sink_available(status: Option<&SurfaceStatus>) -> bool {
     matches!(status, None | Some(SurfaceStatus::Ready))
 }
 
+/// Play, pause and the rest reach a surface showing a teleprompter: a stage
+/// display in prompter mode, or a prompter over an audience screen, as the
+/// engine itself accepts them (`SurfaceState::apply`). Checking the stage
+/// alone dropped every transport for an audience screen, so its prompter
+/// never scrolled.
+fn takes_transport(surface: &ClientSurface) -> bool {
+    !surface.state.parked
+        && surface_composes(surface)
+        && (surface.state.stage.is_some() || surface.state.prompter.is_some())
+}
+
 /// The engine draws this surface's program: its sink runs, or it is a video
 /// card without its card, composed offscreen for the operator's monitor.
 fn surface_composes(surface: &ClientSurface) -> bool {
@@ -680,13 +686,21 @@ fn launch(inner: &Arc<Inner>) -> Result<Running, String> {
     let options = &inner.options;
     let socket = format!("kairo-engine-{}.sock", random_hex());
     let token = format!("{}{}", random_hex(), random_hex());
-    let mut child = Process::new(&options.binary)
+    let mut command = Process::new(&options.binary);
+    command
         .args(["--socket", &socket, "--grace-ms"])
         .arg(options.grace.as_millis().to_string())
         .env(TOKEN_ENV, &token)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: never a terminal for the engine, whatever its build.
+        command.creation_flags(0x0800_0000);
+    }
+    let mut child = command
         .spawn()
         .map_err(|e| format!("cannot start {}: {e}", options.binary.display()))?;
     if let Some(stderr) = child.stderr.take() {
@@ -952,10 +966,46 @@ fn dispatch(inner: &Inner, message: FromEngine) {
     }
 }
 
+/// After the supervisor resumes from a gap, how long the engine has to answer
+/// again: a machine waking from sleep is also bringing its displays back.
+const RESUME_GRACE: Duration = Duration::from_secs(10);
+
+#[derive(Debug, PartialEq)]
+enum Heartbeat {
+    Fine,
+    /// The supervisor itself didn't run for this long.
+    Suspended(Duration),
+    /// No answer for this long.
+    Hung(Duration),
+}
+
+/// Judges the engine's heartbeat. A gap in the supervisor's own loop longer
+/// than the timeout (sleep, hibernation, a starved thread) proves nothing
+/// about the engine, so the wait starts over instead of failing it.
+fn heartbeat(
+    now: Instant,
+    last_tick: Instant,
+    last_pong: Instant,
+    grace_until: Instant,
+    timeout: Duration,
+) -> Heartbeat {
+    let gap = now.saturating_duration_since(last_tick);
+    if gap > timeout {
+        return Heartbeat::Suspended(gap);
+    }
+    let silent = now.saturating_duration_since(last_pong);
+    if silent > timeout && now >= grace_until {
+        return Heartbeat::Hung(silent);
+    }
+    Heartbeat::Fine
+}
+
 /// Watches the running engine until it exits, hangs, or is stopped.
 fn run(inner: &Inner, running: &mut Running) -> Exit {
     let options = &inner.options;
     let mut next_ping = Instant::now();
+    let mut last_tick = Instant::now();
+    let mut grace_until = Instant::now();
     let mut nonce = u64::MAX / 2;
     loop {
         if inner.stopping.load(Ordering::SeqCst) {
@@ -974,9 +1024,34 @@ fn run(inner: &Inner, running: &mut Running) -> Exit {
             return Exit::Failure("connection to the engine lost".into());
         }
         let now = Instant::now();
-        if now.duration_since(*lock(&inner.last_pong)) > options.heartbeat_timeout {
-            return Exit::Failure("engine unresponsive".into());
+        let last_pong = *lock(&inner.last_pong);
+        match heartbeat(
+            now,
+            last_tick,
+            last_pong,
+            grace_until,
+            options.heartbeat_timeout,
+        ) {
+            Heartbeat::Fine => {}
+            Heartbeat::Suspended(gap) => {
+                // The computer slept (Windows' clock counts through sleep) or
+                // this thread was starved: no evidence against the engine.
+                tracing::info!(
+                    ?gap,
+                    "engine supervisor resumed after a gap; heartbeat restarted"
+                );
+                *lock(&inner.last_pong) = now;
+                grace_until = now + RESUME_GRACE;
+                next_ping = now;
+            }
+            Heartbeat::Hung(silent) => {
+                return Exit::Failure(format!(
+                    "engine unresponsive (no heartbeat for {:.1} s)",
+                    silent.as_secs_f32()
+                ));
+            }
         }
+        last_tick = now;
         if now >= next_ping {
             nonce += 1;
             lock(&inner.mirror).send(ToEngine::Ping { nonce });
@@ -1138,5 +1213,102 @@ impl<T: OutputEngine + ?Sized> OutputEngine for Arc<T> {
     }
     fn show_display_test_pattern(&self, input: &kairo_domain::overlay::TestPatternInput) -> bool {
         (**self).show_display_test_pattern(input)
+    }
+}
+
+#[cfg(test)]
+mod heartbeat_tests {
+    use super::*;
+
+    const TIMEOUT: Duration = Duration::from_secs(3);
+
+    #[test]
+    fn a_silent_engine_hangs_only_while_the_supervisor_kept_running() {
+        let start = Instant::now();
+        let now = start + Duration::from_secs(5);
+        let tick = now - Duration::from_millis(20);
+        assert_eq!(
+            heartbeat(now, tick, start, start, TIMEOUT),
+            Heartbeat::Hung(Duration::from_secs(5))
+        );
+        assert_eq!(
+            heartbeat(now, tick, now - Duration::from_secs(1), start, TIMEOUT),
+            Heartbeat::Fine
+        );
+    }
+
+    #[test]
+    fn sleeping_through_the_timeout_restarts_the_wait() {
+        // Windows' clock counts through sleep: an hour passes between two
+        // ticks, and the engine is not to blame for the silence.
+        let start = Instant::now();
+        let now = start + Duration::from_secs(3600);
+        assert_eq!(
+            heartbeat(now, start, start, start, TIMEOUT),
+            Heartbeat::Suspended(Duration::from_secs(3600))
+        );
+    }
+
+    #[test]
+    fn after_waking_the_engine_gets_the_grace_period() {
+        let woke = Instant::now();
+        let grace = woke + RESUME_GRACE;
+        let tick = |t: Instant| t - Duration::from_millis(20);
+        let at = woke + Duration::from_secs(6);
+        assert_eq!(
+            heartbeat(at, tick(at), woke, grace, TIMEOUT),
+            Heartbeat::Fine
+        );
+        let late = woke + Duration::from_secs(11);
+        assert_eq!(
+            heartbeat(late, tick(late), woke, grace, TIMEOUT),
+            Heartbeat::Hung(Duration::from_secs(11))
+        );
+    }
+}
+
+#[cfg(test)]
+mod transport_tests {
+    use super::*;
+    use kairo_engine_proto::{Json, SinkSpec, SurfaceSpec};
+
+    fn surface(command: Command) -> ClientSurface {
+        let mut state = SurfaceState::new(SurfaceSpec {
+            output: "main".into(),
+            label: "Main Screen".into(),
+            sink: SinkSpec::Ndi {
+                name: "main".into(),
+            },
+        });
+        assert!(state.apply(&command, true));
+        ClientSurface {
+            state,
+            status: Some(SurfaceStatus::Ready),
+        }
+    }
+
+    fn view() -> Json {
+        Json::from_value(&serde_json::json!({
+            "mode": "teleprompter",
+            "view": {"revision": 1, "text": "Hello", "fontPx": 64.0, "anchor": 0}
+        }))
+    }
+
+    #[test]
+    fn a_prompter_on_an_audience_screen_takes_play_and_pause() {
+        let audience = surface(Command::SetPrompter {
+            output: "main".into(),
+            view: Some(view()),
+        });
+        assert!(audience.state.stage.is_none());
+        assert!(
+            takes_transport(&audience),
+            "the prompter over an audience screen scrolls"
+        );
+        let stage = surface(Command::SetStage {
+            output: "main".into(),
+            view: view(),
+        });
+        assert!(takes_transport(&stage));
     }
 }

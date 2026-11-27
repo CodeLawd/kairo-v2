@@ -171,8 +171,11 @@ impl RenderOnce for ToolbarButton {
             .when_some(self.coach, |this, name| {
                 this.child(kairo_ui_kit::coach::coach_anchor(name))
             })
-            // Pressing a tool never drags the window.
-            .occlude()
+            // Pressing a tool never drags the window. A popover trigger is
+            // wrapped by its popover, which takes the press and stops it
+            // before the drag layer; occluding here would hide the press from
+            // the popover too, and the button would never open.
+            .when(self.popover.is_none(), |this| this.occlude())
             .group(group.clone())
             .role(if self.on_click.is_some() || self.popover.is_some() {
                 Role::Button

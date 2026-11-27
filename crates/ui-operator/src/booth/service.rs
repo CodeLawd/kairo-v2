@@ -102,6 +102,8 @@ pub struct ServicePanel {
     error: String,
     open: Option<Open>,
     frame: Option<Entity<MovableDialog>>,
+    /// Listening was paused when End opened, to resume if the operator backs out.
+    resume_after_end: bool,
     _tick: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
@@ -143,6 +145,7 @@ impl ServicePanel {
             error: String::new(),
             open: None,
             frame: None,
+            resume_after_end: false,
             _tick: tick,
             _subscriptions: subscriptions,
         }
@@ -205,6 +208,11 @@ impl ServicePanel {
             input.set_value(active.sermon_title.clone(), window, cx)
         });
         self.plan_id = active.notes.first().map(|n| n.id.clone());
+        // Listening pauses while the operator decides; Keep recording resumes it.
+        if self.booth.read(cx).transcribing {
+            self.booth.update(cx, |b, cx| b.press_listen(cx));
+            self.resume_after_end = true;
+        }
         self.open = Some(Open::End);
         // Sized for the 14px body text; the buttons must stay inside the frame.
         self.frame("Save service", 448., 496., window, cx);
@@ -226,6 +234,11 @@ impl ServicePanel {
         self.open = None;
         self.view_id = None;
         self.frame = None;
+        // Backing out of End (Keep recording, Esc, or cancelling a discard)
+        // picks listening up again where it paused.
+        if std::mem::take(&mut self.resume_after_end) && !self.booth.read(cx).transcribing {
+            self.booth.update(cx, |b, cx| b.press_listen(cx));
+        }
         cx.notify();
     }
 
@@ -267,13 +280,14 @@ impl ServicePanel {
         self.run(command, cx, |this, cx| {
             this.open = None;
             this.frame = None;
+            this.resume_after_end = false;
             cx.notify();
         });
     }
 
     pub fn ask_discard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.open = Some(Open::Discard);
-        self.frame("Discard this service?", 384., 236., window, cx);
+        self.frame("Discard this service?", 400., 196., window, cx);
         cx.notify();
     }
 
@@ -281,6 +295,7 @@ impl ServicePanel {
         self.run(ServiceCommand::Discard, cx, |this, cx| {
             this.open = None;
             this.frame = None;
+            this.resume_after_end = false;
             cx.notify();
         });
     }
@@ -333,12 +348,33 @@ impl ServicePanel {
         } else {
             format!("Review — {label} · {}", active.speaker)
         };
+        let dot = div()
+            .size(px(7.))
+            .flex_shrink_0()
+            .rounded_full()
+            .bg(if paused {
+                k.text(TextStep::T500)
+            } else {
+                k.destructive
+            });
+        // Recording breathes; paused holds still.
+        let dot = if paused {
+            dot.into_any_element()
+        } else {
+            kairo_ui_kit::motion::animate(
+                dot,
+                "service-recording-dot",
+                kairo_ui_kit::motion::PULSE,
+                cx,
+            )
+        };
         h_flex()
             .min_w_0()
             .flex_1()
             .items_center()
-            .gap_1()
+            .gap_2()
             .child(
+                // The recording at a glance; a click opens its review.
                 h_flex()
                     .id(ids::REVIEW)
                     .test_support()
@@ -352,29 +388,21 @@ impl ServicePanel {
                     .flex_1()
                     .items_center()
                     .gap_2()
-                    .px_2()
-                    .rounded_md()
+                    .px_3()
+                    .rounded_full()
+                    .bg(k.surface_tertiary)
                     .cursor_pointer()
-                    .hover(|s| s.bg(k.surface_tertiary))
+                    .hover(|s| s.bg(k.surface_elevated))
                     .on_click(cx.listener(move |this, _, window, cx| {
                         this.open_review(id.clone(), window, cx)
                     }))
-                    .child(
-                        div()
-                            .size(px(6.))
-                            .flex_shrink_0()
-                            .rounded_full()
-                            .bg(if paused {
-                                k.text(TextStep::T500)
-                            } else {
-                                k.destructive
-                            }),
-                    )
+                    .child(dot)
                     .child(
                         div()
                             .flex_shrink_0()
                             .font_family(text::MONO_FAMILY)
                             .text_size(text::XS.size)
+                            .font_weight(FontWeight::MEDIUM)
                             .text_color(if paused {
                                 k.text(TextStep::T500)
                             } else {
@@ -387,11 +415,7 @@ impl ServicePanel {
                             .min_w_0()
                             .truncate()
                             .text_size(text::XS.size)
-                            .text_color(if active.title.is_empty() {
-                                k.text(TextStep::T500)
-                            } else {
-                                k.text(TextStep::T300)
-                            })
+                            .text_color(k.text(TextStep::T400))
                             .child(label),
                     ),
             )
@@ -408,9 +432,10 @@ impl ServicePanel {
                     // Solid fill: the custom variant paints its colour at 20%.
                     .bg(k.tints.red)
                     .small()
-                    .icon(Icon::new(KairoIcon::Square).size(px(9.)))
+                    .icon(Icon::new(KairoIcon::Stop).size_3())
                     .label("End")
                     .accessibility_label("End service")
+                    .tooltip("End and save this service")
                     .disabled(self.busy)
                     .on_click(cx.listener(|this, _, window, cx| this.open_end(window, cx))),
             )
@@ -578,36 +603,62 @@ impl ServicePanel {
         let busy = self.busy;
         let content = v_flex()
             .size_full()
+            .justify_between()
             .p_5()
+            .gap_4()
             .child(
-                handle
-                    .child(
-                        div()
-                            .text_size(text::BASE.size)
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(k.text_primary)
-                            .child("Discard this service?"),
-                    )
-                    .child(
-                        div()
-                            .mt_1p5()
-                            .text_size(text::SM.size)
-                            .text_color(k.text(TextStep::T400))
-                            .child("The transcript, nuggets and detected scriptures from this service are deleted. This cannot be undone."),
-                    ),
+                handle.child(
+                    h_flex()
+                        .items_start()
+                        .gap_3()
+                        .child(
+                            div()
+                                .flex()
+                                .flex_none()
+                                .items_center()
+                                .justify_center()
+                                .size_9()
+                                .rounded_full()
+                                .bg(k.tints.red)
+                                .child(
+                                    Icon::new(KairoIcon::Trash2)
+                                        .size_4()
+                                        .text_color(k.danger_text),
+                                ),
+                        )
+                        .child(
+                            v_flex()
+                                .min_w_0()
+                                .flex_1()
+                                .gap_1()
+                                .child(
+                                    div()
+                                        .text_size(text::BASE.size)
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(k.text_primary)
+                                        .child("Discard this service?"),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(text::SM.size)
+                                        .line_height(text::SM.line_height)
+                                        .text_color(k.text(TextStep::T400))
+                                        .child("Its transcript, nuggets and detected scriptures are deleted. This can't be undone."),
+                                )
+                                .when(!self.error.is_empty(), |this| {
+                                    this.child(
+                                        div()
+                                            .mt_1()
+                                            .text_size(text::LABEL.size)
+                                            .text_color(k.danger_text)
+                                            .child(self.error.clone()),
+                                    )
+                                }),
+                        ),
+                ),
             )
-            .when(!self.error.is_empty(), |this| {
-                this.child(
-                    div()
-                        .mt_3()
-                        .text_size(text::LABEL.size)
-                        .text_color(k.danger_text)
-                        .child(self.error.clone()),
-                )
-            })
             .child(
                 h_flex()
-                    .mt_5()
                     .justify_end()
                     .gap_2()
                     .child(
@@ -616,7 +667,8 @@ impl ServicePanel {
                             .on_click(cx.listener(|this, _, _, cx| this.close(cx))),
                     )
                     .child(
-                        Button::new(ids::DISCARD).cursor_pointer()
+                        Button::new(ids::DISCARD)
+                            .cursor_pointer()
                             .custom(
                                 ButtonCustomVariant::new(cx)
                                     .color(k.destructive)
@@ -624,10 +676,11 @@ impl ServicePanel {
                                     .hover(k.destructive.opacity(0.85))
                                     .active(k.destructive.opacity(0.85)),
                             )
-        // Solid fill: the custom variant paints its colour at 20%.
-        .bg(k.destructive)
-                            .small()
-                            .label(if busy { "Discarding…" } else { "Discard" })
+                            // Solid fill: the custom variant paints its colour at 20%.
+                            .bg(k.destructive)
+                            // The same size as Cancel beside it.
+                            .kairo_size()
+                            .label(if busy { "Discarding…" } else { "Discard service" })
                             .disabled(busy)
                             .on_click(cx.listener(|this, _, _, cx| this.discard(cx))),
                     ),

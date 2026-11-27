@@ -74,7 +74,7 @@ fn appearance_switches_kit_and_kairo_tokens_together(cx: &mut TestAppContext) {
         assert_eq!(cx.kairo().appearance, Appearance::Dark);
         assert_eq!(cx.theme().background, cx.kairo().surface);
         assert_eq!(cx.theme().primary, cx.kairo().control_accent);
-        assert_eq!(cx.theme().font_family.as_ref(), "Source Sans 3");
+        assert_eq!(cx.theme().font_family.as_ref(), "Inter");
         kairo_ui_kit::set_appearance(Appearance::Light, None, cx);
         assert_eq!(cx.kairo().appearance, Appearance::Light);
         assert!(!cx.theme().is_dark());
@@ -716,6 +716,8 @@ fn movable_dialog_traps_focus_closes_on_escape_and_restores_focus(cx: &mut TestA
 #[gpui_kit::test]
 fn dragging_the_handle_moves_and_clamps_the_dialog(cx: &mut TestAppContext) {
     setup(cx);
+    // Positions are measured, so the dialog must not be mid-entrance.
+    cx.update(|cx| kairo_ui_kit::set_reduced_motion(true, cx));
     let (window, host) = open(cx, |window, cx| {
         cx.new(|cx| MovableHost {
             trigger: cx.new(|cx| InputState::new(window, cx)),

@@ -119,6 +119,21 @@ impl ImagineBackend for Fake {
                 }
                 if message.starts_with('?') {
                     Ok(ImagineAnswer::Reply("Happy to help.".into()))
+                } else if let Some(p) = message
+                    .starts_with("move")
+                    .then(|| {
+                        project
+                            .as_ref()
+                            .and_then(|id| s.projects.iter().find(|p| &p.id == id))
+                    })
+                    .flatten()
+                {
+                    Ok(ImagineAnswer::Moved {
+                        reply: "A gentle pan with light rays, in Media.".into(),
+                        motion: "rays".into(),
+                        project: p.clone(),
+                        made: false,
+                    })
                 } else if let Some(e) = s.fail.take() {
                     Err(e)
                 } else {
@@ -152,6 +167,15 @@ impl ImagineBackend for Fake {
                                 saved: Vec::new(),
                             };
                             s.projects.insert(0, p.clone());
+                            if p.title.starts_with("flowing") {
+                                // Made and saved moving in one go.
+                                return reply(Ok(ImagineAnswer::Moved {
+                                    reply: "Haze it is.".into(),
+                                    motion: "haze".into(),
+                                    project: p,
+                                    made: true,
+                                }));
+                            }
                             Ok(ImagineAnswer::Project(p))
                         }
                     }
@@ -177,12 +201,15 @@ impl ImagineBackend for Fake {
                 p.selected = version;
                 Ok(ImagineAnswer::Project(p.clone()))
             }
-            ImagineCall::SaveToMedia { project, version }
+            ImagineCall::SaveToMedia {
+                project, version, ..
+            }
             | ImagineCall::SaveToSlides { project, version } => {
                 let p = s.projects.iter_mut().find(|p| p.id == project).unwrap();
                 p.saved.push(version);
                 Ok(ImagineAnswer::Project(p.clone()))
             }
+            ImagineCall::SaveLoop(_) => Ok(ImagineAnswer::Done),
             ImagineCall::Delete(id) => {
                 s.projects.retain(|p| p.id != id);
                 Ok(ImagineAnswer::Done)
@@ -729,11 +756,85 @@ fn an_image_opens_in_a_preview_with_its_versions(cx: &mut TestAppContext) {
         read(cx, &o, |p| p.canvas().unwrap().version.clone()),
         second
     );
-    // Save acts on the version showing, once.
+    // Save acts on the version showing, once, moving as picked.
+    assert!(exists(cx, &o, &ids::motion("canvas")));
+    act(cx, &o, |p, _, cx| p.set_motion("dust", cx));
     click(cx, &o, ids::CANVAS_TO_MEDIA);
     assert!(calls(&o).iter().any(|c| matches!(c,
-        ImagineCall::SaveToMedia { version, .. } if *version == second)));
+        ImagineCall::SaveToMedia { version, motion: Some(m), .. }
+            if *version == second && m == "dust")));
     assert_eq!(publishes(&o), 1);
     click(cx, &o, ids::CANVAS_CLOSE);
     assert!(!exists(cx, &o, ids::CANVAS));
+}
+
+#[gpui_kit::test]
+fn a_motion_loop_saves_without_an_image_request(cx: &mut TestAppContext) {
+    let o = open(
+        cx,
+        State {
+            connected: true,
+            ..State::default()
+        },
+    );
+    let key = kairo_imagine::motion::LOOPS[0].key;
+    assert!(
+        exists(cx, &o, &ids::motion_loop(key)),
+        "loops sit with the templates"
+    );
+    act(cx, &o, move |p, _, cx| p.save_loop(key, cx));
+    assert!(
+        calls(&o)
+            .iter()
+            .any(|c| matches!(c, ImagineCall::SaveLoop(k) if k == key))
+    );
+    assert!(
+        !calls(&o)
+            .iter()
+            .any(|c| matches!(c, ImagineCall::Send { .. }))
+    );
+}
+
+#[gpui_kit::test]
+fn a_moving_version_shows_in_the_conversation(cx: &mut TestAppContext) {
+    let o = open(
+        cx,
+        State {
+            connected: true,
+            ..State::default()
+        },
+    );
+    send(cx, &o, "a cross at dawn");
+    send(cx, &o, "move it");
+    assert!(
+        exists(cx, &o, &ids::moved(0)),
+        "the moving version is shown"
+    );
+    assert!(exists(cx, &o, &ids::moved_open(0)));
+    assert_eq!(
+        read(cx, &o, |p| p.motion()),
+        "rays",
+        "the menu follows the assistant"
+    );
+}
+
+#[gpui_kit::test]
+fn a_new_picture_asked_for_moving_shows_moving_under_it(cx: &mut TestAppContext) {
+    let o = open(
+        cx,
+        State {
+            connected: true,
+            ..State::default()
+        },
+    );
+    send(cx, &o, "flowing mist over hills");
+    assert!(
+        read(cx, &o, |p| p.open_project().is_some()),
+        "the new creation opens"
+    );
+    assert!(
+        exists(cx, &o, &ids::moved(1000)),
+        "its moving preview sits under it"
+    );
+    assert_eq!(read(cx, &o, |p| p.motion()), "haze");
 }

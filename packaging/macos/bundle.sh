@@ -63,12 +63,16 @@ out="$work/out-$arch"
 app="$out/$KAIRO_PRODUCT_NAME.app"
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Frameworks" \
+  "$app/Contents/Helpers/Kairo Engine.app/Contents/MacOS" \
   "$app/Contents/Resources/decklink" "$app/Contents/Resources/licenses"
 contents="$app/Contents"
+engine_app="$contents/Helpers/Kairo Engine.app"
+engine_exe="$engine_app/Contents/MacOS/kairo-engine"
 
 cp "$bin/kairo" "$contents/MacOS/$KAIRO_PRODUCT_NAME"
-# kairo looks for the engine beside its own executable (apps/kairo/src/main.rs).
-cp "$bin/kairo-engine" "$contents/MacOS/kairo-engine"
+# Packaged kairo-engine lives in its own LSUIElement helper bundle so macOS
+# never registers it as a second foreground Kairo Dock icon.
+cp "$bin/kairo-engine" "$engine_exe"
 
 for lib in "${FFMPEG_LIBS[@]}"; do
   cp -L "$ffmpeg/lib/$lib.dylib" "$contents/Frameworks/$lib.dylib"
@@ -136,6 +140,13 @@ sed -e "s|@PRODUCT_NAME@|$(escape "$KAIRO_PRODUCT_NAME")|g" \
 plutil -lint "$contents/Info.plist" >/dev/null || die "generated Info.plist is invalid"
 printf 'APPL????' >"$contents/PkgInfo"
 
+sed -e "s|@ENGINE_BUNDLE_ID@|$(escape "$KAIRO_ENGINE_ID")|g" \
+  -e "s|@VERSION@|$(escape "$version")|g" \
+  -e "s|@MIN_MACOS@|$(escape "$KAIRO_MIN_MACOS")|g" \
+  "$here/EngineInfo.plist.in" >"$engine_app/Contents/Info.plist"
+plutil -lint "$engine_app/Contents/Info.plist" >/dev/null || die "generated Engine Info.plist is invalid"
+printf 'APPL????' >"$engine_app/Contents/PkgInfo"
+
 # 3. Linkage: every bundled library by @rpath, found in Contents/Frameworks.
 for dylib in "$contents/Frameworks/"*.dylib; do
   name="$(basename "$dylib")"
@@ -163,18 +174,19 @@ add_rpath() { # add_rpath FILE PATH, once
   otool -l "$1" | awk '/cmd LC_RPATH/{getline; getline; print $2}' | grep -x "$2" >/dev/null \
     || install_name_tool -add_rpath "$2" "$1"
 }
-for exe in "$contents/MacOS/$KAIRO_PRODUCT_NAME" "$contents/MacOS/kairo-engine"; do
-  relink "$exe"
-  drop_build_rpaths "$exe"
-  add_rpath "$exe" "@executable_path/../Frameworks"
-done
+relink "$contents/MacOS/$KAIRO_PRODUCT_NAME"
+drop_build_rpaths "$contents/MacOS/$KAIRO_PRODUCT_NAME"
+add_rpath "$contents/MacOS/$KAIRO_PRODUCT_NAME" "@executable_path/../Frameworks"
+relink "$engine_exe"
+drop_build_rpaths "$engine_exe"
+add_rpath "$engine_exe" "@executable_path/../../../../Frameworks"
 for dylib in "$contents/Frameworks/"*.dylib; do
   relink "$dylib"
   drop_build_rpaths "$dylib"
   add_rpath "$dylib" "@loader_path"
 done
 
-# 4. Sign inside-out: libraries, the helper, the engine, then the bundle.
+# 4. Sign inside-out: libraries, the helper, the engine bundle, then the app.
 sign() { # sign FILE [ENTITLEMENTS] [IDENTIFIER]
   local args=(--force)
   if [[ "$signing" == developer-id ]]; then
@@ -190,7 +202,7 @@ for dylib in "$contents/Frameworks/"*.dylib; do
   sign "$dylib"
 done
 sign "$contents/Resources/decklink/decklink-helper" "$here/entitlements/decklink-helper.plist" "$KAIRO_DECKLINK_ID"
-sign "$contents/MacOS/kairo-engine" "$here/entitlements/kairo-engine.plist" "$KAIRO_ENGINE_ID"
+sign "$engine_app" "$here/entitlements/kairo-engine.plist" "$KAIRO_ENGINE_ID"
 sign "$app" "$here/entitlements/kairo.plist" "$KAIRO_BUNDLE_ID"
 codesign --verify --deep --strict --verbose=2 "$app"
 

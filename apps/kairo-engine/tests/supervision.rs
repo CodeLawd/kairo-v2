@@ -341,7 +341,9 @@ async fn a_hung_engine_is_killed_and_relaunched() {
     let mut saw = false;
     while let Ok(event) = events.try_recv() {
         if let EngineEvent::Lost { reason, planned } = event {
-            assert_eq!((reason.as_str(), planned), ("engine unresponsive", false));
+            // The reason says how long it went quiet: "engine unresponsive (no heartbeat for 0.6 s)".
+            assert!(reason.starts_with("engine unresponsive"), "{reason}");
+            assert!(!planned);
             saw = true;
         }
     }

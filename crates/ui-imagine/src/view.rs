@@ -7,6 +7,7 @@ use std::sync::Arc;
 use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::input::{InputEvent, InputState, Textarea, TextareaState};
+use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::{Disableable, Icon, Selectable, Sizable, h_flex, v_flex};
 use gpui_kit::{
     AnyElement, AppContext, Context, Entity, FocusHandle, Focusable, FontWeight,
@@ -15,6 +16,8 @@ use gpui_kit::{
     linear_color_stop, linear_gradient, prelude::FluentBuilder, px, relative,
 };
 use kairo_imagine::estimate_usd;
+use kairo_imagine::motion::{LOOPS, MotionPreset, PRESETS};
+use kairo_ui_kit::components::PopoverTriggerExt;
 use kairo_ui_kit::tokens::{Hue, TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
@@ -62,6 +65,7 @@ pub mod ids {
     pub const PAGE: &str = "imagine-page";
     pub const INTRO_CONTINUE: &str = "imagine-intro-continue";
     pub const INTRO_BACK: &str = "imagine-intro-back";
+    pub const INTRO_REPLAY: &str = "imagine-intro-replay";
     pub const CONNECT: &str = "imagine-connect";
     pub const KEY: &str = "imagine-key";
     pub const GET_KEY: &str = "imagine-get-key";
@@ -122,6 +126,13 @@ pub mod ids {
     pub const THOUGHT_TOGGLE: &str = "imagine-thought-toggle";
     /// The image preview's Save to Media.
     pub const CANVAS_TO_MEDIA: &str = "imagine-canvas-to-media";
+    /// A moving version's result card in the conversation, and its way to Media.
+    pub fn moved(n: usize) -> String {
+        format!("imagine-moved-{n}")
+    }
+    pub fn moved_open(n: usize) -> String {
+        format!("imagine-moved-open-{n}")
+    }
     /// A version's Refine button, by position.
     pub fn refine(index: usize) -> String {
         format!("imagine-refine-{index}")
@@ -129,6 +140,14 @@ pub mod ids {
     /// A version's Save to Media button, by position.
     pub fn save(index: usize) -> String {
         format!("imagine-save-{index}")
+    }
+    /// A version's motion menu, by position (`canvas` in the preview).
+    pub fn motion(at: &str) -> String {
+        format!("imagine-motion-{at}")
+    }
+    /// A motion loop's card, by its key.
+    pub fn motion_loop(key: &str) -> String {
+        format!("imagine-loop-{key}")
     }
     pub fn tab(key: &str) -> String {
         format!("imagine-tab-{key}")
@@ -287,6 +306,23 @@ pub struct Job {
     pub designing: Option<(usize, usize)>,
 }
 
+/// Where the picture sits in its frame at `secs` for a camera move: how
+/// much larger than the frame it is, and how far across and down (0 to 1)
+/// the extra reaches. Matches the engine's moves closely enough to preview.
+pub fn camera_at(camera: Option<&str>, secs: f32) -> (f32, f32, f32) {
+    use std::f32::consts::TAU;
+    let swing = (1. - (TAU * secs / 24.).cos()) / 2.;
+    match camera {
+        Some("zoom") => (0.02 + 0.08 * swing, 0.5, 0.5),
+        Some("pan") => (0.1, swing, 0.5),
+        Some(_) => {
+            let a = TAU * secs / 30.;
+            (0.08, 0.5 + 0.4 * a.sin(), 0.5 + 0.4 * a.cos())
+        }
+        None => (0., 0.5, 0.5),
+    }
+}
+
 /// An exchange where the assistant only replied (nothing was made). Kept
 /// for this session.
 #[derive(Clone, Debug, PartialEq)]
@@ -294,6 +330,18 @@ pub struct Aside {
     pub project: Option<String>,
     pub user: String,
     pub reply: String,
+    /// Set when the assistant saved a moving version: it shows under the reply.
+    pub moved: Option<Moved>,
+}
+
+/// A version saved to Media moving, previewed as it will move on screen.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Moved {
+    /// The picture's file in Imagine's store.
+    pub file: String,
+    /// The `MotionPreset` key.
+    pub motion: &'static str,
+    pub at: std::time::Instant,
 }
 
 /// The slide preview beside the conversation: a deck version and the
@@ -313,6 +361,8 @@ pub struct Canvas {
 pub enum ImagineEvent {
     /// A deck was added to Slides; the Slides page should reload.
     SlidesSaved,
+    /// The operator asked to see the Media dock.
+    OpenMedia,
 }
 
 fn ask(
@@ -350,6 +400,9 @@ pub struct ImaginePage {
     /// The conversation view is showing (with or without a project yet).
     chat: bool,
     asides: Vec<Aside>,
+    /// Versions the assistant made and saved moving, by version id: their
+    /// moving preview shows under them.
+    moving: std::collections::HashMap<String, Moved>,
     _feed: Task<()>,
     chat_scroll: gpui_kit::ScrollHandle,
     /// Scroll the conversation to its end after the next layout.
@@ -387,6 +440,11 @@ pub struct ImaginePage {
     template: Option<usize>,
     model: ImageModel,
     quality: Quality,
+    /// How a saved picture moves (`MotionPreset::key`).
+    motion: &'static str,
+    /// The motion loop being saved, and the one just saved.
+    saving_loop: Option<&'static str>,
+    saved_loop: Option<&'static str>,
     /// Each template's preview art, once painted.
     previews: Vec<Option<Arc<gpui_kit::Image>>>,
     _previews: Task<()>,
@@ -493,6 +551,7 @@ impl ImaginePage {
             pending_open: None,
             chat: false,
             asides: Vec::new(),
+            moving: Default::default(),
             _feed: feed,
             chat_scroll: gpui_kit::ScrollHandle::new(),
             scroll_chat: false,
@@ -516,6 +575,9 @@ impl ImaginePage {
             template: None,
             model: ImageModel::default(),
             quality: Quality::Medium,
+            motion: "still",
+            saving_loop: None,
+            saved_loop: None,
             previews: Vec::new(),
             _previews: previews,
             options: None,
@@ -564,6 +626,70 @@ impl ImaginePage {
     pub fn set_model(&mut self, model: ImageModel, cx: &mut Context<Self>) {
         self.model = model;
         cx.notify();
+    }
+
+    pub fn motion(&self) -> &'static str {
+        self.motion
+    }
+
+    pub fn set_motion(&mut self, key: &'static str, cx: &mut Context<Self>) {
+        self.motion = key;
+        cx.notify();
+    }
+
+    /// Draws a motion loop locally and adds it to Media (no image request).
+    pub fn save_loop(&mut self, key: &'static str, cx: &mut Context<Self>) {
+        if self.saving_loop.is_some() {
+            return;
+        }
+        let call = ask(&self.backend, ImagineCall::SaveLoop(key.into()));
+        self.error = None;
+        self.saving_loop = Some(key);
+        cx.spawn(async move |this, cx| {
+            let answer = call.await;
+            let _ = this.update(cx, |this, cx| {
+                this.saving_loop = None;
+                match answer {
+                    Ok(_) => this.saved_loop = Some(key),
+                    Err(e) => this.error = Some(e),
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+        cx.notify();
+    }
+
+    /// The menu beside Save to Media: how the saved picture moves.
+    fn motion_button(
+        &self,
+        at: &str,
+        disabled: bool,
+        round: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let page = cx.entity();
+        let label = MotionPreset::by_key(self.motion).map_or("Still", |p| p.label);
+        Button::new(SharedString::from(ids::motion(at)))
+            .cursor_pointer()
+            .small()
+            .ghost()
+            .label(label)
+            .dropdown_caret(true)
+            .when(round, |b| b.rounded_full())
+            .tooltip("How it moves on screen. Depth makes one more image for parallax.")
+            .disabled(disabled)
+            .popover_trigger()
+            .dropdown_menu(move |mut menu, _, _| {
+                for preset in PRESETS {
+                    let page = page.clone();
+                    menu = menu.item(PopupMenuItem::new(preset.label).on_click(move |_, _, cx| {
+                        page.update(cx, |p, cx| p.set_motion(preset.key, cx))
+                    }));
+                }
+                menu
+            })
+            .into_any_element()
     }
 
     pub fn set_quality(&mut self, quality: Quality, cx: &mut Context<Self>) {
@@ -662,6 +788,16 @@ impl ImaginePage {
                 }
                 self.upsert(p)
             }
+            Ok(ImagineAnswer::Moved {
+                motion, project, ..
+            }) => {
+                // The menu shows the motion the assistant chose.
+                if let Some(preset) = MotionPreset::by_key(&motion) {
+                    self.motion = preset.key;
+                }
+                self.saved_flash = Some((project.selected.clone(), std::time::Instant::now()));
+                self.upsert(project)
+            }
             Ok(ImagineAnswer::Done | ImagineAnswer::Reply(_)) => {}
             Ok(ImagineAnswer::Attachment(a)) => self.attachment = Some(a),
             Ok(ImagineAnswer::File(_)) => {}
@@ -709,6 +845,11 @@ impl ImaginePage {
     pub(crate) fn open_welcome(&mut self, cx: &mut Context<Self>) {
         self.error = None;
         self.intro.show_welcome();
+        cx.notify();
+    }
+
+    pub(crate) fn replay_intro(&mut self, cx: &mut Context<Self>) {
+        self.intro.replay();
         cx.notify();
     }
 
@@ -821,6 +962,43 @@ impl ImaginePage {
                         project: about,
                         user: label,
                         reply: reply.clone(),
+                        moved: None,
+                    }),
+                    Ok(ImagineAnswer::Moved {
+                        motion,
+                        project,
+                        made: true,
+                        ..
+                    }) => {
+                        if here && this.open.as_ref() != Some(&project.id) {
+                            this.open = Some(project.id.clone());
+                            this.chat = true;
+                        }
+                        if let Some(preset) = MotionPreset::by_key(motion) {
+                            this.moving.insert(
+                                project.selected.clone(),
+                                Moved {
+                                    file: project.current().file.clone(),
+                                    motion: preset.key,
+                                    at: std::time::Instant::now(),
+                                },
+                            );
+                        }
+                    }
+                    Ok(ImagineAnswer::Moved {
+                        reply,
+                        motion,
+                        project,
+                        ..
+                    }) => this.asides.push(Aside {
+                        project: about,
+                        user: label,
+                        reply: reply.clone(),
+                        moved: MotionPreset::by_key(motion).map(|preset| Moved {
+                            file: project.current().file.clone(),
+                            motion: preset.key,
+                            at: std::time::Instant::now(),
+                        }),
                     }),
                     _ => {}
                 }
@@ -883,6 +1061,7 @@ impl ImaginePage {
                 ImagineCall::SaveToMedia {
                     project,
                     version: version_id,
+                    motion: (self.motion != "still").then(|| self.motion.to_owned()),
                 }
             },
         );
@@ -1319,6 +1498,7 @@ impl ImaginePage {
     fn render_templates(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let k = *cx.kairo();
         let (_, w) = self.layout();
+        let loops = self.render_loops(w, cx);
         TEMPLATES
             .iter()
             .enumerate()
@@ -1340,6 +1520,167 @@ impl ImaginePage {
                     &k,
                 )
                 .on_click(move |_, _, cx| page.update(cx, |p, cx| p.pick_template(i, cx)))
+                .test_support()
+                .into_any_element()
+            })
+            .chain(loops)
+            .collect()
+    }
+
+    /// The moving version the assistant saved: the picture moving as it
+    /// will on screen, what moves, and the way to Media.
+    fn render_moved(&self, n: usize, m: &Moved, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let preset = MotionPreset::by_key(m.motion);
+        let label = preset.map_or("Moving", |p| p.label);
+        let secs = if cx.reduced_motion() {
+            0.
+        } else {
+            m.at.elapsed().as_secs_f32()
+        };
+        let (w, h) = (IMAGE_W, (IMAGE_W * 9. / 16.).floor());
+        let (grow, ax, ay) = camera_at(preset.and_then(|p| p.camera), secs);
+        let picture = img(self.backend.image_path(&m.file))
+            .absolute()
+            .left(px(-w * grow * ax))
+            .top(px(-h * grow * ay))
+            .w(px(w * (1. + grow)))
+            .h(px(h * (1. + grow)))
+            .object_fit(ObjectFit::Cover);
+        // A soft hint of the atmosphere; the engine draws the real one.
+        let glow = (1. - (secs * std::f32::consts::TAU / 8.).cos()) / 2.;
+        let atmosphere = preset.and_then(|p| p.atmosphere).map(|a| {
+            let white = gpui_kit::white();
+            let fill = match a {
+                "rays" => linear_gradient(
+                    120.,
+                    linear_color_stop(white.opacity(0.10 + 0.12 * glow), 0.),
+                    linear_color_stop(white.opacity(0.), 0.6),
+                ),
+                "haze" => linear_gradient(
+                    0.,
+                    linear_color_stop(white.opacity(0.08 + 0.1 * glow), 0.),
+                    linear_color_stop(white.opacity(0.), 0.7),
+                ),
+                _ => linear_gradient(
+                    180.,
+                    linear_color_stop(white.opacity(0.), 0.),
+                    linear_color_stop(white.opacity(0.04 + 0.06 * glow), 1.),
+                ),
+            };
+            div().absolute().inset_0().bg(fill)
+        });
+        let page = cx.entity();
+        v_flex()
+            .id(SharedString::from(ids::moved(n)))
+            .test_support()
+            .gap_2()
+            .child(
+                div()
+                    .relative()
+                    .w(px(w))
+                    .h(px(h))
+                    .overflow_hidden()
+                    .rounded(radius::xl2())
+                    .bg(k.monitor())
+                    .child(picture)
+                    .children(atmosphere)
+                    .child(
+                        h_flex()
+                            .absolute()
+                            .top_2p5()
+                            .left_2p5()
+                            .gap_1p5()
+                            .px_2p5()
+                            .py_1()
+                            .rounded_full()
+                            .bg(gpui_kit::black().opacity(0.5))
+                            .text_size(text::LABEL.size)
+                            .text_color(gpui_kit::white())
+                            .child(Icon::new(KairoIcon::Play).size_3())
+                            .child(label),
+                    ),
+            )
+            .child(
+                h_flex()
+                    .w(px(w))
+                    .gap_2()
+                    .child(
+                        h_flex()
+                            .gap_1p5()
+                            .text_size(text::XS.size)
+                            .text_color(k.text(TextStep::T400))
+                            .child(
+                                Icon::new(KairoIcon::Check)
+                                    .size_3p5()
+                                    .text_color(k.success_text),
+                            )
+                            .child("In Media, moving. It plays on screen when you cue it."),
+                    )
+                    .child(
+                        Button::new(SharedString::from(ids::moved_open(n)))
+                            .cursor_pointer()
+                            .small()
+                            .rounded_full()
+                            .ml_auto()
+                            .label("Open Media")
+                            .on_click(move |_, _, cx| {
+                                page.update(cx, |_, cx| cx.emit(ImagineEvent::OpenMedia))
+                            }),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    /// Motion loops: drawn by Kairo, so saving one makes no image request.
+    fn render_loops(&self, w: f32, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let k = *cx.kairo();
+        let rgb = |c: u32| gpui_kit::rgb(c);
+        LOOPS
+            .iter()
+            .map(|l| {
+                let page = cx.entity();
+                let key = l.key;
+                let (saving, saved) = (self.saving_loop == Some(key), self.saved_loop == Some(key));
+                let body = div()
+                    .size_full()
+                    .bg(linear_gradient(
+                        135.,
+                        linear_color_stop(rgb(l.colors[0]), 0.1),
+                        linear_color_stop(rgb(l.colors[1]), 1.),
+                    ))
+                    .child(
+                        div()
+                            .absolute()
+                            .bottom_2p5()
+                            .left_2p5()
+                            .px_2()
+                            .py_0p5()
+                            .rounded_full()
+                            .bg(gpui_kit::black().opacity(0.45))
+                            .text_size(text::LABEL.size)
+                            .text_color(gpui_kit::white())
+                            .child(match (saving, saved) {
+                                (true, _) => "Saving…",
+                                (_, true) => "In Media",
+                                _ => "Motion loop · free",
+                            }),
+                    )
+                    .into_any_element();
+                Self::card(
+                    ids::motion_loop(key),
+                    format!("Add the {} motion loop to Media", l.title),
+                    l.title.into(),
+                    Some(l.description.into()),
+                    (w, (w * 0.75).floor()),
+                    body,
+                    saved,
+                    Vec::new(),
+                    SharedString::from(format!("loop-{key}")),
+                    &k,
+                )
+                .cursor_pointer()
+                .on_click(move |_, _, cx| page.update(cx, |p, cx| p.save_loop(key, cx)))
                 .test_support()
                 .into_any_element()
             })
@@ -1775,6 +2116,9 @@ impl ImaginePage {
                     thread.push(said(&k, reply.clone(), Some(copy)));
                 }
                 thread.push(self.render_answer(p, i, cx));
+                if let Some(m) = self.moving.get(&p.versions[i].id).cloned() {
+                    thread.push(self.render_moved(1000 + i, &m, cx));
+                }
             }
         }
         let here = project.map(|p| p.id.clone());
@@ -1790,6 +2134,9 @@ impl ImaginePage {
             thread.push(bubble(&k, aside.user.clone(), Some(copy)));
             let copy = self.copy_button(format!("aside-{n}-reply"), aside.reply.clone(), cx);
             thread.push(said(&k, aside.reply.clone(), Some(copy)));
+            if let Some(moved) = &aside.moved {
+                thread.push(self.render_moved(n, moved, cx));
+            }
         }
         if let Some(j) = self.chat_job(project) {
             thread.push(bubble(&k, j.label.clone(), None));
@@ -1928,6 +2275,9 @@ impl ImaginePage {
             .downloaded
             .is_some_and(|at| at.elapsed().as_secs_f32() < 2.5);
         let download = cx.entity();
+        let canvas_saving = self.saving.as_deref() == Some(c.version.as_str());
+        let canvas_motion =
+            image.then(|| self.motion_button("canvas", saved || canvas_saving, false, cx));
 
         let pages = c.slides.iter().enumerate().map(|(n, s)| {
             let page = cx.entity();
@@ -2131,7 +2481,7 @@ impl ImaginePage {
                         let media_save = cx.entity();
                         let version = c.version.clone();
                         let saving = self.saving.as_deref() == Some(c.version.as_str());
-                        d.child(
+                        d.children(canvas_motion).child(
                             Button::new(ids::CANVAS_TO_MEDIA)
                                 .small()
                                 .when(!saved, |b| b.primary())
@@ -2469,6 +2819,7 @@ impl ImaginePage {
                 format!("Laying out {} slides", j.slides.max(1))
             }
             Some(Action::Deck | Action::EditSlides) => "Writing the slides".into(),
+            Some(Action::Motion) => "Saving a moving version to Media".into(),
             _ if j.project.is_some() => "Editing your image".into(),
             _ => "Drawing your image".into(),
         };
@@ -2603,6 +2954,7 @@ impl ImaginePage {
                 "Add to the media library. It won't go live.",
             )
         };
+        let motion_button = self.motion_button(&i.to_string(), saved || saving, true, cx);
         let save_button = pill(Button::new(SharedString::from(ids::save(i))))
             .icon(Icon::new(match (saving, saved) {
                 (true, _) => KairoIcon::Loader,
@@ -2801,6 +3153,7 @@ impl ImaginePage {
                     .gap_2()
                     .child(refine_button)
                     .child(save_button)
+                    .when(!deck, |d| d.child(motion_button))
                     .child(
                         h_flex()
                             .flex_1()
@@ -3412,8 +3765,18 @@ impl Render for ImaginePage {
             .saved_flash
             .as_ref()
             .is_some_and(|(_, at)| at.elapsed().as_secs_f32() < SAVE_FLASH_SECS);
+        if !cx.reduced_motion() {
+            self.intro.tick();
+        }
         let intro_animating = self.loaded && !self.connected && self.intro.animating();
-        if (!self.jobs.is_empty() || flashing || intro_animating) && !cx.reduced_motion() {
+        let moving = self.chat
+            && (!self.moving.is_empty()
+                || self
+                    .asides
+                    .iter()
+                    .any(|a| a.moved.is_some() && a.project == self.open));
+        if (!self.jobs.is_empty() || flashing || intro_animating || moving) && !cx.reduced_motion()
+        {
             window.request_animation_frame();
         }
         if std::mem::take(&mut self.scroll_chat) {

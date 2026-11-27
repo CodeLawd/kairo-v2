@@ -23,7 +23,7 @@ use gpui_kit::{
     SharedString, StatefulInteractiveElement, Styled, StyledImage, Subscription, Window, deferred,
     div, img, prelude::FluentBuilder, px,
 };
-use kairo_domain::media::{MediaItem, MediaKind, MediaPlayback, format_media_clock};
+use kairo_domain::media::{MediaItem, MediaKind, MediaMotion, MediaPlayback, format_media_clock};
 use kairo_domain::overlay::MediaFit;
 use kairo_ui_kit::tokens::{Step, TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
@@ -52,6 +52,8 @@ pub mod ids {
     pub const LOOP: &str = "media-inspector-loop";
     pub const USE_START: &str = "media-inspector-use-start";
     pub const USE_END: &str = "media-inspector-use-end";
+    pub const CAMERA: &str = "media-inspector-camera";
+    pub const ATMOSPHERE: &str = "media-inspector-atmosphere";
     pub fn handle(edge: &str) -> String {
         format!("media-inspector-trim-{edge}")
     }
@@ -102,6 +104,29 @@ const COLOURS: [(&str, &str, f32, f32); 3] = [
     ("saturation", "Saturation", 0., 2.),
 ];
 
+/// Camera moves a still can make (`MOTION_CAMERAS`), as the menu names them.
+const CAMERAS: [(Option<&str>, &str); 4] = [
+    (None, "Still"),
+    (Some("zoom"), "Slow zoom"),
+    (Some("drift"), "Drift"),
+    (Some("pan"), "Pan"),
+];
+/// Atmospheres drawn over a still (`MOTION_ATMOSPHERES`).
+const ATMOSPHERES: [(Option<&str>, &str); 5] = [
+    (None, "None"),
+    (Some("dust"), "Dust"),
+    (Some("bokeh"), "Bokeh"),
+    (Some("rays"), "Light rays"),
+    (Some("haze"), "Haze"),
+];
+
+fn motion_name(table: &[(Option<&str>, &'static str)], v: Option<&str>) -> &'static str {
+    table
+        .iter()
+        .find(|(k, _)| *k == v)
+        .map_or(table[0].1, |(_, n)| n)
+}
+
 pub struct Inspector {
     /// The modal's focus scope, set by the dock that opens it
     /// ([`Self::set_modal_focus`]), which gives focus back on close.
@@ -111,6 +136,8 @@ pub struct Inspector {
     panel: Panel,
     grade: Grade,
     fit: Option<MediaFit>,
+    /// A still's motion; layers come from Imagine and are kept as they are.
+    motion: MediaMotion,
     player: Option<Entity<PreviewPlayer>>,
     start: Entity<InputState>,
     end: Entity<InputState>,
@@ -245,6 +272,7 @@ impl Inspector {
                 Panel::Appearance
             },
             fit: playback.fit.flatten(),
+            motion: playback.motion.clone().unwrap_or_default(),
             grade,
             initial: playback,
             item,
@@ -370,6 +398,20 @@ impl Inspector {
         cx.notify();
     }
 
+    pub fn motion(&self) -> &MediaMotion {
+        &self.motion
+    }
+
+    pub fn set_camera(&mut self, camera: Option<&str>, cx: &mut Context<Self>) {
+        self.motion.camera = camera.map(str::to_owned);
+        cx.notify();
+    }
+
+    pub fn set_atmosphere(&mut self, atmosphere: Option<&str>, cx: &mut Context<Self>) {
+        self.motion.atmosphere = atmosphere.map(str::to_owned);
+        cx.notify();
+    }
+
     pub fn set_loop(&mut self, looped: bool, cx: &mut Context<Self>) {
         self.looped = looped;
         self.range_changed(cx);
@@ -454,6 +496,16 @@ impl Inspector {
             "fit".into(),
             self.fit.map_or(Value::Null, |f| json!(f.as_str())),
         );
+        if self.item.kind == MediaKind::Image {
+            patch.insert(
+                "motion".into(),
+                if self.motion.is_still() {
+                    Value::Null
+                } else {
+                    json!(self.motion)
+                },
+            );
+        }
         if self.item.kind == MediaKind::Video {
             patch.insert("rate".into(), json!(self.rate));
             patch.insert("loop".into(), json!(self.looped));
@@ -828,6 +880,9 @@ impl Inspector {
                 };
                 let e = cx.entity();
                 let reset = cx.entity();
+                let (cam, atm) = (cx.entity(), cx.entity());
+                let still = self.item.kind == MediaKind::Image;
+                let layers = self.motion.layers.len();
                 let sliders: Vec<AnyElement> = COLOURS
                     .iter()
                     .zip(&self.colour_sliders)
@@ -869,6 +924,27 @@ impl Inspector {
                         menu
                     }))
                     .when(self.fit.is_none(), |d| d.child(div().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child("The preview shows the full source. Each output uses its own scaling.")))
+                    .when(still, |d| {
+                        d.child(div().text_size(text::XS.size).font_weight(FontWeight::SEMIBOLD).child("Motion"))
+                            .child(label("Camera"))
+                            .child(Button::new(ids::CAMERA).cursor_pointer().small().label(motion_name(&CAMERAS, self.motion.camera.as_deref())).dropdown_caret(true).popover_trigger().dropdown_menu(move |mut menu, _, _| {
+                                for (v, name) in CAMERAS {
+                                    let e = cam.clone();
+                                    menu = menu.item(PopupMenuItem::new(name).on_click(move |_, _, cx| e.update(cx, |i, cx| i.set_camera(v, cx))));
+                                }
+                                menu
+                            }))
+                            .child(label("Atmosphere"))
+                            .child(Button::new(ids::ATMOSPHERE).cursor_pointer().small().label(motion_name(&ATMOSPHERES, self.motion.atmosphere.as_deref())).dropdown_caret(true).popover_trigger().dropdown_menu(move |mut menu, _, _| {
+                                for (v, name) in ATMOSPHERES {
+                                    let e = atm.clone();
+                                    menu = menu.item(PopupMenuItem::new(name).on_click(move |_, _, cx| e.update(cx, |i, cx| i.set_atmosphere(v, cx))));
+                                }
+                                menu
+                            }))
+                            .when(layers > 0, |d| d.child(div().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child(format!("Parallax: {layers} depth layer{} from Imagine.", if layers == 1 { "" } else { "s" }))))
+                            .child(div().text_size(text::XS.size).text_color(k.text(TextStep::T400)).child("Motion plays on screen; the preview stays still."))
+                    })
                     .child(div().text_size(text::XS.size).font_weight(FontWeight::SEMIBOLD).child("Adjust color"))
                     .children(sliders)
                     .child(Button::new(ids::RESET).cursor_pointer().small().label("Reset appearance").on_click(move |_, w, cx| reset.update(cx, |i, cx| { i.set_grade(Grade::default(), w, cx); i.set_fit(None, cx) })))
@@ -1003,7 +1079,7 @@ impl Render for Inspector {
                                 .w(px(896.))
                                 .max_w(viewport.width - px(32.))
                                 .max_h((viewport.height - px(40.)).min(px(800.)))
-                                .overflow_y_scroll()
+                                .overflow_hidden()
                                 .rounded(radius::xl())
                                 .border_1()
                                 .border_color(k.surface_border)
@@ -1041,7 +1117,12 @@ impl Render for Inspector {
                                         ),
                                 )
                                 .child(
+                                    // Only the body scrolls; header and Save stay put.
                                     h_flex()
+                                        .id("media-inspector-body")
+                                        .flex_1()
+                                        .min_h_0()
+                                        .overflow_y_scroll()
                                         .items_start()
                                         .gap_5()
                                         .p_5()

@@ -6,8 +6,7 @@
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::slider::Slider;
-use gpui_kit::component::switch::Switch;
-use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
+use gpui_kit::component::{Disableable, Icon, Selectable, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 use kairo_engine_proto::StageOperation;
@@ -85,11 +84,60 @@ impl Teleprompter {
             },
             |target| target.name.clone(),
         );
+        let live = self.live.is_some();
+        let picker = Button::new("teleprompter-target")
+            .w_full()
+            .small()
+            .label(picker_label)
+            .dropdown_caret(true)
+            .disabled(self.targets.is_empty())
+            .accessibility_label("Screen for the prompter")
+            .dropdown_menu(move |mut menu, _, _| {
+                for target in &targets {
+                    let view = entity.clone();
+                    let id = target.id.clone();
+                    let label = if target.ready || target.reason.is_empty() {
+                        target.name.clone()
+                    } else {
+                        format!("{} \u{2014} {}", target.name, target.reason)
+                    };
+                    menu = menu.item(
+                        PopupMenuItem::new(label)
+                            .checked(current.as_deref() == Some(id.as_str()))
+                            .disabled(!target.ready)
+                            .on_click(move |_, window, cx| {
+                                let id = id.clone();
+                                view.update(cx, |this, cx| this.choose_target(id, window, cx));
+                            }),
+                    );
+                }
+                menu
+            });
+        // Go live and Take off sit beside the screen they act on.
+        let action = if live {
+            Button::new("teleprompter-take-off")
+                .danger()
+                .small()
+                .icon(Icon::new(KairoIcon::MonitorOff))
+                .label("Take off")
+                .tooltip("Take the prompter off the screen")
+                .disabled(self.busy)
+                .on_click(cx.listener(|this, _, window, cx| this.take_off(window, cx)))
+        } else {
+            Button::new("teleprompter-go-live")
+                .primary()
+                .small()
+                .icon(Icon::new(KairoIcon::MonitorPlay))
+                .label("Go live")
+                .disabled(self.busy || !ready)
+                .on_click(cx.listener(|this, _, window, cx| this.go_live(window, cx)))
+        };
+        let pill_ink = if live { k.live } else { k.text(TextStep::T400) };
         v_flex()
             .px_4()
             .pt_3()
             .pb_3()
-            .gap_3()
+            .gap_2p5()
             .border_b(metrics::panel_border_width())
             .border_color(k.panel_border)
             .child(
@@ -99,7 +147,7 @@ impl Teleprompter {
                     .child(
                         div()
                             .flex_1()
-                            .text_size(text::BASE.size)
+                            .text_size(text::SM.size)
                             .font_weight(FontWeight::SEMIBOLD)
                             .child("Prompter"),
                     )
@@ -107,109 +155,53 @@ impl Teleprompter {
                         h_flex()
                             .id("teleprompter-state")
                             .flex_none()
+                            .min_w_0()
                             .gap_1p5()
                             .items_center()
-                            .text_size(text::XS.size)
-                            .text_color(k.text(TextStep::T300))
+                            .px_2()
+                            .py_0p5()
+                            .rounded_full()
+                            .bg(pill_ink.opacity(0.14))
+                            .text_size(text::LABEL.size)
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(pill_ink)
                             .aria_label(state.clone())
-                            .child(div().size_2().rounded_full().bg(dot))
-                            .child(state),
+                            .child(div().size_1p5().flex_none().rounded_full().bg(dot))
+                            .child(div().truncate().child(state)),
                     ),
             )
             .child(
                 h_flex()
                     .gap_2()
                     .items_center()
-                    .child(
-                        div()
-                            .flex_none()
-                            .text_size(text::XS.size)
-                            .text_color(k.text(TextStep::T400))
-                            .child("Screen"),
-                    )
-                    .child(div().flex_1().min_w_0().child(
-                        Button::new("teleprompter-target")
-                            .w_full()
-                            .small()
-                            .label(picker_label)
-                            .dropdown_caret(true)
-                            .disabled(self.targets.is_empty())
-                            .accessibility_label("Screen for the prompter")
-                            .dropdown_menu(move |mut menu, _, _| {
-                                for target in &targets {
-                                    let view = entity.clone();
-                                    let id = target.id.clone();
-                                    let label = if target.ready || target.reason.is_empty() {
-                                        target.name.clone()
-                                    } else {
-                                        format!("{} \u{2014} {}", target.name, target.reason)
-                                    };
-                                    menu = menu.item(
-                                        PopupMenuItem::new(label)
-                                            .checked(current.as_deref() == Some(id.as_str()))
-                                            .disabled(!target.ready)
-                                            .on_click(move |_, window, cx| {
-                                                let id = id.clone();
-                                                view.update(cx, |this, cx| {
-                                                    this.choose_target(id, window, cx)
-                                                });
-                                            }),
-                                    );
-                                }
-                                menu
-                            }),
-                    )),
+                    .child(div().flex_1().min_w_0().child(picker))
+                    .child(div().flex_none().child(action)),
             )
             .when_some(
                 reason.or_else(|| {
-                    self.targets.is_empty().then(|| {
-                        "Turn on an audience screen, or a stage display in Teleprompter mode, in Screens."
-                            .to_owned()
-                    })
+                    self.targets
+                        .is_empty()
+                        .then(|| "No screen available. Turn one on in Screens.".to_owned())
                 }),
                 |this, reason| {
                     this.child(
                         div()
-                            .text_size(text::XS.size)
+                            .text_size(text::LABEL.size)
                             .text_color(k.text(TextStep::T400))
                             .child(reason),
                     )
                 },
             )
-            .child(if self.live.is_some() {
-                h_flex()
-                    .gap_2()
-                    .child(
-                        Button::new("teleprompter-take-off")
-                            .danger()
-                            .flex_1()
-                            .icon(Icon::new(KairoIcon::MonitorOff))
-                            .label("Take off screen")
-                            .disabled(self.busy)
-                            .on_click(cx.listener(|this, _, window, cx| this.take_off(window, cx))),
-                    )
-                    .when(behind, |this| {
-                        this.child(
-                            Button::new("teleprompter-update")
-                                .flex_1()
-                                .icon(Icon::new(KairoIcon::RefreshCw))
-                                .label("Update screen")
-                                .disabled(self.busy)
-                                .on_click(
-                                    cx.listener(|this, _, window, cx| this.publish(window, cx)),
-                                ),
-                        )
-                    })
-                    .into_any_element()
-            } else {
-                Button::new("teleprompter-go-live")
-                    .primary()
-                    .w_full()
-                    .icon(Icon::new(KairoIcon::MonitorPlay))
-                    .label("Go live")
-                    .disabled(self.busy || !ready)
-                    .on_click(cx.listener(|this, _, window, cx| this.go_live(window, cx)))
-                    .into_any_element()
+            .when(live && behind, |this| {
+                this.child(
+                    Button::new("teleprompter-update")
+                        .small()
+                        .w_full()
+                        .icon(Icon::new(KairoIcon::RefreshCw))
+                        .label("Update screen with your edits")
+                        .disabled(self.busy)
+                        .on_click(cx.listener(|this, _, window, cx| this.publish(window, cx))),
+                )
             })
             .into_any_element()
     }
@@ -242,7 +234,9 @@ impl Teleprompter {
                 }
             })
         } else if max > 0.0 {
-            (self.offset / max * 100.0).round().clamp(0.0, 100.0) as u32
+            // The real position, so a wheel scroll shows at once.
+            let offset = f32::from(-self.preview_scroll.offset().y).max(0.0);
+            (offset / max * 100.0).round().clamp(0.0, 100.0) as u32
         } else {
             0
         };
@@ -409,60 +403,76 @@ impl Teleprompter {
                     this.transport(StageOperation::Scroll { lines: 1.0 }, window, cx)
                 })),
             )
+            .child(div().w(px(1.)).h_5().mx_1().bg(cx.kairo().panel_border))
+            .child(
+                // Mirror for a beam-splitter rig: an option set once.
+                Button::new("teleprompter-mirror")
+                    .ghost()
+                    .icon(Icon::new(KairoIcon::FlipHorizontal))
+                    .toggled(self.layout.mirror)
+                    .when(self.layout.mirror, |b| b.selected(true))
+                    .accessibility_label("Mirror text")
+                    .tooltip(if self.layout.mirror {
+                        "Mirrored for a beam-splitter rig. Click to turn off"
+                    } else {
+                        "Mirror the text for a beam-splitter rig"
+                    })
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        let next = !this.layout.mirror;
+                        this.set_mirror(next, window, cx)
+                    })),
+            )
+            .child(
+                Button::new("teleprompter-keys")
+                    .ghost()
+                    .icon(Icon::new(KairoIcon::Keyboard))
+                    .accessibility_label("Keyboard shortcuts")
+                    .tooltip("Space play/pause \u{b7} \u{2191}\u{2193} speed \u{b7} \u{2190}\u{2192} one line \u{b7} Page Up/Down jump \u{b7} Home restart"),
+            )
             .into_any_element()
     }
 
     fn display_options(&self, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
-        let label = |name: &'static str, value: String| {
+        // One line each: name, slider, value.
+        let row = |name: &'static str, slider: Slider, value: String| {
             h_flex()
-                .justify_between()
-                .text_size(text::XS.size)
-                .child(name)
-                .child(div().text_color(k.text(TextStep::T400)).child(value))
+                .gap_3()
+                .items_center()
+                .child(
+                    div()
+                        .flex_none()
+                        .w(rems(4.))
+                        .text_size(text::XS.size)
+                        .text_color(k.text(TextStep::T300))
+                        .child(name),
+                )
+                .child(div().flex_1().min_w_0().child(slider))
+                .child(
+                    div()
+                        .flex_none()
+                        .w(rems(2.))
+                        .text_right()
+                        .text_size(text::XS.size)
+                        .text_color(k.text(TextStep::T400))
+                        .child(value),
+                )
         };
         v_flex()
             .px_4()
-            .pt_4()
-            .pb_3()
+            .pt_3()
+            .pb_4()
             .gap_3()
-            .child(
-                v_flex()
-                    .gap_1p5()
-                    .child(label("Speed", format!("{:.0}", speed_level(self.layout.speed))))
-                    .child(Slider::new(&self.speed_slider).accessibility_label("Scroll speed")),
-            )
-            .child(
-                v_flex()
-                    .gap_1p5()
-                    .child(label("Text size", format!("{:.0}", self.layout.font_px)))
-                    .child(Slider::new(&self.font_slider).accessibility_label("Text size")),
-            )
-            .child(
-                h_flex()
-                    .justify_between()
-                    .items_center()
-                    .text_size(text::XS.size)
-                    .child("Mirror for a beam-splitter rig")
-                    .child(
-                        Switch::new("teleprompter-mirror")
-                            .small()
-                            .checked(self.layout.mirror)
-                            .accessibility_label("Mirror text")
-                            .on_change(cx.listener(|this, checked: &bool, window, cx| {
-                                this.set_mirror(*checked, window, cx)
-                            })),
-                    ),
-            )
-            .child(
-                div()
-                    .pt_2()
-                    .border_t(metrics::panel_border_width())
-                    .border_color(k.panel_border)
-                    .text_size(text::LABEL.size)
-                    .text_color(k.text(TextStep::T500))
-                    .child("Space play/pause \u{b7} \u{2191}\u{2193} speed \u{b7} \u{2190}\u{2192} one line \u{b7} Page Up/Down jump \u{b7} Home restart"),
-            )
+            .child(row(
+                "Speed",
+                Slider::new(&self.speed_slider).accessibility_label("Scroll speed"),
+                format!("{:.0}", speed_level(self.layout.speed)),
+            ))
+            .child(row(
+                "Text size",
+                Slider::new(&self.font_slider).accessibility_label("Text size"),
+                format!("{:.0}", self.layout.font_px),
+            ))
             .into_any_element()
     }
 }

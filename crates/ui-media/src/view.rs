@@ -378,6 +378,59 @@ impl MediaDockView {
         );
     }
 
+    /// The dock's keys: ⌘A (Ctrl+A) picks every item; Delete or Backspace
+    /// removes the picked items (or the selected one) from the playlist
+    /// showing, or asks before deleting the files from the folder; Esc
+    /// clears the picks. Returns whether the key was used.
+    fn dock_key(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let m = event.keystroke.modifiers;
+        let key = event.keystroke.key.as_str();
+        // ⌘ on macOS, Ctrl elsewhere.
+        let command = if cfg!(target_os = "macos") {
+            m.platform
+        } else {
+            m.control
+        };
+        if key == "a" && command && !m.shift && !m.alt {
+            self.model.update(cx, |m, cx| m.pick_all(cx));
+            return true;
+        }
+        if command || m.alt {
+            return false;
+        }
+        match key {
+            "escape" if self.model.read(cx).picked_count() > 0 => {
+                self.model.update(cx, |m, cx| m.clear_picks(cx));
+                true
+            }
+            "delete" | "backspace" => {
+                let model = self.model.read(cx);
+                let picked = model.picked_count();
+                let in_playlist = model.in_playlist();
+                let selected = model.selected_item().and_then(|id| model.item(id)).cloned();
+                match (picked, in_playlist, selected) {
+                    (0, _, None) => return false,
+                    (0, true, Some(item)) => {
+                        self.model
+                            .update(cx, |m, cx| m.remove_from_playlist(item.id.clone(), cx));
+                    }
+                    (0, false, Some(item)) => self.confirm_delete_item(item, window, cx),
+                    (_, true, _) => self
+                        .model
+                        .update(cx, |m, cx| m.remove_picked_from_playlist(cx)),
+                    (_, false, _) => self.confirm_delete_picked(window, cx),
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn confirm_delete_picked(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let n = self.model.read(cx).picked_count();
         if n == 0 {
@@ -1626,6 +1679,13 @@ impl Render for MediaDockView {
             .id(ids::DOCK)
             .test_support()
             .track_focus(&self.focus)
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                // Only while the dock itself has focus: a key typed into its
+                // search or a rename field belongs to that field.
+                if this.focus.is_focused(window) && this.dock_key(event, window, cx) {
+                    cx.stop_propagation();
+                }
+            }))
             // Capture: a field inside the dock still focuses itself after.
             .capture_any_mouse_down(cx.listener(|this, _, window, cx| {
                 window.focus(&this.focus, cx);

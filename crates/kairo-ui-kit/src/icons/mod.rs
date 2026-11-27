@@ -1,7 +1,8 @@
 //! The operator interface's icon set.
 //!
 //! `src/renderer/src/icons/index.tsx` maps names to Hugeicons (free, Stroke
-//! Rounded, MIT) and seven Phosphor glyphs (MIT), plus a hand-drawn Bible.
+//! Rounded, MIT) and seven Phosphor glyphs (MIT), plus hand-drawn Bible and
+//! Looks glyphs.
 //! Only the icons the renderer imports are bundled (`tools/generate-icons.cjs`
 //! writes `assets/icons` and `generated.rs`). Licences are in
 //! `assets/licenses`.

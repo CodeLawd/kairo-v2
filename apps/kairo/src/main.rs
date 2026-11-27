@@ -1,3 +1,7 @@
+// Packaged Windows builds are windowed apps: as console programs, Windows
+// opened a terminal beside Kairo and printed the log into it. Dev builds
+// keep the console for the log.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 //! Native UI bootstrap window.
 //!
 //! Startup follows `src/main/index.ts`: find the profile's folders, start
@@ -426,6 +430,59 @@ fn open_operator_window(
             )
         });
         {
+            // A clicker pages the slides whenever Slides is open, not only
+            // while the slide list has focus: the shell turns the operator's
+            // Next and Previous keys into workspace commands, and this is
+            // where they land when nothing on the page took them.
+            // A live deck owns the clicker everywhere: on any other screen,
+            // Page Down and Page Up (what clickers send) step the deck that is
+            // on the screens; the arrow keys stay with the open screen.
+            let live_slides = documents_page.downgrade();
+            let live_shell = shell.downgrade();
+            cx.intercept_keystrokes(move |event, window, cx| {
+                let k = &event.keystroke;
+                let delta = match k.key.as_str() {
+                    "pagedown" => 1,
+                    "pageup" => -1,
+                    _ => return,
+                };
+                let m = k.modifiers;
+                if m.platform || m.control || m.alt || m.shift {
+                    return;
+                }
+                let Some(shell) = live_shell.upgrade() else {
+                    return;
+                };
+                let s = shell.read(cx);
+                // Slides handles its own keys; a field or a dialog keeps them.
+                let typing = window.context_stack().iter().any(|c| c.contains("Input"));
+                if s.route() == ui_shell::Route::Documents
+                    || s.overlay().is_some()
+                    || s.quit_open()
+                    || typing
+                {
+                    return;
+                }
+                if live_slides
+                    .update(cx, |page, cx| page.step_live(delta, cx))
+                    .unwrap_or(false)
+                {
+                    cx.stop_propagation();
+                }
+            })
+            .detach();
+            let slides = documents_page.downgrade();
+            let shell_weak = shell.downgrade();
+            cx.on_action(move |action: &ui_shell::keymap::WorkspaceCommand, cx| {
+                let on_slides = shell_weak
+                    .upgrade()
+                    .is_some_and(|s| s.read(cx).route() == ui_shell::Route::Documents);
+                if on_slides {
+                    let _ = slides.update(cx, |page, cx| page.clicker(action.0.0, cx));
+                }
+            });
+        }
+        {
             let lyrics_model = lyrics_page.read(cx).model().clone();
             let scripture_model = scripture_page.read(cx).model().clone();
             let docs_page = documents_page.clone();
@@ -546,11 +603,17 @@ fn open_operator_window(
         {
             // A deck saved from Imagine shows up in Slides at once.
             let slides = documents_page.downgrade();
+            let shell = shell.downgrade();
             cx.subscribe(
                 &imagine_page,
-                move |_, event: &ui_imagine::ImagineEvent, cx| {
-                    let ui_imagine::ImagineEvent::SlidesSaved = event;
-                    let _ = slides.update(cx, |page, cx| page.refresh(cx));
+                move |_, event: &ui_imagine::ImagineEvent, cx| match event {
+                    ui_imagine::ImagineEvent::SlidesSaved => {
+                        let _ = slides.update(cx, |page, cx| page.refresh(cx));
+                    }
+                    // The Media dock lives beside the operator booth.
+                    ui_imagine::ImagineEvent::OpenMedia => {
+                        let _ = shell.update(cx, |s, cx| s.navigate(ui_shell::Route::Operator, cx));
+                    }
                 },
             )
             .detach();
@@ -1107,7 +1170,11 @@ fn main() {
         kairo_ui_kit::init(kairo_ui_kit::Appearance::Dark, cx);
         motion::apply(cx);
         ui_shell::keymap::bind(cx);
-        cx.set_menus(ui_shell::menus::app_menus(cfg!(target_os = "macos")));
+        cx.set_menus(ui_shell::menus::app_menus(
+            cfg!(target_os = "macos"),
+            ui_shell::menus::ScreensMenu::default(),
+            ui_shell::Route::Operator,
+        ));
         dock::set_icon(include_bytes!("../resources/icon.png"));
 
         let core = match kairo_core::AppCore::new() {
@@ -1121,13 +1188,20 @@ fn main() {
         let binary = std::env::var_os("KAIRO_ENGINE_BINARY")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
-                std::env::current_exe()
-                    .expect("Kairo executable")
-                    .with_file_name(if cfg!(windows) {
-                        "kairo-engine.exe"
-                    } else {
-                        "kairo-engine"
-                    })
+                let exe = std::env::current_exe().expect("Kairo executable");
+                #[cfg(target_os = "macos")]
+                if let Some(dir) = exe.parent() {
+                    let helper =
+                        dir.join("../Helpers/Kairo Engine.app/Contents/MacOS/kairo-engine");
+                    if helper.is_file() {
+                        return helper;
+                    }
+                }
+                exe.with_file_name(if cfg!(windows) {
+                    "kairo-engine.exe"
+                } else {
+                    "kairo-engine"
+                })
             });
         let engine =
             kairo_core::engine::EngineHandle::new(kairo_core::engine::EngineOptions::new(binary));

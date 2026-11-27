@@ -74,6 +74,9 @@ pub(crate) enum FeedbackPhase {
 }
 
 /// The shell's retained state.
+/// Present in the user-data folder once "Always quit" is chosen.
+pub const ALWAYS_QUIT_FILE: &str = "quit-without-asking";
+
 pub struct Shell {
     pub(crate) focus: FocusHandle,
     pub(crate) route: Route,
@@ -91,6 +94,8 @@ pub struct Shell {
     pub(crate) whats_new_focus: kairo_ui_kit::components::ModalFocus,
     /// "Keep Kairo open" takes initial focus (DESIGN.md, Quit confirmation).
     pub(crate) keep_open_focus: gpui_kit::FocusHandle,
+    /// "Always quit" was chosen: quitting no longer asks (unless recording).
+    pub(crate) always_quit: bool,
     pub(crate) overlay: Option<Overlay>,
     pub(crate) whats_new: Option<ChangelogEntry>,
     pub(crate) whats_new_auto: Option<ChangelogEntry>,
@@ -100,6 +105,15 @@ pub struct Shell {
     pub(crate) keychain_dismissed: bool,
     pub(crate) update_confirming: bool,
     pub(crate) feedback_open: bool,
+    /// The rail's account menu is open, and what it shows.
+    pub(crate) account_open: bool,
+    pub(crate) account_page: AccountPage,
+    /// The operator clicked into the open panel: hovering other rows leaves it open.
+    pub(crate) account_pinned: bool,
+    /// The rail's Apps menu is open.
+    pub(crate) apps_open: bool,
+    /// A closed overlay's view, kept on screen while it fades out.
+    pub(crate) overlay_leaving: Option<(AnyView, Task<()>)>,
     pub(crate) feedback_kind: FeedbackKind,
     pub(crate) feedback_input: Entity<TextareaState>,
     pub(crate) pending_feedback_clear: bool,
@@ -156,6 +170,15 @@ pub type ScreenThemesOpened = std::rc::Rc<dyn Fn(bool, &mut gpui_kit::Window, &m
 
 /// Called when the Audio popover opens.
 /// Called when the audio popover opens (`true`) or closes (`false`).
+/// What the rail's account menu shows: the menu, or one of its panels.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum AccountPage {
+    #[default]
+    Menu,
+    Audio,
+    Feedback,
+}
+
 pub type AudioOpened = std::rc::Rc<dyn Fn(bool, &mut gpui_kit::Window, &mut gpui_kit::App)>;
 
 impl EventEmitter<ShellRequest> for Shell {}
@@ -192,6 +215,10 @@ impl Shell {
             .map(UiScale::load)
             .unwrap_or_default();
         apply_scale(scale, cx);
+        let always_quit = options
+            .user_data
+            .as_deref()
+            .is_some_and(|dir| dir.join(ALWAYS_QUIT_FILE).exists());
         let subscriptions = vec![
             // Coming back to the app: pull secrets, wake uploaders.
             cx.observe_window_activation(window, |_, window, cx| {
@@ -219,6 +246,7 @@ impl Shell {
             quit_focus: kairo_ui_kit::components::ModalFocus::new(cx),
             whats_new_focus: kairo_ui_kit::components::ModalFocus::new(cx),
             keep_open_focus: cx.focus_handle(),
+            always_quit,
             overlay: None,
             whats_new: None,
             whats_new_auto: None,
@@ -228,6 +256,11 @@ impl Shell {
             keychain_dismissed: false,
             update_confirming: false,
             feedback_open: false,
+            account_open: false,
+            account_page: AccountPage::Menu,
+            account_pinned: false,
+            apps_open: false,
+            overlay_leaving: None,
             feedback_kind: FeedbackKind::Idea,
             feedback_input,
             pending_feedback_clear: false,
@@ -463,6 +496,15 @@ impl Shell {
     pub fn set_state(&mut self, state: ShellState, cx: &mut Context<Self>) {
         let first_settings =
             self.state.whats_new_last_seen.is_none() && state.whats_new_last_seen.is_some();
+        let menu = |s: &ShellState| crate::menus::ScreensMenu {
+            audience_on: s.audience_on,
+            stage_on: s.stage_on,
+            recording: s.recording,
+        };
+        // The Screens menu's labels follow the screens.
+        if menu(&self.state) != menu(&state) {
+            cx.set_menus(crate::menus::app_menus(self.mac, menu(&state), self.route));
+        }
         self.state = state;
         // The Live label counts the recording up once a second.
         if !self.state.recording {
@@ -588,6 +630,15 @@ impl Shell {
 
     /// Shows a workspace.
     pub fn navigate(&mut self, route: Route, cx: &mut Context<Self>) {
+        if self.route != route {
+            // View's check follows the open workspace.
+            let screens = crate::menus::ScreensMenu {
+                audience_on: self.state.audience_on,
+                stage_on: self.state.stage_on,
+                recording: self.state.recording,
+            };
+            cx.set_menus(crate::menus::app_menus(self.mac, screens, route));
+        }
         self.route = route;
         self.mounted.insert(route);
         cx.notify();
@@ -607,6 +658,7 @@ impl Shell {
             self.settings_section = None;
         }
         self.overlay = Some(overlay);
+        self.overlay_leaving = None;
         cx.notify();
     }
 
@@ -619,10 +671,42 @@ impl Shell {
         cx.notify();
     }
 
+    /// Turns every Audience (`stage = false`) or Stage screen on or off, or
+    /// opens Screens to add one when there is none.
+    pub(crate) fn toggle_screen_group(&mut self, stage: bool, cx: &mut Context<Self>) {
+        let state = if stage {
+            self.state.stage_on
+        } else {
+            self.state.audience_on
+        };
+        match state {
+            Some(on) => cx.emit(ShellRequest::SetScreenGroupEnabled {
+                stage,
+                enabled: !on,
+            }),
+            None => self.open_overlay(Overlay::Screens, cx),
+        }
+    }
+
     /// Closes the overlay window.
     pub fn close_overlay(&mut self, cx: &mut Context<Self>) {
         self.overlay = None;
-        self.overlay_view = None;
+        // The window fades out rather than vanishing; it is gone for every
+        // other purpose already.
+        self.overlay_leaving = self.overlay_view.take().map(|view| {
+            let done = cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(
+                        kairo_ui_kit::motion::EXIT_MS,
+                    ))
+                    .await;
+                let _ = this.update(cx, |this, cx| {
+                    this.overlay_leaving = None;
+                    cx.notify();
+                });
+            });
+            (view, done)
+        });
         cx.notify();
     }
 
@@ -648,6 +732,11 @@ impl Shell {
     /// A quit or window close: asks once, and returns whether it may go
     /// ahead now.
     pub fn request_quit(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        // "Always quit" skips the question, but never while a recording runs.
+        if self.always_quit && !self.state.recording {
+            self.quit.allow();
+            return true;
+        }
         let mut prompted = false;
         let allowed = self.quit.confirm(|| prompted = true);
         if prompted {
@@ -666,6 +755,17 @@ impl Shell {
         if quit {
             cx.quit();
         }
+    }
+
+    /// "Always quit": remembered in the user-data folder, then quits now.
+    pub fn always_quit(&mut self, cx: &mut Context<Self>) {
+        self.always_quit = true;
+        if let Some(dir) = &self.user_data
+            && let Err(error) = std::fs::write(dir.join(ALWAYS_QUIT_FILE), b"")
+        {
+            tracing::warn!(%error, "[Shell] could not remember Always quit");
+        }
+        self.respond_to_quit(true, cx);
     }
 
     /// Lets the next quit through without asking (the updater's install).
@@ -759,6 +859,11 @@ impl Shell {
 
     pub(crate) fn close_feedback(&mut self, cx: &mut Context<Self>) {
         self.feedback_open = false;
+        // Feedback lives in the account menu: done with it, the menu closes too.
+        if self.account_page == AccountPage::Feedback {
+            self.account_open = false;
+            self.account_page = AccountPage::Menu;
+        }
         self.feedback_error = None;
         // After a thank-you the next open starts fresh; a draft survives a stray click away.
         if self.feedback_phase == FeedbackPhase::Sent {
@@ -849,13 +954,22 @@ impl Shell {
     }
 }
 
+/// The field's placeholder: one short line, because the Kit's textarea
+/// draws its placeholder on a single line and cuts the rest.
 pub(crate) fn placeholder(kind: FeedbackKind) -> &'static str {
     match kind {
-        FeedbackKind::Idea => "What would make Sunday easier? A feature, a shortcut, anything.",
-        FeedbackKind::Problem => {
-            "What happened, and what did you expect? Steps help us fix it fast."
-        }
-        FeedbackKind::Praise => "What do you love? It tells us what to keep.",
+        FeedbackKind::Idea => "What would make Sunday easier?",
+        FeedbackKind::Problem => "What happened, and what did you expect?",
+        FeedbackKind::Praise => "What do you love about Kairo?",
+    }
+}
+
+/// The line under the field: the rest of what the placeholder used to say.
+pub(crate) fn hint(kind: FeedbackKind) -> &'static str {
+    match kind {
+        FeedbackKind::Idea => "A feature, a shortcut, anything at all.",
+        FeedbackKind::Problem => "The steps that led to it help us fix it fast.",
+        FeedbackKind::Praise => "It tells us what to keep.",
     }
 }
 

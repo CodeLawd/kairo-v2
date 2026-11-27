@@ -157,10 +157,20 @@ pub fn listen(
     Ok(())
 }
 
+/// Windows named pipes have no I/O timeouts, so this fails on every
+/// connection there: expected, and not worth a warning in the log.
+fn timeout_unavailable(id: u64, what: &str, error: &dyn std::fmt::Display) {
+    if cfg!(windows) {
+        tracing::debug!("client {id}: cannot {what} timeout: {error}");
+    } else {
+        tracing::warn!("client {id}: cannot {what} timeout: {error}");
+    }
+}
+
 fn serve(id: u64, stream: Stream, token: &str, proxy: EventLoopProxy<Message>, outbox: Outbox) {
     let stream = Arc::new(stream);
     if let Err(error) = stream.set_recv_timeout(Some(HANDSHAKE_TIMEOUT)) {
-        tracing::warn!("client {id}: cannot set handshake timeout: {error}");
+        timeout_unavailable(id, "set handshake", &error);
     }
     let mut reader = BufReader::new(&*stream);
     let reject = |reason: String| {
@@ -184,7 +194,7 @@ fn serve(id: u64, stream: Stream, token: &str, proxy: EventLoopProxy<Message>, o
         return reject("bad handshake token".into());
     }
     if let Err(error) = stream.set_recv_timeout(None) {
-        tracing::warn!("client {id}: cannot clear timeout: {error}");
+        timeout_unavailable(id, "clear", &error);
     }
     let welcome = FromEngine::Welcome(Welcome {
         protocol: PROTOCOL_VERSION,

@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><defs><mask id="m"><rect width="256" height="256" fill="#fff"/><rect x="94" y="94" width="144" height="144" rx="34" fill="#000"/></mask></defs><circle cx="96" cy="96" r="68" fill="currentColor" mask="url(#m)"/><rect x="110" y="110" width="112" height="112" rx="24" fill="currentColor"/></svg>

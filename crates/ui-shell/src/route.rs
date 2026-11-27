@@ -136,7 +136,16 @@ pub const WORKSPACES: [Workspace; 9] = [
     },
 ];
 
+/// Workspaces opened from the rail's Apps menu instead of their own rail
+/// button: used now and then, not every Sunday.
+pub const APPS: [Route; 1] = [Route::Theme];
+
 impl Route {
+    /// Opened from the Apps menu, not its own rail button.
+    pub fn in_apps(self) -> bool {
+        APPS.contains(&self)
+    }
+
     /// The `NavRoute` string.
     pub fn as_str(self) -> &'static str {
         match self {

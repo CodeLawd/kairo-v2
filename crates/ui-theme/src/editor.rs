@@ -41,6 +41,7 @@ use crate::gallery::ShapePick;
 use crate::history::ThemeHistory;
 use crate::model::{self, SAVE_DELAY_MS, SAVED_FLASH_MS};
 use crate::ops::Op;
+use crate::pen::{PenDraft, PenPress};
 
 /// The message under a failed write (`saveOutputSettings`'s catch).
 pub const SAVE_FAILED: &str = "Screen changes could not be saved. Please try again.";
@@ -106,6 +107,8 @@ pub struct ThemeEditor {
     preview_sent: Option<u64>,
     pub(crate) font_preview: Option<(&'static str, String)>,
     pub(crate) shapes_open: bool,
+    /// The Pen is on: presses on the canvas place points.
+    pub(crate) pen: Option<PenDraft>,
     pub(crate) thumbs: RefCell<ThumbCache>,
     pub(crate) inspector: Option<AnyView>,
     _feed: Task<()>,
@@ -200,6 +203,7 @@ impl ThemeEditor {
             preview_sent: None,
             font_preview: None,
             shapes_open: false,
+            pen: None,
             thumbs: RefCell::default(),
             inspector: None,
             _feed: feed,
@@ -412,6 +416,7 @@ impl ThemeEditor {
 
     /// Shows `theme` and saves it, without touching undo history.
     fn show_theme(&mut self, theme: OverlayTheme, cx: &mut Context<Self>) {
+        self.pen = None;
         let Some(id) = self.selected_id.clone() else {
             return;
         };
@@ -574,6 +579,48 @@ impl ThemeEditor {
             element.radius_px = pick.radius_px;
         }
         self.insert_element(element, cx);
+    }
+
+    /// Adds a text box of its own, selected so it can be typed into.
+    pub fn add_text(&mut self, cx: &mut Context<Self>) {
+        if self.draft.elements.len() >= MAX_OVERLAY_ELEMENTS || self.selected_id.is_none() {
+            return;
+        }
+        let id = model::new_id("el", now_ms());
+        let element = create_overlay_element(OverlayElementKind::Text, None, &id, None);
+        self.insert_element(element, cx);
+    }
+
+    /// Whether the Pen is drawing.
+    pub fn pen_active(&self) -> bool {
+        self.pen.is_some()
+    }
+
+    /// Turns the Pen on, or finishes the path being drawn and turns it off.
+    pub fn toggle_pen(&mut self, cx: &mut Context<Self>) {
+        if self.pen.is_some() {
+            self.finish_pen(false, cx);
+            return;
+        }
+        if self.draft.elements.len() >= MAX_OVERLAY_ELEMENTS || self.selected_id.is_none() {
+            return;
+        }
+        self.drag = None;
+        self.select_layer(None, cx);
+        self.pen = Some(PenDraft::default());
+        cx.notify();
+    }
+
+    /// Ends the Pen: two or more points become a path element.
+    pub fn finish_pen(&mut self, closed: bool, cx: &mut Context<Self>) {
+        let Some(pen) = self.pen.take() else {
+            return;
+        };
+        let id = model::new_id("el", now_ms());
+        match crate::pen::to_element(&pen.points, closed, self.frame_size(), &id) {
+            Some(element) => self.insert_element(element, cx),
+            None => cx.notify(),
+        }
     }
 
     /// Picks a picture or video, measures it, and adds it at its own shape.
@@ -918,6 +965,15 @@ impl ThemeEditor {
     /// A press at `pointer` (pixels from the frame's top left). Returns
     /// whether it started a drag.
     pub fn pointer_down(&mut self, pointer: (f64, f64), cx: &mut Context<Self>) -> bool {
+        if let Some(pen) = self.pen.as_mut() {
+            let press = pen.press(pointer);
+            if press == PenPress::Closed {
+                self.finish_pen(true, cx);
+                return false;
+            }
+            cx.notify();
+            return true;
+        }
         let frame = self.frame_size();
         let layers = self.canvas_layers();
         let hit = hit_test(&layers, self.selected_layer.as_deref(), pointer, frame);
@@ -947,6 +1003,11 @@ impl ThemeEditor {
 
     /// The pointer moved. While a drag runs this edits the layer.
     pub fn pointer_move(&mut self, pointer: (f64, f64), shift: bool, cx: &mut Context<Self>) {
+        if let Some(pen) = self.pen.as_mut() {
+            pen.moved(pointer);
+            cx.notify();
+            return;
+        }
         let frame = self.frame_size();
         let Some(drag) = self.drag.clone() else {
             let hit = hit_test(
@@ -977,6 +1038,11 @@ impl ThemeEditor {
     }
 
     pub fn pointer_up(&mut self, cx: &mut Context<Self>) {
+        if let Some(pen) = self.pen.as_mut() {
+            pen.released();
+            cx.notify();
+            return;
+        }
         if self.drag.take().is_some() || self.guides != (false, false) {
             self.guides = (false, false);
             cx.notify();
@@ -992,6 +1058,17 @@ impl ThemeEditor {
     /// Canvas keys, the way any design tool behaves: Delete hides the
     /// reference, arrows nudge, Esc deselects. Returns whether it was used.
     pub fn canvas_key(&mut self, key: &str, shift: bool, cx: &mut Context<Self>) -> bool {
+        if let Some(pen) = self.pen.as_mut() {
+            match key {
+                "escape" | "enter" => self.finish_pen(false, cx),
+                "backspace" | "delete" => {
+                    pen.points.pop();
+                    cx.notify();
+                }
+                _ => return false,
+            }
+            return true;
+        }
         let Some(selected) = self.selected_layer.clone() else {
             return false;
         };

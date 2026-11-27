@@ -85,22 +85,29 @@ done
 ok "Info.plist: $KAIRO_BUNDLE_ID $version, macOS $KAIRO_MIN_MACOS, usage strings, .kairo, _ndi._tcp"
 
 # 2. Layout.
+engine_rel="Helpers/Kairo Engine.app/Contents/MacOS/kairo-engine"
+engine_plist="$contents/Helpers/Kairo Engine.app/Contents/Info.plist"
 need() { [[ -e "$contents/$1" ]] || fail "missing Contents/$1"; }
-for f in "MacOS/$KAIRO_PRODUCT_NAME" MacOS/kairo-engine PkgInfo \
+for f in "MacOS/$KAIRO_PRODUCT_NAME" "$engine_rel" "Helpers/Kairo Engine.app/Contents/Info.plist" PkgInfo \
   Resources/bible.db Resources/icon.png Resources/icon.icns Resources/decklink/decklink-helper \
   Frameworks/libndi.dylib Frameworks/libpdfium.dylib; do
   need "$f"
 done
 for lib in "${FFMPEG_LIBS[@]}"; do need "Frameworks/$lib.dylib"; done
-for exe in "MacOS/$KAIRO_PRODUCT_NAME" MacOS/kairo-engine Resources/decklink/decklink-helper; do
+for exe in "MacOS/$KAIRO_PRODUCT_NAME" "$engine_rel" Resources/decklink/decklink-helper; do
   [[ -x "$contents/$exe" ]] || fail "Contents/$exe is not executable"
 done
-ok "bundle layout: both processes, DeckLink helper, Frameworks, resources"
+plutil -lint "$engine_plist" >/dev/null || fail "Engine Info.plist is not a valid property list"
+[[ "$(/usr/libexec/PlistBuddy -c "Print :LSUIElement" "$engine_plist" 2>/dev/null)" == "true" ]] \
+  || fail "Engine Info.plist must set LSUIElement=true"
+[[ "$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$engine_plist" 2>/dev/null)" == "$KAIRO_ENGINE_ID" ]] \
+  || fail "Engine Info.plist CFBundleIdentifier must be $KAIRO_ENGINE_ID"
+ok "bundle layout: both processes, LSUIElement engine bundle, DeckLink helper, Frameworks, resources"
 
 # No repository or build junk (the Electron check's equivalent).
 while IFS= read -r entry; do
   case "$entry" in
-    Info.plist|PkgInfo|MacOS|Frameworks|Resources|_CodeSignature|CodeResources) ;;
+    Info.plist|PkgInfo|MacOS|Frameworks|Helpers|Resources|_CodeSignature|CodeResources) ;;
     *) fail "unexpected Contents/$entry" ;;
   esac
 done < <(ls -A "$contents")
@@ -149,17 +156,17 @@ for f in "${macho[@]}"; do
     esac
   done < <(otool -l "$f" | awk '/cmd LC_RPATH/{getline; getline; print $2}')
 done
-for exe in "MacOS/$KAIRO_PRODUCT_NAME" MacOS/kairo-engine; do
-  otool -l "$contents/$exe" | awk '/cmd LC_RPATH/{getline; getline; print $2}' | grep -x '@executable_path/../Frameworks' >/dev/null \
-    || fail "Contents/$exe has no @executable_path/../Frameworks rpath"
-done
+otool -l "$contents/MacOS/$KAIRO_PRODUCT_NAME" | awk '/cmd LC_RPATH/{getline; getline; print $2}' | grep -x '@executable_path/../Frameworks' >/dev/null \
+  || fail "Contents/MacOS/$KAIRO_PRODUCT_NAME has no @executable_path/../Frameworks rpath"
+otool -l "$contents/$engine_rel" | awk '/cmd LC_RPATH/{getline; getline; print $2}' | grep -x '@executable_path/../../../../Frameworks' >/dev/null \
+  || fail "Contents/$engine_rel has no @executable_path/../../../../Frameworks rpath"
 if strings -a "${macho[@]}" 2>/dev/null | grep -E '/opt/homebrew/(opt|Cellar)/ffmpeg|/usr/local/(opt|Cellar)/ffmpeg' >/dev/null; then
   fail "a binary still names a Homebrew FFmpeg path"
 fi
 ok "${#macho[@]} Mach-O files: all $arch, macOS <= $KAIRO_MIN_MACOS, @rpath linkage, no absolute library paths"
 
 # The engine and app must link the bundled FFmpeg majors.
-for exe in "MacOS/$KAIRO_PRODUCT_NAME" MacOS/kairo-engine; do
+for exe in "MacOS/$KAIRO_PRODUCT_NAME" "$engine_rel"; do
   for lib in libavutil.61 libavcodec.63 libavformat.63; do
     otool -L "$contents/$exe" | grep "@rpath/$lib.dylib" >/dev/null || fail "Contents/$exe does not link @rpath/$lib.dylib"
   done
@@ -216,7 +223,7 @@ app_e="$(entitlements "$app")"
 for needed in com.apple.security.device.audio-input com.apple.security.device.camera; do
   [[ "$app_e" == *"$needed"* ]] || fail "Kairo is missing the $needed entitlement"
 done
-[[ "$(info "$contents/MacOS/kairo-engine" | awk -F= '/^Identifier=/{print $2}')" == "$KAIRO_ENGINE_ID" ]] \
+[[ "$(info "$contents/$engine_rel" | awk -F= '/^Identifier=/{print $2}')" == "$KAIRO_ENGINE_ID" ]] \
   || fail "kairo-engine is not signed as $KAIRO_ENGINE_ID"
 if [[ "$detected" == developer-id ]]; then
   spctl --assess --type execute --verbose=2 "$app" 2>&1 | sed 's/^/  /' || true

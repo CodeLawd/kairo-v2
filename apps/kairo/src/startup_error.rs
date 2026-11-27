@@ -70,6 +70,24 @@ pub fn dialog_commands(title: &str, text: &str) -> Vec<(&'static str, Vec<String
 pub fn report(title: &str, text: &str) {
     tracing::error!(title, text, "[Startup] cannot start");
     eprintln!("{title}\n\n{text}");
+    // A windowed Windows build has no console for the message above.
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("powershell.exe")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "Add-Type -AssemblyName PresentationFramework; \
+                 [System.Windows.MessageBox]::Show($env:KAIRO_ERROR_TEXT, $env:KAIRO_ERROR_TITLE, 'OK', 'Error') | Out-Null",
+            ])
+            .env("KAIRO_ERROR_TITLE", title)
+            .env("KAIRO_ERROR_TEXT", text)
+            .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+            .status();
+        return;
+    }
+    #[allow(unreachable_code)]
     if cfg!(target_os = "linux") {
         for (program, args) in dialog_commands(title, text) {
             // A dialog tool that is missing fails to spawn; try the next one.

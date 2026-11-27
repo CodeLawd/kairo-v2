@@ -115,6 +115,8 @@ pub enum KairoIcon {
     Lock,
     /// `hugeicons Logout01Icon`
     LogOut,
+    /// `Kairo Looks`
+    Looks,
     /// `hugeicons MessageSquareTextIcon`
     MessageSquare,
     /// `hugeicons Mic01Icon`
@@ -153,6 +155,8 @@ pub enum KairoIcon {
     Palette,
     /// `phosphor Pause`
     Pause,
+    /// `Kairo PenNib`
+    PenNib,
     /// `phosphor BookOpen`
     PhBookOpen,
     /// `phosphor Brain`
@@ -220,6 +224,8 @@ pub enum KairoIcon {
     Send,
     /// `hugeicons Settings01Icon`
     Settings,
+    /// `Kairo Shapes`
+    Shapes,
     /// `hugeicons SidebarLeftIcon`
     SidebarLeft,
     /// `phosphor SkipBack`
@@ -228,10 +234,14 @@ pub enum KairoIcon {
     SkipForward,
     /// `hugeicons SlidersHorizontalIcon`
     SlidersHorizontal,
-    /// `hugeicons Square01Icon`
+    /// `Kairo Square` (Hugeicons' Square01Icon draws x²)
     Square,
     /// `hugeicons StarIcon`
     Star,
+    /// `Kairo Sticker`
+    Sticker,
+    /// `Kairo Stop`
+    Stop,
     /// `hugeicons TextIcon`
     TextT,
     /// `hugeicons TrashIcon`
@@ -320,6 +330,7 @@ impl KairoIcon {
         KairoIcon::Loader,
         KairoIcon::Lock,
         KairoIcon::LogOut,
+        KairoIcon::Looks,
         KairoIcon::MessageSquare,
         KairoIcon::Mic,
         KairoIcon::MicOff,
@@ -339,6 +350,7 @@ impl KairoIcon {
         KairoIcon::ObjectAlignTop,
         KairoIcon::Palette,
         KairoIcon::Pause,
+        KairoIcon::PenNib,
         KairoIcon::PhBookOpen,
         KairoIcon::PhBrain,
         KairoIcon::PhotoStack,
@@ -373,12 +385,15 @@ impl KairoIcon {
         KairoIcon::Scissors,
         KairoIcon::Send,
         KairoIcon::Settings,
+        KairoIcon::Shapes,
         KairoIcon::SidebarLeft,
         KairoIcon::SkipBack,
         KairoIcon::SkipForward,
         KairoIcon::SlidersHorizontal,
         KairoIcon::Square,
         KairoIcon::Star,
+        KairoIcon::Sticker,
+        KairoIcon::Stop,
         KairoIcon::TextT,
         KairoIcon::Trash2,
         KairoIcon::Undo,
@@ -453,6 +468,7 @@ impl KairoIcon {
             KairoIcon::Loader => "loader",
             KairoIcon::Lock => "lock",
             KairoIcon::LogOut => "log_out",
+            KairoIcon::Looks => "looks",
             KairoIcon::MessageSquare => "message_square",
             KairoIcon::Mic => "mic",
             KairoIcon::MicOff => "mic_off",
@@ -472,6 +488,7 @@ impl KairoIcon {
             KairoIcon::ObjectAlignTop => "object_align_top",
             KairoIcon::Palette => "palette",
             KairoIcon::Pause => "pause",
+            KairoIcon::PenNib => "pen_nib",
             KairoIcon::PhBookOpen => "ph_book_open",
             KairoIcon::PhBrain => "ph_brain",
             KairoIcon::PhotoStack => "photo_stack",
@@ -506,12 +523,15 @@ impl KairoIcon {
             KairoIcon::Scissors => "scissors",
             KairoIcon::Send => "send",
             KairoIcon::Settings => "settings",
+            KairoIcon::Shapes => "shapes",
             KairoIcon::SidebarLeft => "sidebar_left",
             KairoIcon::SkipBack => "skip_back",
             KairoIcon::SkipForward => "skip_forward",
             KairoIcon::SlidersHorizontal => "sliders_horizontal",
             KairoIcon::Square => "square",
             KairoIcon::Star => "star",
+            KairoIcon::Sticker => "sticker",
+            KairoIcon::Stop => "stop",
             KairoIcon::TextT => "text_t",
             KairoIcon::Trash2 => "trash2",
             KairoIcon::Undo => "undo",
@@ -726,6 +746,8 @@ impl KairoIcon {
             (KairoIcon::Lock, true) => include_bytes!("../../assets/icons/lock-fill.svg"),
             (KairoIcon::LogOut, false) => include_bytes!("../../assets/icons/log_out.svg"),
             (KairoIcon::LogOut, true) => include_bytes!("../../assets/icons/log_out-fill.svg"),
+            (KairoIcon::Looks, false) => include_bytes!("../../assets/icons/looks.svg"),
+            (KairoIcon::Looks, true) => include_bytes!("../../assets/icons/looks-fill.svg"),
             (KairoIcon::MessageSquare, false) => {
                 include_bytes!("../../assets/icons/message_square.svg")
             }
@@ -810,6 +832,8 @@ impl KairoIcon {
             (KairoIcon::Palette, true) => include_bytes!("../../assets/icons/palette-fill.svg"),
             (KairoIcon::Pause, false) => include_bytes!("../../assets/icons/pause.svg"),
             (KairoIcon::Pause, true) => include_bytes!("../../assets/icons/pause-fill.svg"),
+            (KairoIcon::PenNib, false) => include_bytes!("../../assets/icons/pen_nib.svg"),
+            (KairoIcon::PenNib, true) => include_bytes!("../../assets/icons/pen_nib-fill.svg"),
             (KairoIcon::PhBookOpen, false) => include_bytes!("../../assets/icons/ph_book_open.svg"),
             (KairoIcon::PhBookOpen, true) => {
                 include_bytes!("../../assets/icons/ph_book_open-fill.svg")
@@ -934,6 +958,8 @@ impl KairoIcon {
             (KairoIcon::Send, true) => include_bytes!("../../assets/icons/send-fill.svg"),
             (KairoIcon::Settings, false) => include_bytes!("../../assets/icons/settings.svg"),
             (KairoIcon::Settings, true) => include_bytes!("../../assets/icons/settings-fill.svg"),
+            (KairoIcon::Shapes, false) => include_bytes!("../../assets/icons/shapes.svg"),
+            (KairoIcon::Shapes, true) => include_bytes!("../../assets/icons/shapes-fill.svg"),
             (KairoIcon::SidebarLeft, false) => {
                 include_bytes!("../../assets/icons/sidebar_left.svg")
             }
@@ -958,6 +984,10 @@ impl KairoIcon {
             (KairoIcon::Square, true) => include_bytes!("../../assets/icons/square-fill.svg"),
             (KairoIcon::Star, false) => include_bytes!("../../assets/icons/star.svg"),
             (KairoIcon::Star, true) => include_bytes!("../../assets/icons/star-fill.svg"),
+            (KairoIcon::Sticker, false) => include_bytes!("../../assets/icons/sticker.svg"),
+            (KairoIcon::Sticker, true) => include_bytes!("../../assets/icons/sticker-fill.svg"),
+            (KairoIcon::Stop, false) => include_bytes!("../../assets/icons/stop.svg"),
+            (KairoIcon::Stop, true) => include_bytes!("../../assets/icons/stop-fill.svg"),
             (KairoIcon::TextT, false) => include_bytes!("../../assets/icons/text_t.svg"),
             (KairoIcon::TextT, true) => include_bytes!("../../assets/icons/text_t-fill.svg"),
             (KairoIcon::Trash2, false) => include_bytes!("../../assets/icons/trash2.svg"),

@@ -16,7 +16,7 @@ use gpui_kit::component::popover::Popover;
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
 use gpui_kit::{
-    AnyElement, Context, Entity, FontWeight, InteractiveElement, IntoElement, MouseButton,
+    AnyElement, App, Context, Entity, FontWeight, InteractiveElement, IntoElement, MouseButton,
     ParentElement, Render, SharedString, StatefulInteractiveElement, Styled, StyledText,
     Subscription, TextRun as GpuiRun, Window, div, prelude::FluentBuilder, px,
 };
@@ -25,11 +25,11 @@ use kairo_domain::scripture::live_progress::ScriptureSuggestionGroup;
 use kairo_domain::scripture::query::Direction;
 use kairo_domain::scripture::small::spoken_verse_text;
 use kairo_domain::settings::ScriptureAutomation;
-use kairo_domain::status::AutoPresentDelaySec;
+use kairo_domain::status::{AutoPresentDelaySec, DetectorFallbackKind};
 use kairo_ui_kit::coach::coach_anchor;
 use kairo_ui_kit::components::segmented::{SegmentOption, SegmentedControl};
 use kairo_ui_kit::motion::{self, DETECT_CARD_IN, DETECT_STATE_IN};
-use kairo_ui_kit::tokens::{Step, TextStep, text};
+use kairo_ui_kit::tokens::{Hue, Step, TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 
 use super::text::{
@@ -143,113 +143,91 @@ impl DetectedPanel {
             .as_ref()
             .is_some_and(|r| r.recovery_session_available)
         {
-            out.push(
-                h_flex()
-                    .id("recovery-banner")
-                    .test_support()
-                    .flex_shrink_0()
-                    .items_center()
-                    .justify_between()
-                    .gap_3()
-                    .px_6()
-                    .py_3()
-                    .bg(k.tints.teal)
-                    .text_size(text::XS.size)
-                    .text_color(k.accent(Step::S300))
-                    .child(
-                        h_flex()
-                            .min_w_0()
-                            .items_center()
-                            .gap_2p5()
-                            .child(Icon::new(KairoIcon::AlertTriangle).size(px(15.)).text_color(k.accent(Step::S400)))
-                            .child(
-                                div()
-                                    .min_w_0()
-                                    .child(
-                                        div()
-                                            .font_weight(FontWeight::BOLD)
-                                            .child("Active Recovery State Detected."),
-                                    )
-                                    .child(div().text_color(k.text(TextStep::T400)).child(
-                                        "Would you like to restore your previous session transcription, settings, and queue?",
-                                    )),
-                            ),
-                    )
-                    .child(
-                        h_flex()
-                            .flex_shrink_0()
-                            .gap_2()
-                            .child(
-                                Button::new(ids::DISCARD).cursor_pointer()
-                                    .outline()
-                                    .small()
-                                    .label("Discard")
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.booth.update(cx, |b, cx| b.discard_session(cx))
-                                    })),
-                            )
-                            .child(
-                                super::widgets::primary_button(ids::RESTORE, "Restore Session", cx)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.booth.update(cx, |b, cx| b.restore_session(cx))
-                                    })),
-                            ),
-                    )
-                    .into_any_element(),
-            );
+            let actions = h_flex()
+                .gap_2()
+                .child(
+                    super::widgets::primary_button(ids::RESTORE, "Restore Session", cx).on_click(
+                        cx.listener(|this, _, _, cx| {
+                            this.booth.update(cx, |b, cx| b.restore_session(cx))
+                        }),
+                    ),
+                )
+                .child(
+                    Button::new(ids::DISCARD)
+                        .cursor_pointer()
+                        .ghost()
+                        .small()
+                        .label("Discard")
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.booth.update(cx, |b, cx| b.discard_session(cx))
+                        })),
+                )
+                .into_any_element();
+            out.push(kairo_ui_kit::motion::pop_in(
+                notice(
+                    "recovery-banner",
+                    gpui_kit::Role::Status,
+                    (KairoIcon::RotateCcw, k.accent(Step::S400)),
+                    "Restore your last session?".into(),
+                    "Kairo closed before this session ended. Restore the transcript, settings and queue as they were.".into(),
+                    Some(actions),
+                    cx,
+                ),
+                "recovery-notice-in",
+                kairo_ui_kit::motion::From::Above,
+                cx,
+            ));
         }
         if !booth.service_error.is_empty() {
-            out.push(
-                div()
-                    .id(ids::ERROR)
-                    .test_support()
-                    .role(gpui_kit::Role::Alert)
-                    .px_4()
-                    .py_2()
-                    .text_size(text::XS.size)
-                    .text_color(k.danger_text)
-                    .child(booth.service_error.clone())
-                    .into_any_element(),
-            );
+            out.push(kairo_ui_kit::motion::pop_in(
+                notice(
+                    ids::ERROR,
+                    gpui_kit::Role::Alert,
+                    (KairoIcon::AlertCircle, k.danger_text),
+                    "Something went wrong".into(),
+                    booth.service_error.clone().into(),
+                    None,
+                    cx,
+                ),
+                "error-notice-in",
+                kairo_ui_kit::motion::From::Above,
+                cx,
+            ));
         }
         if let Some(r) = booth
             .resilience
             .as_ref()
             .filter(|r| r.claude_fallback_active)
         {
-            out.push(
-                h_flex()
-                    .id(ids::FALLBACK)
-                    .test_support()
-                    .flex_shrink_0()
-                    .items_center()
-                    .justify_between()
-                    .gap_4()
-                    .px_5()
-                    .py_2()
-                    .bg(k.tints.amber)
-                    .text_size(text::LABEL.size)
-                    .text_color(k.warning_text)
-                    .child(
-                        div().min_w_0().truncate().child(
-                            r.detector_fallback_reason
-                                .as_ref()
-                                .map(|reason| reason.message.clone())
-                                .unwrap_or_else(|| {
-                                    "AI detection unavailable — local matching active.".into()
-                                }),
-                        ),
-                    )
-                    .child(
-                        div()
-                            .flex_shrink_0()
-                            .font_family(text::MONO_FAMILY)
-                            .text_size(text::MICRO.size)
-                            .text_color(k.text(TextStep::T500))
-                            .child("Local matching"),
-                    )
-                    .into_any_element(),
-            );
+            let reason = r.detector_fallback_reason.as_ref();
+            let offline = reason.is_some_and(|r| r.kind == DetectorFallbackKind::Offline);
+            let (title, body): (SharedString, SharedString) = if offline {
+                (
+                    "No internet".into(),
+                    "Scripture detection is using local matching until you're back online.".into(),
+                )
+            } else {
+                (
+                    "AI detection unavailable".into(),
+                    reason
+                        .map(|r| SharedString::from(r.message.clone()))
+                        .unwrap_or_else(|| "Scripture detection is using local matching.".into()),
+                )
+            };
+            out.push(kairo_ui_kit::motion::pop_in(
+                notice(
+                    ids::FALLBACK,
+                    gpui_kit::Role::Status,
+                    (KairoIcon::AlertTriangle, k.hue(Hue::Amber)),
+                    title,
+                    body,
+                    None,
+                    cx,
+                ),
+                "fallback-notice-in",
+                kairo_ui_kit::motion::From::Above,
+                cx,
+            ));
         }
         out
     }
@@ -1115,4 +1093,64 @@ fn automation_panel(
         .child(div().h_px().w_full().bg(k.surface_menu_line))
         .child(on_screen)
         .into_any_element()
+}
+
+/// A quiet notice card: a tinted icon, a title and one line of detail on the
+/// panel's own surface, so a status reads without shouting.
+fn notice(
+    id: &'static str,
+    role: gpui_kit::Role,
+    (icon, tone): (KairoIcon, gpui_kit::Hsla),
+    title: SharedString,
+    body: SharedString,
+    actions: Option<AnyElement>,
+    cx: &App,
+) -> impl IntoElement + Styled + 'static {
+    let k = *cx.kairo();
+    h_flex()
+        .id(id)
+        .test_support()
+        .role(role)
+        .aria_label(title.clone())
+        .flex_shrink_0()
+        .items_start()
+        .gap_3()
+        .mx_4()
+        .my_2()
+        .px_4()
+        .py_3()
+        .rounded(radius::lg())
+        .bg(k.surface_secondary)
+        .border_1()
+        .border_color(k.ink(0.1))
+        .child(
+            Icon::new(icon)
+                .size_4()
+                .mt_0p5()
+                .flex_none()
+                .text_color(tone),
+        )
+        .child(
+            v_flex()
+                .min_w_0()
+                .flex_1()
+                .gap_0p5()
+                .child(
+                    div()
+                        .text_size(text::SM.size)
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(k.text_primary)
+                        .child(title),
+                )
+                .child(
+                    div()
+                        .text_size(text::XS.size)
+                        .line_height(text::XS.line_height)
+                        .text_color(k.text(TextStep::T400))
+                        .child(body),
+                )
+                .when_some(actions, |this, actions| {
+                    this.child(h_flex().mt_2().gap_2().flex_wrap().child(actions))
+                }),
+        )
 }

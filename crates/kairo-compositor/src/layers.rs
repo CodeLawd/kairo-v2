@@ -347,17 +347,23 @@ pub const PIP_SHADOW: Shadow = Shadow {
 /// A CSS `linear infinite` translate along x, timed by the node's age:
 /// `@keyframes pa-ticker` (from 0 to `distance`) and the diagnostic sweep
 /// (`alternate`: there and back).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Motion {
     /// Frame pixels moved over one period; negative moves left.
     pub distance: f32,
+    /// Frame pixels moved down over one period; negative moves up.
+    pub rise: f32,
+    /// Growth about the box's centre over one period (0.1: 10% larger).
+    pub zoom: f32,
     pub period_ms: u32,
     pub alternate: bool,
+    /// Eases in and out, for camera moves that breathe rather than bounce.
+    pub eased: bool,
 }
 
 impl Motion {
-    /// The x offset `age` into the animation.
-    pub fn offset(&self, age: Duration) -> f32 {
+    /// How far through the period `age` is, 0 to 1.
+    pub fn progress(&self, age: Duration) -> f32 {
         if self.period_ms == 0 {
             return 0.0;
         }
@@ -368,7 +374,31 @@ impl Motion {
         if self.alternate && (cycles.floor() as u64) % 2 == 1 {
             t = 1.0 - t;
         }
-        self.distance * t as f32
+        if self.eased {
+            t = (1.0 - (t * std::f64::consts::PI).cos()) / 2.0;
+        }
+        t as f32
+    }
+
+    /// The x offset `age` into the animation.
+    pub fn offset(&self, age: Duration) -> f32 {
+        self.distance * self.progress(age)
+    }
+
+    /// `rect` moved and grown `age` into the animation; `scale` turns frame
+    /// pixels into the target's.
+    pub fn apply(&self, mut rect: Rect, age: Duration, scale: f32) -> Rect {
+        let t = self.progress(age);
+        rect.x += self.distance * t * scale;
+        rect.y += self.rise * t * scale;
+        if self.zoom != 0.0 {
+            let grow = self.zoom * t;
+            rect.x -= rect.width * grow / 2.0;
+            rect.y -= rect.height * grow / 2.0;
+            rect.width *= 1.0 + grow;
+            rect.height *= 1.0 + grow;
+        }
+        rect
     }
 }
 
@@ -750,6 +780,7 @@ mod tests {
             distance: -1000.0,
             period_ms: 10_000,
             alternate: false,
+            ..Motion::default()
         };
         assert_eq!(m.offset(Duration::ZERO), 0.0);
         assert!((m.offset(Duration::from_millis(2_500)) + 250.0).abs() < 1e-3);
@@ -762,7 +793,24 @@ mod tests {
             distance: 1800.0,
             period_ms: 3_000,
             alternate: true,
+            ..Motion::default()
         };
+        let cam = Motion {
+            rise: -100.0,
+            zoom: 0.5,
+            period_ms: 1000,
+            eased: true,
+            ..Motion::default()
+        };
+        let r = cam.apply(
+            Rect::new(0.0, 0.0, 100.0, 100.0),
+            Duration::from_millis(500),
+            2.0,
+        );
+        assert!(
+            (r.y - (-100.0 - 12.5)).abs() < 1e-3 && (r.width - 125.0).abs() < 1e-3,
+            "{r:?}"
+        );
         assert!((m.offset(Duration::from_millis(1_500)) - 900.0).abs() < 1e-3);
         assert!((m.offset(Duration::from_millis(4_500)) - 900.0).abs() < 1e-3);
         assert!((m.offset(Duration::from_millis(3_750)) - 1350.0).abs() < 1e-3);
@@ -777,6 +825,7 @@ mod tests {
                 distance: -10.0,
                 period_ms: 1000,
                 alternate: false,
+                ..Motion::default()
             }),
             ..Content::new(Fill::Solid([1.0; 4]))
         };

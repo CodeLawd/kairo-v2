@@ -578,6 +578,8 @@ fn retranslation_is_all_or_nothing(cx: &mut TestAppContext) {
 fn the_recovery_prompt_restores_or_discards(cx: &mut TestAppContext) {
     let core = Core::new(base());
     let opened = open(cx, core.clone());
+    // The banner slides in; clicks land on its resting place.
+    cx.update(|cx| kairo_ui_kit::set_reduced_motion(true, cx));
     assert!(!exists(cx, &opened, detected::ids::RESTORE));
     core.push(BoothFeed::Resilience(resilience(true, "ok")));
     draw(cx, &opened);
@@ -1040,4 +1042,48 @@ fn the_operators_pick_wins_over_follow_along(cx: &mut TestAppContext) {
     cx.update(|cx| opened.booth().update(cx, |b, cx| b.dismiss("p16", cx)));
     draw(cx, &opened);
     assert!(core.calls().contains(&BoothCall::Dismiss("p16".into())));
+}
+
+#[gpui_kit::test]
+fn end_pauses_listening_while_the_operator_decides(cx: &mut TestAppContext) {
+    let core = Core::new(base());
+    let opened = open(cx, core.clone());
+    listening(&core);
+    draw(cx, &opened);
+    assert!(cx.read(|cx| opened.booth().read(cx).transcribing()));
+    click(cx, &opened, ui_operator::booth::service::ids::END);
+    assert!(
+        core.calls().contains(&BoothCall::StopListening),
+        "opening End stops listening"
+    );
+    assert!(!cx.read(|cx| opened.booth().read(cx).transcribing()));
+}
+
+#[gpui_kit::test]
+fn retry_now_restarts_listening_from_the_notice(cx: &mut TestAppContext) {
+    let core = Core::new(base());
+    let opened = open(cx, core.clone());
+    core.push(BoothFeed::Licence(Licence {
+        activated: true,
+        deepgram: true,
+    }));
+    listening(&core);
+    let mut mic = resilience(false, "ok");
+    mic.health.push(
+        serde_json::from_value(
+            json!({"service": "audio", "status": "degraded", "lastUpdated": 0.0}),
+        )
+        .expect("audio"),
+    );
+    core.push(BoothFeed::Resilience(mic));
+    draw(cx, &opened);
+    click(cx, &opened, ui_operator::booth::transcript::ids::RETRY);
+    let calls = core.calls();
+    assert!(calls.contains(&BoothCall::StopListening), "{calls:?}");
+    assert!(
+        calls
+            .iter()
+            .any(|c| matches!(c, BoothCall::StartListening { .. })),
+        "{calls:?}"
+    );
 }

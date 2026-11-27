@@ -745,7 +745,7 @@ pub mod text {
     pub const XL3: TextSize = ts(1.9375, 2.25);
 
     /// The interface font (`fontFamily.sans`).
-    pub const FAMILY: &str = "Source Sans 3";
+    pub const FAMILY: &str = "Inter";
     /// Code and timecodes (`fontFamily.mono`).
     pub const MONO_FAMILY: &str = "Menlo";
 

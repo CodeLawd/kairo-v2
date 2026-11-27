@@ -175,6 +175,8 @@ impl SurfaceState {
                         ("saturation", "saturation"),
                         ("brightness", "brightness"),
                         ("contrast", "contrast"),
+                        // A still's motion (`MediaMotion`); a new one restarts it.
+                        ("motion", "motion"),
                     ] {
                         match playback.get(from) {
                             Some(value) => b.insert(to.into(), value.clone()),

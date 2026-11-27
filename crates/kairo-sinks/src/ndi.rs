@@ -139,6 +139,7 @@ pub fn candidates() -> Vec<PathBuf> {
     {
         out.push(dir.join(library_name()));
         out.push(dir.join("../Frameworks").join(library_name()));
+        out.push(dir.join("../../../../Frameworks").join(library_name()));
         out.push(dir.join("../lib").join(library_name()));
     }
     out

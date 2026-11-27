@@ -65,7 +65,17 @@ pub enum ImagineCall {
     Select { project: String, version: String },
     /// Copies an image version into the media library (not live). Answers
     /// [`ImagineAnswer::Project`] with the version marked saved.
-    SaveToMedia { project: String, version: String },
+    /// `motion` names a `kairo_imagine::motion::MotionPreset`; a depth
+    /// preset makes one more image request for the parallax layer.
+    SaveToMedia {
+        project: String,
+        version: String,
+        motion: Option<String>,
+    },
+    /// Draws a `kairo_imagine::motion::MotionLoop` locally (no image
+    /// request) and adds it to the media library, moving. Answers
+    /// [`ImagineAnswer::Done`].
+    SaveLoop(String),
     /// Adds a deck version to Slides. Answers [`ImagineAnswer::Project`]
     /// with the version marked saved.
     SaveToSlides { project: String, version: String },
@@ -84,6 +94,15 @@ pub enum ImagineAnswer {
     /// The assistant answered without making anything.
     Reply(String),
     Attachment(Attachment),
+    /// The open image was saved to Media moving, as the assistant chose.
+    Moved {
+        reply: String,
+        /// The `MotionPreset` key.
+        motion: String,
+        project: Project,
+        /// The picture was made by this message (its reply is the version's).
+        made: bool,
+    },
     /// A file written for the operator.
     File(PathBuf),
 }

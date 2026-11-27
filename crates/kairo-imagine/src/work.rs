@@ -68,6 +68,7 @@ pub async fn generate(
             prompt: prompt.trim().into(),
             quality: look.quality,
             reference: None,
+            transparent: false,
         })
         .await?;
     let store = locked(store);
@@ -86,6 +87,33 @@ pub async fn generate(
             background: None,
         },
     )
+}
+
+/// A version's depth layer: its foreground on transparency, from one more
+/// image request, kept in the store beside it. Answers the file's path.
+pub async fn depth_layer(
+    store: &Mutex<ImagineStore>,
+    transport: &dyn ImageTransport,
+    project: &str,
+    version: &str,
+    look: Look,
+) -> Result<std::path::PathBuf, ImagineError> {
+    let reference = {
+        let store = locked(store);
+        store.read_image(&store.get(project)?, version)?
+    };
+    let bytes = transport
+        .image(ImageRequest {
+            model: look.model,
+            prompt: crate::motion::DEPTH_PROMPT.into(),
+            quality: look.quality,
+            reference: Some(reference),
+            transparent: true,
+        })
+        .await?;
+    let store = locked(store);
+    let file = store.write_image(&bytes)?;
+    Ok(store.file_path(&file))
 }
 
 /// A new version of an image project: an edit of version `from`. Earlier
@@ -112,6 +140,7 @@ pub async fn refine(
             prompt: prompt.trim().into(),
             quality: look.quality,
             reference: Some(reference),
+            transparent: false,
         })
         .await?;
     let store = locked(store);
@@ -240,6 +269,7 @@ pub async fn deck(
                     prompt,
                     quality: look.quality,
                     reference: None,
+                    transparent: false,
                 })
                 .await?;
             progress(Step::Painting {

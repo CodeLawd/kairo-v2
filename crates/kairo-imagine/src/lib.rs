@@ -6,6 +6,7 @@
 pub mod agent;
 pub mod deck;
 pub mod error;
+pub mod motion;
 pub mod openai;
 pub mod pptx;
 pub mod preview;

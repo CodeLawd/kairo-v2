@@ -144,6 +144,7 @@ fn contents(
                     distance: *distance,
                     period_ms: *period_ms,
                     alternate: *alternate,
+                    ..Motion::default()
                 }),
                 ..image(tile.clone())
             },

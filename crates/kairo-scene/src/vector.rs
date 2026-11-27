@@ -199,10 +199,17 @@ pub fn render_vector(el: &OverlayElement, size: (u32, u32)) -> Option<Tile> {
     };
     let fill_color = css_with_opacity(&el.fill, el.fill_opacity);
 
-    let shape = if el.kind == OverlayElementKind::Shape {
-        Some(overlay_shape(el.shape.as_deref())?)
-    } else {
-        None
+    // A catalogue shape or a pen path: path data in a 100 × 100 box.
+    let shape: Option<(&str, bool)> = match el.kind {
+        OverlayElementKind::Shape => {
+            let def = overlay_shape(el.shape.as_deref())?;
+            Some((def.path.as_str(), def.line_only))
+        }
+        OverlayElementKind::Path => Some((el.path.as_deref()?, !el.path_closed())),
+        OverlayElementKind::Text | OverlayElementKind::Image | OverlayElementKind::Video => {
+            return None;
+        }
+        _ => None,
     };
     // A shape's stroke may spill past its box; nothing else does.
     let spill = match (shape, stroke_color) {
@@ -224,9 +231,9 @@ pub fn render_vector(el: &OverlayElement, size: (u32, u32)) -> Option<Tile> {
         Transform::from_translate(bx as f32 - tx0 as f32, by as f32 - ty0 as f32).pre_concat(turn);
 
     match shape {
-        Some(def) => {
-            let path = catalogue_path(&def.path, w, h)?;
-            if !def.line_only {
+        Some((d, line_only)) => {
+            let path = catalogue_path(d, w, h)?;
+            if !line_only {
                 // An unreadable colour is an invalid attribute: the default, black.
                 let color = fill_color.unwrap_or(Rgba::BLACK);
                 pixmap.fill_path(&path, &paint(color), FillRule::EvenOdd, to_tile, None);

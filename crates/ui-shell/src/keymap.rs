@@ -57,6 +57,18 @@ actions!(
         ToggleScreens,
         /// Open Settings.
         OpenSettings,
+        /// Screens → Audience: turn every Audience screen on or off (⌘1).
+        ToggleAudienceScreens,
+        /// Screens → Stage: turn every Stage screen on or off (⌘2).
+        ToggleStageScreens,
+        /// Screens → Looks…: the header's popover choosing each screen's theme.
+        OpenScreenThemes,
+        /// Screens → Start or Stop Capture.
+        ToggleCapture,
+        /// Screens → Capture Settings…: the Live popover, where capture is set up.
+        OpenCaptureSettings,
+        /// View → Media Bin: open or close the media dock.
+        ToggleMediaBin,
     ]
 );
 
@@ -64,6 +76,30 @@ actions!(
 #[derive(Clone, Debug, PartialEq, Eq, Action)]
 #[action(namespace = kairo_shell, no_json)]
 pub struct Import(pub ImportKindValue);
+
+/// View → one workspace (⌃1–⌃9 on macOS, Alt+1–9 elsewhere).
+#[derive(Clone, Debug, PartialEq, Eq, Action)]
+#[action(namespace = kairo_shell, no_json)]
+pub struct OpenWorkspace(pub RouteValue);
+
+/// [`Route`] wrapped so it can ride an action.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RouteValue(pub crate::route::Route);
+
+/// The key that opens the `index`th rail workspace from View.
+pub fn workspace_key(index: usize) -> Option<&'static str> {
+    const MAC: [&str; 9] = [
+        "ctrl-1", "ctrl-2", "ctrl-3", "ctrl-4", "ctrl-5", "ctrl-6", "ctrl-7", "ctrl-8", "ctrl-9",
+    ];
+    const OTHER: [&str; 9] = [
+        "alt-1", "alt-2", "alt-3", "alt-4", "alt-5", "alt-6", "alt-7", "alt-8", "alt-9",
+    ];
+    if cfg!(target_os = "macos") {
+        MAC.get(index).copied()
+    } else {
+        OTHER.get(index).copied()
+    }
+}
 
 /// [`ImportKind`] wrapped so it can ride an action.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,6 +131,17 @@ pub const CONTEXT: &str = "KairoShell";
 
 /// Installs the fixed bindings. Call once at startup.
 pub fn bind(cx: &mut App) {
+    // View's workspaces, in rail order: ⌃1 Operator … ⌃9 Theme Editor.
+    cx.bind_keys(
+        crate::route::WORKSPACES
+            .iter()
+            .enumerate()
+            .filter_map(|(i, w)| {
+                workspace_key(i)
+                    .map(|key| KeyBinding::new(key, OpenWorkspace(RouteValue(w.route)), None))
+            })
+            .collect::<Vec<_>>(),
+    );
     #[cfg(target_os = "macos")]
     cx.bind_keys([
         KeyBinding::new("cmd-q", Quit, None),
@@ -105,6 +152,8 @@ pub fn bind(cx: &mut App) {
         KeyBinding::new("cmd-0", ActualSize, None),
         KeyBinding::new("cmd-f", SongSearch, None),
         KeyBinding::new("alt-cmd-1", ToggleScreens, None),
+        KeyBinding::new("cmd-1", ToggleAudienceScreens, None),
+        KeyBinding::new("cmd-2", ToggleStageScreens, None),
         KeyBinding::new("cmd-,", OpenSettings, None),
         KeyBinding::new("cmd-h", Hide, None),
         KeyBinding::new("alt-cmd-h", HideOthers, None),
@@ -121,6 +170,8 @@ pub fn bind(cx: &mut App) {
         KeyBinding::new("ctrl-0", ActualSize, None),
         KeyBinding::new("ctrl-f", SongSearch, None),
         KeyBinding::new("alt-ctrl-1", ToggleScreens, None),
+        KeyBinding::new("ctrl-1", ToggleAudienceScreens, None),
+        KeyBinding::new("ctrl-2", ToggleStageScreens, None),
         KeyBinding::new("ctrl-,", OpenSettings, None),
         KeyBinding::new("f11", ToggleFullScreen, None),
     ]);

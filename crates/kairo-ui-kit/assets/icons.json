@@ -300,6 +300,11 @@
   "source": "hugeicons:Logout01Icon"
  },
  {
+  "name": "Looks",
+  "file": "looks",
+  "source": "kairo:Looks"
+ },
+ {
   "name": "MediaLibrary",
   "file": "images",
   "source": "hugeicons:ImagesIcon"
@@ -607,7 +612,7 @@
  {
   "name": "Square",
   "file": "square",
-  "source": "hugeicons:Square01Icon"
+  "source": "kairo:Square"
  },
  {
   "name": "Star",
@@ -683,5 +688,25 @@
   "name": "ZoomOut",
   "file": "zoom_out",
   "source": "hugeicons:ZoomOutIcon"
+ },
+ {
+  "name": "PenNib",
+  "file": "pen_nib",
+  "source": "kairo:PenNib"
+ },
+ {
+  "name": "Shapes",
+  "file": "shapes",
+  "source": "kairo:Shapes"
+ },
+ {
+  "name": "Sticker",
+  "file": "sticker",
+  "source": "kairo:Sticker"
+ },
+ {
+  "name": "Stop",
+  "file": "stop",
+  "source": "kairo:Stop"
  }
 ]

@@ -144,6 +144,10 @@ string_enum!(
         Shape = "shape",
         Image = "image",
         Video = "video",
+        /// A text box of its own (native only; Electron themes have none).
+        Text = "text",
+        /// A path drawn with the Pen, `OverlayElement::path` (native only).
+        Path = "path",
     }
 );
 string_enum!(
@@ -201,8 +205,57 @@ pub struct OverlayElement {
     pub brightness: f64,
     pub contrast: f64,
     pub blur_px: f64,
+    /// A text element's words; lines break at `\n`. Its colour is `fill`.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub text: Option<String>,
+    /// A text element's CSS font stack; `None` is the screens' default.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub font_family: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub font_size_px: Option<f64>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub font_weight: Option<f64>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub text_align: Option<OverlayTextAlign>,
+    /// A pen path: SVG path data in a 100 × 100 box stretched to the frame,
+    /// closed when it ends with `Z`.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present"
+    )]
+    pub path: Option<String>,
     #[serde(flatten)]
     pub extra: Extra,
+}
+
+impl OverlayElement {
+    /// A pen path that ends where it began.
+    pub fn path_closed(&self) -> bool {
+        self.path
+            .as_deref()
+            .is_some_and(|d| d.trim_end().ends_with(['Z', 'z']))
+    }
 }
 
 string_enum!(

@@ -4,11 +4,12 @@ use crate::chrome::{Tone, ToolbarButton, hued};
 use crate::crash::panic_message;
 use crate::keymap::{
     self, About, ActualSize, BringAllToFront, CheckForUpdates, CloseWindow, Hide, HideOthers,
-    Import, Minimize, OpenSettings, Quit, ShowAll, SongSearch, ToggleFullScreen, ToggleScreens,
-    WhatsNew, ZoomIn, ZoomOut, ZoomWindow,
+    Import, Minimize, OpenCaptureSettings, OpenScreenThemes, OpenSettings, OpenWorkspace, Quit,
+    ShowAll, SongSearch, ToggleAudienceScreens, ToggleCapture, ToggleFullScreen, ToggleMediaBin,
+    ToggleScreens, ToggleStageScreens, WhatsNew, ZoomIn, ZoomOut, ZoomWindow,
 };
-use crate::route::{Route, WORKSPACES};
-use crate::shell::{FeedbackPhase, Overlay, Shell};
+use crate::route::{APPS, Route, WORKSPACES};
+use crate::shell::{AccountPage, FeedbackPhase, Overlay, Shell};
 use crate::state::{FeedbackKind, ScreensLevel, ShellRequest, UpdateState, screens_status};
 use crate::whats_new::{self, CHANGELOG_URL};
 use gpui_kit::base::TestSupportExt;
@@ -137,6 +138,29 @@ impl Render for Shell {
                     this.open_overlay(Overlay::Settings, cx)
                 }),
             )
+            .on_action(
+                cx.listener(|this, action: &OpenWorkspace, _, cx| this.navigate(action.0.0, cx)),
+            )
+            .on_action(
+                cx.listener(|_, _: &ToggleMediaBin, _, cx| cx.emit(ShellRequest::ToggleMedia)),
+            )
+            .on_action(cx.listener(|this, _: &ToggleAudienceScreens, _, cx| {
+                this.toggle_screen_group(false, cx)
+            }))
+            .on_action(
+                cx.listener(|this, _: &ToggleStageScreens, _, cx| {
+                    this.toggle_screen_group(true, cx)
+                }),
+            )
+            .on_action(cx.listener(|this, _: &OpenScreenThemes, window, cx| {
+                this.set_screen_themes_open(true, window, cx)
+            }))
+            .on_action(cx.listener(|this, _: &ToggleCapture, _, cx| {
+                cx.emit(ShellRequest::SetCapture(!this.state.recording))
+            }))
+            .on_action(
+                cx.listener(|this, _: &OpenCaptureSettings, _, cx| this.set_live_open(true, cx)),
+            )
             .on_action(cx.listener(|this, _: &ToggleScreens, _, cx| {
                 if this.overlay == Some(Overlay::Screens) {
                     this.close_overlay(cx);
@@ -175,11 +199,6 @@ impl Shell {
         let (screens_detail, level) = match &self.state.outputs {
             Some(outputs) => screens_status(outputs),
             None => ("checking".to_owned(), ScreensLevel::Offline),
-        };
-        let dot = match level {
-            ScreensLevel::Ready => k.success_text,
-            ScreensLevel::Warning => k.hue(Hue::Amber),
-            ScreensLevel::Offline => k.text(TextStep::T500),
         };
         let (_, live_detail) = self.state.live_text();
         let live = self.state.is_live() || self.state.recording;
@@ -284,21 +303,6 @@ impl Shell {
                                 ),
                             )
                             .child(self.render_screen_themes(cx))
-                            .child(
-                                ToolbarButton::new(
-                                    "screens",
-                                    "Screens",
-                                    format!("Screens: {screens_detail}. Open Screens (⌥⌘1)"),
-                                    Icon::new(KairoIcon::MonitorPlay.fill())
-                                        .size(px(18.))
-                                        .text_color(k.hue(Hue::Cyan)),
-                                )
-                                .badge(dot)
-                                .coach_anchor(kairo_ui_kit::coach::anchors::HEADER_SCREENS)
-                                .on_click(cx.listener(
-                                    |this, _, _, cx| this.open_overlay(Overlay::Screens, cx),
-                                )),
-                            )
                             .child(kairo_ui_kit::coach::coach_anchor(
                                 kairo_ui_kit::coach::anchors::HEADER_LIVE,
                             ))
@@ -341,18 +345,25 @@ impl Shell {
                     .border_l(metrics::panel_border_width())
                     .border_color(k.panel_border)
                     .when_some(live_rail_width, |d, w| d.w(px(w)))
-                    .child(self.render_screen_toggle(
-                        "audience-screen",
-                        "Audience",
-                        false,
-                        self.state.audience_on,
-                        cx,
-                    ))
+                    .child(
+                        self.render_screen_toggle(
+                            "audience-screen",
+                            "Audience",
+                            false,
+                            self.state.audience_on,
+                            (level == ScreensLevel::Warning).then(|| screens_detail.clone()),
+                            cx,
+                        )
+                        // Screens setup lives in the Screens menu now; the tour
+                        // points here, at what the audience sees.
+                        .coach_anchor(kairo_ui_kit::coach::anchors::HEADER_SCREENS),
+                    )
                     .child(self.render_screen_toggle(
                         "stage-screen",
                         "Stage",
                         true,
                         self.state.stage_on,
+                        None,
                         cx,
                     ))
                     .when(live_rail_width.is_some(), |d| d.child(div().flex_1()))
@@ -376,39 +387,41 @@ impl Shell {
             .into_any_element()
     }
 
+    /// An Audience or Stage button: one click turns the group on or off (⌘1,
+    /// ⌘2). `problem` is a screen that isn't showing, flagged with a dot.
     fn render_screen_toggle(
         &self,
         id: &'static str,
         label: &'static str,
         stage: bool,
         state: Option<bool>,
+        problem: Option<String>,
         cx: &mut Context<Self>,
-    ) -> AnyElement {
+    ) -> ToolbarButton {
         let k = *cx.kairo();
+        let key = if stage { "⌘2" } else { "⌘1" };
         let (ring_color, title) = match state {
             Some(true) => (
                 k.success_text,
-                format!("{label} screens are on — click to turn off"),
+                format!("{label} screens are on — click to turn off ({key})"),
             ),
             Some(false) => (
                 k.live,
-                format!("{label} screens are off — click to turn on"),
+                format!("{label} screens are off — click to turn on ({key})"),
             ),
             None => (
                 k.text(TextStep::T500),
                 format!("No {label} screens set up — click to add one"),
             ),
         };
+        let title = match &problem {
+            Some(problem) => format!("{title}. {problem}"),
+            None => title,
+        };
         let dot = div().size(px(14.)).rounded_full().bg(ring_color);
         ToolbarButton::new(id, label, title, dot)
-            .on_click(cx.listener(move |this, _, _, cx| match state {
-                Some(on) => cx.emit(ShellRequest::SetScreenGroupEnabled {
-                    stage,
-                    enabled: !on,
-                }),
-                None => this.open_overlay(Overlay::Screens, cx),
-            }))
-            .into_any_element()
+            .when(problem.is_some(), |b| b.badge(k.hue(Hue::Amber)))
+            .on_click(cx.listener(move |this, _, _, cx| this.toggle_screen_group(stage, cx)))
     }
 
     fn render_activation(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
@@ -517,90 +530,11 @@ impl Shell {
         }
     }
 
-    fn rail_trigger(
-        &self,
-        id: &'static str,
-        icon: KairoIcon,
-        label: &'static str,
-        hue: Option<Hue>,
-        open: bool,
-        cx: &mut Context<Self>,
-    ) -> Button {
-        let k = *cx.kairo();
-        let active_fg = hue.map_or(k.text_primary, |h| k.hue(h));
-        let variant = ButtonCustomVariant::new(cx)
-            .color(if open {
-                k.surface_elevated
-            } else {
-                k.surface.opacity(0.0)
-            })
-            .foreground(if open {
-                active_fg
-            } else {
-                k.text(TextStep::T500)
-            })
-            .hover(k.surface_tertiary)
-            .active(k.surface_elevated);
-        Button::new(id)
-            .cursor_pointer()
-            .custom(variant)
-            // Solid fill: the custom variant paints its colour at 20%.
-            .when(open, |b| b.bg(k.surface_elevated))
-            .w_full()
-            .h_auto()
-            .py_1()
-            .rounded(radius::lg())
-            .accessibility_label(label)
-            .child(
-                v_flex()
-                    .items_center()
-                    .gap(gpui_kit::px(3.))
-                    .child(Icon::new(icon.weight(open)).size_5())
-                    .child(
-                        div()
-                            .text_size(text::MICRO.size)
-                            .line_height(text::MICRO.line_height)
-                            .font_weight(gpui_kit::FontWeight::MEDIUM)
-                            .child(label),
-                    ),
-            )
-    }
-
     fn render_rail(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
         let route = self.route;
-        let feedback = self.render_feedback(cx);
         let account = self.render_account(cx);
-        let audio = Popover::new("audio-popover")
-            .anchor(gpui_kit::Anchor::LeftCenter)
-            .offset(px(8.))
-            .appearance(false)
-            .trigger(
-                self.rail_trigger(
-                    "audio",
-                    KairoIcon::Mic,
-                    "Audio",
-                    Some(Hue::Green),
-                    false,
-                    cx,
-                )
-                .popover_trigger(),
-            )
-            .when_some(self.audio.clone(), |popover, (view, opened)| {
-                popover
-                    .on_open_change(move |open, window, cx| opened(*open, window, cx))
-                    .content(move |_, _, cx| {
-                        let k = *cx.kairo();
-                        div()
-                            .rounded(radius::xl())
-                            .overflow_hidden()
-                            .bg(k.surface_secondary)
-                            .border_1()
-                            .border_color(k.ink(0.14))
-                            .shadow_2xl()
-                            .child(view.clone())
-                    })
-            });
+        let apps = self.render_apps(cx);
         v_flex()
             .id(ids::RAIL)
             .test_support()
@@ -630,7 +564,7 @@ impl Shell {
                             .gap_2()
                             .px_1()
                             .py_2()
-                            .children(WORKSPACES.iter().map(|w| {
+                            .children(WORKSPACES.iter().filter(|w| !w.route.in_apps()).map(|w| {
                                 let target = w.route;
                                 let item = RailItem::new(
                                     SharedString::from(format!("rail-{}", w.route.as_str())),
@@ -657,7 +591,8 @@ impl Shell {
                                         .into_any_element(),
                                     None => item.into_any_element(),
                                 }
-                            })),
+                            }))
+                            .child(apps),
                     ),
             )
             .child(
@@ -667,301 +602,612 @@ impl Shell {
                     .items_center()
                     .gap_1()
                     .px_1()
-                    .pb_1()
-                    .child(feedback)
-                    .child(audio)
+                    .pb_3()
                     .child(account),
-            )
-            .child(
-                div().w_full().flex_shrink_0().px_1().pb_3().child(
-                    self.rail_trigger("settings", KairoIcon::Settings, "Settings", None, false, cx)
-                        .on_click(
-                            cx.listener(|this, _, _, cx| this.open_overlay(Overlay::Settings, cx)),
-                        ),
-                ),
             )
             .into_any_element()
     }
 
-    fn render_account(&self, cx: &mut Context<Self>) -> AnyElement {
-        let account = self.state.account.clone();
+    /// The rail's one footer button: who is signed in, opening a menu to its
+    /// right with Audio, Feedback, Settings and Sign out. Audio and Feedback
+    /// fly out beside the menu on hover, as a submenu would.
+    fn render_account(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let account = &self.state.account;
+        let title = account
+            .name
+            .clone()
+            .or(account.email.clone())
+            .unwrap_or_else(|| "Not signed in".into());
+        let open = self.account_open;
         let entity = cx.entity();
+        let variant = ButtonCustomVariant::new(cx)
+            .color(if open {
+                k.surface_elevated
+            } else {
+                k.surface.opacity(0.0)
+            })
+            .foreground(k.text_primary)
+            .hover(k.surface_tertiary)
+            .active(k.surface_elevated);
+        let trigger = Button::new("account")
+            .cursor_pointer()
+            .custom(variant)
+            // Solid fill: the custom variant paints its colour at 20%.
+            .when(open, |b| b.bg(k.surface_elevated))
+            .w_full()
+            .h_auto()
+            .py_1p5()
+            .rounded(radius::lg())
+            .accessibility_label("Account")
+            .tooltip(title.clone())
+            .child(
+                h_flex()
+                    .w_full()
+                    .justify_center()
+                    .child(avatar(&title, false, cx)),
+            );
         Popover::new("account-popover")
             .anchor(gpui_kit::Anchor::LeftCenter)
             .offset(px(8.))
             .appearance(false)
-            .trigger(
-                self.rail_trigger(
-                    "account",
-                    KairoIcon::CircleUser,
-                    "Account",
-                    Some(Hue::Blue),
-                    false,
-                    cx,
-                )
-                .popover_trigger(),
-            )
-            .content(move |_, _, cx| {
-                // `AccountRailButton`: who is signed in on a toned band, the
-                // connection at a glance, then the actions.
-                let k = *cx.kairo();
-                let (settings, tips, out) = (entity.clone(), entity.clone(), entity.clone());
-                let signed_out = !account.signed_in;
-                let (status, dot) = if signed_out {
-                    ("Signed out", k.neutral(kairo_ui_kit::tokens::Step::S600))
-                } else if account.offline {
-                    ("Offline", k.hue(Hue::Orange))
-                } else {
-                    ("Online", k.hue(Hue::Green))
-                };
-                let synced = if account.offline {
-                    "Waiting".to_owned()
-                } else {
-                    account.last_synced_ms.map_or("—".to_owned(), synced_label)
-                };
-                let title = account
-                    .name
-                    .clone()
-                    .or(account.email.clone())
-                    .unwrap_or_else(|| "Not signed in".into());
-                let initial: String = title
-                    .chars()
-                    .next()
-                    .map(|c| c.to_uppercase().collect())
-                    .unwrap_or_default();
-                let chip = |content: AnyElement| {
-                    h_flex()
-                        .gap_1p5()
-                        .max_w_full()
-                        .px_2()
-                        .py_0p5()
-                        .rounded_full()
-                        .border_1()
-                        .border_color(k.panel_border)
-                        .bg(k.surface)
-                        .text_size(gpui_kit::px(11.))
-                        .child(content)
-                };
-                let tile = |label: &'static str, value: AnyElement| {
-                    v_flex()
-                        .flex_1()
-                        .min_w_0()
-                        .px_2p5()
-                        .py_2()
-                        .rounded(radius::md())
-                        .border_1()
-                        .border_color(k.panel_border)
-                        .bg(k.surface)
-                        .child(
-                            div()
-                                .text_size(gpui_kit::px(10.))
-                                .font_weight(gpui_kit::FontWeight::MEDIUM)
-                                .text_color(k.text(TextStep::T500))
-                                .child(label.to_uppercase()),
-                        )
-                        .child(
-                            div()
-                                .mt_0p5()
-                                .text_size(text::LABEL.size)
-                                .font_weight(gpui_kit::FontWeight::MEDIUM)
-                                .text_color(k.text_primary)
-                                .child(value),
-                        )
-                };
-                let row = |id: &'static str,
-                           icon: KairoIcon,
-                           label: &'static str,
-                           danger: bool,
-                           click: Box<dyn Fn(&mut App)>| {
-                    h_flex()
-                        .id(id)
-                        .test_support()
-                        .role(Role::Button)
-                        .aria_label(label)
-                        .w_full()
-                        .gap_2p5()
-                        .px_2p5()
-                        .py_2()
-                        .rounded(radius::md())
-                        .cursor_pointer()
-                        .hover(|s| s.bg(k.ink(0.06)))
-                        .text_size(text::XS.size)
-                        .text_color(if danger {
-                            k.danger_text
+            .open(open)
+            .on_open_change({
+                let entity = entity.clone();
+                move |next, window, cx| {
+                    let next = *next;
+                    entity.update(cx, |this, cx| {
+                        if next {
+                            this.account_open = true;
+                            this.account_page = AccountPage::Menu;
+                            this.account_pinned = false;
+                            cx.notify();
                         } else {
-                            k.text(TextStep::T200)
-                        })
-                        .on_click(move |_, _, cx| click(cx))
-                        .child(
-                            Icon::new(icon)
-                                .size_3p5()
-                                .flex_none()
-                                .text_color(if danger {
-                                    k.danger_text
-                                } else {
-                                    k.text(TextStep::T400)
-                                }),
-                        )
-                        .child(div().flex_1().min_w_0().truncate().child(label))
-                        .when(!danger, |r| {
-                            r.child(
-                                Icon::new(KairoIcon::ChevronRight)
-                                    .size_3()
-                                    .text_color(k.text(TextStep::T500)),
+                            this.close_account(window, cx);
+                        }
+                    })
+                }
+            })
+            .trigger(trigger.popover_trigger())
+            .content(move |_, window, cx| {
+                entity.update(cx, |this, cx| {
+                    let menu = this.account_menu(cx);
+                    let flyout = match this.account_page {
+                        AccountPage::Menu => None,
+                        AccountPage::Feedback => Some(this.feedback_content(window, cx)),
+                        AccountPage::Audio => this.audio.clone().map(|(view, _)| {
+                            let k = *cx.kairo();
+                            div()
+                                .rounded(radius::xl())
+                                .overflow_hidden()
+                                .bg(k.surface_secondary)
+                                .border_1()
+                                .border_color(k.ink(0.14))
+                                .shadow_2xl()
+                                .child(view)
+                                .into_any_element()
+                        }),
+                    };
+                    // One element holds both, so a click in the flyout is
+                    // inside the popover and doesn't dismiss it.
+                    let page = this.account_page;
+                    let element = h_flex().items_end().gap_2().child(menu).when_some(
+                        flyout,
+                        |this, flyout| {
+                            this.child(kairo_ui_kit::motion::pop_in(
+                                div()
+                                    .id("account-flyout")
+                                    // Working in a panel keeps it open while the
+                                    // pointer passes over the menu again.
+                                    .on_mouse_down(
+                                        MouseButton::Left,
+                                        cx.listener(|this, _, _, _| this.account_pinned = true),
+                                    )
+                                    .child(flyout),
+                                SharedString::from(format!("account-flyout-in-{page:?}")),
+                                kairo_ui_kit::motion::From::Leading,
+                                cx,
+                            ))
+                        },
+                    );
+                    kairo_ui_kit::motion::pop_in(
+                        element,
+                        "account-menu-in",
+                        kairo_ui_kit::motion::From::Leading,
+                        cx,
+                    )
+                })
+            })
+            .into_any_element()
+    }
+
+    /// Closes the account menu and whichever panel it was showing.
+    pub(crate) fn close_account(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.set_account_page(AccountPage::Menu, window, cx);
+        self.account_open = false;
+        self.account_pinned = false;
+        cx.notify();
+    }
+
+    /// Shows one of the menu's panels beside it, or none.
+    fn set_account_page(&mut self, page: AccountPage, window: &mut Window, cx: &mut Context<Self>) {
+        let was = self.account_page;
+        if was == page {
+            return;
+        }
+        if let Some((_, opened)) = self.audio.clone() {
+            if was == AccountPage::Audio {
+                opened(false, window, cx);
+            }
+            if page == AccountPage::Audio {
+                opened(true, window, cx);
+            }
+        }
+        if was == AccountPage::Feedback {
+            // A draft survives; a thank-you resets (see close_feedback).
+            self.account_page = page;
+            self.close_feedback(cx);
+        }
+        self.feedback_open = page == AccountPage::Feedback;
+        self.account_page = page;
+        self.account_pinned = false;
+        cx.notify();
+    }
+
+    /// The pointer reached a menu row: a submenu row opens its panel, any
+    /// other row closes the open one unless the operator is working in it.
+    fn hover_account_row(
+        &mut self,
+        page: Option<AccountPage>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match page {
+            Some(page) => self.set_account_page(page, window, cx),
+            None if !self.account_pinned => self.set_account_page(AccountPage::Menu, window, cx),
+            None => {}
+        }
+    }
+
+    fn account_menu(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let k = *cx.kairo();
+        let entity = cx.entity();
+        let account = self.state.account.clone();
+        let signed_out = !account.signed_in;
+        let has_audio = self.audio.is_some();
+        let (status, dot) = if signed_out {
+            (
+                "Signed out".to_owned(),
+                k.neutral(kairo_ui_kit::tokens::Step::S600),
+            )
+        } else if account.offline {
+            ("Offline".to_owned(), k.hue(Hue::Orange))
+        } else {
+            (
+                match account.last_synced_ms {
+                    Some(ms) => format!("Online · synced {}", synced_label(ms)),
+                    None => "Online".to_owned(),
+                },
+                k.hue(Hue::Green),
+            )
+        };
+        let title = account
+            .name
+            .clone()
+            .or(account.email.clone())
+            .unwrap_or_else(|| "Not signed in".into());
+        let subtitle: Option<SharedString> = match (&account.org, &account.email) {
+            (Some((org, role)), _) => Some(format!("{org} · {role}").into()),
+            (None, Some(email)) if account.name.is_some() => Some(email.clone()),
+            _ => None,
+        };
+        let showing = self.account_page;
+        let hover = |sub: Option<AccountPage>| {
+            let entity = entity.clone();
+            move |hovered: &bool, window: &mut Window, cx: &mut App| {
+                if *hovered {
+                    entity.update(cx, |this, cx| this.hover_account_row(sub, window, cx));
+                }
+            }
+        };
+        let row = |id: &'static str,
+                   icon: KairoIcon,
+                   label: &'static str,
+                   sub: Option<AccountPage>,
+                   danger: bool,
+                   click: MenuClick| {
+            let more = sub.is_some();
+            h_flex()
+                .id(id)
+                .test_support()
+                .role(Role::Button)
+                .aria_label(label)
+                .when(more, |r| r.aria_expanded(sub == Some(showing)))
+                .w_full()
+                .gap_3()
+                .px_2p5()
+                .py_2()
+                .rounded(radius::md())
+                .cursor_pointer()
+                .when(more && sub == Some(showing), |r| r.bg(k.ink(0.06)))
+                .hover(|s| s.bg(k.ink(0.06)))
+                .on_hover(hover(sub))
+                .text_size(text::SM.size)
+                .text_color(if danger {
+                    k.danger_text
+                } else {
+                    k.text_primary
+                })
+                .on_click(move |_, window, cx| click(window, cx))
+                .child(Icon::new(icon).size_4().flex_none().text_color(if danger {
+                    k.danger_text
+                } else {
+                    k.text(TextStep::T300)
+                }))
+                .child(div().flex_1().min_w_0().truncate().child(label))
+                .when(more, |r| {
+                    r.child(
+                        Icon::new(KairoIcon::ChevronRight)
+                            .size_3p5()
+                            .text_color(k.text(TextStep::T500)),
+                    )
+                })
+        };
+        let divider = || {
+            div()
+                .mx_2p5()
+                .my_1()
+                .h(metrics::panel_border_width())
+                .bg(k.panel_border)
+        };
+        let on = |f: fn(&mut Shell, &mut Window, &mut Context<Shell>)| -> MenuClick {
+            let entity = entity.clone();
+            Box::new(move |window, cx| entity.update(cx, |this, cx| f(this, window, cx)))
+        };
+
+        v_flex()
+            .w(px(272.))
+            .p_1p5()
+            .rounded(radius::xl())
+            .bg(k.surface_secondary)
+            .border_1()
+            .border_color(k.ink(0.14))
+            .shadow_2xl()
+            // Who is signed in; opens the Account pane.
+            .child(
+                h_flex()
+                    .id("account-settings")
+                    .test_support()
+                    .role(Role::Button)
+                    .aria_label("Account settings")
+                    .w_full()
+                    .gap_3()
+                    .px_2p5()
+                    .py_2()
+                    .rounded(radius::md())
+                    .cursor_pointer()
+                    .hover(|s| s.bg(k.ink(0.06)))
+                    .on_hover(hover(None))
+                    .on_click({
+                        let f = on(|this, window, cx| {
+                            this.close_account(window, cx);
+                            this.open_settings("account", cx);
+                        });
+                        move |_, window, cx| f(window, cx)
+                    })
+                    .child(avatar(&title, true, cx))
+                    .child(
+                        v_flex()
+                            .flex_1()
+                            .min_w_0()
+                            .child(
+                                div()
+                                    .truncate()
+                                    .text_size(text::SM.size)
+                                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                    .text_color(k.text_primary)
+                                    .child(title),
                             )
-                        })
-                };
-                v_flex()
-                    .w(px(276.))
+                            .when_some(subtitle, |this, sub| {
+                                this.child(
+                                    div()
+                                        .truncate()
+                                        .text_size(text::LABEL.size)
+                                        .text_color(k.text(TextStep::T400))
+                                        .child(sub),
+                                )
+                            })
+                            .child(
+                                h_flex()
+                                    .gap_1p5()
+                                    .items_center()
+                                    .text_size(text::LABEL.size)
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(div().size(px(6.)).rounded_full().bg(dot))
+                                    .child(status),
+                            ),
+                    )
+                    .child(
+                        Icon::new(KairoIcon::ChevronRight)
+                            .size_3p5()
+                            .text_color(k.text(TextStep::T500)),
+                    ),
+            )
+            .child(divider())
+            .when(has_audio, |this| {
+                this.child(row(
+                    "account-audio",
+                    KairoIcon::Mic,
+                    "Audio",
+                    Some(AccountPage::Audio),
+                    false,
+                    on(|this, window, cx| {
+                        this.set_account_page(AccountPage::Audio, window, cx);
+                        this.account_pinned = true;
+                    }),
+                ))
+            })
+            .child(row(
+                "account-feedback",
+                KairoIcon::PhChatCircleDots,
+                "Send feedback",
+                Some(AccountPage::Feedback),
+                false,
+                on(|this, window, cx| {
+                    this.set_account_page(AccountPage::Feedback, window, cx);
+                    this.account_pinned = true;
+                }),
+            ))
+            .child(row(
+                "account-tips",
+                KairoIcon::Lightbulb,
+                "Show tips again",
+                None,
+                false,
+                on(|this, window, cx| {
+                    this.close_account(window, cx);
+                    cx.emit(ShellRequest::ShowTips);
+                }),
+            ))
+            .child(row(
+                "settings",
+                KairoIcon::Settings,
+                "Settings",
+                None,
+                false,
+                on(|this, window, cx| {
+                    this.close_account(window, cx);
+                    this.open_overlay(Overlay::Settings, cx);
+                }),
+            ))
+            .when(!signed_out, |this| {
+                this.child(divider()).child(row(
+                    "account-sign-out",
+                    KairoIcon::LogOut,
+                    "Sign out",
+                    None,
+                    true,
+                    on(|this, window, cx| {
+                        this.close_account(window, cx);
+                        cx.emit(ShellRequest::SignOut);
+                    }),
+                ))
+            })
+            .into_any_element()
+    }
+
+    /// The rail's Apps button: workspaces used now and then, kept off the
+    /// rail so the daily ones stand out.
+    fn render_apps(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let route = self.route;
+        let current = APPS.iter().find(|r| **r == route).map(|r| r.workspace());
+        let open = self.apps_open;
+        let entity = cx.entity();
+        // The rail's own item, so More looks like every workspace above it;
+        // an app from its menu lights it in that app's colour.
+        let trigger = RailItem::new(
+            "rail-apps",
+            KairoIcon::MoreHorizontal,
+            "More",
+            current.map_or(Hue::Indigo, |w| w.hue),
+        )
+        .active(current.is_some())
+        .open(open)
+        // Pressable from VoiceOver; the popover opens it for the pointer.
+        .on_click(|_, _, _| {});
+        Popover::new("apps-popover")
+            // The popover wraps its trigger: stretch the wrapper so More is
+            // as wide as every rail item, not just its label.
+            .trigger_style({
+                let mut style = gpui_kit::StyleRefinement::default();
+                style.size.width = Some(gpui_kit::relative(1.).into());
+                style
+            })
+            .anchor(gpui_kit::Anchor::LeftCenter)
+            .offset(px(8.))
+            .appearance(false)
+            .open(open)
+            .on_open_change({
+                let entity = entity.clone();
+                move |next, _, cx| {
+                    let next = *next;
+                    entity.update(cx, |this, cx| {
+                        this.apps_open = next;
+                        cx.notify();
+                    })
+                }
+            })
+            .trigger(trigger)
+            .content(move |_, _, cx| {
+                let k = *cx.kairo();
+                let menu = v_flex()
+                    .w(px(264.))
+                    .p_1p5()
                     .rounded(radius::xl())
-                    .overflow_hidden()
                     .bg(k.surface_secondary)
                     .border_1()
                     .border_color(k.ink(0.14))
                     .shadow_2xl()
                     .child(
-                        v_flex()
-                            .p_3p5()
-                            .gap_2p5()
-                            .bg(k.surface_header)
-                            .border_b_1()
-                            .border_color(k.panel_border)
+                        div()
+                            .px_2p5()
+                            .pt_1p5()
+                            .pb_1()
+                            .text_size(text::LABEL.size)
+                            .font_weight(gpui_kit::FontWeight::MEDIUM)
+                            .text_color(k.text(TextStep::T500))
+                            .child("More"),
+                    )
+                    .children(APPS.iter().map(|r| {
+                        let w = r.workspace();
+                        let target = w.route;
+                        let active = target == route;
+                        let entity = entity.clone();
+                        h_flex()
+                            .id(SharedString::from(format!("apps-{}", target.as_str())))
+                            .test_support()
+                            .role(Role::Button)
+                            .aria_label(w.label)
+                            .aria_selected(active)
+                            .w_full()
+                            .gap_3()
+                            .px_2()
+                            .py_1p5()
+                            .rounded(radius::md())
+                            .cursor_pointer()
+                            .when(active, |s| s.bg(k.ink(0.06)))
+                            .hover(|s| s.bg(k.ink(0.06)))
+                            .on_click(move |_, _, cx| {
+                                entity.update(cx, |this, cx| {
+                                    this.apps_open = false;
+                                    this.navigate(target, cx);
+                                })
+                            })
                             .child(
-                                h_flex()
-                                    .gap_2p5()
+                                div()
+                                    .flex_none()
+                                    .size_8()
+                                    .rounded(radius::md())
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .bg(k.hue(w.hue).opacity(0.16))
                                     .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .size_9()
-                                            .flex_none()
-                                            .rounded_full()
-                                            .bg(k.hue(Hue::Blue).opacity(0.22))
-                                            .border_1()
-                                            .border_color(k.hue(Hue::Blue).opacity(0.4))
-                                            .text_color(k.text_primary)
-                                            .text_size(text::SM.size)
-                                            .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                            .child(initial),
-                                    )
-                                    .child(
-                                        v_flex()
-                                            .min_w_0()
-                                            .child(
-                                                div()
-                                                    .truncate()
-                                                    .text_size(text::SM.size)
-                                                    .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                                                    .text_color(k.text_primary)
-                                                    .child(title),
-                                            )
-                                            .when_some(
-                                                account
-                                                    .email
-                                                    .clone()
-                                                    .filter(|_| account.name.is_some()),
-                                                |this, email| {
-                                                    this.child(
-                                                        div()
-                                                            .truncate()
-                                                            .text_size(text::LABEL.size)
-                                                            .text_color(k.text(TextStep::T400))
-                                                            .child(email),
-                                                    )
-                                                },
-                                            ),
+                                        Icon::new(w.icon.weight(active))
+                                            .size_4()
+                                            .text_color(k.hue(w.hue)),
                                     ),
                             )
-                            .when_some(account.org.clone(), |this, (org, role)| {
-                                this.child(
-                                    h_flex()
-                                        .flex_wrap()
-                                        .gap_1p5()
-                                        .child(chip(
-                                            h_flex()
-                                                .gap_1p5()
-                                                .min_w_0()
-                                                .text_color(k.text(TextStep::T200))
-                                                .child(
-                                                    Icon::new(KairoIcon::Church)
-                                                        .size(gpui_kit::px(11.)),
-                                                )
-                                                .child(div().truncate().child(org))
-                                                .into_any_element(),
-                                        ))
-                                        .child(chip(
+                            .child(
+                                v_flex()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(
+                                        div()
+                                            .truncate()
+                                            .text_size(text::SM.size)
+                                            .font_weight(gpui_kit::FontWeight::MEDIUM)
+                                            .text_color(k.text_primary)
+                                            .child(w.label),
+                                    )
+                                    .when_some(w.hint, |this, hint| {
+                                        this.child(
                                             div()
+                                                .truncate()
+                                                .text_size(text::LABEL.size)
                                                 .text_color(k.text(TextStep::T400))
-                                                .child(role)
-                                                .into_any_element(),
-                                        )),
+                                                .child(hint),
+                                        )
+                                    }),
+                            )
+                            .when(active, |s| {
+                                s.child(
+                                    Icon::new(KairoIcon::Check)
+                                        .size_3p5()
+                                        .text_color(k.text(TextStep::T400)),
                                 )
-                            }),
-                    )
+                            })
+                    }))
+                    // Screen setup lives here too, beside the apps.
                     .child(
+                        div()
+                            .mx_2()
+                            .my_1()
+                            .h(metrics::panel_border_width())
+                            .bg(k.panel_border),
+                    )
+                    .child({
+                        let entity = entity.clone();
+                        let hue = k.hue(Hue::Indigo);
                         h_flex()
-                            .gap_2()
-                            .px_3()
-                            .pt_3()
-                            .child(tile(
-                                "Status",
-                                h_flex()
-                                    .gap_1p5()
+                            .id("apps-screens")
+                            .test_support()
+                            .role(Role::Button)
+                            .aria_label("Screens")
+                            .w_full()
+                            .gap_3()
+                            .px_2()
+                            .py_1p5()
+                            .rounded(radius::md())
+                            .cursor_pointer()
+                            .hover(|s| s.bg(k.ink(0.06)))
+                            .on_click(move |_, _, cx| {
+                                entity.update(cx, |this, cx| {
+                                    this.apps_open = false;
+                                    this.open_overlay(Overlay::Screens, cx);
+                                })
+                            })
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .size_8()
+                                    .rounded(radius::md())
+                                    .flex()
                                     .items_center()
-                                    .child(div().size(gpui_kit::px(6.)).rounded_full().bg(dot))
-                                    .child(status)
-                                    .into_any_element(),
-                            ))
-                            .child(tile(
-                                "Last synced",
-                                div().truncate().child(synced).into_any_element(),
-                            )),
-                    )
-                    .child(
-                        v_flex()
-                            .p_2()
-                            .gap_0p5()
-                            .child(row(
-                                "account-settings",
-                                KairoIcon::Settings,
-                                "Account settings",
-                                false,
-                                Box::new(move |cx| {
-                                    settings
-                                        .update(cx, |this, cx| this.open_settings("account", cx))
-                                }),
-                            ))
-                            .child(row(
-                                "account-tips",
-                                KairoIcon::Lightbulb,
-                                "Show tips again",
-                                false,
-                                Box::new(move |cx| {
-                                    tips.update(cx, |_, cx| cx.emit(ShellRequest::ShowTips))
-                                }),
-                            ))
-                            .when(!signed_out, |this| {
-                                this.child(
-                                    div()
-                                        .mt_1()
-                                        .pt_1()
-                                        .border_t_1()
-                                        .border_color(k.panel_border)
-                                        .child(row(
-                                            "account-sign-out",
-                                            KairoIcon::LogOut,
-                                            "Sign out",
-                                            true,
-                                            Box::new(move |cx| {
-                                                out.update(cx, |_, cx| {
-                                                    cx.emit(ShellRequest::SignOut)
-                                                })
-                                            }),
-                                        )),
-                                )
-                            }),
-                    )
+                                    .justify_center()
+                                    .bg(hue.opacity(0.16))
+                                    .child(
+                                        Icon::new(KairoIcon::PhMonitor).size_4().text_color(hue),
+                                    ),
+                            )
+                            .child(
+                                v_flex()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .child(
+                                        div()
+                                            .truncate()
+                                            .text_size(text::SM.size)
+                                            .font_weight(gpui_kit::FontWeight::MEDIUM)
+                                            .text_color(k.text_primary)
+                                            .child("Screens"),
+                                    )
+                                    .child(
+                                        div()
+                                            .truncate()
+                                            .text_size(text::LABEL.size)
+                                            .text_color(k.text(TextStep::T400))
+                                            .child("Set up displays, NDI and feeds"),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .flex_none()
+                                    .text_size(text::LABEL.size)
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(if cfg!(target_os = "macos") {
+                                        "⌥⌘1"
+                                    } else {
+                                        "Ctrl+Alt+1"
+                                    }),
+                            )
+                    });
+                kairo_ui_kit::motion::pop_in(
+                    menu,
+                    "apps-menu-in",
+                    kairo_ui_kit::motion::From::Leading,
+                    cx,
+                )
             })
             .into_any_element()
     }
@@ -1052,18 +1298,26 @@ impl Shell {
             .trigger(button.opens_popover(move |_, cx| {
                 toggle.update(cx, |this, cx| this.set_live_open(!this.live_open, cx))
             }))
-            .content(move |_, _, _| div().w_64().p_1().child(view.clone()))
+            .appearance(false)
+            .content(move |_, _, cx| {
+                kairo_ui_kit::motion::pop_in(
+                    header_popover_surface(cx).w_64().p_1().child(view.clone()),
+                    "live-popover-in",
+                    kairo_ui_kit::motion::From::Above,
+                    cx,
+                )
+            })
             .into_any_element()
     }
 
-    /// The header's Screen Themes button and its popover.
+    /// The header's Looks button (which theme each screen shows) and its popover.
     fn render_screen_themes(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
         let button = ToolbarButton::new(
             "screen-themes",
-            "Screen Themes",
-            "Choose themes for your screens",
-            Icon::new(KairoIcon::PhPalette.fill())
+            "Looks",
+            "Choose which theme each screen shows",
+            Icon::new(KairoIcon::Looks.fill())
                 .size(px(18.))
                 .text_color(k.hue(Hue::Pink)),
         );
@@ -1084,82 +1338,65 @@ impl Shell {
                     this.set_screen_themes_open(!this.screen_themes_open, window, cx)
                 })
             }))
-            .content(move |_, _, _| div().p_3().child(view.clone()))
-            .into_any_element()
-    }
-
-    fn render_feedback(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        let entity = cx.entity();
-        let open = self.feedback_open;
-        Popover::new("feedback-popover")
-            .anchor(gpui_kit::Anchor::LeftCenter)
-            .offset(px(8.))
             .appearance(false)
-            .open(open)
-            .on_open_change({
-                let entity = entity.clone();
-                move |next, _, cx| {
-                    entity.update(cx, |this, cx| {
-                        if *next {
-                            this.feedback_open = true;
-                            cx.notify();
-                        } else {
-                            this.close_feedback(cx);
-                        }
-                    })
-                }
-            })
-            .trigger(
-                self.rail_trigger(
-                    "feedback",
-                    KairoIcon::PhChatCircleDots,
-                    "Feedback",
-                    Some(Hue::Coral),
-                    open,
+            .content(move |_, _, cx| {
+                kairo_ui_kit::motion::pop_in(
+                    header_popover_surface(cx).p_3().child(view.clone()),
+                    "screen-themes-popover-in",
+                    kairo_ui_kit::motion::From::Above,
                     cx,
                 )
-                .popover_trigger(),
-            )
-            .content(move |_, window, cx| {
-                let entity = entity.clone();
-                entity.update(cx, |this, cx| this.feedback_content(window, cx))
             })
             .into_any_element()
     }
 
+    /// The Feedback panel beside the account menu: what kind, the note, send.
     fn feedback_content(&mut self, _: &mut Window, cx: &mut Context<Self>) -> AnyElement {
         let k = *cx.kairo();
         let account = &self.state.account;
-        if self.feedback_phase == FeedbackPhase::Sent {
-            let reply = account
-                .email
-                .as_ref()
-                .map(|e| format!(" and may reply to {e}"))
-                .unwrap_or_default();
-            return v_flex()
-                .id("feedback-sent")
-                .test_support()
-                .role(Role::Status)
-                .aria_label("Thank you")
-                .w(px(360.))
+        let panel = || {
+            v_flex()
+                .w(px(340.))
                 .rounded(radius::xl())
                 .overflow_hidden()
                 .bg(k.surface_secondary)
                 .border_1()
                 .border_color(k.ink(0.14))
                 .shadow_2xl()
+        };
+        if self.feedback_phase == FeedbackPhase::Sent {
+            let reply = account
+                .email
+                .as_ref()
+                .map(|e| format!(" and may reply to {e}"))
+                .unwrap_or_default();
+            return panel()
+                .id("feedback-sent")
+                .test_support()
+                .role(Role::Status)
+                .aria_label("Thank you")
                 .items_center()
-                .gap_2()
+                .gap_1p5()
                 .px_6()
-                .py_8()
+                .py_7()
                 .child(
-                    Icon::new(KairoIcon::PhCheckCircle.fill())
-                        .size_9()
-                        .text_color(k.success_text),
+                    div()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .size_12()
+                        .mb_1p5()
+                        .rounded_full()
+                        .bg(k.success_text.opacity(0.14))
+                        .child(
+                            Icon::new(KairoIcon::PhCheckCircle.fill())
+                                .size_6()
+                                .text_color(k.success_text),
+                        ),
                 )
                 .child(
                     div()
-                        .text_size(text::SM.size)
+                        .text_size(text::BASE.size)
                         .font_weight(gpui_kit::FontWeight::SEMIBOLD)
                         .text_color(k.text_primary)
                         .child("Thank you"),
@@ -1168,6 +1405,7 @@ impl Shell {
                     div()
                         .text_center()
                         .text_size(text::XS.size)
+                        .line_height(text::XS.line_height)
                         .text_color(k.text(TextStep::T400))
                         .child(format!(
                             "It's with the Kairo team. We read every note{reply}."
@@ -1178,33 +1416,30 @@ impl Shell {
         let signed_in = account.signed_in;
         let sending = self.feedback_phase == FeedbackPhase::Sending;
         let has_text = !self.feedback_input.read(cx).value().trim().is_empty();
-        let sender = if signed_in {
-            format!(
-                "Sent as {}",
-                account
-                    .name
-                    .clone()
-                    .or(account.email.clone())
-                    .unwrap_or_default()
-            )
-        } else {
-            "Sign in to send feedback".to_owned()
-        };
+        let who = account.name.clone().or(account.email.clone());
         let kinds = [
-            (FeedbackKind::Idea, "Idea", KairoIcon::PhLightbulb),
-            (FeedbackKind::Problem, "Problem", KairoIcon::PhWarningCircle),
-            (FeedbackKind::Praise, "Praise", KairoIcon::PhHeart),
+            (
+                FeedbackKind::Idea,
+                "Idea",
+                KairoIcon::PhLightbulb,
+                Hue::Amber,
+            ),
+            (
+                FeedbackKind::Problem,
+                "Problem",
+                KairoIcon::PhWarningCircle,
+                Hue::Coral,
+            ),
+            (
+                FeedbackKind::Praise,
+                "Praise",
+                KairoIcon::PhHeart,
+                Hue::Pink,
+            ),
         ];
-        v_flex()
+        panel()
             .id("feedback-form")
             .key_context("FeedbackForm")
-            .w(px(360.))
-            .rounded(radius::xl())
-            .overflow_hidden()
-            .bg(k.surface_secondary)
-            .border_1()
-            .border_color(k.ink(0.14))
-            .shadow_2xl()
             .on_key_down(cx.listener(|this, event: &gpui_kit::KeyDownEvent, _, cx| {
                 let m = event.keystroke.modifiers;
                 if event.keystroke.key == "enter" && (m.platform || m.control) {
@@ -1215,28 +1450,27 @@ impl Shell {
             .child(
                 v_flex()
                     .px_4()
-                    .py_3()
+                    .pt_4()
                     .gap_0p5()
-                    .bg(k.surface_header)
-                    .border_b_1()
-                    .border_color(k.panel_border)
                     .child(
                         div()
-                            .text_size(text::SM.size)
+                            .text_size(text::BASE.size)
                             .font_weight(gpui_kit::FontWeight::SEMIBOLD)
                             .text_color(k.text_primary)
-                            .child("Feedback"),
+                            .child("Send feedback"),
                     )
                     .child(
                         div()
-                            .text_size(text::LABEL.size)
+                            .text_size(text::XS.size)
                             .text_color(k.text(TextStep::T400))
-                            .child("Share an idea, report a bug, or send a note."),
+                            .child("The Kairo team reads every note."),
                     ),
             )
             .child(
                 v_flex()
-                    .p_3p5()
+                    .px_4()
+                    .pt_3p5()
+                    .pb_4()
                     .gap_3()
                     .child(
                         h_flex()
@@ -1244,44 +1478,47 @@ impl Shell {
                             .role(Role::RadioGroup)
                             .aria_label("Kind of feedback")
                             .w_full()
-                            .p_1()
-                            .gap_1()
-                            .rounded(radius::lg())
-                            .bg(k.surface)
-                            .border_1()
-                            .border_color(k.panel_border)
-                            .children(kinds.map(|(kind, label, icon)| {
+                            .gap_2()
+                            .children(kinds.map(|(kind, label, icon, hue)| {
                                 let selected = self.feedback_kind == kind;
-                                h_flex()
+                                let tone = k.hue(hue);
+                                v_flex()
                                     .id(SharedString::from(format!("feedback-{}", kind.as_str())))
                                     .test_support()
                                     .role(Role::Button)
                                     .aria_label(label)
                                     .aria_selected(selected)
                                     .flex_1()
-                                    .justify_center()
                                     .items_center()
-                                    .gap_1p5()
-                                    .py_1()
-                                    .px_2()
-                                    .rounded(radius::md())
+                                    .gap_1()
+                                    .py_2p5()
+                                    .rounded(radius::lg())
                                     .cursor_pointer()
+                                    .border_1()
                                     .text_size(text::LABEL.size)
                                     .font_weight(gpui_kit::FontWeight::MEDIUM)
                                     .when(selected, |d| {
-                                        d.bg(k.surface_tertiary)
-                                            .border_1()
-                                            .border_color(k.ink(0.14))
+                                        d.bg(tone.opacity(0.12))
+                                            .border_color(tone.opacity(0.55))
                                             .text_color(k.text_primary)
                                     })
                                     .when(!selected, |d| {
-                                        d.text_color(k.text(TextStep::T400))
-                                            .hover(|s| s.text_color(k.text_primary))
+                                        d.bg(k.ink(0.03))
+                                            .border_color(k.ink(0.08))
+                                            .text_color(k.text(TextStep::T400))
+                                            .hover(|s| s.bg(k.ink(0.06)).text_color(k.text_primary))
                                     })
-                                    .child(Icon::new(icon.weight(selected)).size_3p5())
+                                    .child(Icon::new(icon.weight(selected)).size_4().text_color(
+                                        if selected {
+                                            tone
+                                        } else {
+                                            k.text(TextStep::T400)
+                                        },
+                                    ))
                                     .child(label)
                                     .on_click(cx.listener(move |this, _, window, cx| {
                                         this.feedback_kind = kind;
+                                        this.account_pinned = true;
                                         this.feedback_input.update(cx, |input, cx| {
                                             input.set_placeholder(
                                                 crate::shell::placeholder(kind),
@@ -1295,16 +1532,23 @@ impl Shell {
                     )
                     .child(
                         div()
-                            .rounded(radius::md())
+                            .rounded(radius::lg())
                             .bg(k.surface)
                             .border_1()
-                            .border_color(k.ink(0.18))
+                            .border_color(k.ink(0.12))
                             .child(
                                 Textarea::new(&self.feedback_input)
                                     .appearance(false)
                                     .aria_label("Your feedback")
                                     .disabled(!signed_in || sending),
                             ),
+                    )
+                    .child(
+                        div()
+                            .mt_neg_1()
+                            .text_size(text::LABEL.size)
+                            .text_color(k.text(TextStep::T500))
+                            .child(crate::shell::hint(self.feedback_kind)),
                     )
                     .when_some(self.feedback_error.clone(), |this, error| {
                         this.child(
@@ -1317,35 +1561,54 @@ impl Shell {
                                 .text_color(k.danger_text)
                                 .child(error),
                         )
-                    }),
-            )
-            .child(
-                h_flex()
-                    .px_4()
-                    .py_2p5()
-                    .gap_2()
-                    .items_center()
-                    .bg(k.surface_header)
-                    .border_t_1()
-                    .border_color(k.panel_border)
+                    })
                     .child(
-                        div()
-                            .min_w_0()
-                            .flex_1()
-                            .truncate()
-                            .text_size(text::LABEL.size)
-                            .text_color(k.text(TextStep::T400))
-                            .child(sender),
-                    )
-                    .child(
-                        Button::new("feedback-send")
-                            .cursor_pointer()
-                            .primary()
-                            .small()
-                            .label(if sending { "Sending…" } else { "Send" })
-                            .tooltip("Send (⌘↵)")
-                            .disabled(!signed_in || !has_text || sending)
-                            .on_click(cx.listener(|this, _, _, cx| this.send_feedback(cx))),
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .child(match (&who, signed_in) {
+                                (Some(who), true) => h_flex()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .gap_2()
+                                    .items_center()
+                                    .child(avatar(who, false, cx))
+                                    .child(
+                                        v_flex()
+                                            .min_w_0()
+                                            .child(
+                                                div()
+                                                    .text_size(text::MICRO.size)
+                                                    .text_color(k.text(TextStep::T500))
+                                                    .child("Sent as"),
+                                            )
+                                            .child(
+                                                div()
+                                                    .truncate()
+                                                    .text_size(text::XS.size)
+                                                    .text_color(k.text(TextStep::T200))
+                                                    .child(who.clone()),
+                                            ),
+                                    )
+                                    .into_any_element(),
+                                _ => div()
+                                    .flex_1()
+                                    .min_w_0()
+                                    .text_size(text::XS.size)
+                                    .text_color(k.text(TextStep::T400))
+                                    .child("Sign in to send feedback")
+                                    .into_any_element(),
+                            })
+                            .child(
+                                Button::new("feedback-send")
+                                    .cursor_pointer()
+                                    .primary()
+                                    .icon(Icon::new(KairoIcon::Send))
+                                    .label(if sending { "Sending…" } else { "Send" })
+                                    .tooltip("Send (⌘↵)")
+                                    .disabled(!signed_in || !has_text || sending)
+                                    .on_click(cx.listener(|this, _, _, cx| this.send_feedback(cx))),
+                            ),
                     ),
             )
             .into_any_element()
@@ -1379,7 +1642,21 @@ impl Shell {
                     .border_l(metrics::panel_border_width())
                     .border_color(k.panel_border)
                     .bg(k.surface)
-                    .child(content),
+                    // The page settles in on each switch: the animation is keyed by
+                    // the route, so coming back to a page replays it.
+                    .child(kairo_ui_kit::motion::travel_in(
+                        div()
+                            .min_h_0()
+                            .w_full()
+                            .flex_1()
+                            .flex()
+                            .flex_col()
+                            .child(content),
+                        SharedString::from(format!("workspace-in-{}", route.as_str())),
+                        kairo_ui_kit::motion::From::Below,
+                        4.0,
+                        cx,
+                    )),
             )
             .into_any_element()
     }
@@ -1479,7 +1756,14 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let overlay = self.overlay?;
+        let Some(overlay) = self.overlay else {
+            let (view, _) = self.overlay_leaving.as_ref()?;
+            return Some(kairo_ui_kit::motion::fade_out(
+                div().absolute().inset_0().occlude().child(view.clone()),
+                "overlay-leaving",
+                cx,
+            ));
+        };
         if self.overlay_view.is_none()
             && let Some(build) = self.overlay_builders.get(&overlay)
         {
@@ -1909,13 +2193,28 @@ impl Shell {
             return None;
         }
         let k = *cx.kairo();
-        let recording = if self.state.recording {
-            " The recording will be stopped and saved."
+        let recording = self.state.recording;
+        let detail = if recording {
+            "Your screens go offline, live transcription stops, and the recording is stopped and saved."
         } else {
-            ""
+            "Your screens go offline and live transcription stops."
         };
-        Some(
-            kairo_ui_kit::motion::enter(div()
+        // A key hint inside a button: `esc`, `↩`.
+        let hint = |text_: &'static str, ink: gpui_kit::Hsla| {
+            div()
+                .flex_none()
+                .px_1()
+                .rounded(radius::sm())
+                .border_1()
+                .border_color(ink.opacity(0.35))
+                .text_size(text::MICRO.size)
+                .font_weight(gpui_kit::FontWeight::MEDIUM)
+                .text_color(ink.opacity(0.75))
+                .child(text_)
+        };
+        let quit_ink = k.white;
+        Some(kairo_ui_kit::motion::enter(
+            div()
                 .id("quit-scrim")
                 .absolute()
                 .inset_0()
@@ -1925,17 +2224,21 @@ impl Shell {
                 .p_4()
                 .bg(gpui_kit::black().opacity(0.35))
                 .occlude()
-                .child(
+                .child(kairo_ui_kit::motion::pop_in(
                     v_flex()
                         .id("quit-confirmation")
                         .test_support()
                         .role(Role::AlertDialog)
                         .aria_label("Quit Kairo?")
                         .w_full()
-                        .max_w(gpui_kit::rems(26.25))
+                        .max_w(gpui_kit::rems(28.))
+                        .p_6()
+                        .gap_5()
                         .rounded(radius::xl2())
-                        .overflow_hidden()
-                        .bg(k.glass)
+                        .bg(k.surface_secondary)
+                        .border_1()
+                        .border_color(k.ink(0.12))
+                        .shadow_2xl()
                         .on_key_down(cx.listener(|this, event: &gpui_kit::KeyDownEvent, _, cx| {
                             if event.keystroke.key == "escape" {
                                 cx.stop_propagation();
@@ -1944,46 +2247,87 @@ impl Shell {
                         }))
                         .child(
                             v_flex()
-                                .px_7()
-                                .pt_8()
-                                .pb_7()
-                                .child(KairoMark::new(MarkSize::Large))
-                                .child(div().mt_6().text_size(text::XL2.size).font_weight(gpui_kit::FontWeight::SEMIBOLD).child("Quit Kairo?"))
+                                .gap_2()
+                                .child(div().mb_2().child(KairoMark::new(MarkSize::Small)))
                                 .child(
                                     div()
-                                        .mt_3()
+                                        .text_size(text::LG.size)
+                                        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+                                        .text_color(k.text_primary)
+                                        .child("Quit Kairo?"),
+                                )
+                                .child(
+                                    div()
                                         .text_size(text::SM.size)
+                                        .line_height(text::SM.line_height)
                                         .text_color(k.text(TextStep::T400))
-                                        .child(format!(
-                                            "Your screens will go offline and live transcription will stop.{recording} Ready to close Kairo?"
-                                        )),
+                                        .child(detail),
                                 ),
                         )
                         .child(
                             h_flex()
-                                .flex_wrap()
-                                .justify_end()
+                                .items_center()
                                 .gap_2()
-                                .bg(k.surface_tertiary)
-                                .px_7()
-                                .py_5()
+                                // Not offered while recording: that always asks.
+                                .when(!recording, |this| {
+                                    this.child(
+                                        Button::new("always-quit")
+                                            .cursor_pointer()
+                                            .secondary()
+                                            .label("Always quit")
+                                            .tooltip("Quit without asking from now on (it still asks while recording)")
+                                            .on_click(cx.listener(|this, _, _, cx| this.always_quit(cx))),
+                                    )
+                                })
+                                .child(div().flex_1())
                                 .child(
-                                    Button::new("keep-open").cursor_pointer()
+                                    Button::new("keep-open")
+                                        .cursor_pointer()
+                                        // Focus starts here, not on Quit: a stray
+                                        // Return mid-service must not take the
+                                        // screens offline.
                                         .track_focus(&self.keep_open_focus)
                                         .secondary()
-                                        .label("Keep Kairo open")
-                                        .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(false, cx))),
+                                        .accessibility_label("Cancel")
+                                        .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(false, cx)))
+                                        .child(
+                                            h_flex()
+                                                .items_center()
+                                                .gap_2()
+                                                .child("Cancel")
+                                                .child(hint("esc", k.text(TextStep::T300))),
+                                        ),
                                 )
                                 .child(
-                                    Button::new("quit-kairo").cursor_pointer()
-                                        .primary()
-                                        .label("Quit Kairo")
-                                        .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(true, cx))),
+                                    Button::new("quit-kairo")
+                                        .cursor_pointer()
+                                        .custom(
+                                            ButtonCustomVariant::new(cx)
+                                                .color(k.destructive)
+                                                .foreground(quit_ink)
+                                                .hover(k.destructive.opacity(0.88))
+                                                .active(k.destructive.opacity(0.88)),
+                                        )
+                                        // Solid fill: the custom variant paints its colour at 20%.
+                                        .bg(k.destructive)
+                                        .accessibility_label("Quit")
+                                        .on_click(cx.listener(|this, _, _, cx| this.respond_to_quit(true, cx)))
+                                        .child(
+                                            h_flex()
+                                                .items_center()
+                                                .gap_2()
+                                                .child("Quit"),
+                                        ),
                                 ),
                         )
                         .focus_trap("quit-confirmation", self.quit_focus.handle()),
-                ), "quit-enter", cx),
-        )
+                    "quit-dialog-in",
+                    kairo_ui_kit::motion::From::Below,
+                    cx,
+                )),
+            "quit-enter",
+            cx,
+        ))
     }
 }
 
@@ -2046,4 +2390,46 @@ fn synced_label(at_ms: u64) -> String {
         60..=1439 => format!("{} hr ago", minutes / 60),
         _ => format!("{} days ago", minutes / 1440),
     }
+}
+
+/// The surface of a header popover drawn by the shell, so it can animate
+/// as one piece: the same as the rail's menus.
+fn header_popover_surface(cx: &App) -> gpui_kit::Div {
+    let k = *cx.kairo();
+    div()
+        .rounded(radius::xl())
+        .bg(k.surface_secondary)
+        .border_1()
+        .border_color(k.ink(0.14))
+        .shadow_2xl()
+}
+
+/// What a row in the account menu does when clicked.
+type MenuClick = Box<dyn Fn(&mut Window, &mut App)>;
+
+/// A round initial for the signed-in person; `large` in the menu header.
+fn avatar(title: &str, large: bool, cx: &App) -> AnyElement {
+    let k = *cx.kairo();
+    let initials: String = title
+        .split_whitespace()
+        .filter_map(|w| w.chars().next())
+        .take(2)
+        .flat_map(char::to_uppercase)
+        .collect();
+    div()
+        .flex()
+        .flex_none()
+        .items_center()
+        .justify_center()
+        .when(large, |d| d.size_9())
+        .when(!large, |d| d.size_8())
+        .rounded_full()
+        .bg(k.hue(Hue::Blue).opacity(0.28))
+        .border_1()
+        .border_color(k.hue(Hue::Blue).opacity(0.45))
+        .text_color(k.text_primary)
+        .text_size(if large { text::SM.size } else { text::XS.size })
+        .font_weight(gpui_kit::FontWeight::SEMIBOLD)
+        .child(initials)
+        .into_any_element()
 }

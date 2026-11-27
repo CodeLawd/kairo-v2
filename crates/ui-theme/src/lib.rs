@@ -11,6 +11,7 @@ pub mod inspector;
 pub mod model;
 pub mod ops;
 pub mod panels;
+pub mod pen;
 pub mod picker;
 pub mod view;
 

@@ -14,7 +14,7 @@ use gpui_kit::{
     prelude::FluentBuilder, px,
 };
 use kairo_domain::status::AudioLevel;
-use kairo_ui_kit::tokens::{Hue, Step, TextStep, radius};
+use kairo_ui_kit::tokens::{Hue, Step, TextStep, radius, text};
 use kairo_ui_kit::{KairoIcon, KairoThemeExt};
 use serde_json::Value;
 use std::sync::Arc;
@@ -269,30 +269,71 @@ impl Render for AudioRail {
             .map(|d| SharedString::from(d.device.label.clone()))
             .unwrap_or_else(|| "System default".into());
         let green = k.hue(Hue::Green);
-        let header = v_flex()
+        let active_kind = self
+            .devices
+            .as_ref()
+            .and_then(|d| d.iter().find(|d| d.device.id == selected))
+            .map(|d| d.kind.clone());
+        let header = h_flex()
             .px_4()
-            .pt_3p5()
-            .pb_3p5()
-            .bg(k.surface_header)
-            .border_b_1()
-            .border_color(k.panel_border)
+            .pt_4()
+            .pb_3()
+            .gap_2()
+            .items_center()
+            .child(
+                div()
+                    .flex_1()
+                    .text_size(text::BASE.size)
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(k.text_primary)
+                    .child("Microphone"),
+            )
+            .child(
+                h_flex()
+                    .flex_none()
+                    .gap_1p5()
+                    .items_center()
+                    .px_2()
+                    .py_0p5()
+                    .rounded_full()
+                    .text_size(text::MICRO.size)
+                    .font_weight(FontWeight::MEDIUM)
+                    .when(listening, |d| d.bg(green.opacity(0.16)).text_color(green))
+                    .when(!listening, |d| {
+                        d.bg(k.ink(0.06)).text_color(k.text(TextStep::T400))
+                    })
+                    .child(div().size_1p5().rounded_full().bg(if listening {
+                        green
+                    } else {
+                        k.text(TextStep::T500)
+                    }))
+                    .child(if listening { "Listening" } else { "Idle" }),
+            );
+        // The input in use, and how loud it is.
+        let current = v_flex()
+            .mx_3()
+            .p_3()
+            .rounded(radius::lg())
+            .bg(k.ink(0.04))
+            .border_1()
+            .border_color(k.ink(0.08))
             .child(
                 h_flex()
                     .gap_2p5()
+                    .items_center()
                     .child(
                         div()
                             .flex()
                             .flex_none()
                             .items_center()
                             .justify_center()
-                            .size_9()
-                            .rounded_full()
+                            .size_8()
+                            .rounded(radius::md())
                             .when(listening, |d| d.bg(green).text_color(k.surface))
                             .when(!listening, |d| {
-                                d.bg(k.white.opacity(0.08))
-                                    .text_color(k.text(TextStep::T300))
+                                d.bg(k.ink(0.08)).text_color(k.text(TextStep::T300))
                             })
-                            .child(Icon::new(KairoIcon::Mic).size(px(16.))),
+                            .child(Icon::new(KairoIcon::Mic).size_4()),
                     )
                     .child(
                         v_flex()
@@ -300,34 +341,21 @@ impl Render for AudioRail {
                             .flex_1()
                             .child(
                                 div()
-                                    .text_size(px(10.))
+                                    .truncate()
+                                    .text_size(text::SM.size)
                                     .font_weight(FontWeight::MEDIUM)
-                                    .text_color(k.text(TextStep::T400))
-                                    .child("AUDIO INPUT"),
+                                    .text_color(k.text_primary)
+                                    .child(active),
                             )
                             .child(
                                 div()
-                                    .truncate()
-                                    .text_size(px(13.))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(k.text_primary)
-                                    .child(active),
+                                    .text_size(text::LABEL.size)
+                                    .text_color(k.text(TextStep::T500))
+                                    .child(match active_kind {
+                                        Some(kind) => format!("In use · {kind}"),
+                                        None => "In use".to_owned(),
+                                    }),
                             ),
-                    )
-                    .child(
-                        div()
-                            .flex_none()
-                            .px_2()
-                            .py_0p5()
-                            .rounded_full()
-                            .text_size(px(10.))
-                            .font_weight(FontWeight::MEDIUM)
-                            .when(listening, |d| d.bg(green).text_color(k.surface))
-                            .when(!listening, |d| {
-                                d.bg(k.white.opacity(0.08))
-                                    .text_color(k.text(TextStep::T400))
-                            })
-                            .child(if listening { "Listening" } else { "Idle" }),
                     ),
             )
             .child(
@@ -336,8 +364,8 @@ impl Render for AudioRail {
                     .test_support()
                     .role(Role::Meter)
                     .aria_label(SharedString::from(format!("Input level {percent}%")))
-                    .mt_3p5()
-                    .h(px(6.))
+                    .mt_3()
+                    .h_1p5()
                     .gap(px(2.))
                     .children((0..SEGMENTS).map(|i| {
                         // Green, amber for the last seven, red for the last
@@ -350,12 +378,11 @@ impl Render for AudioRail {
                         } else {
                             green
                         };
-                        div()
-                            .flex_1()
-                            .min_w_0()
-                            .h_full()
-                            .rounded(px(2.))
-                            .bg(if lit { tone } else { k.white.opacity(0.08) })
+                        div().flex_1().min_w_0().h_full().rounded_full().bg(if lit {
+                            tone
+                        } else {
+                            k.ink(0.08)
+                        })
                     })),
             )
             .when(!listening, |d| {
@@ -373,7 +400,8 @@ impl Render for AudioRail {
                 d.child(
                     div()
                         .mt_2()
-                        .text_size(px(11.))
+                        .text_size(text::LABEL.size)
+                        .line_height(text::LABEL.line_height)
                         .text_color(if warn {
                             k.warning_text
                         } else {
@@ -382,21 +410,20 @@ impl Render for AudioRail {
                         .child(note),
                 )
             });
+        let quiet = |message: &'static str| {
+            div()
+                .px_2p5()
+                .py_3()
+                .text_size(text::XS.size)
+                .text_color(k.text(TextStep::T500))
+                .child(message)
+                .into_any_element()
+        };
         let list = match &self.devices {
-            None => div()
-                .px_2()
-                .py_3()
-                .text_size(px(12.))
-                .text_color(k.text(TextStep::T500))
-                .child("Finding microphones…")
-                .into_any_element(),
-            Some(devices) if devices.is_empty() => div()
-                .px_2()
-                .py_3()
-                .text_size(px(12.))
-                .text_color(k.text(TextStep::T500))
-                .child("No microphones found. Allow microphone access in System Settings.")
-                .into_any_element(),
+            None => quiet("Finding microphones…"),
+            Some(devices) if devices.is_empty() => {
+                quiet("No microphones found. Allow microphone access in System Settings.")
+            }
             Some(devices) => v_flex()
                 .gap_0p5()
                 .children(devices.iter().enumerate().map(|(i, d)| {
@@ -410,34 +437,22 @@ impl Render for AudioRail {
                         .aria_label(label.clone())
                         .aria_selected(chosen)
                         .w_full()
-                        .gap_3()
-                        .px_2()
-                        .py_2()
+                        .gap_2p5()
+                        .px_2p5()
+                        .py_1p5()
                         .rounded(radius::md())
                         .cursor_pointer()
-                        .when(chosen, |r| {
-                            r.bg(k.surface_tertiary)
-                                .border_1()
-                                .border_color(k.white.opacity(0.12))
-                        })
-                        .when(!chosen, |r| r.hover(|s| s.bg(k.white.opacity(0.05))))
+                        .hover(|s| s.bg(k.ink(0.06)))
                         .on_click(cx.listener(move |this, _, _, cx| this.pick(id.clone(), cx)))
                         .child(
-                            div()
-                                .flex()
+                            Icon::new(kind_icon(&d.kind))
+                                .size_4()
                                 .flex_none()
-                                .items_center()
-                                .justify_center()
-                                .size_8()
-                                .rounded(radius::md())
-                                .when(chosen, |d| {
-                                    d.bg(k.accent(Step::S500)).text_color(k.on_accent)
-                                })
-                                .when(!chosen, |d| {
-                                    d.bg(k.white.opacity(0.06))
-                                        .text_color(k.text(TextStep::T300))
-                                })
-                                .child(Icon::new(kind_icon(&d.kind)).size(px(13.))),
+                                .text_color(if chosen {
+                                    k.text_primary
+                                } else {
+                                    k.text(TextStep::T400)
+                                }),
                         )
                         .child(
                             v_flex()
@@ -446,17 +461,17 @@ impl Render for AudioRail {
                                 .child(
                                     div()
                                         .truncate()
-                                        .text_size(px(12.))
-                                        .when(chosen, |d| {
-                                            d.font_weight(FontWeight::MEDIUM)
-                                                .text_color(k.text_primary)
+                                        .text_size(text::SM.size)
+                                        .text_color(if chosen {
+                                            k.text_primary
+                                        } else {
+                                            k.text(TextStep::T200)
                                         })
-                                        .when(!chosen, |d| d.text_color(k.text(TextStep::T200)))
                                         .child(label),
                                 )
                                 .child(
                                     div()
-                                        .text_size(px(11.))
+                                        .text_size(text::LABEL.size)
                                         .text_color(k.text(TextStep::T500))
                                         .child(d.kind.clone()),
                                 ),
@@ -464,8 +479,8 @@ impl Render for AudioRail {
                         .when(chosen, |r| {
                             r.child(
                                 Icon::new(KairoIcon::Check)
-                                    .size(px(14.))
-                                    .text_color(k.text_primary),
+                                    .size_4()
+                                    .text_color(k.accent(Step::S500)),
                             )
                         })
                 }))
@@ -476,51 +491,58 @@ impl Render for AudioRail {
             .test_support()
             .w_72()
             .child(header)
+            .child(current)
+            .child(
+                div()
+                    .px_4()
+                    .pt_3p5()
+                    .pb_1()
+                    .text_size(text::LABEL.size)
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(k.text(TextStep::T500))
+                    .child("Inputs"),
+            )
             .child(
                 div()
                     .id("audio-rail-list")
                     .max_h(px(224.))
                     .overflow_y_scroll()
-                    .p_2()
+                    .px_1p5()
                     .role(Role::ListBox)
                     .aria_label("Audio input devices")
                     .child(list),
             )
+            .child(div().mt_1p5().mx_4().h(px(1.)).bg(k.panel_border))
             .child(
-                div()
-                    .p_2()
-                    .bg(k.surface_header)
-                    .border_t_1()
-                    .border_color(k.panel_border)
-                    .child(
-                        h_flex()
-                            .id(ids::SETTINGS)
-                            .test_support()
-                            .role(Role::Button)
-                            .aria_label("Audio settings")
-                            .w_full()
-                            .gap_2p5()
-                            .px_2p5()
-                            .py_2()
-                            .rounded(radius::md())
-                            .cursor_pointer()
-                            .hover(|s| s.bg(k.white.opacity(0.06)))
-                            .text_size(px(12.))
-                            .text_color(k.text(TextStep::T200))
-                            .on_click(cx.listener(|_, _, _, cx| cx.emit(OpenAudioSettings)))
-                            .child(
-                                Icon::new(KairoIcon::Settings)
-                                    .size_3p5()
-                                    .flex_none()
-                                    .text_color(k.text(TextStep::T400)),
-                            )
-                            .child(div().flex_1().child("Audio settings"))
-                            .child(
-                                Icon::new(KairoIcon::ChevronRight)
-                                    .size(px(12.))
-                                    .text_color(k.text(TextStep::T500)),
-                            ),
-                    ),
+                div().p_1p5().child(
+                    h_flex()
+                        .id(ids::SETTINGS)
+                        .test_support()
+                        .role(Role::Button)
+                        .aria_label("Audio settings")
+                        .w_full()
+                        .gap_2p5()
+                        .px_2p5()
+                        .py_2()
+                        .rounded(radius::md())
+                        .cursor_pointer()
+                        .hover(|s| s.bg(k.ink(0.06)))
+                        .text_size(text::SM.size)
+                        .text_color(k.text_primary)
+                        .on_click(cx.listener(|_, _, _, cx| cx.emit(OpenAudioSettings)))
+                        .child(
+                            Icon::new(KairoIcon::Settings)
+                                .size_4()
+                                .flex_none()
+                                .text_color(k.text(TextStep::T300)),
+                        )
+                        .child(div().flex_1().child("Audio settings"))
+                        .child(
+                            Icon::new(KairoIcon::ChevronRight)
+                                .size_3p5()
+                                .text_color(k.text(TextStep::T500)),
+                        ),
+                ),
             )
     }
 }

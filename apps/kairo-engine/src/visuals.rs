@@ -12,12 +12,13 @@
 use kairo_compositor::{
     ColorFilter, Content, Fill, Fit, Frames, Look, MediaParams, Raster, Rect, Slot,
 };
-use kairo_domain::media::normalize_media_playback;
+use kairo_domain::media::{normalize_media_motion, normalize_media_playback};
 use kairo_domain::overlay::{MediaFit, OverlayElement, OverlayElementKind};
 use kairo_domain::overlay_elements::{MAX_OVERLAY_ELEMENTS, normalize_overlay_elements};
 use kairo_scene::color::{Rgba, parse_css};
+use kairo_scene::element_text::render_element;
 use kairo_scene::media::{BoxFit, FitMode, Picture, decode_picture};
-use kairo_scene::vector::{element_opacity, render_vector, snapped_box};
+use kairo_scene::vector::{element_opacity, snapped_box};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::hash::{Hash, Hasher};
@@ -100,7 +101,14 @@ pub fn background(bg: &Value, frame: (u32, u32)) -> Background {
         } else {
             String::new()
         };
-        let key = format!("{}:{path}:{cue}", if video { "VIDEO" } else { "IMG" });
+        let motion = (!video)
+            .then(|| normalize_media_motion(bg.get("motion")))
+            .flatten();
+        let mut key = format!("{}:{path}:{cue}", if video { "VIDEO" } else { "IMG" });
+        if let Some(m) = &motion {
+            // A new move is a new picture: it starts from the beginning.
+            key.push_str(&serde_json::to_string(m).unwrap_or_default());
+        }
         let playback = normalize_media_playback(&json!({
             "loop": bg.get("mediaLoop"), "startSeconds": bg.get("mediaStartSeconds"),
             "endSeconds": bg.get("mediaEndSeconds"), "rate": bg.get("mediaRate"),
@@ -167,6 +175,7 @@ pub fn background(bg: &Value, frame: (u32, u32)) -> Background {
                 fit: fit_mode,
             },
             template: content.clone(),
+            motion,
         };
         return Background {
             key,
@@ -231,6 +240,8 @@ pub struct ImageJob {
     pub target: BoxFit,
     /// The node's content with the pixels left out.
     pub template: Content,
+    /// Set when the still moves (`crate::ambience`).
+    pub motion: Option<kairo_domain::media::MediaMotion>,
 }
 
 /// One layer of theme elements (below the text, or above it).
@@ -259,6 +270,8 @@ pub fn elements(theme: &Value, above_text: bool, frame: (u32, u32)) -> Option<El
             OverlayElementKind::Image | OverlayElementKind::Video => {
                 el.media_path.as_deref().is_some_and(|p| !p.is_empty())
             }
+            OverlayElementKind::Text => el.text.as_deref().is_some_and(|t| !t.trim().is_empty()),
+            OverlayElementKind::Path => el.path.as_deref().is_some_and(|p| !p.is_empty()),
             _ => true,
         })
         .filter(|el| {
@@ -437,7 +450,7 @@ impl Shared {
             return hit;
         }
         let tile =
-            render_vector(el, frame).map(|t| (Raster::new(t.width, t.height, t.pixels), t.x, t.y));
+            render_element(el, frame).map(|t| (Raster::new(t.width, t.height, t.pixels), t.x, t.y));
         let bytes = tile.as_ref().map_or(0, |(r, ..)| r.pixels.len());
         self.tiles
             .lock()
@@ -629,12 +642,21 @@ fn run(shared: &Shared, task: Task) {
         Job::Layer(job) => crate::layers::run_layer(shared, job, task.fast, task.done),
         Job::Live(job) => (task.done)(Output::Live(Box::new(crate::layers::run_live(job)))),
         Job::Image(job) => {
-            let content = shared
-                .picture(&job.path, job.target)
-                .map(|decoded| Content {
+            let content = shared.picture(&job.path, job.target).map(|decoded| {
+                let base = Content {
                     fill: decoded.fill(),
                     ..job.template
-                });
+                };
+                match &job.motion {
+                    Some(motion) => crate::ambience::compose(
+                        base,
+                        motion,
+                        (job.target.width, job.target.height),
+                        |path| shared.picture(path, job.target).map(|d| d.fill()),
+                    ),
+                    None => base,
+                }
+            });
             (task.done)(Output::Image(content));
         }
         Job::Elements(plan) => {
@@ -902,6 +924,7 @@ mod tests {
                     fit: FitMode::Cover,
                 },
                 template: Content::empty(),
+                motion: None,
             };
             let (tx, rx) = channel();
             work.submit(

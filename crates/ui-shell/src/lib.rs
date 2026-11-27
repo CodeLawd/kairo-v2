@@ -15,6 +15,6 @@ pub mod ui_scale;
 pub mod view;
 pub mod whats_new;
 
-pub use route::{Route, WORKSPACES};
+pub use route::{APPS, Route, WORKSPACES};
 pub use shell::{Overlay, Shell, ShellOptions};
 pub use state::{ShellRequest, ShellState};

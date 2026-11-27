@@ -37,6 +37,7 @@ use crate::canvas::{self, CanvasLayer, Hit, PixelBox, is_deletable};
 use crate::editor::{CanvasDrag, ThemeEditor};
 use crate::gallery::{self, ShapePick, Tile};
 use crate::model;
+use crate::pen::PenDraft;
 use gpui_kit::StyledImage;
 
 pub mod ids {
@@ -51,10 +52,17 @@ pub mod ids {
     pub const FRAME: &str = "theme-frame";
     pub const CANVAS: &str = "theme-canvas";
     pub const TOOLBAR: &str = "theme-add-toolbar";
-    pub const ADD_REFERENCE: &str = "theme-add-reference";
     pub const ADD_SHAPE: &str = "theme-add-shape";
     pub const ADD_IMAGE: &str = "theme-add-image";
     pub const ADD_VIDEO: &str = "theme-add-video";
+    /// The Pen: draw a path of your own.
+    pub const ADD_PEN: &str = "theme-add-pen";
+    /// The Pen's instructions over the canvas.
+    pub const PEN_HINT: &str = "theme-pen-hint";
+    /// A text box of its own.
+    pub const ADD_TEXT: &str = "theme-add-text";
+    /// Coming soon: stickers.
+    pub const ADD_STICKER: &str = "theme-add-sticker";
     pub const SHAPES: &str = "theme-shapes";
     pub const DELETE: &str = "theme-layer-delete";
     pub const LABEL: &str = "theme-layer-label";
@@ -151,9 +159,69 @@ fn polygon(
 struct Overlay {
     selected: Option<(PixelBox, bool)>,
     hover: Option<PixelBox>,
+    pen: Option<PenDraft>,
+}
+
+/// The Pen's path so far, its points, and the line to the pointer.
+fn paint_pen(origin: Point<Pixels>, pen: &PenDraft, window: &mut Window) {
+    let ink = white();
+    let accent = hsla(0.0, 0.8, 0.6, 1.0);
+    let at = |p: (f64, f64)| rel(origin, p);
+    if pen.points.len() >= 2 {
+        let mut b = PathBuilder::stroke(px(2.0));
+        b.move_to(at(pen.points[0].at));
+        for pair in pen.points.windows(2) {
+            let (a, c) = (pair[0], pair[1]);
+            if a.out.is_none() && c.out.is_none() {
+                b.line_to(at(c.at));
+            } else {
+                b.cubic_bezier_to(
+                    at(c.at),
+                    at(a.out.unwrap_or(a.at)),
+                    at(c.inward().unwrap_or(c.at)),
+                );
+            }
+        }
+        if let Ok(path) = b.build() {
+            window.paint_path(path, ink);
+        }
+    }
+    // Where the next click lands, while not dragging out a curve.
+    if let (Some(last), Some(cursor), false) = (pen.points.last(), pen.cursor, pen.dragging)
+        && let Some(path) = polygon(origin, &[last.at, cursor, last.at], Some(1.5))
+    {
+        window.paint_path(path, ink.opacity(0.55));
+    }
+    // The newest point's curve handles.
+    if let Some(last) = pen.points.last()
+        && let (Some(out), Some(inward)) = (last.out, last.inward())
+        && let Some(path) = polygon(origin, &[inward, out, inward], Some(1.0))
+    {
+        window.paint_path(path, ink.opacity(0.7));
+    }
+    let closing = pen.cursor.is_some_and(|c| pen.closes_at(c));
+    for (i, p) in pen.points.iter().enumerate() {
+        let r = if i == 0 && closing { 7.0 } else { 5.0 };
+        let ring: Vec<(f64, f64)> = (0..24)
+            .map(|n| {
+                let a = f64::from(n) / 24.0 * std::f64::consts::TAU;
+                (p.at.0 + r * a.cos(), p.at.1 + r * a.sin())
+            })
+            .collect();
+        if let Some(path) = polygon(origin, &ring, None) {
+            window.paint_path(path, ink);
+        }
+        if let Some(path) = polygon(origin, &ring, Some(1.5)) {
+            window.paint_path(path, accent);
+        }
+    }
 }
 
 fn paint_overlay(origin: Point<Pixels>, overlay: &Overlay, window: &mut Window) {
+    if let Some(pen) = &overlay.pen {
+        paint_pen(origin, pen, window);
+        return;
+    }
     if let Some(b) = overlay.hover
         && let Some(path) = polygon(origin, &b.corners(), Some(1.0))
     {
@@ -644,6 +712,20 @@ pub(crate) fn slide_picture(
             OverlayElementKind::Image | OverlayElementKind::Video => {
                 base.bg(k.surface_elevated).opacity(0.8).into_any_element()
             }
+            OverlayElementKind::Text => base
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_center()
+                .when_some(fill, |d, c| d.text_color(c))
+                .text_size(px(
+                    (el.font_size_px.unwrap_or(72.0) * f64::from(scale)) as f32
+                ))
+                .font_weight(FontWeight(el.font_weight.unwrap_or(600.0) as f32))
+                .child(el.text.clone().unwrap_or_default())
+                .into_any_element(),
+            // The engine's preview draws pen paths; this sketch leaves them out.
+            OverlayElementKind::Path => base.into_any_element(),
         }
     };
     for el in theme.elements.iter().filter(|e| !e.above_text) {
@@ -1126,6 +1208,7 @@ impl ThemeEditor {
         let overlay = Overlay {
             selected: selected.as_ref().map(|(b, l)| (*b, l.rotation.is_some())),
             hover: hovered.as_ref().map(|(b, _)| *b),
+            pen: self.pen.clone(),
         };
         // Names above the hovered and the selected layer.
         let mut labels: Vec<AnyElement> = Vec::new();
@@ -1193,7 +1276,11 @@ impl ThemeEditor {
             }
         };
         let bounds_cell = self.frame_bounds.clone();
-        let cursor = cursor_for(self.hover.as_ref(), self.drag.is_some());
+        let cursor = if self.pen.is_some() {
+            CursorStyle::Crosshair
+        } else {
+            cursor_for(self.hover.as_ref(), self.drag.is_some())
+        };
         let pointer = {
             let cell = self.frame_bounds.clone();
             move |position: Point<Pixels>| {
@@ -1289,7 +1376,39 @@ impl ThemeEditor {
             .children(labels)
             .children(delete)
             .children(self.guides.0.then(|| guide(ids::GUIDE_V, true)))
-            .children(self.guides.1.then(|| guide(ids::GUIDE_H, false)));
+            .children(self.guides.1.then(|| guide(ids::GUIDE_H, false)))
+            .children(self.pen.as_ref().map(|pen| {
+                let close = pen.points.len() >= 2;
+                h_flex()
+                    .id(ids::PEN_HINT)
+                    .test_support()
+                    .role(Role::Status)
+                    .absolute()
+                    .top_3()
+                    .left_0()
+                    .right_0()
+                    .justify_center()
+                    .child(
+                        v_flex()
+                            .items_center()
+                            .px_4()
+                            .py_2()
+                            .rounded(radius::lg())
+                            .bg(black().opacity(0.7))
+                            .text_size(text::XS.size)
+                            .text_color(white())
+                            .child(if close {
+                                "Click the first point to close the path."
+                            } else {
+                                "Click to add points. Drag while clicking to curve."
+                            })
+                            .child(
+                                div()
+                                    .text_color(white().opacity(0.7))
+                                    .child("Press Esc to finish the line."),
+                            ),
+                    )
+            }));
         div()
             .id(ids::FRAME)
             .test_support()
@@ -1310,22 +1429,26 @@ impl ThemeEditor {
         let editor = cx.entity();
         let full = self.draft.elements.len() >= MAX_OVERLAY_ELEMENTS;
         let full_tip = format!("A theme holds up to {MAX_OVERLAY_ELEMENTS} elements");
-        let reference_shown = self.draft.reference.show;
+        // ProPresenter-style insert bar: roomy buttons, filled marks, dividers.
         let button =
             |id: &'static str, icon: KairoIcon, label: &'static str, tip: String, off: bool| {
-                // Electron's toolbar button: `h-8 px-3`.
                 Button::new(id)
                     .cursor_pointer()
                     .ghost()
                     .with_size(gpui_kit::component::Size::Medium)
-                    .h(px(32.))
-                    .px(px(12.))
-                    .icon(Icon::new(icon))
+                    // An icon-only Kit button is a fixed square; padding on top of
+                    // that squeezes the icon out of sight, so size it outright.
+                    .h_10()
+                    .w_12()
+                    .icon(Icon::new(icon.fill()).size_5())
                     .accessibility_label(label)
                     .tooltip(tip)
                     .disabled(off)
             };
-        let divider = || div().w(px(1.)).h_4().bg(k.surface_border);
+        let soon = |id: &'static str, icon: KairoIcon, label: &'static str| {
+            button(id, icon, label, format!("{label} — coming soon"), true)
+        };
+        let divider = || div().w(px(1.)).h_5().bg(k.surface_border);
         let shapes = {
             let color = k.text(TextStep::T300);
             let open = self.shapes_open;
@@ -1359,18 +1482,29 @@ impl ThemeEditor {
                     })
                 })
                 .button_trigger(
-                    button(
-                        ids::ADD_SHAPE,
-                        KairoIcon::Square,
-                        "Add a shape",
-                        if full {
+                    // The mark and its menu arrow as one centred group, as
+                    // ProPresenter draws it; a Kit dropdown caret would sit
+                    // against the far edge.
+                    Button::new(ids::ADD_SHAPE)
+                        .cursor_pointer()
+                        .ghost()
+                        .with_size(gpui_kit::component::Size::Medium)
+                        .h_10()
+                        .px_3()
+                        .accessibility_label("Add a shape")
+                        .tooltip(if full {
                             full_tip.clone()
                         } else {
                             "Shape".into()
-                        },
-                        full,
-                    )
-                    .dropdown_caret(true),
+                        })
+                        .disabled(full)
+                        .child(
+                            h_flex()
+                                .items_center()
+                                .gap_1()
+                                .child(Icon::new(KairoIcon::Shapes.fill()).size_5())
+                                .child(Icon::new(KairoIcon::ChevronDown).size_3()),
+                        ),
                 )
                 .content(move |_, _, _| {
                     v_flex()
@@ -1406,11 +1540,12 @@ impl ThemeEditor {
                                             .rounded(radius::md())
                                             .cursor_pointer()
                                             .hover(|s| s.bg(k.surface_menu_hover))
-                                            .on_click(move |_, _, cx| {
+                                            .on_click(move |_, window, cx| {
                                                 let pick = pick.clone();
                                                 editor.update(cx, |this, cx| {
                                                     this.shapes_open = false;
                                                     this.add_element(pick, cx);
+                                                    window.focus(&this.focus, cx);
                                                 })
                                             })
                                             .children(
@@ -1434,22 +1569,64 @@ impl ThemeEditor {
                 if full { full_tip.clone() } else { tip.into() },
                 full,
             )
-            .on_click(move |_, _, cx| editor.update(cx, |this, cx| this.add_media(kind, cx)))
+            // Focus the canvas first: when the file picker closes, Delete and
+            // the arrows act on the new picture or video.
+            .on_click(move |_, window, cx| {
+                editor.update(cx, |this, cx| {
+                    window.focus(&this.focus, cx);
+                    this.add_media(kind, cx);
+                })
+            })
         };
-        let show_reference = {
+        let add_text = {
             let editor = editor.clone();
             button(
-                ids::ADD_REFERENCE,
+                ids::ADD_TEXT,
                 KairoIcon::TextT,
-                "Show reference",
-                if reference_shown {
-                    "The reference is already on the slide".into()
+                "Add text",
+                if full {
+                    full_tip.clone()
                 } else {
-                    "Show the reference line".into()
+                    "Text".into()
                 },
-                reference_shown,
+                full,
             )
-            .on_click(move |_, _, cx| editor.update(cx, |this, cx| this.show_reference(cx)))
+            // Focus goes to the canvas, so Delete and the arrows act on the
+            // new element rather than on the toolbar button.
+            .on_click(move |_, window, cx| {
+                editor.update(cx, |this, cx| {
+                    this.add_text(cx);
+                    window.focus(&this.focus, cx);
+                })
+            })
+        };
+        let pen = {
+            let editor = editor.clone();
+            let on = self.pen.is_some();
+            button(
+                ids::ADD_PEN,
+                KairoIcon::PenNib,
+                if on {
+                    "Finish the path"
+                } else {
+                    "Draw with the pen"
+                },
+                if full && !on {
+                    full_tip.clone()
+                } else if on {
+                    "Pen (Esc to finish)".into()
+                } else {
+                    "Pen".into()
+                },
+                full && !on,
+            )
+            .toggled(on)
+            .on_click(move |_, window, cx| {
+                editor.update(cx, |this, cx| {
+                    this.toggle_pen(cx);
+                    window.focus(&this.focus, cx);
+                })
+            })
         };
         h_flex()
             .absolute()
@@ -1468,14 +1645,19 @@ impl ThemeEditor {
                     .test_support()
                     .role(Role::Toolbar)
                     .aria_label("Add to slide")
-                    .gap_0p5()
-                    .p_0p5()
-                    .rounded(radius::lg())
+                    .gap_1()
+                    .p_1()
+                    .rounded(radius::xl())
                     .bg(k.surface_tertiary)
+                    .border_1()
+                    .border_color(k.ink(0.08))
+                    .shadow_md()
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child(show_reference)
+                    .child(add_text)
                     .child(divider())
                     .child(shapes)
+                    .child(divider())
+                    .child(pen)
                     .child(divider())
                     .child(media(
                         ids::ADD_IMAGE,
@@ -1487,11 +1669,13 @@ impl ThemeEditor {
                     .child(divider())
                     .child(media(
                         ids::ADD_VIDEO,
-                        KairoIcon::Film,
+                        KairoIcon::Video,
                         "Add a video",
                         "Video",
                         MediaKind::Video,
-                    )),
+                    ))
+                    .child(divider())
+                    .child(soon(ids::ADD_STICKER, KairoIcon::Sticker, "Stickers")),
             )
             .into_any_element()
     }

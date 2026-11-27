@@ -7,6 +7,7 @@
 //! scene's content hash. The engine and the UI process use the same code.
 
 pub mod color;
+pub mod element_text;
 pub mod fit;
 mod glyphs;
 pub mod media;

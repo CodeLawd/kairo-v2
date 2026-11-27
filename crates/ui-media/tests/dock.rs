@@ -917,6 +917,34 @@ fn a_failed_inspector_save_stays_open(cx: &mut TestAppContext) {
 }
 
 #[gpui_kit::test]
+fn an_image_saves_its_motion(cx: &mut TestAppContext) {
+    let core = Core::new(library(1, &[]));
+    let o = open(cx, core.clone(), true);
+    act(cx, &o, |m, cx| m.inspect("i0".into(), cx));
+    assert!(exists(cx, &o, inspector::ids::CAMERA));
+    let i = inspector(cx, &o);
+    cx.update(|cx| {
+        i.update(cx, |i, cx| {
+            i.set_camera(Some("zoom"), cx);
+            i.set_atmosphere(Some("dust"), cx);
+        })
+    });
+    click(cx, &o, inspector::ids::SAVE);
+    let patch = core
+        .calls()
+        .into_iter()
+        .find_map(|c| match c {
+            MediaCall::SetPlayback { patch, .. } => Some(patch),
+            _ => None,
+        })
+        .expect("saved");
+    assert_eq!(
+        patch["motion"],
+        json!({"camera": "zoom", "atmosphere": "dust"})
+    );
+}
+
+#[gpui_kit::test]
 fn the_loop_toggle_applies_at_once(cx: &mut TestAppContext) {
     let core = Core::new(library(0, &["v1"]));
     let o = open(cx, core.clone(), true);
@@ -1018,5 +1046,32 @@ fn dropping_media_onto_a_playlist_adds_single_and_picked_items(cx: &mut TestAppC
     assert_eq!(
         read(cx, &o, |m| m.library().playlists[1].item_ids.clone()),
         vec!["i0", "i1", "i2"]
+    );
+}
+
+#[gpui_kit::test]
+fn keys_pick_all_clear_and_remove_from_the_playlist(cx: &mut TestAppContext) {
+    let core = Core::new(library(3, &[]));
+    let o = open(cx, core.clone(), true);
+    act(cx, &o, |m, cx| {
+        m.select(Selection::Playlist("pl".into()), cx)
+    });
+    let before = shown(cx, &o);
+    assert!(before.len() >= 2, "{before:?}");
+    // A click in the dock gives it the keys.
+    click(cx, &o, &ids::card(&before[0]));
+    press(cx, &o, "cmd-a");
+    assert_eq!(
+        read(cx, &o, |m| m.picked_count()),
+        before.len(),
+        "⌘A picks all"
+    );
+    press(cx, &o, "escape");
+    assert_eq!(read(cx, &o, |m| m.picked_count()), 0, "Esc clears");
+    act(cx, &o, |m, cx| m.select_item(before[1].clone(), cx));
+    press(cx, &o, "backspace");
+    assert!(
+        !shown(cx, &o).contains(&before[1]),
+        "Backspace takes it out of the playlist"
     );
 }

@@ -215,6 +215,8 @@ pub enum ShellRequest {
         /// Target enabled state.
         enabled: bool,
     },
+    /// Screens → Start or Stop Capture: record the capture source, or stop.
+    SetCapture(bool),
     /// The Account popover's Sign out.
     SignOut,
     /// The Account popover's Show tips again: replay the Operator tour.

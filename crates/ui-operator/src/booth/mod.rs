@@ -1406,6 +1406,31 @@ impl Booth {
         }
     }
 
+    /// Retry now: stop and start listening again, for a stalled or dropped
+    /// connection. Starts it if it had stopped.
+    pub fn retry_listening(&mut self, cx: &mut Context<Self>) {
+        if self.pipeline_busy {
+            return;
+        }
+        if !self.transcribing {
+            self.toggle_pipeline(cx);
+            return;
+        }
+        self.pipeline_busy = true;
+        self.service_error.clear();
+        cx.notify();
+        self.call(BoothCall::StopListening, cx, |this, result, cx| {
+            this.pipeline_busy = false;
+            match result {
+                Ok(_) => {
+                    this.transcribing = false;
+                    this.toggle_pipeline(cx);
+                }
+                Err(error) => this.service_error = error,
+            }
+        });
+    }
+
     pub fn restore_session(&mut self, cx: &mut Context<Self>) {
         self.fire(BoothCall::RestoreSession, cx);
     }

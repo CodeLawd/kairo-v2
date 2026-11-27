@@ -103,6 +103,8 @@ pub struct ImageRequest {
     pub prompt: String,
     pub quality: Quality,
     pub reference: Option<Vec<u8>>,
+    /// Ask for a transparent background (a parallax depth layer).
+    pub transparent: bool,
 }
 
 /// Where image requests go: the operator's own key now, Kairo's managed
@@ -205,6 +207,10 @@ pub fn request_body(request: &ImageRequest) -> Value {
         body["images"] = json!([{
             "image_url": format!("data:image/png;base64,{}", STANDARD.encode(png))
         }]);
+    }
+    if request.transparent {
+        body["background"] = json!("transparent");
+        body["output_format"] = json!("png");
     }
     body
 }
@@ -365,6 +371,7 @@ mod tests {
             prompt: "sunrise".into(),
             quality: Quality::High,
             reference: None,
+            transparent: false,
         };
         let body = request_body(&request);
         assert_eq!(
@@ -396,6 +403,7 @@ mod tests {
             prompt: "warmer".into(),
             quality: Quality::Medium,
             reference: Some(vec![1, 2, 3]),
+            transparent: true,
         };
         assert_eq!(endpoint(&request), "https://api.openai.com/v1/images/edits");
         assert_eq!(request_body(&request)["model"], "gpt-image-2.6-sunburst");
@@ -403,6 +411,7 @@ mod tests {
             request_body(&request)["images"][0]["image_url"],
             "data:image/png;base64,AQID"
         );
+        assert_eq!(request_body(&request)["background"], "transparent");
     }
 
     #[test]

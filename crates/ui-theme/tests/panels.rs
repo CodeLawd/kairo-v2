@@ -410,7 +410,7 @@ fn layout_presets_boxes_and_backdrop(cx: &mut TestAppContext) {
     click(cx, &o.handle, ids::BACKDROP_EYE);
     assert_eq!(draft(cx, &o).layout.backdrop_box, !on);
 
-    // The reference switch is off while the reference is hidden.
+    // A hidden reference comes back from its switch, selected.
     editor(cx, &o, |e, _, cx| {
         e.edit_theme(
             |t| {
@@ -422,9 +422,10 @@ fn layout_presets_boxes_and_backdrop(cx: &mut TestAppContext) {
         )
     });
     click(cx, &o.handle, &ids::layer_switch("reference"));
+    assert!(draft(cx, &o).reference.show);
     assert_eq!(
         cx.read(|cx| o.editor.read(cx).selected_layer().map(str::to_owned)),
-        Some("verse".into())
+        Some("reference".into())
     );
 }
 
@@ -668,4 +669,51 @@ fn the_picker_with_no_screens_or_themes_and_a_screen_that_went(cx: &mut TestAppC
     assert!(cx.read(|cx| p.picker.read(cx).screen().is_none()));
     click(cx, &p.handle, &picker::ids::apply("sunday"));
     assert!(core.settings().overlay.outputs.is_empty());
+}
+
+#[gpui_kit::test]
+fn a_long_library_gets_a_search_that_filters_by_name(cx: &mut TestAppContext) {
+    let core = Core::new();
+    let p = open_picker(cx, core.clone());
+    picked(cx, &p, |t, cx| t.opened(false, cx));
+    assert!(
+        !exists(cx, &p.handle, picker::ids::SEARCH),
+        "no search for a short list"
+    );
+    {
+        let mut s = core.0.lock().unwrap();
+        let base = s.settings.theme_library[0].theme.clone();
+        for (i, name) in ["Easter", "Advent", "Harvest", "Youth", "Choir", "Missions"]
+            .iter()
+            .enumerate()
+        {
+            let t = create_custom_theme(
+                name,
+                &base,
+                OverlayContentKind::Scripture,
+                2.0 + i as f64,
+                &format!("t{i}"),
+            );
+            s.settings.theme_library.push(t);
+        }
+    }
+    picked(cx, &p, |t, cx| t.opened(false, cx));
+    assert!(
+        exists(cx, &p.handle, picker::ids::SEARCH),
+        "seven themes: search"
+    );
+    cx.update_window(p.handle, |_, w, cx| {
+        w.click(picker::ids::SEARCH, cx);
+        w.input("east", cx);
+    })
+    .unwrap();
+    draw(cx, &p.handle);
+    assert!(
+        exists(cx, &p.handle, &picker::ids::apply("t0")),
+        "Easter matches"
+    );
+    assert!(
+        !exists(cx, &p.handle, &picker::ids::apply("sunday")),
+        "others hide"
+    );
 }

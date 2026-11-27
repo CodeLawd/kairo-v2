@@ -28,6 +28,8 @@ pub enum Action {
     EditSlides,
     /// Only reply (a question, or advice).
     Ask,
+    /// Save the current image to Media moving (`Plan::motion`).
+    Motion,
 }
 
 /// One slide as the assistant writes it.
@@ -89,6 +91,10 @@ pub struct Plan {
     pub action: Action,
     pub image_prompt: Option<String>,
     pub deck: Option<DeckPlan>,
+    /// A `crate::motion::MotionPreset` key: for [`Action::Motion`], and for
+    /// an image or edit that should be saved moving.
+    #[serde(default)]
+    pub motion: Option<String>,
 }
 
 const INSTRUCTIONS: &str = "You are Imagine, the creative assistant inside Kairo, presentation software for churches. \
@@ -99,6 +105,15 @@ Decide the action:\n\
 - edit_image: they want to change the current image.\n\
 - edit_slides: they want to change the current deck (wording, order, style, add or remove slides).\n\
 - ask: the request is unclear, or they only asked a question. Reply without making anything.\n\
+- motion: they want the current image to move (a motion, moving, animated or living version, a loop). Kairo moves a \
+still on screen without video: a slow camera move with an optional atmosphere drawn over it, or depth (the foreground \
+cut out and drifting for parallax, which costs one more image). Set motion to the best fit: zoom (slow zoom), dust \
+(drift with floating dust), rays (pan with light rays), bokeh (zoom with soft light spots), haze (drift with haze), \
+depth (parallax). Kairo saves it to Media moving; your reply says which motion and that it is in Media. Never say \
+you cannot animate.\n\
+When they ask for a new or changed picture that moves (flowing, drifting, slow motion, a loop, a motion background), \
+use image or edit_image and also set motion: Kairo makes the still, then moves it. Write image_prompt for the still \
+frame only, leaving out words about movement, looping or video. For deck, edit_slides and ask, motion is null.\n\
 For image and edit_image, image_prompt is the operator's request rewritten by an expert prompt \
 writer for the image model; the operator's words are often short or loose, so enhance them without changing what \
 they asked for. Keep every detail they gave (subject, scripture story, colours, mood, style, anything to avoid) and \
@@ -251,12 +266,13 @@ fn schema() -> Value {
     json!({
         "type": "object",
         "additionalProperties": false,
-        "required": ["title", "reply", "action", "image_prompt", "deck"],
+        "required": ["title", "reply", "action", "image_prompt", "deck", "motion"],
         "properties": {
             "title": {"type": "string"},
             "reply": {"type": "string"},
-            "action": {"type": "string", "enum": ["image", "deck", "edit_image", "edit_slides", "ask"]},
+            "action": {"type": "string", "enum": ["image", "deck", "edit_image", "edit_slides", "ask", "motion"]},
             "image_prompt": {"type": ["string", "null"]},
+            "motion": {"type": ["string", "null"], "enum": ["zoom", "dust", "rays", "bokeh", "haze", "depth", null]},
             "deck": {"anyOf": [
                 {
                     "type": "object",
@@ -402,8 +418,48 @@ pub fn parse_plan(body: &Value, project: Option<&Project>) -> Result<Plan, Imagi
         }
         (Action::EditImage, _) => Action::Image,
         (Action::EditSlides, _) => Action::Deck,
+        // Motion moves an image; with none yet there is nothing to move.
+        (Action::Motion, Some(Kind::Image)) => {
+            let known = plan
+                .motion
+                .as_deref()
+                .and_then(crate::motion::MotionPreset::by_key)
+                .is_some_and(|p| !p.is_still());
+            if !known {
+                plan.motion = Some("dust".into());
+            }
+            Action::Motion
+        }
+        // Nothing to move yet: make the picture first, when it said what to draw.
+        (Action::Motion, _)
+            if plan
+                .image_prompt
+                .as_deref()
+                .is_some_and(|p| !p.trim().is_empty()) =>
+        {
+            Action::Image
+        }
+        (Action::Motion, _) => {
+            plan.reply = "Make or open an image first, then ask me to set it in motion.".into();
+            Action::Ask
+        }
         (action, _) => action,
     };
+    // Only pictures move, and only in ways Kairo knows.
+    let moves = matches!(
+        plan.action,
+        Action::Image | Action::EditImage | Action::Motion
+    );
+    plan.motion = plan
+        .motion
+        .take()
+        .filter(|_| moves)
+        .and_then(|m| crate::motion::MotionPreset::by_key(&m))
+        .filter(|p| !p.is_still())
+        .map(|p| p.key.to_owned());
+    if plan.action == Action::Motion && plan.motion.is_none() {
+        plan.motion = Some("dust".into());
+    }
     let needs_prompt = matches!(plan.action, Action::Image | Action::EditImage);
     let needs_slides = matches!(plan.action, Action::Deck | Action::EditSlides);
     if needs_prompt
@@ -471,7 +527,7 @@ mod tests {
         assert_eq!(body["input"][2]["content"], "make 3 slides");
         let schema = &body["text"]["format"]["schema"];
         assert_eq!(schema["additionalProperties"], false);
-        assert_eq!(schema["required"].as_array().unwrap().len(), 5);
+        assert_eq!(schema["required"].as_array().unwrap().len(), 6);
         assert!(
             body["input"][0]["content"]
                 .as_str()
@@ -557,5 +613,45 @@ mod tests {
         );
         let refusal = json!({"output": [{"type": "message", "content": [{"type": "refusal", "refusal": "no"}]}]});
         assert_eq!(parse_plan(&refusal, None), Err(ImagineError::Refused));
+    }
+    #[test]
+    fn motion_moves_an_open_image_and_otherwise_only_replies() {
+        let image: Project =
+            serde_json::from_value(json!({"id": "p", "title": "Hills", "kind": "image",
+            "created": 0.0, "selected": "v", "versions": []}))
+            .unwrap();
+        let ask = |motion: Value| {
+            answer(
+                json!({"reply": "Drifting dust it is.", "action": "motion", "image_prompt": null,
+                "deck": null, "motion": motion}),
+            )
+        };
+        let plan = parse_plan(&ask(json!("rays")), Some(&image)).unwrap();
+        assert_eq!(
+            (plan.action, plan.motion.as_deref()),
+            (Action::Motion, Some("rays"))
+        );
+        let plan = parse_plan(&ask(Value::Null), Some(&image)).unwrap();
+        assert_eq!(
+            plan.motion.as_deref(),
+            Some("dust"),
+            "a motion is always chosen"
+        );
+        let plan = parse_plan(&ask(json!("rays")), None).unwrap();
+        assert_eq!(plan.action, Action::Ask, "nothing to move yet");
+        let new = answer(
+            json!({"reply": "ok", "action": "image", "image_prompt": "midnight blue light",
+            "deck": null, "motion": "haze"}),
+        );
+        let plan = parse_plan(&new, None).unwrap();
+        assert_eq!(
+            (plan.action, plan.motion.as_deref()),
+            (Action::Image, Some("haze")),
+            "a new picture can move"
+        );
+        let deck_plan = answer(json!({"reply": "ok", "action": "ask", "image_prompt": null,
+            "deck": null, "motion": "haze"}));
+        assert_eq!(parse_plan(&deck_plan, None).unwrap().motion, None);
+        assert!(schema().to_string().contains("\"motion\""));
     }
 }

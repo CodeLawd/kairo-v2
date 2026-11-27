@@ -7,6 +7,12 @@ use std::time::{Duration, Instant};
 /// Runs `command` to completion, killing it after `timeout`. Output beyond
 /// 1 MB is dropped, like `maxBuffer` (which fails instead).
 pub fn run(command: &mut Command, timeout: Duration) -> std::io::Result<Output> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: PowerShell and LibreOffice must not flash a terminal.
+        command.creation_flags(0x0800_0000);
+    }
     let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

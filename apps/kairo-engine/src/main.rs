@@ -1,7 +1,11 @@
+// Kairo starts the engine and reads its stderr into its own log, so it never
+// needs a console window of its own on Windows.
+#![cfg_attr(windows, windows_subsystem = "windows")]
 //! `kairo-engine`: the output process. `kairo` launches it with
 //! `--socket <name>` and the handshake token in `KAIRO_ENGINE_TOKEN`, and
 //! tells it everything it draws. winit owns the main thread.
 
+mod ambience;
 mod app;
 mod capture;
 mod cards;

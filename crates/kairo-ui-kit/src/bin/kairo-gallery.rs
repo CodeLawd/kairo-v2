@@ -31,13 +31,10 @@ fn main() {
             kairo_ui_kit::init(appearance, cx);
             kairo_ui_kit::set_reduced_motion(reduced, cx);
             if check_fonts {
-                // Prints the Source Sans families the platform text system sees.
+                // Prints the interface families (Inter) the platform text system sees.
                 let names = cx.text_system().all_font_names();
-                let found: Vec<_> = names
-                    .iter()
-                    .filter(|n| n.starts_with("Source Sans"))
-                    .collect();
-                println!("source-sans: {found:?}");
+                let found: Vec<_> = names.iter().filter(|n| n.starts_with("Inter")).collect();
+                println!("inter: {found:?}");
                 cx.quit();
                 return;
             }

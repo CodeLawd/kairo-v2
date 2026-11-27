@@ -1986,7 +1986,8 @@ impl Render for PropsPanel {
                         .rounded(kairo_ui_kit::tokens::radius::sm())
                         .overflow_hidden()
                         .border_1()
-                        .border_color(if on { k.live } else { k.surface_border })
+                        // The card's own border says it's live; one red line is enough.
+                        .border_color(k.surface_border)
                         .child(crate::props::prop_picture(
                             prop,
                             &timer_view,
@@ -2037,24 +2038,22 @@ impl Render for PropsPanel {
                             )
                         }),
                 )
-                .child(
-                    div()
-                        .flex_shrink_0()
-                        .px_2()
-                        .py_1()
-                        .rounded(kairo_ui_kit::tokens::radius::sm())
-                        .text_size(text::LABEL.size)
-                        .font_weight(FontWeight::MEDIUM)
-                        .map(|s| {
-                            if on {
-                                s.bg(k.live).text_color(k.on_accent).child("Hide")
-                            } else {
-                                s.bg(k.surface_tertiary)
-                                    .text_color(k.text(TextStep::T200))
-                                    .child("Show")
-                            }
-                        }),
-                )
+                // Off: a Show pill. On: nothing extra; the red border and "On
+                // screens" say it, and a click (or the menu) takes it down.
+                .when(!on, |this| {
+                    this.child(
+                        div()
+                            .flex_shrink_0()
+                            .px_2()
+                            .py_1()
+                            .rounded(kairo_ui_kit::tokens::radius::sm())
+                            .text_size(text::LABEL.size)
+                            .font_weight(FontWeight::MEDIUM)
+                            .bg(k.surface_tertiary)
+                            .text_color(k.text(TextStep::T200))
+                            .child("Show"),
+                    )
+                })
                 .context_menu(move |menu, _, _| {
                     let item = |label: &str, f: PropAction| {
                         let entity = menu_entity.clone();

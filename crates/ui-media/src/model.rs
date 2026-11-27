@@ -72,6 +72,11 @@ impl Picks {
         self.selected.clear();
         self.anchor = None;
     }
+    /// ⌘A: every item in `order`.
+    pub fn select_all(&mut self, order: &[String]) {
+        self.selected = order.iter().cloned().collect();
+        self.anchor = order.first().cloned();
+    }
     pub fn begin_marquee(&mut self, additive: bool) {
         self.marquee_base = if additive {
             self.selected.clone()
@@ -977,6 +982,18 @@ impl MediaDock {
         let order = self.visible_ids();
         self.picks.pick(id, gesture, &order);
         cx.notify();
+    }
+
+    /// ⌘A: pick every item shown.
+    pub fn pick_all(&mut self, cx: &mut Context<Self>) {
+        let order = self.visible_ids();
+        self.picks.select_all(&order);
+        cx.notify();
+    }
+
+    /// Whether a playlist (not the whole folder) is showing.
+    pub fn in_playlist(&self) -> bool {
+        self.playlist_id().is_some()
     }
 
     pub fn clear_picks(&mut self, cx: &mut Context<Self>) {

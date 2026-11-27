@@ -161,7 +161,14 @@ if ($env:KAIRO_PICK_DIRECTORY -eq '1') {
         })
         .collect::<Vec<_>>()
         .join("|");
-    let output = std::process::Command::new("powershell.exe")
+    let mut command = std::process::Command::new("powershell.exe");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: only the picker shows, not PowerShell's terminal.
+        command.creation_flags(0x0800_0000);
+    }
+    let output = command
         .args(["-NoProfile", "-STA", "-Command", script])
         .env("KAIRO_PICK_TITLE", request.title.unwrap_or(""))
         .env(

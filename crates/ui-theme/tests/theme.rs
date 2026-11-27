@@ -612,10 +612,154 @@ fn the_sample_toggle_and_hidden_reference_return(cx: &mut TestAppContext) {
             cx,
         )
     });
-    click(cx, &o, ids::ADD_REFERENCE);
+    // The toolbar's Text button adds text boxes; the reference returns from
+    // the inspector's layer switch, which calls this.
+    act(cx, &o, |e, _, cx| e.show_reference(cx));
     assert!(read(cx, &o, |e| e.draft().reference.show));
     assert_eq!(
         read(cx, &o, |e| e.selected_layer().map(str::to_owned)).as_deref(),
         Some("reference")
+    );
+}
+
+#[gpui_kit::test]
+fn the_text_button_always_adds_a_text_box(cx: &mut TestAppContext) {
+    let o = open(cx, Core::new());
+    let before = read(cx, &o, |e| e.draft().elements.len());
+    click(cx, &o, ids::ADD_TEXT);
+    click(cx, &o, ids::ADD_TEXT);
+    let els = read(cx, &o, |e| e.draft().elements.clone());
+    assert_eq!(els.len(), before + 2, "every press adds one");
+    let last = els.last().unwrap();
+    assert_eq!(last.kind, OverlayElementKind::Text);
+    assert_eq!(last.text.as_deref(), Some("Your text"));
+    assert_eq!(
+        read(cx, &o, |e| e.selected_layer().map(str::to_owned)),
+        Some(last.id.clone()),
+        "the new text box is selected"
+    );
+}
+
+#[gpui_kit::test]
+fn the_pen_draws_a_path_and_esc_finishes_it(cx: &mut TestAppContext) {
+    let o = open(cx, Core::new());
+    let before = read(cx, &o, |e| e.draft().elements.len());
+    click(cx, &o, ids::ADD_PEN);
+    assert!(read(cx, &o, |e| e.pen_active()), "the pen is on");
+    act(cx, &o, |e, _, cx| {
+        for p in [(40.0, 40.0), (120.0, 60.0), (80.0, 140.0)] {
+            e.pointer_down(p, cx);
+            e.pointer_up(cx);
+        }
+        e.canvas_key("escape", false, cx);
+    });
+    let els = read(cx, &o, |e| e.draft().elements.clone());
+    assert_eq!(els.len(), before + 1);
+    let path = els.last().unwrap();
+    assert_eq!(path.kind, OverlayElementKind::Path);
+    assert!(!path.path_closed(), "Esc leaves the line open");
+    assert!(read(cx, &o, |e| !e.pen_active()), "the pen is off again");
+}
+
+#[gpui_kit::test]
+fn clicking_the_first_point_closes_the_path(cx: &mut TestAppContext) {
+    let o = open(cx, Core::new());
+    act(cx, &o, |e, _, cx| {
+        e.toggle_pen(cx);
+        for p in [(40.0, 40.0), (120.0, 60.0), (80.0, 140.0), (41.0, 41.0)] {
+            e.pointer_down(p, cx);
+            e.pointer_up(cx);
+        }
+    });
+    let els = read(cx, &o, |e| e.draft().elements.clone());
+    let path = els.last().unwrap();
+    assert_eq!(path.kind, OverlayElementKind::Path);
+    assert!(path.path_closed());
+}
+
+#[gpui_kit::test]
+fn text_and_pen_paths_delete_like_any_element(cx: &mut TestAppContext) {
+    let o = open(cx, Core::new());
+    let before = read(cx, &o, |e| e.draft().elements.len());
+    click(cx, &o, ids::ADD_TEXT);
+    let text = read(cx, &o, |e| e.draft().elements.last().unwrap().id.clone());
+    // Delete key on the canvas with the text box selected.
+    act(cx, &o, |e, _, cx| {
+        e.select_layer(Some(text.clone()), cx);
+        assert!(e.canvas_key("delete", false, cx), "the key is used");
+    });
+    assert_eq!(
+        read(cx, &o, |e| e.draft().elements.len()),
+        before,
+        "text deleted"
+    );
+    // A pen path, deleted with its delete handle.
+    act(cx, &o, |e, _, cx| {
+        e.toggle_pen(cx);
+        for p in [(40.0, 40.0), (160.0, 120.0)] {
+            e.pointer_down(p, cx);
+            e.pointer_up(cx);
+        }
+        e.canvas_key("escape", false, cx);
+    });
+    let path = read(cx, &o, |e| e.draft().elements.last().unwrap().id.clone());
+    act(cx, &o, |e, _, cx| e.delete_layer(&path, cx));
+    assert_eq!(
+        read(cx, &o, |e| e.draft().elements.len()),
+        before,
+        "path deleted"
+    );
+}
+
+#[gpui_kit::test]
+fn the_canvas_delete_button_removes_a_text_box(cx: &mut TestAppContext) {
+    let o = open(cx, Core::new());
+    let before = read(cx, &o, |e| e.draft().elements.len());
+    click(cx, &o, ids::ADD_TEXT);
+    assert_eq!(read(cx, &o, |e| e.draft().elements.len()), before + 1);
+    click(cx, &o, ids::DELETE);
+    assert_eq!(
+        read(cx, &o, |e| e.draft().elements.len()),
+        before,
+        "the × deletes it"
+    );
+}
+
+#[gpui_kit::test]
+fn delete_after_adding_text_removes_it(cx: &mut TestAppContext) {
+    let o = open(cx, Core::new());
+    let before = read(cx, &o, |e| e.draft().elements.len());
+    click(cx, &o, ids::ADD_TEXT);
+    cx.update_window(o.handle, |_, w, cx| w.press("delete", cx))
+        .unwrap();
+    draw(cx, &o);
+    assert_eq!(
+        read(cx, &o, |e| e.draft().elements.len()),
+        before,
+        "Delete removes the new text"
+    );
+}
+
+#[gpui_kit::test]
+fn delete_after_adding_a_picture_removes_it(cx: &mut TestAppContext) {
+    let core = Core::new();
+    core.0.lock().unwrap().picked = Some("/pictures/cross.png".into());
+    let o = open(cx, core);
+    let before = read(cx, &o, |e| e.draft().elements.len());
+    click(cx, &o, ids::ADD_IMAGE);
+    cx.run_until_parked();
+    draw(cx, &o);
+    assert_eq!(
+        read(cx, &o, |e| e.draft().elements.len()),
+        before + 1,
+        "picture added"
+    );
+    cx.update_window(o.handle, |_, w, cx| w.press("delete", cx))
+        .unwrap();
+    draw(cx, &o);
+    assert_eq!(
+        read(cx, &o, |e| e.draft().elements.len()),
+        before,
+        "Delete removes it"
     );
 }

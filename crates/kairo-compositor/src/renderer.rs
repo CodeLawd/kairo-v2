@@ -921,7 +921,7 @@ impl Renderer {
         let ctx = Ctx { clip, ..ctx };
         let mut rect = transform.apply(content.rect.unwrap_or(frame));
         if let Some(motion) = content.motion {
-            rect.x += motion.offset(age) * transform.scale;
+            rect = motion.apply(rect, age, transform.scale);
         }
         let radius = content.radius * transform.scale;
         if let Some(shadow) = content.shadow {

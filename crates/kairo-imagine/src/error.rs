@@ -27,6 +27,9 @@ pub enum ImagineError {
     Missing,
     #[error("Cancelled.")]
     Cancelled,
+    /// Saving into the media library failed, already worded for the operator.
+    #[error("{0}")]
+    Media(String),
 }
 
 impl From<std::io::Error> for ImagineError {

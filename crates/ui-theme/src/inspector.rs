@@ -20,11 +20,11 @@ use gpui_kit::base::TestSupportExt;
 use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::color_picker::{ColorPicker, ColorPickerEvent, ColorPickerState};
-use gpui_kit::component::input::{Input, InputEvent, InputState};
+use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
 use gpui_kit::component::menu::{DropdownMenu, PopupMenuItem};
 use gpui_kit::component::popover::Popover;
 use gpui_kit::component::slider::{Slider, SliderEvent, SliderState};
-use gpui_kit::component::{Disableable, Icon, Sizable, h_flex, v_flex};
+use gpui_kit::component::{Icon, Sizable, h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::{
     AnyElement, App, AppContext, Context, Entity, EventEmitter, Focusable, FontWeight, Hsla,
@@ -41,7 +41,7 @@ use kairo_domain::overlay_boxes::{
     ELEMENT_BOX_MIN, TEXT_BOX_MIN, apply_layout_preset, clamp_overlay_box,
 };
 use kairo_domain::overlay_elements::{
-    ElementAlignment, ReorderTarget, align_overlay_element, is_line_element, is_media_element,
+    ElementAlignment, ReorderTarget, align_overlay_element, element_is_line, is_media_element,
     overlay_element_label, reorder_overlay_element, update_overlay_element,
 };
 use kairo_domain::overlay_outputs::{OverlayLayer, overlay_layer_label};
@@ -413,6 +413,8 @@ pub struct ThemeInspector {
     colors: HashMap<String, Entity<ColorField>>,
     sliders: HashMap<String, Entity<SliderState>>,
     size: Option<Entity<InputState>>,
+    /// A text element's words, for the element it was made for.
+    text_input: Option<(String, Entity<TextareaState>)>,
     field_subs: Vec<Subscription>,
     /// The field whose edit made the current draft; not written back.
     origin: Option<String>,
@@ -465,6 +467,7 @@ impl ThemeInspector {
             colors: HashMap::new(),
             sliders: HashMap::new(),
             size: None,
+            text_input: None,
             field_subs: Vec::new(),
             origin: None,
             own_draft: None,
@@ -490,6 +493,7 @@ impl ThemeInspector {
         self.colors.clear();
         self.sliders.clear();
         self.size = None;
+        self.text_input = None;
         self.field_subs.clear();
         self.origin = None;
         self.own_draft = None;
@@ -1781,11 +1785,20 @@ impl ThemeInspector {
                             .when(active, |b| b.toggled(true))
                             .when(!active, |b| b.ghost())
                             .label(label)
-                            .disabled(id == REFERENCE && !theme.reference.show)
+                            // A hidden reference comes back from here (the
+                            // toolbar's Text button adds text boxes instead).
+                            .when(id == REFERENCE && !theme.reference.show, |b| {
+                                b.tooltip("Show the reference on the slide")
+                            })
                             .on_click(move |_, _, cx| {
                                 this.update(cx, |t, cx| {
-                                    t.editor
-                                        .update(cx, |e, cx| e.select_layer(Some(id.into()), cx))
+                                    t.editor.update(cx, |e, cx| {
+                                        if id == REFERENCE && !e.draft().reference.show {
+                                            e.show_reference(cx)
+                                        } else {
+                                            e.select_layer(Some(id.into()), cx)
+                                        }
+                                    })
                                 })
                             }),
                     )
@@ -2002,7 +2015,7 @@ impl ThemeInspector {
         let k = *cx.kairo();
         let this = cx.entity();
         let media = is_media_element(el.kind);
-        let line = is_line_element(el.kind, el.shape.as_deref());
+        let line = element_is_line(el);
         let label = overlay_element_label(el.kind, el.shape.as_deref());
         let id = el.id.clone();
 
@@ -2032,7 +2045,13 @@ impl ThemeInspector {
                                     div()
                                         .text_size(text::SM.size)
                                         .font_weight(FontWeight::SEMIBOLD)
-                                        .child(if media { "Edit element" } else { "Edit shape" }),
+                                        .child(if media {
+                                            "Edit element"
+                                        } else if el.kind == OverlayElementKind::Text {
+                                            "Edit text"
+                                        } else {
+                                            "Edit shape"
+                                        }),
                                 )
                                 .child(
                                     div()
@@ -2253,8 +2272,12 @@ impl ThemeInspector {
             col = col.child(labelled("Shape", self.shape_menu(el, def.label, cx), cx));
         }
 
+        if el.kind == OverlayElementKind::Text {
+            col = col.child(self.text_element(el, window, cx));
+        }
+
         if !media {
-            if !line {
+            if !line && el.kind != OverlayElementKind::Text {
                 let fid = id.clone();
                 let oid = id.clone();
                 col = col.child(labelled(
@@ -2273,7 +2296,13 @@ impl ThemeInspector {
                     cx,
                 ));
             }
-            let noun = if line { "line" } else { "border" };
+            let noun = if line {
+                "line"
+            } else if el.kind == OverlayElementKind::Text {
+                "outline"
+            } else {
+                "border"
+            };
             let stroke_on = el.stroke.enabled;
             let eye = {
                 let (this, sid) = (this.clone(), id.clone());
@@ -2521,6 +2550,157 @@ impl ThemeInspector {
     }
 
     /// The Shape list: every catalog shape but the plain box shapes.
+    /// A text element's words, font, size, weight, colour and alignment.
+    fn text_element(
+        &mut self,
+        el: &OverlayElement,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let this = cx.entity();
+        let id = el.id.clone();
+        let value = el.text.clone().unwrap_or_default();
+        let input = match &self.text_input {
+            Some((for_id, input)) if *for_id == id => {
+                let input = input.clone();
+                if self.origin.as_deref() != Some("element.text")
+                    && input.read(cx).value().as_ref() != value
+                {
+                    input.update(cx, |s, cx| s.set_value(value.clone(), window, cx));
+                }
+                input
+            }
+            _ => {
+                let input = cx.new(|cx| {
+                    let mut s = TextareaState::new(window, cx);
+                    s.set_value(value.clone(), window, cx);
+                    s
+                });
+                let eid = id.clone();
+                self.field_subs.push(cx.subscribe(
+                    &input,
+                    move |this, state, e: &InputEvent, cx| {
+                        if matches!(e, InputEvent::Change) {
+                            let text = state.read(cx).value().to_string();
+                            this.edit_element(
+                                "element.text",
+                                &eid,
+                                move |el| el.text = Some(text.clone()),
+                                cx,
+                            );
+                        }
+                    },
+                ));
+                self.text_input = Some((id.clone(), input.clone()));
+                input
+            }
+        };
+        let k = *cx.kairo();
+        let words = div()
+            .id(SharedString::from(ids::field("element.text")))
+            .test_support()
+            .rounded(radius::md())
+            .bg(k.surface)
+            .border_1()
+            .border_color(k.ink(0.14))
+            .child(Textarea::new(&input).appearance(false).aria_label("Text"));
+
+        let family = el
+            .font_family
+            .clone()
+            .unwrap_or_else(|| kairo_scene::element_text::default_family().to_owned());
+        let font = {
+            let (this, fid) = (this.clone(), id.clone());
+            select(
+                ids::field("element.font"),
+                "Font",
+                &family,
+                panels::font_options(&family),
+                Rc::new(move |next: String, _, cx| {
+                    let id = fid.clone();
+                    this.update(cx, |t, cx| {
+                        t.edit_element(
+                            "element.font",
+                            &id,
+                            move |e| e.font_family = Some(next.clone()),
+                            cx,
+                        )
+                    })
+                }),
+            )
+        };
+        let sid = id.clone();
+        let size = self.number(
+            "element.size",
+            "Size",
+            el.font_size_px.unwrap_or(72.0),
+            (1.0, 8.0, 400.0),
+            Some("px"),
+            move |t, v| element_edit(t, &sid, |e| e.font_size_px = Some(v)),
+            window,
+            cx,
+        );
+        let wid = id.clone();
+        let weight = self.number(
+            "element.weight",
+            "Weight",
+            el.font_weight.unwrap_or(600.0),
+            (100.0, 100.0, 900.0),
+            None,
+            move |t, v| {
+                element_edit(t, &wid, |e| {
+                    e.font_weight = Some((v / 100.0).round() * 100.0)
+                })
+            },
+            window,
+            cx,
+        );
+        let (cid, oid) = (id.clone(), id.clone());
+        let color = self.color(
+            "element.text_color",
+            "Text color",
+            &el.fill,
+            Some(el.fill_opacity),
+            false,
+            move |t, c| element_edit(t, &cid, |e| e.fill = c.clone()),
+            move |t, o| element_edit(t, &oid, |e| e.fill_opacity = o),
+            window,
+            cx,
+        );
+        let align = {
+            let (this, aid) = (this.clone(), id.clone());
+            let current = el
+                .text_align
+                .unwrap_or(kairo_domain::overlay::OverlayTextAlign::Center);
+            SegmentedControl::new(
+                SharedString::from(ids::field("element.align_text")),
+                "Alignment",
+            )
+            .fit()
+            .options([
+                SegmentOption::new("left", "Left"),
+                SegmentOption::new("center", "Centre"),
+                SegmentOption::new("right", "Right"),
+            ])
+            .selected(current.as_str())
+            .on_change(move |v, _, cx| {
+                let next = kairo_domain::overlay::OverlayTextAlign::from_name(v.as_ref());
+                let id = aid.clone();
+                this.update(cx, |t, cx| {
+                    t.edit_element("element.align_text", &id, move |e| e.text_align = next, cx)
+                })
+            })
+        };
+        v_flex()
+            .gap_4()
+            .child(labelled("Text", words, cx))
+            .child(labelled("Font", font, cx))
+            .child(grid2(size, weight))
+            .child(labelled("Text color", color, cx))
+            .child(labelled("Alignment", align, cx))
+            .into_any_element()
+    }
+
     fn shape_menu(
         &self,
         el: &OverlayElement,

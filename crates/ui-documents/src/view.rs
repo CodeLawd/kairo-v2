@@ -692,6 +692,49 @@ impl DocumentsPage {
         .detach();
     }
 
+    /// A clicker's Page Up or Page Down from another screen while a deck is
+    /// live: steps the live deck (selecting it if another one is open here).
+    /// Returns whether a deck is live, so the key is the deck's even at its
+    /// ends and never moves something else on the open screen.
+    pub fn step_live(&mut self, delta: isize, cx: &mut Context<Self>) -> bool {
+        let Some((id, page)) = self.live.clone() else {
+            return false;
+        };
+        if self.import.is_some() || self.converter_prompt.is_some() {
+            return true;
+        }
+        if self.selected.as_deref() != Some(id.as_str()) {
+            self.selected = Some(id);
+            self.renaming = None;
+        }
+        self.page = page;
+        let target = page as isize + delta;
+        if target >= 0 {
+            self.push(target as usize, cx);
+        }
+        true
+    }
+
+    /// A clicker's Next or Previous from the shell, when the focus is
+    /// elsewhere in the window: pages as the keys do on the page itself.
+    /// Returns whether it was used.
+    pub fn clicker(&mut self, command: ShortcutCommand, cx: &mut Context<Self>) -> bool {
+        if self.current().is_none()
+            || self.import.is_some()
+            || self.converter_prompt.is_some()
+            || self.slideshow_menu
+        {
+            return false;
+        }
+        let delta = match command {
+            ShortcutCommand::Next => 1,
+            ShortcutCommand::Previous => -1,
+            _ => return false,
+        };
+        self.step(delta, cx);
+        true
+    }
+
     /// Clicker and keyboard paging.
     pub fn step(&mut self, delta: isize, cx: &mut Context<Self>) {
         if self.current().is_none() || self.busy {

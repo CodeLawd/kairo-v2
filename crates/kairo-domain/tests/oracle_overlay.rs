@@ -318,7 +318,8 @@ fn shape_lookup_matches() {
 
 #[test]
 fn element_helpers_match() {
-    let kind = prop::sample::select(OverlayElementKind::ALL.to_vec());
+    // Electron's kinds: Text and Path are native only.
+    let kind = prop::sample::select(OVERLAY_ELEMENT_KINDS.to_vec());
     let shape = prop_oneof![
         Just(None),
         shape_id().prop_map(|v| v.as_str().map(str::to_owned))
