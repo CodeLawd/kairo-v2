@@ -670,7 +670,36 @@ impl ImagineBackend for ServicesImagine {
     }
 
     fn listen(&self, sink: FeedSink) {
-        *lock(&self.inner.feed) = Some(sink);
+        *lock(&self.inner.feed) = Some(sink.clone());
+        // The account's key arrives with the account: the page asks again
+        // whenever who is signed in changes (restored after launch, or a
+        // sign in or out).
+        let services = self.inner.services.clone();
+        let inner = self.inner.clone();
+        services.clone().runtime().spawn(async move {
+            let mut sessions = services
+                .core
+                .watch::<kairo_domain::cloud::SessionSnapshot>();
+            let mut who = None;
+            while let Some(s) = sessions.next().await {
+                let now = s.user.as_ref().map(|u| (u.id.clone(), u.email_verified));
+                if now != who {
+                    let signed_out = who.is_some() && now.is_none();
+                    who = now;
+                    // Another person's key must not linger in this launch.
+                    *lock(&inner.key) = None;
+                    if signed_out {
+                        // Or on this computer: the next person to sign in
+                        // would otherwise have it sent up to their account.
+                        let inner = inner.clone();
+                        let _ =
+                            tokio::task::spawn_blocking(move || inner.secrets().clear(KEY_NAME))
+                                .await;
+                    }
+                    sink(ImagineFeed::AccountChanged);
+                }
+            }
+        });
     }
 
     fn image_path(&self, file: &str) -> PathBuf {

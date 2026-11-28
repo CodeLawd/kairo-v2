@@ -716,6 +716,7 @@ impl ImaginePage {
 
     fn on_feed(&mut self, feed: ImagineFeed, cx: &mut Context<Self>) {
         match feed {
+            ImagineFeed::AccountChanged => return self.load(cx),
             ImagineFeed::Planned {
                 job,
                 reply,

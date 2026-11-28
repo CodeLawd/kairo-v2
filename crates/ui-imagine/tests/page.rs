@@ -325,6 +325,20 @@ fn send(cx: &mut TestAppContext, o: &Opened, text: &str) {
 }
 
 #[gpui_kit::test]
+fn a_key_that_arrives_with_the_account_opens_imagine(cx: &mut TestAppContext) {
+    // At launch the account isn't restored yet, so no key is connected.
+    let o = open(cx, State::default());
+    assert!(!read(cx, &o, |p| p.connected()));
+    // Signing in brings the account's key: the page asks again.
+    o.fake.0.lock().unwrap().connected = true;
+    let sink = o.fake.0.lock().unwrap().sink.clone().unwrap();
+    sink(ImagineFeed::AccountChanged);
+    draw(cx, &o);
+    assert!(read(cx, &o, |p| p.connected()));
+    assert!(exists(cx, &o, ids::PROMPT));
+}
+
+#[gpui_kit::test]
 fn a_bad_key_stays_on_connect_and_a_good_one_opens_the_gallery(cx: &mut TestAppContext) {
     let o = open(cx, State::default());
     // First-time visitors meet Imagine before being asked for an API key.

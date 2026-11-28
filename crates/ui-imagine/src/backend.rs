@@ -110,6 +110,9 @@ pub enum ImagineAnswer {
 /// Progress of a [`ImagineCall::Send`].
 #[derive(Clone, Debug, PartialEq)]
 pub enum ImagineFeed {
+    /// The account changed (restored at launch, signed in or out): whether
+    /// a key is connected may have changed with it, so the page loads again.
+    AccountChanged,
     /// The assistant's reply and what it will make.
     Planned {
         job: u64,
