@@ -193,6 +193,8 @@ struct Inner {
 #[derive(Clone)]
 pub struct CloudSession(Arc<Inner>);
 
+const IMAGINE_KEY: &str = "/v1/account/imagine-key";
+
 impl CloudSession {
     pub async fn open(
         config: CloudConfig,
@@ -400,6 +402,50 @@ impl CloudSession {
             )
             .await,
         )
+    }
+
+    /// The person's own OpenAI key for Imagine, kept (encrypted) on their
+    /// account so it follows them to every device. `Ok(None)`: none saved,
+    /// or nobody signed in with a confirmed email.
+    pub async fn imagine_key(&self) -> Result<Option<String>, ApiError> {
+        #[derive(Deserialize)]
+        struct Saved {
+            key: Option<String>,
+        }
+        if !self.can_upload().await {
+            return Ok(None);
+        }
+        let saved: Saved = self
+            .request(
+                &self.0.api,
+                Method::GET,
+                IMAGINE_KEY,
+                None,
+                Some(Duration::from_secs(15)),
+            )
+            .await?;
+        Ok(saved.key.filter(|k| !k.is_empty()))
+    }
+
+    /// Saves (`Some`) or forgets (`None`) the account's Imagine key. Does
+    /// nothing for someone not signed in with a confirmed email.
+    pub async fn set_imagine_key(&self, key: Option<&str>) -> Result<(), ApiError> {
+        if !self.can_upload().await {
+            return Ok(());
+        }
+        let timeout = Some(Duration::from_secs(15));
+        let _: Value = match key {
+            Some(key) => {
+                let body = json!({ "key": key });
+                self.request(&self.0.api, Method::PUT, IMAGINE_KEY, Some(body), timeout)
+                    .await?
+            }
+            None => {
+                self.request(&self.0.api, Method::DELETE, IMAGINE_KEY, None, timeout)
+                    .await?
+            }
+        };
+        Ok(())
     }
 
     async fn post<T: DeserializeOwned>(

@@ -132,6 +132,8 @@ pub struct Shell {
     pub(crate) opened_at: Option<Instant>,
     /// Workspaces whose prompts have built them; the rest show a placeholder.
     pub(crate) workspaces: HashMap<Route, AnyView>,
+    /// The media dock, drawn under pages that don't host it themselves.
+    pub(crate) media_dock: Option<AnyView>,
     /// Drawn over everything but the quit question once launched: setup,
     /// the sign-in wall and the coach tips (073).
     pub(crate) front: Option<AnyView>,
@@ -282,6 +284,7 @@ impl Shell {
             seen_openings: if options.splash { 0 } else { 1 },
             opened_at: None,
             workspaces: HashMap::new(),
+            media_dock: None,
             front: None,
             overlay_builders: HashMap::new(),
             overlay_view: None,
@@ -579,6 +582,13 @@ impl Shell {
     /// Hands a route its real workspace view in place of the placeholder.
     pub fn set_workspace(&mut self, route: Route, view: AnyView, cx: &mut Context<Self>) {
         self.workspaces.insert(route, view);
+        cx.notify();
+    }
+
+    /// The media dock for pages without their own (the booth pages draw it
+    /// beside their rail).
+    pub fn set_media_dock(&mut self, view: Option<AnyView>, cx: &mut Context<Self>) {
+        self.media_dock = view;
         cx.notify();
     }
 

@@ -417,6 +417,9 @@ fn open_operator_window(
         workspace.update(cx, |w, cx| w.set_dock(Some(media_dock.clone().into()), cx));
         scripture_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
         lyrics_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
+        shell.update(cx, |s, cx| {
+            s.set_media_dock(Some(media_dock.clone().into()), cx)
+        });
         let documents_page = documents::install(documents_backend, &workspace, window, cx);
         documents_page.update(cx, |p, cx| {
             p.set_dock(Some(media_dock.clone().into()), cx);

@@ -1667,7 +1667,19 @@ impl Shell {
             return self.fallback(route, message.clone(), cx);
         }
         if let Some(view) = self.workspaces.get(&route) {
-            return view.clone().into_any_element();
+            let hosts_dock = matches!(
+                route,
+                Route::Operator | Route::Scripture | Route::Lyrics | Route::Documents
+            );
+            return match self.media_dock.clone().filter(|_| !hosts_dock) {
+                Some(dock) => v_flex()
+                    .size_full()
+                    .min_h_0()
+                    .child(v_flex().flex_1().min_h_0().child(view.clone()))
+                    .child(dock)
+                    .into_any_element(),
+                None => view.clone().into_any_element(),
+            };
         }
         let build = std::panic::AssertUnwindSafe(|| workspace_placeholder(route, &*cx));
         match std::panic::catch_unwind(build) {

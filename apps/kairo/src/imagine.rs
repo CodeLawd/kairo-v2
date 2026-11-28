@@ -73,19 +73,58 @@ impl Inner {
         )
     }
 
-    /// Reads the saved key off the async runtime the first time.
+    /// The key, read once per launch. The account's key wins, so a key
+    /// saved on one device works on every device the person signs in on; a
+    /// key only this device has (saved before keys synced) is sent up.
     async fn key(self: &Arc<Self>) -> Option<String> {
         if let Some(key) = lock(&self.key).clone() {
             return Some(key);
         }
         let inner = self.clone();
-        let saved = tokio::task::spawn_blocking(move || inner.secrets().read(KEY_NAME))
+        let local = tokio::task::spawn_blocking(move || inner.secrets().read(KEY_NAME))
             .await
             .ok()
             .flatten()
             .filter(|k| !k.is_empty());
-        *lock(&self.key) = saved.clone();
-        saved
+        let key = match self.services.cloud.imagine_key().await {
+            Ok(Some(account)) => {
+                if local.as_deref() != Some(account.as_str()) {
+                    let (inner, value) = (self.clone(), account.clone());
+                    let saved = tokio::task::spawn_blocking(move || {
+                        inner.secrets().write(KEY_NAME, &value)
+                    })
+                    .await
+                    .unwrap_or(false);
+                    *lock(&self.unsaved) = !saved;
+                }
+                Some(account)
+            }
+            Ok(None) => {
+                // shortcut: a key removed on another device comes back from one
+                // that still holds it; a per-key "removed" marker would stop that.
+                if let Some(local) = &local {
+                    self.push_key(Some(local.clone()));
+                }
+                local
+            }
+            // Offline or the API is down: this device's copy still works.
+            Err(error) => {
+                tracing::warn!(%error, "[Imagine] account key unavailable");
+                local
+            }
+        };
+        *lock(&self.key) = key.clone();
+        key
+    }
+
+    /// Saves (or forgets) the key on the account, in the background.
+    fn push_key(self: &Arc<Self>, key: Option<String>) {
+        let cloud = self.services.cloud.clone();
+        tokio::spawn(async move {
+            if let Err(error) = cloud.set_imagine_key(key.as_deref()).await {
+                tracing::warn!(%error, "[Imagine] could not sync the key to the account");
+            }
+        });
     }
 
     async fn snapshot(self: &Arc<Self>) -> Result<ImagineAnswer, String> {
@@ -111,7 +150,8 @@ impl Inner {
             .await
             .unwrap_or(false);
         *lock(&self.unsaved) = !saved;
-        *lock(&self.key) = Some(key);
+        *lock(&self.key) = Some(key.clone());
+        self.push_key(Some(key));
         self.snapshot().await
     }
 
@@ -120,6 +160,8 @@ impl Inner {
         *lock(&self.unsaved) = false;
         let inner = self.clone();
         let _ = tokio::task::spawn_blocking(move || inner.secrets().clear(KEY_NAME)).await;
+        // One account: disconnecting here disconnects every device.
+        self.push_key(None);
         self.snapshot().await
     }
 
