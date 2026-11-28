@@ -1,5 +1,32 @@
 [
   {
+    "date": "2026-11-28",
+    "highlights": [
+      {
+        "body": "Connect your OpenAI key once and Imagine is ready on every computer you sign in to Kairo on.",
+        "icon": "cloud",
+        "title": "Imagine follows you"
+      },
+      {
+        "body": "Open the Media panel from Engage, Web, Prompter, Imagine and the Theme Editor too.",
+        "icon": "media",
+        "title": "Media on every page"
+      },
+      {
+        "body": "New activation keys look like KAIRO-7F3K-Q9PX-…, so they are easy to read out and type. Existing keys keep working.",
+        "icon": "tip",
+        "title": "Readable activation keys"
+      }
+    ],
+    "notes": [
+      "Imagine remembers your OpenAI key on your Kairo account, so it is ready on every computer you sign in on. Disconnecting removes it everywhere.",
+      "The Media panel now opens on every page, including Engage, Web, Prompter, Imagine and the Theme Editor.",
+      "New activation keys are easier to read and type, like KAIRO-7F3K-Q9PX-M2TD-WC8H-4RNB-ZJ61. Existing keys keep working."
+    ],
+    "title": "Imagine on every computer, and Media everywhere",
+    "version": "2.1.1"
+  },
+  {
     "date": "2026-11-27",
     "highlights": [
       {
