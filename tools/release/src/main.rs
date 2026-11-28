@@ -3,7 +3,8 @@
 //!
 //!   kairo-release prepare <patch|minor|major|X.Y.Z> [--skip-changelog]
 //!       The local release, as `scripts/release.mjs`: checks, bump, commit,
-//!       tag, push, then starts `.github/workflows/release-native.yml`.
+//!       tag, push. Pushing the tag starts `.github/workflows/release-native.yml`;
+//!       `--skip-changelog` rides in the tag message as `[skip changelog]`.
 //!   kairo-release check-tag --tag vX.Y.Z [--allow-test] [--electron-latest vA.B.C] [--skip-changelog]
 //!       Tag, workspace version, version sequence and changelog. Prints the version.
 //!   kairo-release decklink
@@ -23,6 +24,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 
 const WORKFLOW: &str = "release-native.yml";
+/// In a tag's message: an internal release with no What's New entry.
+const SKIP_MARKER: &str = "[skip changelog]";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -360,27 +363,24 @@ fn prepare(opts: &Opts) -> Result<(), String> {
         run("cargo", &["update", "--workspace", "--offline"])?;
         run("git", &["add", "Cargo.toml", "Cargo.lock"])?;
         run("git", &["commit", "-m", &format!("Release v{next}")])?;
-        run(
-            "git",
-            &["tag", "-a", &tag, "-m", &format!("Release v{next}")],
-        )
+        // The release workflow starts from the tag push and reads this marker.
+        let message = if skip_changelog {
+            format!("Release v{next} {SKIP_MARKER}")
+        } else {
+            format!("Release v{next}")
+        };
+        run("git", &["tag", "-a", &tag, "-m", &message])
     })();
     if let Err(e) = bumped {
         let _ = run("git", &["checkout", "--", "Cargo.toml", "Cargo.lock"]);
         return Err(format!("{e}. The version bump was undone."));
     }
 
-    // 6. Push the commit, then the tag, then start the release build.
+    // 6. Push the commit, then the tag. The tag push starts the release
+    // build; starting it here too would build the release twice.
     println!("\n→ Pushing");
     run("git", &["push", "-u", "origin", &branch])?;
     run("git", &["push", "origin", &tag])?;
-    let mut workflow = vec!["workflow", "run", WORKFLOW, "--ref", tag.as_str(), "-f"];
-    let tag_field = format!("release_tag={tag}");
-    workflow.push(&tag_field);
-    if skip_changelog {
-        workflow.extend(["-f", "skip_changelog=true"]);
-    }
-    run("gh", &workflow)?;
     println!(
         "\n✓ v{next} is building. Progress: gh run list --workflow {WORKFLOW}\n  Draft: https://github.com/{RELEASE_REPO}/releases (drafts are visible to maintainers only)\n"
     );

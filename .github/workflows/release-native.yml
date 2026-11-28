@@ -87,6 +87,7 @@ jobs:
     outputs:
       version: ${{ steps.check.outputs.version }}
       test: ${{ steps.check.outputs.test }}
+      skip_changelog: ${{ steps.check.outputs.skip_changelog }}
       release_tag: ${{ steps.validate.outputs.release_tag }}
       target_repo: ${{ steps.validate.outputs.target_repo }}
     steps:
@@ -143,6 +144,14 @@ jobs:
           RELEASE_TAG: ${{ steps.validate.outputs.release_tag }}
           SKIP_CHANGELOG: ${{ inputs.skip_changelog || false }}
         run: |
+          # A tag push has no inputs: `kairo-release prepare --skip-changelog`
+          # marks the tag message instead.
+          if [ "$SKIP_CHANGELOG" != true ] && [ "${{ github.event_name }}" = push ]; then
+            sha="$(gh api "repos/${{ github.repository }}/git/ref/tags/$RELEASE_TAG" --jq .object.sha)"
+            gh api "repos/${{ github.repository }}/git/tags/$sha" --jq .message 2>/dev/null |
+              grep -qF '[skip changelog]' && SKIP_CHANGELOG=true
+          fi
+          echo "skip_changelog=$SKIP_CHANGELOG" >> "$GITHUB_OUTPUT"
           # The release repository is public; the latest release is Electron's
           # until cutover. Native versions must sort above it (DECISIONS 104).
           electron="$(gh api repos/CodeLawd/kairo-presenter/releases/latest --jq .tag_name)"
@@ -282,7 +291,7 @@ jobs:
 
       - name: Release notes
         env:
-          INTERNAL: ${{ inputs.skip_changelog || needs.prepare.outputs.test == 'true' }}
+          INTERNAL: ${{ needs.prepare.outputs.skip_changelog == 'true' || needs.prepare.outputs.test == 'true' }}
         run: |
           args=(notes --version "$VERSION")
           [ "$INTERNAL" = true ] && args+=(--internal)
