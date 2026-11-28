@@ -178,6 +178,8 @@ pub struct Teleprompter {
     busy: bool,
     error: Option<String>,
     focus: FocusHandle,
+    /// The media dock under the page (as Bible and Lyrics draw it).
+    media_dock: Option<AnyView>,
     active: bool,
     draft_save: Option<Task<()>>,
     _poll: Task<()>,
@@ -185,6 +187,12 @@ pub struct Teleprompter {
 }
 
 impl Teleprompter {
+    /// The media dock, drawn under the page and beside its right panel.
+    pub fn set_dock(&mut self, dock: Option<AnyView>, cx: &mut Context<Self>) {
+        self.media_dock = dock;
+        cx.notify();
+    }
+
     pub fn new(
         backend: Arc<dyn Backend>,
         state: Arc<dyn crate::UiState>,
@@ -296,6 +304,7 @@ impl Teleprompter {
             busy: false,
             error: None,
             focus: cx.focus_handle(),
+            media_dock: None,
             active: false,
             draft_save: None,
             _poll: cx.spawn_in(window, async move |entity, cx| {
@@ -955,8 +964,21 @@ impl Render for Teleprompter {
             .size_full()
             .min_h_0()
             .bg(k.surface)
-            .child(self.library(window, cx))
-            .child(v_flex().flex_1().min_w_0().h_full().child(self.editor(cx)))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .child(
+                        h_flex()
+                            .flex_1()
+                            .w_full()
+                            .min_h_0()
+                            .child(self.library(window, cx))
+                            .child(v_flex().flex_1().min_w_0().h_full().child(self.editor(cx))),
+                    )
+                    .children(self.media_dock.clone()),
+            )
             .child(self.live(cx))
     }
 }

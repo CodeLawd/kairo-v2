@@ -637,10 +637,12 @@ fn open_operator_window(
             shell.set_workspace(ui_shell::Route::Imagine, imagine_page.into(), cx)
         });
         let audience_page = audience::install(audience_backend, &workspace, window, cx);
+        audience_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Audience, audience_page.into(), cx)
         });
         let web_page = web::install(web_backend, &workspace, &shell, window, cx);
+        web_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Web, web_page.into(), cx)
         });
@@ -650,6 +652,7 @@ fn open_operator_window(
             window,
             cx,
         );
+        teleprompter.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
         let teleprompter_view = teleprompter.downgrade();
         cx.observe(&shell, move |shell, cx| {
             let shell = shell.read(cx);
@@ -662,6 +665,7 @@ fn open_operator_window(
         });
         let theme_picker = cx.new(|cx| ui_theme::ThemePicker::new(theme_backend.clone(), cx));
         let theme_page = theme::install(theme_backend, window, cx);
+        theme_page.update(cx, |p, cx| p.set_dock(Some(media_dock.clone().into()), cx));
         shell.update(cx, |shell, cx| {
             shell.set_workspace(ui_shell::Route::Theme, theme_page.into(), cx);
             let picker = theme_picker.clone();

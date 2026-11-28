@@ -81,6 +81,8 @@ pub struct ThemeEditor {
     pub(crate) settings: AppSettings,
     in_flight: usize,
     pub(crate) focus: FocusHandle,
+    /// The media dock under the page (as Bible and Lyrics draw it).
+    pub(crate) media_dock: Option<gpui_kit::AnyView>,
     pub(crate) name_input: Entity<InputState>,
     pub(crate) kind: OverlayContentKind,
     pub(crate) selected_id: Option<String>,
@@ -206,6 +208,7 @@ impl ThemeEditor {
             pen: None,
             thumbs: RefCell::default(),
             inspector: None,
+            media_dock: None,
             _feed: feed,
             _listening: listening,
             _subscriptions: subscriptions,
@@ -222,6 +225,12 @@ impl ThemeEditor {
     }
 
     // ─── What other panels read and drive ──────────────────────────────────
+
+    /// The media dock, drawn under the page and beside its right panel.
+    pub fn set_dock(&mut self, dock: Option<AnyView>, cx: &mut Context<Self>) {
+        self.media_dock = dock;
+        cx.notify();
+    }
 
     pub fn set_inspector(&mut self, inspector: Option<AnyView>, cx: &mut Context<Self>) {
         self.inspector = inspector;

@@ -239,6 +239,8 @@ pub struct AudiencePage {
     errors: HashMap<String, String>,
     focus: FocusHandle,
     rail: Option<AnyView>,
+    /// The media dock under the page (as Bible and Lyrics draw it).
+    media_dock: Option<AnyView>,
     // Sidebar.
     adding_slido: bool,
     slido_code: Entity<InputState>,
@@ -462,6 +464,7 @@ impl AudiencePage {
             errors: HashMap::new(),
             focus: cx.focus_handle(),
             rail: None,
+            media_dock: None,
             adding_slido: false,
             slido_code,
             slido_skip: false,
@@ -511,6 +514,12 @@ impl AudiencePage {
         page.get_state(cx);
         page.refresh_list(cx);
         page
+    }
+
+    /// The media dock, drawn under the page and beside its right panel.
+    pub fn set_dock(&mut self, dock: Option<AnyView>, cx: &mut Context<Self>) {
+        self.media_dock = dock;
+        cx.notify();
     }
 
     pub fn set_rail(&mut self, rail: Option<AnyView>, cx: &mut Context<Self>) {
@@ -4842,14 +4851,10 @@ impl Render for AudiencePage {
             None => None,
         };
         let error = self.errors.get("page").cloned();
-        h_flex()
-            .id(ids::ROOT)
-            .test_support()
-            .track_focus(&self.focus)
-            .relative()
-            .size_full()
+        let page = h_flex()
+            .flex_1()
+            .w_full()
             .min_h_0()
-            .bg(k.surface)
             .child(sidebar)
             .child(kairo_ui_kit::components::page_sidebar::handle(
                 "engage-sidebar-handle",
@@ -4887,6 +4892,22 @@ impl Render for AudiencePage {
                             .child(tabs),
                     )
                     .child(middle),
+            );
+        h_flex()
+            .id(ids::ROOT)
+            .test_support()
+            .track_focus(&self.focus)
+            .relative()
+            .size_full()
+            .min_h_0()
+            .bg(k.surface)
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .child(page)
+                    .children(self.media_dock.clone()),
             )
             .children(self.rail.clone())
             .children(dialog)

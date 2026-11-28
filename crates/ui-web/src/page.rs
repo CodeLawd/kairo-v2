@@ -362,6 +362,8 @@ pub struct WebPage {
     area: Rc<Cell<Bounds<Pixels>>>,
     zoom: f64,
     rail: Option<AnyView>,
+    /// The media dock under the page (as Bible and Lyrics draw it).
+    media_dock: Option<AnyView>,
     _feed: Task<()>,
     _preview_feed: Option<Task<()>>,
     _listening: Listening,
@@ -434,6 +436,7 @@ impl WebPage {
             area: Rc::default(),
             zoom: 0.0,
             rail: None,
+            media_dock: None,
             _feed: feed,
             _preview_feed: None,
             _listening: listening,
@@ -445,6 +448,12 @@ impl WebPage {
             page.show_address(window, cx);
         }
         page
+    }
+
+    /// The media dock, drawn under the page and beside its right panel.
+    pub fn set_dock(&mut self, dock: Option<AnyView>, cx: &mut Context<Self>) {
+        self.media_dock = dock;
+        cx.notify();
     }
 
     pub fn set_rail(&mut self, rail: Option<AnyView>, cx: &mut Context<Self>) {
@@ -1289,13 +1298,10 @@ impl Render for WebPage {
         let bar = self.render_bar(cx);
         let preview = self.render_preview(cx);
         let controls = self.render_controls(cx);
-        h_flex()
-            .id(ids::ROOT)
-            .test_support()
-            .track_focus(&self.focus)
-            .size_full()
+        let page = h_flex()
+            .flex_1()
+            .w_full()
             .min_h_0()
-            .bg(k.surface)
             .child(bookmarks)
             .child(kairo_ui_kit::components::page_sidebar::handle(
                 "web-sidebar-handle",
@@ -1322,6 +1328,21 @@ impl Render for WebPage {
                     }))
                     .child(preview)
                     .child(controls),
+            );
+        h_flex()
+            .id(ids::ROOT)
+            .test_support()
+            .track_focus(&self.focus)
+            .size_full()
+            .min_h_0()
+            .bg(k.surface)
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .child(page)
+                    .children(self.media_dock.clone()),
             )
             .children(self.rail.clone())
     }

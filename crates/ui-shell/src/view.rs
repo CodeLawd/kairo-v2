@@ -1669,7 +1669,14 @@ impl Shell {
         if let Some(view) = self.workspaces.get(&route) {
             let hosts_dock = matches!(
                 route,
-                Route::Operator | Route::Scripture | Route::Lyrics | Route::Documents
+                Route::Operator
+                    | Route::Scripture
+                    | Route::Lyrics
+                    | Route::Documents
+                    | Route::Audience
+                    | Route::Web
+                    | Route::Teleprompter
+                    | Route::Theme
             );
             return match self.media_dock.clone().filter(|_| !hosts_dock) {
                 Some(dock) => v_flex()

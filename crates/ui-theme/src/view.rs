@@ -358,13 +358,27 @@ impl Render for ThemeEditor {
                     }
                 }
             }))
-            .child(self.render_library(cx))
-            .child(kairo_ui_kit::components::page_sidebar::handle(
-                "theme-sidebar-resize",
-                None,
-                cx,
-            ))
-            .child(self.render_main(window, cx))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .h_full()
+                    .child(
+                        h_flex()
+                            .flex_1()
+                            .w_full()
+                            .min_h_0()
+                            .items_stretch()
+                            .child(self.render_library(cx))
+                            .child(kairo_ui_kit::components::page_sidebar::handle(
+                                "theme-sidebar-resize",
+                                None,
+                                cx,
+                            ))
+                            .child(self.render_main(window, cx)),
+                    )
+                    .children(self.media_dock.clone()),
+            )
             .child(self.render_aside(cx))
     }
 }

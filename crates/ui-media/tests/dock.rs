@@ -1060,7 +1060,16 @@ fn keys_pick_all_clear_and_remove_from_the_playlist(cx: &mut TestAppContext) {
     assert!(before.len() >= 2, "{before:?}");
     // A click in the dock gives it the keys.
     click(cx, &o, &ids::card(&before[0]));
-    press(cx, &o, "cmd-a");
+    // ⌘A on macOS, Ctrl+A elsewhere.
+    press(
+        cx,
+        &o,
+        if cfg!(target_os = "macos") {
+            "cmd-a"
+        } else {
+            "ctrl-a"
+        },
+    );
     assert_eq!(
         read(cx, &o, |m| m.picked_count()),
         before.len(),
